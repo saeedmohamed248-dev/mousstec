@@ -418,3 +418,61 @@ class PrintMarketFlowTests(_TenantDomainMixin, TestCase):
         self.assertEqual(transfer_fee(Decimal('100000'), 'instapay'), Decimal('20.00'))
         self.assertEqual(transfer_fee(Decimal('100'), 'instapay'), Decimal('0.50'))
         self.assertEqual(transfer_fee(Decimal('5000'), 'vodafone_cash'), Decimal('50.00'))
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class PrintMarketIsolationTests(_TenantDomainMixin, TestCase):
+    """🔒 سوق المطابع مفصول عن حسابات السيستم:
+    * صاحب شركة (superuser جوه سكيمة شركته) مايشوفش ملفات/إيصالات السوق — صاحب المنصة (public) بس.
+    * دخول السيستم (Django) مابيدّيش حساب في السوق، ودخول السوق مابيدّيش دخول للسيستم.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.shop = MarketAccount(role='shop', name='مطبعة', email='iso-shop@x.com', city='القاهرة')
+        self.cust = MarketAccount(role='customer', name='عميل', email='iso-cust@x.com')
+        for a in (self.shop, self.cust):
+            a.set_password(PW)
+            a.save()
+        self.order = MarketOrder.objects.create(customer=self.cust, shop=self.shop, title='كروت', details='x',
+                                                quantity=1, status='awaiting_payment')
+        from print_market.models import MarketOffer
+        MarketOffer.objects.create(order=self.order, price=Decimal('100'), status='accepted')
+        self.media = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.media, ignore_errors=True)
+        with override_settings(MEDIA_ROOT=self.media):
+            self.pay = MarketPayment.submit(self.order, self.cust, 'instapay', 'T1', _png())
+
+    def test_company_owner_superuser_cannot_read_market_receipts(self):
+        from unittest import mock
+
+        from print_market import views
+        from django.test import RequestFactory
+        owner = User.objects.create(username='company_owner_iso', is_superuser=True, is_staff=True)
+        req = RequestFactory().get('/')
+        req.user = owner
+        req.COOKIES = {}
+        from django.http import Http404
+        with override_settings(MEDIA_ROOT=self.media):
+            # على دومين شركة (schema مش public) ⇒ ممنوع
+            with mock.patch('clients.permissions.connection') as conn:
+                conn.schema_name = 'some_company'
+                with self.assertRaises(Http404):
+                    views.private_file(req, 'receipt', self.pay.pk)
+            # صاحب المنصة على public ⇒ مسموح
+            self.assertEqual(views.private_file(req, 'receipt', self.pay.pk).status_code, 200)
+
+    def test_django_login_is_not_a_market_login_and_vice_versa(self):
+        c = Client()
+        c.force_login(User.objects.create(username='staff_iso', email='iso-cust@x.com', is_staff=True))
+        # نفس الإيميل في السيستم مايدخلش السوق
+        self.assertEqual(c.get(reverse('print_market:my_orders')).status_code, 302)
+        m = Client()
+        r = m.post(reverse('print_market:login'), {'email': 'iso-cust@x.com', 'password': PW})
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('pm_session', m.cookies)
+        self.assertNotIn('sessionid', m.cookies)   # مفيش جلسة Django
+        self.assertEqual(m.get(reverse('print_market:my_orders')).status_code, 200)
+        # ومايقدرش يفتح السوبر أدمن ولا أدمن المنصة
+        self.assertNotEqual(m.get('/superadmin/live/').status_code, 200)
+        self.assertNotEqual(m.get('/secure-portal/').status_code, 200)

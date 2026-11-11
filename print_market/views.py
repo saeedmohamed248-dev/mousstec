@@ -597,8 +597,10 @@ def private_file(request, kind, pk):
     obj = get_object_or_404(model, pk=pk)
     order = order_of(obj)
     acc = auth.current_account(request)
-    user = getattr(request, 'user', None)
-    is_owner = bool(user and user.is_authenticated and user.is_superuser)
+    # 🐛 [FIX — تسريب]: صاحب كل شركة بيبقى superuser جوه سكيمة شركته، وصفحات السوق شغالة على دومين
+    #    أي شركة — فكان يقدر يفتح إيصالات دفع وبروفات عملاء السوق. صاحب المنصة (public) بس.
+    from clients.permissions import is_platform_owner
+    is_owner = is_platform_owner(getattr(request, 'user', None))
     allowed = {order.customer_id} if kind == 'receipt' else {order.customer_id, order.shop_id}
     if not (is_owner or (acc and acc.pk in allowed)):
         raise Http404
