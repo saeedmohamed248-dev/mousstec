@@ -391,6 +391,7 @@ function renderServices() {
 }
 
 // ------ Totals (estimate matches SaleInvoice.update_total logic)
+let lastTotal = 0;  // الإجمالي كرقم — المعروض في t-total متنسّق بفواصل (1,450.00)
 function recomputeTotals() {
   const tParts = [...state.parts.values()].reduce((s, i) => s + i.price * i.qty, 0);
   const tSvc = state.services.reduce((s, i) => s + i.price, 0);
@@ -406,6 +407,7 @@ function recomputeTotals() {
   $('t-svc').textContent = fmtMoney(tSvc);
   $('t-tax').textContent = fmtMoney(tax);
   $('t-total').textContent = fmtMoney(total);
+  lastTotal = total;
   $('due-display').value = Math.max(0, total - paid).toFixed(2);
 }
 // 🐛 [FIX]: «دفع كامل» كان بيملأ المبلغ والخزنة فاضية («آجل») — فالأمر
@@ -416,7 +418,9 @@ function onlyTreasury() {
   return opts.length === 1 ? opts[0].value : '';
 }
 function payFull() {
-  $('paid').value = $('t-total').textContent;
+  // 🐛 [FIX]: كان بياخد النص المعروض «1,450.00» — خانة المبلغ (number) بترفض الفاصلة وتفضل فاضية،
+  //    فأي أمر شغل بألف أو أكتر «دفع كامل» مابيعملش حاجة ويتحفظ آجل. دلوقتي بياخد الرقم نفسه.
+  $('paid').value = lastTotal.toFixed(2);
   if (!$('treasury').value) $('treasury').value = onlyTreasury();
   recomputeTotals();
 }
