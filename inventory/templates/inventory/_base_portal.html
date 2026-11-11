@@ -22,8 +22,8 @@
   /* 🐛 [FIX]: الحقول بـ flex-1 ليها min-width تلقائي (عرض الـ placeholder) فبتزق الزرار اللي جنبها
      برّا شاشة الموبايل وتعمل سكرول بالعرض — نخليها تنكمش زي أي عنصر flex. */
   input.flex-1, select.flex-1, textarea.flex-1 { min-width:0; }
-  /* شبكات الكروت والأزرار ماتعديش عرض الشاشة على الموبايل */
-  @media (max-width: 640px) { main { overflow-wrap:anywhere; } main img, main video { max-width:100%; height:auto; } }
+  /* شبكات الكروت ماتعديش عرض الشاشة على الموبايل — والجداول مستثناة: بتتسحب جوه حاويتها والأرقام ماتتكسرش */
+  @media (max-width: 640px) { main { overflow-wrap:anywhere; } main table { overflow-wrap:normal; } main img, main video { max-width:100%; height:auto; } }
 </style>
 <script>
   // 🔢 عرض الفلوس زي الأنظمة العالمية: 1,848,400.00 — للعرض بس (قيم الحقول تفضل رقم عادي)
