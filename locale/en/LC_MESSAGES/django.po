@@ -25738,3 +25738,691 @@ msgid "للشركات"
 msgstr "for companies"
 
 # 🖨️ print_market
+
+msgid "اطلب طباعتك من أحسن المطابع — وادفع بأمان"
+msgstr "Order your printing from the best print shops — and pay safely"
+
+msgid "اختار منتج، المطبعة تبعتلك عرض، توافق على البروفة، وتستلم."
+msgstr ""
+"Pick a product, the print shop sends an offer, approve the proof, and "
+"receive."
+
+msgid "كل المحافظات"
+msgstr "All governorates"
+
+msgid "مفيش منتجات لسه — لو عندك مطبعة سجّل ونزّل منتجاتك مجاناً."
+msgstr ""
+"No products yet — if you own a print shop, sign up and list your products "
+"for free."
+
+msgid "دوّر على منتج أو مطبعة…"
+msgstr "Search for a product or print shop…"
+
+msgid "نسيت كلمة السر"
+msgstr "Forgot password"
+
+msgid "ابعتلي لينك"
+msgstr "Send me a link"
+
+msgid "اطلب طلب خاص"
+msgstr "Request a custom order"
+
+msgid "المطبعة لسه مانزّلتش منتجات — تقدر تبعتلها طلب خاص."
+msgstr ""
+"This print shop hasn't listed products yet — you can send them a custom "
+"request."
+
+msgid "طلباتي"
+msgstr "My orders"
+
+msgid "اطلب حاجة جديدة"
+msgstr "Order something new"
+
+msgid "مفيش طلبات لسه — اختار منتج من السوق واطلب عرض سعر."
+msgstr "No orders yet — pick a product from the market and request a quote."
+
+msgid "يبدأ من"
+msgstr "Starting from"
+
+msgid "اطلب عرض سعر"
+msgstr "Request a quote"
+
+msgid "مفيش دفع دلوقتي — هتدفع بعد ما توافق على العرض."
+msgstr "No payment now — you pay after you accept the offer."
+
+msgid "ادخل على سوق المطابع"
+msgstr "Sign in to the Print Market"
+
+msgid "مالكش حساب؟"
+msgstr "Don't have an account?"
+
+msgid "مطبعتي"
+msgstr "My print shop"
+
+msgid "حط طريقة استلام فلوسك من"
+msgstr "Add your payout method in"
+
+msgid "عشان Mouss Tec تحوّلك بعد التسليم."
+msgstr "so Mouss Tec can pay you after delivery."
+
+msgid "شوف صفحتك زي العميل"
+msgstr "View your page as a customer"
+
+msgid "الطلبات الشغالة"
+msgstr "Active orders"
+
+msgid "مفيش طلبات لسه — نزّل منتجاتك والعملاء هيبعتولك."
+msgstr "No orders yet — list your products and customers will reach you."
+
+msgid "طلبات خلصت"
+msgstr "Finished orders"
+
+msgid "منتجاتي"
+msgstr "My products"
+
+msgid "ظاهر"
+msgstr "Visible"
+
+msgid "نزّل أول منتج — بياخد دقيقة."
+msgstr "List your first product — it takes a minute."
+
+msgid "طلب جديد"
+msgstr "New order"
+
+msgid "طلب عرض سعر من"
+msgstr "Request a quote from"
+
+msgid "ممنوع تكتب موبايل أو لينك أو واتساب — المطبعة هتردّ عليك هنا."
+msgstr ""
+"Phone numbers, links and WhatsApp are not allowed — the print shop will "
+"reply here."
+
+msgid "عاوز إيه؟"
+msgstr "What do you need?"
+
+msgid "التفاصيل (المقاس، الورق، الألوان، الميعاد…)"
+msgstr "Details (size, paper, colors, deadline…)"
+
+msgid "ملف التصميم أو صورة (اختياري)"
+msgstr "Design file or image (optional)"
+
+msgid "ابعت الطلب"
+msgstr "Send request"
+
+msgid "حساب جديد"
+msgstr "New account"
+
+msgid "أنا عميل"
+msgstr "I'm a customer"
+
+msgid "عندي مطبعة"
+msgstr "I own a print shop"
+
+msgid "سجّل مطبعتك مجاناً"
+msgstr "Register your print shop for free"
+
+msgid "اعمل حسابك في ثانية"
+msgstr "Create your account in seconds"
+
+msgid "الحساب مجاني — نزّل منتجاتك، قدّم عروض، وابعت بروفات للعملاء."
+msgstr ""
+"Free account — list products, send offers, and send proofs to customers."
+
+msgid "اسم المطبعة"
+msgstr "Print shop name"
+
+msgid "عندك حساب؟"
+msgstr "Have an account?"
+
+msgid "ادخل"
+msgstr "Sign in"
+
+msgid "المطبعة"
+msgstr "Print shop"
+
+msgid "الملف المرفق"
+msgstr "Attached file"
+
+msgid "عرض السعر"
+msgstr "Price offer"
+
+msgid "التنفيذ في"
+msgstr "Delivery in"
+
+msgid "رافض"
+msgstr "Reject"
+
+msgid "مستني رد العميل…"
+msgstr "Waiting for the customer's reply…"
+
+msgid "قدّم عرضك للعميل:"
+msgstr "Send your offer to the customer:"
+
+msgid "مستني المطبعة تبعت العرض…"
+msgstr "Waiting for the print shop's offer…"
+
+msgid "ابعت عرض جديد بدل القديم"
+msgstr "Send a new offer replacing the old one"
+
+msgid "ابعت العرض"
+msgstr "Send offer"
+
+msgid ""
+"حوّل لـ Mouss Tec بس — المطبعة بتاخد فلوسها مننا بعد ما تستلم. مفيش عمولة، "
+"بتدفع رسوم التحويل بس."
+msgstr ""
+"Pay Mouss Tec only — the print shop gets paid by us after you receive. No "
+"commission, you only pay the transfer fee."
+
+msgid "رسوم التحويل"
+msgstr "Transfer fee"
+
+msgid "حوّل على"
+msgstr "Transfer to"
+
+msgid "افتح إنستاباي"
+msgstr "Open InstaPay"
+
+msgid "حوّل على محفظة"
+msgstr "Transfer to wallet"
+
+msgid "حوّلت بإيه؟"
+msgstr "How did you pay?"
+
+msgid "صورة الإيصال"
+msgstr "Receipt image"
+
+msgid "ابعت الإيصال"
+msgstr "Send receipt"
+
+msgid "مستني العميل يدفع لـ Mouss Tec…"
+msgstr "Waiting for the customer to pay Mouss Tec…"
+
+msgid "الإيصال"
+msgstr "Receipt"
+
+msgid "الفلوس عند Mouss Tec في أمان — المطبعة شغالة."
+msgstr "Your money is safe with Mouss Tec — the print shop is working."
+
+msgid "صورة أو PDF أو فيديو (لحد ٥٠ ميجا)"
+msgstr "Image, PDF or video (up to 50 MB)"
+
+msgid "ابعت البروفة للعميل"
+msgstr "Send proof to customer"
+
+msgid "افتح الـ PDF"
+msgstr "Open PDF"
+
+msgid "موافق"
+msgstr "Approve"
+
+msgid "عاوز تعديل"
+msgstr "Request changes"
+
+msgid "مفيش بروفات لسه."
+msgstr "No proofs yet."
+
+msgid "سلّمت الطلب"
+msgstr "I delivered the order"
+
+msgid "استلمت الطلب"
+msgstr "I received the order"
+
+msgid "متأكد إنك عاوز تلغي الطلب؟"
+msgstr "Are you sure you want to cancel the order?"
+
+msgid "الرسائل"
+msgstr "Messages"
+
+msgid ""
+"ممنوع أرقام موبايل أو لينكات أو واتساب — أي اتفاق برّه المنصة مش مضمون."
+msgstr ""
+"No phone numbers, links or WhatsApp — any deal outside the platform isn't "
+"guaranteed."
+
+msgid "مفيش رسائل لسه."
+msgstr "No messages yet."
+
+msgid "مدة التنفيذ (أيام)"
+msgstr "Delivery time (days)"
+
+msgid "رقم العملية أو اسم اللي حوّل"
+msgstr "Transaction number or sender name"
+
+msgid "ملاحظات للعميل (اختياري)"
+msgstr "Notes for the customer (optional)"
+
+msgid "لو عاوز تعديل اكتبه هنا"
+msgstr "If you need changes, write them here"
+
+msgid "اكتب رسالتك…"
+msgstr "Write your message…"
+
+msgid "سوق المطابع"
+msgstr "Print Market"
+
+msgid ""
+"الدفع لـ Mouss Tec بس، والتواصل من جوه المنصة بس — عشان فلوسك وطلبك يبقوا في"
+" أمان."
+msgstr ""
+"Payment to Mouss Tec only, and communication inside the platform only — to "
+"keep your money and order safe."
+
+msgid "نبذة عن المطبعة"
+msgstr "About the print shop"
+
+msgid "استلام فلوسك"
+msgstr "Receiving your money"
+
+msgid "بيشوفها Mouss Tec بس — مابتظهرش للعملاء."
+msgstr "Only Mouss Tec sees this — never shown to customers."
+
+msgid "رقم المحفظة أو عنوان إنستاباي"
+msgstr "Wallet number or InstaPay address"
+
+msgid "تعديل منتج"
+msgstr "Edit product"
+
+msgid "ممنوع تكتب موبايل أو لينك أو واتساب — العميل بيكلّمك من جوه المنصة."
+msgstr ""
+"Phone numbers, links and WhatsApp are not allowed — customers contact you "
+"inside the platform."
+
+msgid "اسم المنتج"
+msgstr "Product name"
+
+msgid "السعر يبدأ من (اختياري)"
+msgstr "Starting price (optional)"
+
+msgid "الوحدة"
+msgstr "Unit"
+
+msgid "ظاهر في السوق"
+msgstr "Visible in the market"
+
+msgid "شيل المنتج"
+msgstr "Remove product"
+
+msgid "مثال: ١٠٠٠ كارت"
+msgstr "e.g. 1000 cards"
+
+msgid "أرقام الموبايل ممنوعة — كل التواصل من جوه المنصة."
+msgstr ""
+"Phone numbers are not allowed — all communication stays inside the platform."
+
+msgid "الإيميلات ممنوعة — كل التواصل من جوه المنصة."
+msgstr "Emails are not allowed — all communication stays inside the platform."
+
+msgid "اللينكات والحسابات الخارجية ممنوعة — كل التواصل من جوه المنصة."
+msgstr ""
+"Links and external accounts are not allowed — all communication stays inside"
+" the platform."
+
+msgid "ممنوع طلب التواصل أو الدفع برّه المنصة — الدفع لـ Mouss Tec بس."
+msgstr ""
+"Contact or payment outside the platform is not allowed — payment goes to "
+"Mouss Tec only."
+
+msgid "طريقة دفع غير صالحة."
+msgstr "Invalid payment method."
+
+msgid "مطبعة"
+msgstr "Print shop"
+
+msgid "طريقة استلام الفلوس"
+msgstr "Payout method"
+
+msgid "رقم/عنوان الاستلام"
+msgstr "Payout number/address"
+
+msgid "اقفله لو الحساب خالف القواعد."
+msgstr "Disable it if the account broke the rules."
+
+msgid "محاولات بعت وسيلة تواصل"
+msgstr "Attempts to send contact info"
+
+msgid "تاريخ التسجيل"
+msgstr "Signup date"
+
+msgid "حساب في سوق المطابع"
+msgstr "Print Market account"
+
+msgid "حسابات سوق المطابع"
+msgstr "Print Market accounts"
+
+msgid "كروت شخصية"
+msgstr "Business cards"
+
+msgid "فلايرز وبروشورات"
+msgstr "Flyers & brochures"
+
+msgid "بنرات ورول أب"
+msgstr "Banners & roll-ups"
+
+msgid "ستيكرز وليبل"
+msgstr "Stickers & labels"
+
+msgid "علب وتغليف"
+msgstr "Boxes & packaging"
+
+msgid "هدايا ومطبوعات دعائية"
+msgstr "Gifts & promotional prints"
+
+msgid "طباعة على الملابس"
+msgstr "Apparel printing"
+
+msgid "مطبوعات مكتبية"
+msgstr "Office stationery"
+
+msgid "السعر يبدأ من"
+msgstr "Starting price"
+
+msgid "منتج في سوق المطابع"
+msgstr "Print Market product"
+
+msgid "منتجات سوق المطابع"
+msgstr "Print Market products"
+
+msgid "مستني عرض المطبعة"
+msgstr "Waiting for the print shop's offer"
+
+msgid "وصل عرض — مستني ردّك"
+msgstr "Offer received — awaiting your reply"
+
+msgid "مستني الدفع"
+msgstr "Awaiting payment"
+
+msgid "بنراجع التحويل"
+msgstr "Reviewing the transfer"
+
+msgid "اتدفع — جاري التنفيذ"
+msgstr "Paid — in progress"
+
+msgid "اتسلّم — مستني تأكيد العميل"
+msgstr "Delivered — awaiting customer confirmation"
+
+msgid "ملف مرفق"
+msgstr "Attached file"
+
+msgid "اتحوّل للمطبعة في"
+msgstr "Paid out to print shop at"
+
+msgid "طلب في سوق المطابع"
+msgstr "Print Market order"
+
+msgid "طلبات سوق المطابع"
+msgstr "Print Market orders"
+
+msgid "مش مسموح."
+msgstr "Not allowed."
+
+msgid "الطلب ماينفعش يتلغي بعد الدفع — كلّم الدعم من المنصة."
+msgstr ""
+"The order can't be cancelled after payment — contact support from the "
+"platform."
+
+msgid "التسليم بيتسجّل بعد ما الدفع يتأكّد."
+msgstr "Delivery can be recorded only after payment is confirmed."
+
+msgid "آخر بروفة لسه العميل ماوافقش عليها."
+msgstr "The customer hasn't approved the latest proof yet."
+
+msgid "المطبعة لسه ماسجّلتش التسليم."
+msgstr "The print shop hasn't recorded delivery yet."
+
+msgid "مستني رد العميل"
+msgstr "Awaiting customer reply"
+
+msgid "السعر لازم يكون أكبر من صفر."
+msgstr "Price must be greater than zero."
+
+msgid "مدة التنفيذ لازم تكون من يوم لـ ٣٦٥ يوم."
+msgstr "Delivery time must be between 1 and 365 days."
+
+msgid "الطلب ده مابقاش مستني عروض."
+msgstr "This order is no longer accepting offers."
+
+msgid "العرض ده اترد عليه قبل كده."
+msgstr "This offer was already answered."
+
+msgid "بنراجعه"
+msgstr "Under review"
+
+msgid "اتأكّد"
+msgstr "Confirmed"
+
+msgid "رقم العملية / اسم المحوِّل"
+msgstr "Transaction number / sender name"
+
+msgid "ملاحظة المراجعة"
+msgstr "Review note"
+
+msgid "تاريخ الرفع"
+msgstr "Upload date"
+
+msgid "دفعة في سوق المطابع"
+msgstr "Print Market payment"
+
+msgid "مدفوعات سوق المطابع"
+msgstr "Print Market payments"
+
+msgid "الطلب ده مش مستني دفع."
+msgstr "This order isn't awaiting payment."
+
+msgid "مفيش عرض مقبول على الطلب."
+msgstr "No accepted offer on this order."
+
+msgid "الدفعة دي اتراجعت قبل كده."
+msgstr "This payment was already reviewed."
+
+msgid "تاريخ الرد"
+msgstr "Reply date"
+
+msgid "بروفة في سوق المطابع"
+msgstr "Print Market proof"
+
+msgid "بروفات سوق المطابع"
+msgstr "Print Market proofs"
+
+msgid "البروفة بتتبعت بعد ما العميل يقبل العرض ولحد التسليم."
+msgstr ""
+"Proofs can be sent after the customer accepts the offer and until delivery."
+
+msgid "اكتب التعديل اللي محتاجه عشان المطبعة تفهمك."
+msgstr "Write the change you need so the print shop understands you."
+
+msgid "رسالة في سوق المطابع"
+msgstr "Print Market message"
+
+msgid "رسائل سوق المطابع"
+msgstr "Print Market messages"
+
+msgid "نوع الملف ده مش مسموح."
+msgstr "This file type is not allowed."
+
+#, python-format
+msgid "الملف أكبر من المسموح (%(mb)s ميجا)."
+msgstr "The file is larger than allowed (%(mb)s MB)."
+
+msgid "محاولات كتير — جرّب كمان شوية."
+msgstr "Too many attempts — try again later."
+
+msgid "اكتب إيميل صحيح."
+msgstr "Enter a valid email."
+
+msgid "اكتب الاسم."
+msgstr "Enter the name."
+
+msgid "اختار محافظة المطبعة."
+msgstr "Choose the print shop's governorate."
+
+msgid "الإيميل ده متسجّل قبل كده — ادخل بيه."
+msgstr "This email is already registered — sign in with it."
+
+msgid "أهلاً بيك! حسابك اتعمل."
+msgstr "Welcome! Your account was created."
+
+msgid "محاولات كتير — جرّب كمان ربع ساعة."
+msgstr "Too many attempts — try again in 15 minutes."
+
+msgid "الحساب ده موقوف — كلّم دعم Mouss Tec."
+msgstr "This account is suspended — contact Mouss Tec support."
+
+msgid "الإيميل أو كلمة السر غلط."
+msgstr "Wrong email or password."
+
+msgid "اكتب اسم المنتج."
+msgstr "Enter the product name."
+
+msgid "السعر لازم يكون رقم."
+msgstr "Price must be a number."
+
+msgid "المنتج اتحفظ."
+msgstr "Product saved."
+
+msgid "المنتج اتشال من السوق."
+msgstr "Product removed from the market."
+
+msgid "كلمة السر الحالية غلط."
+msgstr "Current password is wrong."
+
+msgid "البيانات اتحفظت."
+msgstr "Saved."
+
+msgid "اكتب عنوان الطلب وتفاصيله."
+msgstr "Enter the order title and details."
+
+msgid "اكتب كمية صحيحة."
+msgstr "Enter a valid quantity."
+
+#, python-format
+msgid "وصلك طلب جديد: %(t)s — قدّم عرضك."
+msgstr "You got a new order: %(t)s — send your offer."
+
+msgid "طلبك اتبعت للمطبعة — هيوصلك العرض هنا."
+msgstr "Your request was sent to the print shop — the offer will arrive here."
+
+msgid "اكتب السعر والمدة أرقام."
+msgstr "Enter the price and duration as numbers."
+
+msgid "وصلك عرض سعر"
+msgstr "You got a price offer"
+
+#, python-format
+msgid "المطبعة بعتت عرض على طلبك «%(t)s»."
+msgstr "The print shop sent an offer on your order “%(t)s”."
+
+msgid "العرض اتبعت للعميل."
+msgstr "Offer sent to the customer."
+
+#, python-format
+msgid "العميل قبل عرضك على «%(t)s» — هيدفع لـ Mouss Tec."
+msgstr "The customer accepted your offer on “%(t)s” — they'll pay Mouss Tec."
+
+msgid "قبلت العرض — ادفع دلوقتي عشان المطبعة تبدأ."
+msgstr "You accepted the offer — pay now so the print shop can start."
+
+msgid "العميل رفض العرض"
+msgstr "The customer rejected the offer"
+
+#, python-format
+msgid "العميل رفض عرضك على «%(t)s» — ممكن تبعت عرض تاني."
+msgstr "The customer rejected your offer on “%(t)s” — you can send another."
+
+msgid "رفضت العرض — المطبعة تقدر تبعتلك عرض جديد."
+msgstr "You rejected the offer — the print shop can send a new one."
+
+msgid "اختار طريقة الدفع."
+msgstr "Choose the payment method."
+
+msgid "اكتب رقم العملية وارفع صورة الإيصال."
+msgstr "Enter the transaction number and upload the receipt image."
+
+msgid "استلمنا الإيصال — هنأكّده في أقرب وقت."
+msgstr "We received the receipt — we'll confirm it shortly."
+
+msgid "ارفع ملف البروفة (صورة أو PDF أو فيديو)."
+msgstr "Upload the proof file (image, PDF or video)."
+
+msgid "وصلتك بروفة"
+msgstr "You got a proof"
+
+#, python-format
+msgid "المطبعة بعتت بروفة على «%(t)s» — وافق أو اطلب تعديل."
+msgstr "The print shop sent a proof on “%(t)s” — approve or request changes."
+
+msgid "البروفة اتبعتت للعميل."
+msgstr "Proof sent to the customer."
+
+msgid "العميل وافق على البروفة"
+msgstr "The customer approved the proof"
+
+#, python-format
+msgid "العميل وافق على بروفة %(v)s في «%(t)s»."
+msgstr "The customer approved proof %(v)s on “%(t)s”."
+
+msgid "وافقت على البروفة."
+msgstr "You approved the proof."
+
+#, python-format
+msgid "العميل طلب تعديل على بروفة %(v)s في «%(t)s»."
+msgstr "The customer requested changes on proof %(v)s on “%(t)s”."
+
+msgid "طلب التعديل اتبعت للمطبعة."
+msgstr "Change request sent to the print shop."
+
+msgid "الطلب مقفول."
+msgstr "The order is closed."
+
+msgid "رسالة جديدة"
+msgstr "New message"
+
+#, python-format
+msgid "وصلتك رسالة على «%(t)s»."
+msgstr "You got a message on “%(t)s”."
+
+msgid "الطلب اتلغى"
+msgstr "Order cancelled"
+
+#, python-format
+msgid "الطلب «%(t)s» اتلغى."
+msgstr "The order “%(t)s” was cancelled."
+
+msgid "الطلب اتلغى."
+msgstr "Order cancelled."
+
+msgid "طلبك اتسلّم"
+msgstr "Your order was delivered"
+
+#, python-format
+msgid "المطبعة سجّلت تسليم «%(t)s» — أكّد إنك استلمت."
+msgstr ""
+"The print shop recorded delivery of “%(t)s” — confirm you received it."
+
+msgid "اتسجّل التسليم — مستنيين تأكيد العميل."
+msgstr "Delivery recorded — awaiting customer confirmation."
+
+msgid "العميل أكّد الاستلام"
+msgstr "The customer confirmed receipt"
+
+#, python-format
+msgid "العميل أكّد استلام «%(t)s» — Mouss Tec هتحوّلك المبلغ."
+msgstr "The customer confirmed receipt of “%(t)s” — Mouss Tec will pay you."
+
+msgid "شكراً! الطلب اكتمل."
+msgstr "Thanks! The order is complete."
+
+msgid "سوق المطابع — تغيير كلمة السر"
+msgstr "Print Market — change password"
+
+msgid "افتح اللينك ده عشان تغيّر كلمة السر (صالح ساعتين):"
+msgstr "Open this link to change your password (valid for two hours):"
+
+msgid "لو الإيميل متسجّل هيوصلك لينك تغيير كلمة السر."
+msgstr "If the email is registered, you'll receive a password reset link."
+
+msgid "اللينك ده انتهى أو مش صحيح — اطلب لينك جديد."
+msgstr "This link expired or is invalid — request a new one."
+
+msgid "كلمة السر اتغيّرت."
+msgstr "Password changed."
