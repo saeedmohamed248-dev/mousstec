@@ -302,7 +302,7 @@ class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
         """🛍️ ٣ نسخ لنفس المنتج ⇒ المتاجر بتتوزّع عليهم، والتوزيع ثابت، واللي اترفع بالإيد ماتلمسش."""
         import tempfile
         from clients.management.commands.generate_catalog_images import image_key, image_slots
-        from clients.management.commands.import_catalog_images import auto_variant, pick_variant
+        from clients.management.commands.import_catalog_images import assign_variants, auto_variant
         slots = {name[:4]: key for name, key, *_ in image_slots()}
         # كود موجود في متاجر كتير
         groups = {}
@@ -317,8 +317,9 @@ class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
         rest = [CatalogItem.objects.get(pk=i.pk) for i in items[:-1]]
         used = {auto_variant(i.image.name, code) for i in rest}
         self.assertGreater(len(used), 1)                       # مش كله نفس الصورة
+        slot = assign_variants([i.store.slug for i in items], code, 3)
         for i in rest:                                         # كل متجر واخد نسخته المحسوبة
-            self.assertEqual(auto_variant(i.image.name, code), pick_variant(i.store.slug, code, 3))
+            self.assertEqual(auto_variant(i.image.name, code), slot[i.store.slug])
         self.assertEqual(CatalogItem.objects.get(pk=mine.pk).image.name, 'catalog/mine.jpg')
         self.assertEqual(len(saved), len(used))                # كل نسخة اتحفظت مرة واحدة بس
         # تاني نشر بنفس الصور ⇒ ولا حاجة بتتغير ولا صورة جديدة بتتحفظ
@@ -330,7 +331,7 @@ class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
         """المتاجر اللي واخدة الصورة القديمة (نسخة ١) ⇒ بتتنقل لنسختها لما نسخ جديدة تتضاف."""
         import tempfile
         from clients.management.commands.generate_catalog_images import image_key, image_slots
-        from clients.management.commands.import_catalog_images import auto_variant, pick_variant
+        from clients.management.commands.import_catalog_images import assign_variants, auto_variant
         slots = {name[:4]: key for name, key, *_ in image_slots()}
         it = CatalogItem.objects.select_related('store').first()
         code = next(c for c, k in slots.items() if k == image_key(it))
@@ -338,13 +339,26 @@ class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
         for i in same:
             i.image.name = f'catalog/photos/{code}-old12345.webp'; i.save()
         self._variants_run(tempfile.mkdtemp(), code)
+        slot = assign_variants([i.store.slug for i in same], code, 3)
         for i in same:
             i.refresh_from_db()
-            want = pick_variant(i.store.slug, code, 3)
+            want = slot[i.store.slug]
             if want == 1:
                 self.assertEqual(i.image.name, f'catalog/photos/{code}-old12345.webp')
             else:
                 self.assertEqual(auto_variant(i.image.name, code), want)
+
+    def test_enough_variants_means_no_photo_repeats_across_stores(self):
+        """🛍️ لو النسخ ≥ عدد المتاجر ⇒ كل متجر صورته لوحده؛ ولو أقل ⇒ التوزيع بالدور (الفرق بينهم نسخة واحدة)."""
+        from collections import Counter
+        from clients.management.commands.import_catalog_images import assign_variants
+        slugs = [f'store-{i}' for i in range(19)]
+        slot = assign_variants(slugs + slugs[:5], 'a025', 19)        # متجر متكرر في الليستة ⇒ مرة واحدة
+        self.assertEqual(sorted(slot.values()), list(range(1, 20)))  # ولا نسخة متكررة
+        self.assertEqual(slot, assign_variants(list(reversed(slugs)), 'a025', 19))   # ثابت مهما كان الترتيب
+        few = Counter(assign_variants(slugs, 'a025', 4).values())
+        self.assertLessEqual(max(few.values()) - min(few.values()), 1)
+        self.assertEqual(set(assign_variants(slugs, 'a025', 1).values()), {1})
 
     def test_variant_name_parsing(self):
         from clients.management.commands.import_catalog_images import NAME_RE, auto_variant

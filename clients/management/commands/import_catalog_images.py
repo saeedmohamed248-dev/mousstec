@@ -33,9 +33,15 @@ NAME_RE = re.compile(r'^([pa]\d{3})(?:-(\d{1,2}))?(?=[-._]|$)')
 AUTO_RE = re.compile(r'^catalog/photos/([pa]\d{3})(?:v(\d{1,2}))?-')
 
 
-def pick_variant(store_slug, code, n):
-    """رقم النسخة (١..n) لمتجر معيّن — ثابت مع كل نشر، ومختلف بين المتاجر."""
-    return zlib.crc32(f'{store_slug}:{code}'.encode()) % n + 1 if n > 1 else 1
+def assign_variants(store_slugs, code, n):
+    """{slug: رقم النسخة ١..n} — ثابت مع كل نشر.
+
+    🐛 [FIX]: الأول كل متجر كان بياخد نسخة بالـ hash ⇒ متجرين ممكن ياخدوا نفس الصورة حتى لو النسخ كفاية.
+    دلوقتي المتاجر بتترتّب (ترتيب ثابت ومخلوط لكل كود) وبتاخد النسخ بالدور ⇒ لو النسخ ≥ عدد المتاجر،
+    كل متجر ليه صورة لوحده ومفيش ولا صورة متكررة في شركة تانية.
+    """
+    order = sorted(set(store_slugs), key=lambda s: (zlib.crc32(f'{s}:{code}'.encode()), s))
+    return {slug: i % n + 1 for i, slug in enumerate(order)} if n > 0 else {}
 
 
 def auto_variant(image_name, code):
@@ -102,6 +108,7 @@ class Command(BaseCommand):
             done = items = 0
             unknown, seen = [], set()
             files = {}   # الكود ⇒ {رقم النسخة: bytes}
+            short = {}   # الكود ⇒ كام نسخة ناقصة عشان كل متجر ياخد صورة لوحده
             for name, data in _iter_files(opts['path']):
                 m = NAME_RE.match(name.lower())
                 key = codes.get(m.group(1)) if m else None
@@ -114,8 +121,13 @@ class Command(BaseCommand):
                 versions = files[code]
                 order = sorted(versions)                 # النسخ بالترتيب ⇒ ١..n من غير فراغات
                 plan = {}                                # رقم النسخة ⇒ المنتجات اللي هتاخدها
-                for it in by_key.get(codes[code], []):
-                    want = pick_variant(it.store.slug, code, len(order))
+                items_of = by_key.get(codes[code], [])
+                slot = assign_variants([i.store.slug for i in items_of], code, len(order))
+                stores = len(slot)
+                if stores > len(order):
+                    short[code] = stores - len(order)
+                for it in items_of:
+                    want = slot[it.store.slug]
                     have = auto_variant(it.image.name, code) if it.image else None
                     # 🐛 [FIX]: الأول كانت كل المتاجر بتاخد نفس الصورة؛ دلوقتي الصورة الأوتوماتيك بتتبدّل
                     # لنسخة المتجر، واللي اترفعت بالإيد (have=None) ماتتلمسش إلا بـ --overwrite.
@@ -139,5 +151,10 @@ class Command(BaseCommand):
             self.stdout.write(f'صور: {done} · منتجات اتحدّثت: {items}')
             if unknown:
                 self.stdout.write(f'⚠️ ملفات اسمها مش معروف ({len(unknown)}): {", ".join(unknown[:15])}')
+            if short:
+                top = sorted(short.items(), key=lambda kv: -kv[1])
+                self.stdout.write(f'🛍️ صور متكررة بين المتاجر — محتاجين {sum(short.values())} نسخة كمان '
+                                  f'عشان كل متجر ياخد صورة لوحده: '
+                                  + ', '.join(f'{c}×{n}' for c, n in top[:30]))
             if missing:
                 self.stdout.write(f'ℹ️ لسه مالهاش صورة ({len(missing)}): {", ".join(missing[:30])}')
