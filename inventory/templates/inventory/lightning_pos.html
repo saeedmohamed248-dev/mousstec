@@ -77,6 +77,14 @@
         <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "خصم على الفاتورة" %}</label>
         <input id="discount" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 focus:border-sky-400">
       </div>
+      {# 🧑‍💼 البائع: بياخد عمولة المبيعات على الفاتورة دي (الافتراضي الموظف اللي فاتح الشاشة) #}
+      <div class="mb-3">
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "البائع (صاحب العمولة)" %}</label>
+        <select id="salesperson" class="w-full bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 text-sm focus:border-sky-400 focus:outline-none">
+          <option value="">{% trans "— بدون بائع —" %}</option>
+          {% for sp in salespeople %}<option value="{{ sp.id|stringformat:'d' }}" {% if sp.id == default_salesperson_id %}selected{% endif %}>{{ sp.name }}</option>{% endfor %}
+        </select>
+      </div>
       <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "طرق الدفع" %} <span class="text-slate-500 font-normal">{% trans "(تقدر تقسّم: جزء كاش + جزء انستا)" %}</span></label>
       <div id="pay-lines" class="space-y-2"></div>
       <div class="flex items-center gap-2 mt-2">
@@ -346,6 +354,7 @@ $('checkout').addEventListener('click', async () => {
     customer_name: $('cust-name').value, customer_phone: $('cust-phone').value,
     branch_id: branchPicker ? branchPicker.value : null,
     discount: $('discount').value || 0,
+    salesperson_id: $('salesperson').value || null,
     payments: payments,
     items: [...cart.values()].map(i => ({ product_id: i.id, qty: i.qty, price: i.price, discount: Math.max(0, Math.min(Number(i.disc) || 0, i.price * i.qty)) })) };
   try {

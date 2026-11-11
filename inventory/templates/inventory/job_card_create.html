@@ -157,6 +157,14 @@
         </div>
 
         <div class="grid grid-cols-2 gap-2 mt-3">
+          {# 🧑‍💼 البائع: بياخد عمولة المبيعات على قطع أمر الشغل (الافتراضي الموظف اللي فاتح الشاشة) #}
+          <div class="col-span-2">
+            <label class="lbl"><i class="fas fa-user-tag text-sky-300"></i> {% trans "البائع (صاحب العمولة)" %}</label>
+            <select id="salesperson" class="inp">
+              <option value="">{% trans "— بدون بائع —" %}</option>
+              {% for sp in salespeople %}<option value="{{ sp.id|stringformat:'d' }}" {% if sp.id == default_salesperson_id %}selected{% endif %}>{{ sp.name }}</option>{% endfor %}
+            </select>
+          </div>
           <div class="col-span-2">
             <label class="lbl"><i class="fas fa-cash-register text-sky-300"></i> {% trans "الخزنة (للسداد)" %}</label>
             <select id="treasury" class="inp">
@@ -454,6 +462,7 @@ async function saveJobCard() {
     mileage: $('veh-mileage').value,
     notes: $('inv-notes').value,
     discount: $('discount').value,
+    salesperson_id: $('salesperson').value || null,
     labor_cost_manual: $('labor-extra').value,
     tax_percentage: $('tax').value,
     treasury_id: $('treasury').value || null,

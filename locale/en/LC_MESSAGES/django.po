@@ -25721,3 +25721,12 @@ msgstr "Company sign-in"
 
 msgid "لسه مفيش عروض"
 msgstr "No offers yet"
+
+msgid "البائع (صاحب العمولة)"
+msgstr "Salesperson (earns the commission)"
+
+msgid "— بدون بائع —"
+msgstr "— No salesperson —"
+
+msgid "— بدون فني —"
+msgstr "— No technician —"
