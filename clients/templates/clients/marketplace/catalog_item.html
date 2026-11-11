@@ -52,7 +52,7 @@
     <div class="crumbs"><a href="/marketplace/catalog/{{ sector }}/">{{ meta.title }}</a> ‹ <a href="/marketplace/catalog/store/{{ store.slug }}/">{{ store.l_name }}</a></div>
     <div class="layout">
         <div>
-            <div class="pic" style="background:{{ store.color }};">{% if item.image %}<img src="{{ item.image.url }}" alt="{{ item.l_title }}">{% else %}<i class="fas {{ item.icon }}"></i>{% endif %}</div>
+            <div class="pic" style="background:{{ store.color }};">{% if item.image %}<img src="{{ item.image.url }}" draggable="false" alt="{{ item.l_title }}">{% else %}<i class="fas {{ item.icon }}"></i>{% endif %}</div>
             <div class="box" style="margin-top:12px;">
                 <h1>{{ item.l_title }}</h1>
                 <div class="meta">
