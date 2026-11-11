@@ -42,3 +42,25 @@ class NavRoleLinksTests(ERPTenantTestCase):
         html = self._dashboard(boss)
         for name in GATED + ('stock_transfer_list', 'serials'):
             self.assertIn(f'href="{reverse("inventory:" + name)}"', html, name)
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class PortalMessagesTests(ERPTenantTestCase):
+    """رسائل النظام (messages) لازم تظهر في البوابة — كانت بتضيع بعد التحويل للوحة التحكم."""
+
+    def setUp(self):
+        connection.set_tenant(self.tenant)
+        self.host = self.domain.domain
+        self.branch = make_branch()
+
+    def test_redirect_message_is_shown_on_dashboard(self):
+        # موظف من غير ملف HR يفتح صفحة الحضور ⇒ بيتحوّل للوحة التحكم ولازم يشوف السبب
+        user, _ = make_employee('msg_cashier', role='cashier', branch=self.branch)
+        c = Client()
+        c.force_login(user)
+        r = c.get('/hr/attendance/', HTTP_HOST=self.host, follow=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'ليس لديك ملف موظف مفعّل.')
+        # والرسالة بتتعرض مرة واحدة بس — مابتفضلش متعلّقة للصفحة اللي بعدها
+        r2 = c.get(reverse('inventory:product_list'), HTTP_HOST=self.host)
+        self.assertNotContains(r2, 'ليس لديك ملف موظف مفعّل.')

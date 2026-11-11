@@ -76,6 +76,8 @@ body { font-family: 'Cairo', sans-serif; background: #0f172a; color: #e2e8f0; mi
 {% include "inventory/_lang_switch.html" %}
 <div class="shell">
 
+    {# 🐛 [FIX]: الصفحة مستقلة من غير قائمة ولا زرار رجوع — المستخدم كان بيتحبس فيها على الموبايل #}
+    <a href="{% url 'inventory:dashboard' %}" style="display:inline-block;margin-bottom:10px;color:#93c5fd;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-arrow-right"></i> {% trans "رجوع للوحة التحكم" %}</a>
     <div class="topbar">
         <h1>🗼 {% trans "برج التحكم — إدارة طلبات التسعير" %}</h1>
         <div class="meta">
@@ -155,7 +157,8 @@ body { font-family: 'Cairo', sans-serif; background: #0f172a; color: #e2e8f0; mi
                     {% if rfq.accepted_quote %}{{ rfq.accepted_quote.quoted_price|amount }} {{ tenant_currency_symbol|default:'ج.م' }}{% endif %}
                 </div>
                 {% if rfq.purchase_invoice %}
-                    <a href="/admin/inventory/purchaseinvoice/{{ rfq.purchase_invoice.id }}/change/" target="_blank">
+                    {# 🐛 [FIX]: كان /admin/… — لوحة الإدارة على /secure-portal/ فاللينك مابيفتحش الفاتورة #}
+                    <a href="{% url 'admin:inventory_purchaseinvoice_change' rfq.purchase_invoice.id %}" target="_blank">
                         {% trans "افتح PO" %} #{{ rfq.purchase_invoice.id }}
                     </a>
                 {% else %}

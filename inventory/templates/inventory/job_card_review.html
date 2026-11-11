@@ -45,6 +45,13 @@ body {
     display: grid; grid-template-columns: 1fr 320px; gap: 18px;
 }
 @media (max-width: 1024px) { .layout { grid-template-columns: 1fr; } }
+/* 🐛 [FIX]: على الموبايل جداول المراجعة كانت بتطلّع الصفحة برّا الشاشة (خصوصاً بالإنجليزي) —
+   الكارت بينكمش والجدول بيتسحب جواه. */
+.layout > * { min-width: 0; }
+@media (max-width: 640px) {
+  .card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .billing-table { min-width: 30rem; }
+}
 
 .card {
     background: rgba(30, 41, 59, 0.6);
@@ -326,6 +333,8 @@ body {
 <body>
 <div class="shell">
 
+    {# 🐛 [FIX]: الصفحة مستقلة من غير قائمة ولا زرار رجوع — على الموبايل المراجع كان بيتحبس فيها #}
+    <a href="{% url 'inventory:sale_invoice_list' %}?type=maintenance" style="display:inline-block;margin-bottom:10px;color:#93c5fd;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-arrow-right"></i> {% trans "رجوع للفواتير" %}</a>
     <div class="topbar">
         <h1>
             🧮 {% trans "مراجعة بطاقة العميل" %} #{{ invoice.id }}

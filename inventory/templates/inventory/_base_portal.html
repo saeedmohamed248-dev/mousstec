@@ -245,6 +245,15 @@
   <main class="container mx-auto px-4 py-6 flex-1">
     {% include "clients/_email_verify_banner.html" %}
     {% load plan_usage %}{% trial_offer_banner %}{% plan_usage_banner %}
+    {# 🐛 [FIX]: رسائل النظام (messages) ماكانتش بتتعرض في البوابة — رسالة «ليس لديك ملف موظف» وغيرها كانت بتضيع #}
+    {# بعد التحويل للوحة التحكم وتظهر بعدين في صفحة تانية. الصفحة اللي بتعرض رسائلها بنفسها تفضّي الـ block ده. #}
+    {% block portal_messages %}{% if messages %}
+    <div class="space-y-2 mb-4" role="status">
+      {% for m in messages %}
+      <div class="rounded-xl border px-4 py-3 text-sm font-bold {% if 'success' in m.tags %}bg-emerald-500/10 border-emerald-500/40 text-emerald-300{% elif 'error' in m.tags %}bg-red-500/10 border-red-500/40 text-red-300{% elif 'warning' in m.tags %}bg-amber-500/10 border-amber-500/40 text-amber-200{% else %}bg-slate-800 border-slate-700 text-slate-300{% endif %}">{{ m }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}{% endblock %}
     {% block content %}{% endblock %}
   </main>
 </div>

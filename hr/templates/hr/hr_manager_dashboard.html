@@ -107,6 +107,11 @@
             display: grid; gap: 16px; grid-template-columns: 1.4fr 1fr;
         }
         @media(max-width:980px) { .grid { grid-template-columns: 1fr; } }
+        /* 🐛 [FIX]: على الموبايل شريط التابات (لم يحضروا/حاضرون/متأخرون/غائبون) كان بيمطّ الكارت
+           أعرض من الشاشة فالصفحة كلها تتسحب بالعرض — الكارت بقى ينكمش والتابات تتسحب جواه. */
+        .grid > * { min-width: 0; }
+        .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .tab { flex-shrink: 0; }
 
         .section {
             background: var(--card); border: 1px solid var(--line);
@@ -231,6 +236,8 @@
             <button type="submit" name="language" value="ar" class="{% if LANGUAGE_CODE == 'ar' %}active{% endif %}">ع</button>
             <button type="submit" name="language" value="en" class="{% if LANGUAGE_CODE == 'en' %}active{% endif %}">EN</button>
         </form>
+        {# 🐛 [FIX]: مفيش رجوع للسيستم غير لوحة الإدارة (للمالك بس) — مدير الـ HR كان بيتحبس هنا #}
+        <a href="{% url 'inventory:dashboard' %}" class="btn"><i class="fas fa-house"></i> {% trans "رجوع للوحة التحكم" %}</a>
         <a href="/secure-portal/" class="btn"><i class="fas fa-cog"></i> {% trans "لوحة الإدارة" %}</a>
     </div>
 </div>
