@@ -119,9 +119,10 @@ def notify_owner_async(req_id):
 
 
 def _with_photo_first(qs):
-    """📸 المنتجات اللي ليها صورة تظهر الأول (has_photo=1 قبل 0) — من غير ما نبوّظ ثبات الترتيب جوّه كل مجموعة."""
+    """📸 ترتيب الصور: صورة عليها اسم براند (2) ⇒ صورة عادية (1) ⇒ من غير صورة (0) — والترتيب الثابت جوّه كل مجموعة."""
     return qs.annotate(has_photo=Case(
         When(Q(image__isnull=True) | Q(image=''), then=Value(0)),
+        When(image__contains='-brand-', then=Value(2)),
         default=Value(1), output_field=IntegerField()))
 
 
@@ -205,8 +206,11 @@ def catalog_home(request, sector):
     page.object_list = catalog_stats.decorate_items(page.object_list)
     stores = catalog_stats.decorate_stores(
         CatalogStore.objects.filter(sector=sector, is_active=True)
-        .annotate(n=Count('items', filter=Q(items__is_active=True)))
-        .order_by('-is_featured', '-platform_score', 'sort'))
+        .annotate(n=Count('items', filter=Q(items__is_active=True)),
+                  # 🏷️ الشركات اللي معروضاتها عليها اسم براند (شغل حقيقي) تظهر الأول
+                  n_brand=Count('items', filter=Q(items__is_active=True, items__image__contains='-brand-')))
+        .order_by(Case(When(n_brand__gt=0, then=Value(0)), default=Value(1), output_field=IntegerField()),
+                  '-is_featured', '-platform_score', 'sort'))
     makes = []
     if sector == 'automotive':
         # [(القيمة في الفلتر، الاسم المعروض)] — الاسم بالإنجليزي لو اللغة إنجليزي
