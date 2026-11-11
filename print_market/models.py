@@ -552,7 +552,7 @@ class MarketReview(models.Model):
         except (TypeError, ValueError):
             rating = 0
         if not 1 <= rating <= 5:
-            raise ValidationError(_('اختار تقييم من ١ لـ ٥ نجوم.'))
+            raise ValidationError(_('اختار تقييم من 1 لـ 5 نجوم.'))
         with transaction.atomic():
             locked = MarketOrder.objects.select_for_update().get(pk=order.pk)
             if customer.pk != locked.customer_id:

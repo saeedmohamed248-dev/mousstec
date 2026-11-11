@@ -22,7 +22,7 @@ from clients.permissions import platform_owner_required
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
 from django.db import connection, transaction
-from django.db.models import Avg, F
+from django.db.models import Avg, Count, F
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -782,7 +782,12 @@ def marketplace_request_detail(request, request_code):
 
     svc_request = get_object_or_404(ServiceRequest, request_code=request_code, customer=customer)
     offers = list(svc_request.offers.select_related('merchant').order_by('price'))
+    # ⭐ عدد تقييمات كل تاجر — التقييم الافتراضي ٥ لتاجر جديد مايتعرضش كأنه تقييم حقيقي
+    rated = dict(TenderOffer.objects.filter(merchant_id__in={o.merchant_id for o in offers},
+                                            customer_rating__isnull=False)
+                 .values_list('merchant_id').annotate(n=Count('id')))
     for o in offers:
+        o.merchant_reviews = rated.get(o.merchant_id, 0)
         # رقم واتساب دولي (مصري: 01xxxxxxxxx ⇒ 201xxxxxxxxx) لزرار «واتساب» بعد القبول
         digits = ''.join(ch for ch in (o.merchant.phone or '') if ch.isdigit())
         if digits.startswith('0') and len(digits) == 11:

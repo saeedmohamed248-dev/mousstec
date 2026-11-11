@@ -109,6 +109,20 @@ SOURCES = OrderedDict((('facebook', _('فيسبوك')), ('instagram', _('إنس�
                        ('other', _('مواقع تانية'))))
 
 
+_BACKGROUND = ('/api/', '/ingest/', '/report/', '/count/', '/notifications/', '/heartbeat', '/ping',
+               '/i18n/', '/manifest.json', '/screen-rec/', '/chat/')
+
+
+def _is_page(lg):
+    path = lg['path'].split('?', 1)[0]
+    if lg.get('method', 'GET') != 'GET':
+        return False
+    # صفحة الإشعارات نفسها صفحة؛ الـ polling بتاعها /marketplace/notifications/ (JSON) مش صفحة
+    if path.rstrip('/').endswith('print-market/notifications'):
+        return True
+    return not any(b in path for b in _BACKGROUND)
+
+
 def _mask_ip(ip):
     ip = str(ip or '')
     if '.' in ip:
@@ -123,7 +137,7 @@ def online_now(now=None):
     now = now or timezone.now()
     since = now - ONLINE_WINDOW
     logs = list(VisitorLog.objects.filter(timestamp__gte=since).order_by('timestamp')
-                .values('timestamp', 'ip_address', 'path', 'tenant_schema', 'marketplace_customer_id',
+                .values('timestamp', 'ip_address', 'path', 'method', 'tenant_schema', 'marketplace_customer_id',
                         'device_type', 'referer', 'user_agent', 'user_id')[:MAX_ROWS])
     # جلسة الزائر النهارده (أول صفحة + المصدر) — من أول طلب ليه خلال آخر ساعتين
     visitors = OrderedDict()
@@ -143,9 +157,12 @@ def online_now(now=None):
                                  'device': lg['device_type'], 'tenant_schema': lg['tenant_schema'],
                                  'customer_id': lg['marketplace_customer_id'], 'user_id': lg['user_id'],
                                  'source': source_of(lg['referer'], lg['path'])}
-        v['pages'] += 1
         v['last_seen'] = lg['timestamp']
-        v['path'] = lg['path']
+        # طلبات الخلفية (عدّادات/إشعارات/تسجيل شاشة/فورمات) بتثبت إنه موجود بس مش «صفحة»
+        if _is_page(lg):
+            v['pages'] += 1
+            v['path'] = lg['path']
+        v.setdefault('path', lg['path'])
         if lg['marketplace_customer_id']:
             v['customer_id'] = lg['marketplace_customer_id']
 

@@ -644,3 +644,45 @@ class MarketplaceRequestNotifiesCompaniesTests(_TenantDomainMixin, TestCase):
         self.assertFalse([m for m in mail.outbox if 'auto@x.test' in m.to])   # قطاع تاني مايوصلوش
         self.assertTrue(any(call.args[0] == '01011112222' for call in wa.call_args_list))
         self.assertFalse(any(call.args[0] == '01033334444' for call in wa.call_args_list))
+
+
+class MarketplaceUxRegressionTests(TestCase):
+    """🧪 باجز اتلقت في التجربة الحية للدورة."""
+
+    def test_csrf_refresh_reads_attributes_not_named_fields(self):
+        # فورم فيه input اسمه method (فورم الدفع) ⇒ form.method بيرجّع الخانة — لازم getAttribute
+        js = open('static/js/pwa-init.js', encoding='utf-8').read()
+        self.assertIn("form.getAttribute('method')", js)
+        self.assertIn("form.getAttribute('action')", js)
+        self.assertNotIn("(form.method || '')", js)
+
+    def test_new_request_does_not_reopen_empty_form(self):
+        html = open('clients/templates/clients/marketplace/dashboard.html', encoding='utf-8').read()
+        self.assertIn("u.searchParams.delete('new')", html)
+
+    def test_onboarding_tour_never_on_login_pages(self):
+        js = open('static/admin/mousstec_nav.js', encoding='utf-8').read()
+        self.assertIn('(login|logout|password)', js)
+        self.assertIn('.main-sidebar', js)
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class OfferRatingDisplayTests(_TenantDomainMixin, TestCase):
+    def test_new_merchant_shows_new_not_fake_five_stars(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from clients.models import Client, MarketplaceCustomer, ServiceRequest, TenderOffer
+        t = Client(schema_name='rating_new_co', name='مطبعة جديدة', owner_name='x', phone='01000000077',
+                   industry='printing', status='active', is_active=True)
+        t.auto_create_schema = False
+        t.save()
+        cust = MarketplaceCustomer.objects.create(phone='01055598711', full_name='عميل', sector='printing',
+                                                  is_verified=True)
+        req = ServiceRequest.objects.create(customer=cust, sector='printing', title='طلب تقييم', description='تفاصيل',
+                                            status='open', is_approved=True,
+                                            expires_at=timezone.now() + timedelta(days=3))
+        TenderOffer.objects.create(service_request=req, merchant=t, price=100, description='عرض', merchant_city='القاهرة')
+        c = HttpClient()
+        c.cookies['mp_session'] = str(cust.session_token)
+        html = c.get(f'/marketplace/request/{req.request_code}/').content.decode()
+        self.assertIn('جديدة — مالهاش تقييمات', html)
