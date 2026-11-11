@@ -148,7 +148,7 @@
             </div>
             {# الشركة بتقارن الجودة مش السعر بس — التقييم ظاهر قبل القبول (الاسم والرقم بعده) #}
             <div class="offer-detail">
-                <div class="val"><i class="fas fa-star" style="color:#f59e0b"></i> {{ offer.merchant.market_rating|floatformat:"1u" }}</div>
+                <div class="val">{% if offer.merchant_reviews %}<i class="fas fa-star" style="color:#f59e0b"></i> {{ offer.merchant.market_rating|floatformat:"1u" }} <small style="color:var(--muted)">({{ offer.merchant_reviews }})</small>{% else %}<small>{% trans "جديدة — مالهاش تقييمات" %}</small>{% endif %}</div>
                 <div class="lbl">{% trans "تقييم الشركة" %}</div>
             </div>
         </div>

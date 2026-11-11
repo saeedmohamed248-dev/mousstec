@@ -26448,7 +26448,7 @@ msgstr "Auto-confirmed"
 msgid "اتسلّم في"
 msgstr "Delivered at"
 
-msgid "اختار تقييم من ١ لـ ٥ نجوم."
+msgid "اختار تقييم من 1 لـ 5 نجوم."
 msgstr "Pick a rating from 1 to 5 stars."
 
 msgid "اقفله لو التقييم فيه إساءة."
@@ -26483,7 +26483,7 @@ msgid "العميل فتح مشكلة على «%(t)s» — Mouss Tec هتراج�
 msgstr "The customer reported an issue on “%(t)s” — Mouss Tec will review and contact you on the platform."
 
 #, python-format
-msgid "العميل قيّمك %(r)s من ٥ على «%(t)s»."
+msgid "العميل قيّمك %(r)s من 5 على «%(t)s»."
 msgstr "The customer rated you %(r)s/5 on “%(t)s”."
 
 msgid "المشكلة بتتفتح بعد ما المطبعة تسجّل التسليم وقبل التأكيد."
@@ -26697,3 +26697,6 @@ msgid "%(n)s مطبعة"
 msgid_plural "%(n)s مطابع"
 msgstr[0] "%(n)s print shop"
 msgstr[1] "%(n)s print shops"
+
+msgid "جديدة — مالهاش تقييمات"
+msgstr "New — no reviews yet"

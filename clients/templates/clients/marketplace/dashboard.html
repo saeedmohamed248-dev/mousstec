@@ -734,7 +734,9 @@ document.getElementById('requestForm').addEventListener('submit', async function
         if (!res.ok) throw new Error(data.error || 'خطأ');
         toast(data.message, 'success');
         closeModal();
-        setTimeout(() => location.reload(), 1100);
+        // 🐛 [FIX]: الـ reload على ?new=1 (جاي من «اكتب طلبك» في السوق) كان بيفتح الفورم تاني فاضي —
+        //    العميل كان بيفتكر إن الطلب ماتبعتش ويكتبه تاني.
+        setTimeout(() => { const u = new URL(location.href); u.searchParams.delete('new'); location.replace(u.toString()); }, 1100);
     } catch (err) {
         toast(err.message, 'error');
     } finally {
@@ -837,7 +839,9 @@ document.getElementById('editForm').addEventListener('submit', async function(e)
         if (!res.ok) throw new Error(data.error || 'خطأ');
         toast(data.message, 'success');
         closeModal();
-        setTimeout(() => location.reload(), 1100);
+        // 🐛 [FIX]: الـ reload على ?new=1 (جاي من «اكتب طلبك» في السوق) كان بيفتح الفورم تاني فاضي —
+        //    العميل كان بيفتكر إن الطلب ماتبعتش ويكتبه تاني.
+        setTimeout(() => { const u = new URL(location.href); u.searchParams.delete('new'); location.replace(u.toString()); }, 1100);
     } catch (err) {
         toast(err.message, 'error');
     } finally {

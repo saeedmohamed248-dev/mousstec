@@ -91,6 +91,15 @@ class LiveMarketTests(_TenantDomainMixin, TestCase):
         self.assertNotIn('<html', p.content.decode())
         self.assertIn('شركة الأفق', p.content.decode())
 
+    def test_background_requests_are_not_pages(self):
+        VisitorLog.objects.create(ip_address='41.1.1.1', path='/marketplace/notifications/',
+                                  marketplace_customer=self.cust, device_type='mobile')
+        VisitorLog.objects.create(ip_address='41.1.1.1', path='/marketplace/request/create/', method='POST',
+                                  marketplace_customer=self.cust, device_type='mobile')
+        row = next(r for r in snapshot()['online'] if r['who'] == 'شركة الأفق')
+        self.assertEqual(row['pages'], 2)                          # الصفحتين بس، مش الـ polling ولا الـ POST
+        self.assertEqual(row['path'], '/marketplace/request/abc/')  # آخر صفحة فعلية
+
     def test_middleware_keeps_ad_marker(self):
         VisitorLog.objects.all().delete()
         HttpClient().get('/marketplace/?fbclid=abc123&x=1')

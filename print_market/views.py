@@ -564,7 +564,7 @@ def review_submit(request, order):
     comment = _guarded(request, request.pm_account, request.POST.get('comment'), 1000)
     review = MarketReview.submit(order, request.pm_account, request.POST.get('rating'), comment)
     notify(request, order.shop, _('وصلك تقييم جديد'),
-           _('العميل قيّمك %(r)s من ٥ على «%(t)s».') % {'r': review.rating, 't': order.title}, order)
+           _('العميل قيّمك %(r)s من 5 على «%(t)s».') % {'r': review.rating, 't': order.title}, order)
     return _('شكراً على تقييمك!')
 
 

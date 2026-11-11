@@ -524,6 +524,10 @@ window.mtT = function (ar, en) {
     var seen = "1";
     try { seen = localStorage.getItem(SEEN_KEY); } catch (e) {}
     // 🐛 [FIX]: للمطابع مابيفتحش لوحده — كان بيغطّي «ابدأ هنا» (أول فاتورة) في أول دخول؛ زرار «مساعدة» لسه بيفتحه.
+    // 🐛 [FIX]: كان بيفتح في صفحة تسجيل الدخول (أول زيارة من أي جهاز) ويغطّي زرار «تسجيل الدخول» —
+    //    الترحيب للي دخل بس (القائمة الجانبية موجودة) ومش في صفحات الدخول/كلمة السر.
+    var authPage = /\/(login|logout|password)/.test(window.location.pathname);
+    if (authPage || !document.querySelector(".main-sidebar")) return;
     if (seen !== "1" && !isPrinting()) setTimeout(open, 900); // ترحيب أول مرة فقط
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

@@ -299,7 +299,7 @@ class PWAInjectorMiddleware:
     Idempotent: مش بيحقن لو الـ tag موجود فعلاً.
     Skips: غير HTML, status != 200, الصفحات المخصّصة للـ admin/honeypot.
     """
-    SCRIPT_TAG = b'<script src="/static/js/pwa-init.js" defer data-pwa-injector="1"></script>'
+    SCRIPT_TAG = b'<script src="/static/js/pwa-init.js?v=2" defer data-pwa-injector="1"></script>'
     MANIFEST_TAG = b'<link rel="manifest" href="/manifest.json">'
     THEME_TAG = b'<meta name="theme-color" content="#7c3aed">'
 
