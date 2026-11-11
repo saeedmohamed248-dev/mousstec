@@ -232,6 +232,10 @@ SHARED_APPS = (
     # active. BYOK: each tenant publishes/advertises with their own Meta page +
     # ad account, so all ad spend is billed to the tenant by Meta directly.
     'social_ads',
+
+    # 🖨️ سوق المطابع — حسابات المطابع (مجاني) والعملاء بالإيميل، منتجات وعروض وبروفات.
+    # SHARED لأنه سوق واحد لكل المطابع على الدومين الرئيسي.
+    'print_market',
 )
 
 TENANT_APPS = (
@@ -1337,6 +1341,17 @@ MARKETPLACE_PARTS_COMMISSION_INDIVIDUAL_PCT = env.str('MARKETPLACE_PARTS_COMMISS
 MARKETPLACE_SERVICE_COMMISSION_PCT = env.str('MARKETPLACE_SERVICE_COMMISSION_PCT', '0')
 # الدفع في السوق بفودافون كاش/إنستاباي بس (التحويل بيتأكد يدوي) — الكارت (Paymob) مقفول لحد ما يتفتح
 MARKETPLACE_CARD_PAYMENTS = env.bool('MARKETPLACE_CARD_PAYMENTS', default=False)
+# 🖨️ سوق المطابع: مفيش عمولة — العميل بيدفع لـ Mouss Tec سعر العرض + رسوم التحويل بس.
+#    الرسوم (pct ٪، min/max بالجنيه، max=0 يعني من غير حد أقصى) بتتغيّر من الـ .env.
+PRINT_MARKET_TRANSFER_FEES = {
+    'instapay': {'pct': env.float('PRINT_MARKET_INSTAPAY_FEE_PCT', default=0.1),
+                 'min': env.float('PRINT_MARKET_INSTAPAY_FEE_MIN', default=0.5),
+                 'max': env.float('PRINT_MARKET_INSTAPAY_FEE_MAX', default=20)},
+    'vodafone_cash': {'pct': env.float('PRINT_MARKET_VFCASH_FEE_PCT', default=1),
+                      'min': env.float('PRINT_MARKET_VFCASH_FEE_MIN', default=1),
+                      'max': env.float('PRINT_MARKET_VFCASH_FEE_MAX', default=0)},
+}
+PRINT_MARKET_VODAFONE_CASH_NUMBER = env.str('PRINT_MARKET_VODAFONE_CASH_NUMBER', default='01094850763')
 BLIND_BIDDING_EXPIRY_HOURS = env.int('BLIND_BIDDING_EXPIRY_HOURS', default=24)
 
 SAAS_ADDON_PRICE_EXTRA_BRANCH = 300.00

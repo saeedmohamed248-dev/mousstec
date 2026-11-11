@@ -29,7 +29,7 @@
 	# 🔒 الملفات الخاصة (كشوف بنك، وشوش موظفين، ملفات مستوردة...) بتعدّي على Django
 	#    (تسجيل دخول + الشركة صاحبة الملف + الدور) — erp_core/private_media.py
 	route /media/* {
-		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/* /media/print_projects/* /media/print_jobs/*
+		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/* /media/print_projects/* /media/print_jobs/* /media/print_market/*
 		reverse_proxy @private_media {
 			import web_upstreams
 		}
@@ -57,7 +57,7 @@
 	# 🔒 الملفات الخاصة (كشوف بنك، وشوش موظفين، ملفات مستوردة...) بتعدّي على Django
 	#    (تسجيل دخول + الشركة صاحبة الملف + الدور) — erp_core/private_media.py
 	route /media/* {
-		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/* /media/print_projects/* /media/print_jobs/*
+		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/* /media/print_projects/* /media/print_jobs/* /media/print_market/*
 		reverse_proxy @private_media {
 			import web_upstreams
 		}

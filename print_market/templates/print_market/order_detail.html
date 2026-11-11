@@ -1,0 +1,173 @@
+{% extends "print_market/base.html" %}{% load i18n l10n %}
+{% block title %}{{ order.title }}{% endblock %}
+{% block content %}
+<div class="pm-card p-4 mb-3">
+  <div class="d-flex align-items-start gap-2 flex-wrap">
+    <div class="flex-grow-1">
+      <h1 class="fs-4 fw-bold mb-1">{{ order.title }}</h1>
+      <div class="pm-muted small">
+        {% if is_shop %}{% trans "العميل" %}: {{ order.customer.name }}{% else %}{% trans "المطبعة" %}: <a href="{% url 'print_market:shop' order.shop.pk %}">{{ order.shop.name }}</a>{% endif %}
+        · {% trans "الكمية" %} {{ order.quantity }} · <span dir="ltr">{{ order.created_at|date:"Y-m-d H:i" }}</span>
+      </div>
+    </div>
+    {% include "print_market/_status.html" with s=order.status label=order.get_status_display %}
+  </div>
+  {% if order.status != 'cancelled' %}
+  <div class="pm-steps mt-3">
+    <span class="on">{% trans "الطلب" %}</span>
+    <span class="{% if order.status != 'requested' %}on{% endif %}">{% trans "العرض" %}</span>
+    <span class="{% if order.status in 'paid delivered completed' %}on{% endif %}">{% trans "الدفع" %}</span>
+    <span class="{% if order.status in 'delivered completed' %}on{% endif %}">{% trans "التسليم" %}</span>
+    <span class="{% if order.status == 'completed' %}on{% endif %}">{% trans "تم" %}</span>
+  </div>
+  {% endif %}
+  <p class="mt-3 mb-1" style="white-space:pre-wrap">{{ order.details }}</p>
+  {% if order.attachment %}<a href="{% url 'print_market:file' 'attachment' order.pk %}" target="_blank"><i class="fas fa-paperclip me-1"></i>{% trans "الملف المرفق" %}</a>{% endif %}
+</div>
+
+<div class="row g-3">
+<div class="col-lg-7">
+
+  {# ───── العرض ───── #}
+  <div class="pm-card p-4 mb-3">
+    <h2 class="fs-5 fw-bold">{% trans "عرض السعر" %}</h2>
+    {% if offer %}
+      <div class="fs-4 fw-bold" style="color:var(--pm)">{{ offer.price|floatformat:"-2" }} {% trans "ج.م" %}</div>
+      <div class="pm-muted small">{% trans "التنفيذ في" %} {{ offer.delivery_days }} {% trans "يوم" %}</div>
+      {% if offer.note %}<p class="mt-2 mb-0" style="white-space:pre-wrap">{{ offer.note }}</p>{% endif %}
+    {% elif pending_offer %}
+      <div class="fs-4 fw-bold" style="color:var(--pm)">{{ pending_offer.price|floatformat:"-2" }} {% trans "ج.م" %}</div>
+      <div class="pm-muted small">{% trans "التنفيذ في" %} {{ pending_offer.delivery_days }} {% trans "يوم" %}</div>
+      {% if pending_offer.note %}<p class="mt-2" style="white-space:pre-wrap">{{ pending_offer.note }}</p>{% endif %}
+      {% if is_customer %}
+        <div class="d-flex gap-2 mt-2">
+          <form method="post" action="{% url 'print_market:offer_respond' order.code pending_offer.pk %}" class="flex-fill">{% csrf_token %}
+            <button name="action" value="accept" class="pm-btn w-100"><i class="fas fa-check me-1"></i>{% trans "موافق على العرض" %}</button></form>
+          <form method="post" action="{% url 'print_market:offer_respond' order.code pending_offer.pk %}" class="flex-fill">{% csrf_token %}
+            <button name="action" value="reject" class="pm-btn-light w-100">{% trans "رافض" %}</button></form>
+        </div>
+      {% else %}<div class="pm-muted small">{% trans "مستني رد العميل…" %}</div>{% endif %}
+    {% elif order.status == 'requested' %}
+      <div class="pm-muted">{% if is_shop %}{% trans "قدّم عرضك للعميل:" %}{% else %}{% trans "مستني المطبعة تبعت العرض…" %}{% endif %}</div>
+    {% endif %}
+    {% if is_shop and order.status in 'requested offered' %}
+      <form method="post" action="{% url 'print_market:offer_submit' order.code %}" class="row g-2 mt-2">{% csrf_token %}
+        <div class="col-6"><input name="price" type="number" step="0.01" min="0.01" class="form-control" placeholder="{% trans 'السعر (ج.م)' %}" required dir="ltr"></div>
+        <div class="col-6"><input name="delivery_days" type="number" min="1" max="365" class="form-control" placeholder="{% trans 'مدة التنفيذ (أيام)' %}" required dir="ltr"></div>
+        <div class="col-12"><input name="note" class="form-control" maxlength="500" placeholder="{% trans 'ملاحظات (اختياري)' %}"></div>
+        <div class="col-12"><button class="pm-btn w-100">{% if pending_offer %}{% trans "ابعت عرض جديد بدل القديم" %}{% else %}{% trans "ابعت العرض" %}{% endif %}</button></div>
+      </form>
+    {% endif %}
+  </div>
+
+  {# ───── الدفع ───── #}
+  {% if offer %}
+  <div class="pm-card p-4 mb-3">
+    <h2 class="fs-5 fw-bold">{% trans "الدفع" %}</h2>
+    {% if order.status == 'awaiting_payment' and is_customer %}
+      <p class="small pm-muted">{% trans "حوّل لـ Mouss Tec بس — المطبعة بتاخد فلوسها مننا بعد ما تستلم. مفيش عمولة، بتدفع رسوم التحويل بس." %}</p>
+      {% for m, f in fees.items %}
+        <div class="pm-card p-3 mb-2" style="background:#f8f6ff">
+          <div class="fw-bold">{{ f.label }}</div>
+          <div class="small">{% trans "سعر العرض" %} {{ offer.price|floatformat:"-2" }} + {% trans "رسوم التحويل" %} {{ f.fee|floatformat:"-2" }} = <b>{{ f.total|floatformat:"-2" }} {% trans "ج.م" %}</b></div>
+          {% if m == 'instapay' %}<div class="small mt-1">{% trans "حوّل على" %} <code dir="ltr">{{ instapay_handle }}</code>{% if instapay_link %} — <a href="{{ instapay_link }}" target="_blank" rel="noopener">{% trans "افتح إنستاباي" %}</a>{% endif %}</div>
+          {% else %}<div class="small mt-1">{% trans "حوّل على محفظة" %} <code dir="ltr">{{ vodafone_number }}</code></div>{% endif %}
+        </div>
+      {% endfor %}
+      <form method="post" action="{% url 'print_market:payment_submit' order.code %}" enctype="multipart/form-data" class="mt-3">{% csrf_token %}
+        <select name="method" class="form-select mb-2" required><option value="">{% trans "حوّلت بإيه؟" %}</option>
+          {% for m, f in fees.items %}<option value="{{ m }}">{{ f.label }} — {{ f.total|floatformat:"-2" }} {% trans "ج.م" %}</option>{% endfor %}</select>
+        <input name="reference" class="form-control mb-2" maxlength="100" required placeholder="{% trans 'رقم العملية أو اسم اللي حوّل' %}">
+        <label class="form-label small">{% trans "صورة الإيصال" %}</label>
+        <input name="receipt" type="file" accept="image/*" class="form-control mb-2" required>
+        <button class="pm-btn w-100">{% trans "ابعت الإيصال" %}</button>
+      </form>
+    {% elif order.status == 'awaiting_payment' %}
+      <div class="pm-muted">{% trans "مستني العميل يدفع لـ Mouss Tec…" %}</div>
+    {% endif %}
+    {% for p in payments %}
+      <div class="d-flex align-items-center gap-2 small mt-2 flex-wrap">
+        {% include "print_market/_status.html" with s=p.status label=p.get_status_display %}
+        <span>{{ p.get_method_display }} · {{ p.total|floatformat:"-2" }} {% trans "ج.م" %} · <span dir="ltr">{{ p.created_at|date:"Y-m-d H:i" }}</span></span>
+        {% if is_customer %}<a href="{% url 'print_market:file' 'receipt' p.pk %}" target="_blank">{% trans "الإيصال" %}</a>{% endif %}
+        {% if p.review_note %}<span class="pm-muted">— {{ p.review_note }}</span>{% endif %}
+      </div>
+    {% endfor %}
+    {% if order.status == 'paid' %}<div class="mt-2 text-success fw-bold"><i class="fas fa-shield-alt me-1"></i>{% trans "الفلوس عند Mouss Tec في أمان — المطبعة شغالة." %}</div>{% endif %}
+  </div>
+  {% endif %}
+
+  {# ───── البروفات ───── #}
+  {% if offer %}
+  <div class="pm-card p-4 mb-3">
+    <h2 class="fs-5 fw-bold">{% trans "البروفات" %}</h2>
+    {% if is_shop and proof_open %}
+      <form method="post" action="{% url 'print_market:proof_submit' order.code %}" enctype="multipart/form-data" class="mb-3">{% csrf_token %}
+        <input name="file" type="file" accept="image/*,video/*,application/pdf" class="form-control mb-2" required>
+        <div class="small pm-muted mb-2">{% trans "صورة أو PDF أو فيديو (لحد ٥٠ ميجا)" %}</div>
+        <input name="note" class="form-control mb-2" maxlength="500" placeholder="{% trans 'ملاحظات للعميل (اختياري)' %}">
+        <button class="pm-btn w-100"><i class="fas fa-paper-plane me-1"></i>{% trans "ابعت البروفة للعميل" %}</button>
+      </form>
+    {% endif %}
+    {% for p in proofs %}
+      <div class="border rounded-4 p-3 mb-3">
+        <div class="d-flex align-items-center mb-2 gap-2">
+          <b>{% trans "بروفة" %} {{ p.version }}</b>
+          {% include "print_market/_status.html" with s=p.status label=p.get_status_display %}
+          <span class="small pm-muted ms-auto" dir="ltr">{{ p.created_at|date:"Y-m-d H:i" }}</span>
+        </div>
+        {% url 'print_market:file' 'proof' p.pk as purl %}
+        {% if p.kind == 'video' %}<video src="{{ purl }}" controls playsinline preload="metadata" class="pm-proof-media"></video>
+        {% elif p.kind == 'image' %}<a href="{{ purl }}" target="_blank"><img src="{{ purl }}" class="pm-proof-media" alt=""></a>
+        {% else %}<a href="{{ purl }}" target="_blank" class="pm-btn-light d-inline-block text-decoration-none"><i class="fas fa-file-pdf me-1"></i>{% trans "افتح الـ PDF" %}</a>{% endif %}
+        {% if p.note %}<p class="mt-2 mb-0" style="white-space:pre-wrap">{{ p.note }}</p>{% endif %}
+        {% if p.customer_comment %}<div class="mt-2 small"><b>{% trans "تعليق العميل" %}:</b> <span style="white-space:pre-wrap">{{ p.customer_comment }}</span></div>{% endif %}
+        {% if is_customer and p.status == 'pending' %}
+          <form method="post" action="{% url 'print_market:proof_respond' order.code p.pk %}" class="mt-3">{% csrf_token %}
+            <textarea name="comment" class="form-control mb-2" rows="2" maxlength="2000" placeholder="{% trans 'لو عاوز تعديل اكتبه هنا' %}"></textarea>
+            <div class="d-flex gap-2">
+              <button name="action" value="approve" class="pm-btn flex-fill"><i class="fas fa-check me-1"></i>{% trans "موافق" %}</button>
+              <button name="action" value="reject" class="pm-btn-light flex-fill">{% trans "عاوز تعديل" %}</button>
+            </div>
+          </form>
+        {% endif %}
+      </div>
+    {% empty %}<div class="pm-muted small">{% trans "مفيش بروفات لسه." %}</div>{% endfor %}
+  </div>
+  {% endif %}
+
+  {# ───── أزرار ───── #}
+  <div class="d-flex gap-2 flex-wrap">
+    {% if is_shop and order.status == 'paid' %}
+      <form method="post" action="{% url 'print_market:order_delivered' order.code %}">{% csrf_token %}<button class="pm-btn"><i class="fas fa-truck me-1"></i>{% trans "سلّمت الطلب" %}</button></form>
+    {% endif %}
+    {% if is_customer and order.status == 'delivered' %}
+      <form method="post" action="{% url 'print_market:order_received' order.code %}">{% csrf_token %}<button class="pm-btn"><i class="fas fa-check-double me-1"></i>{% trans "استلمت الطلب" %}</button></form>
+    {% endif %}
+    {% if order.status in 'requested offered awaiting_payment' %}
+      {% trans "متأكد إنك عاوز تلغي الطلب؟" as sure %}
+      <form method="post" action="{% url 'print_market:order_cancel' order.code %}" onsubmit="return confirm('{{ sure|escapejs }}')">{% csrf_token %}<button class="btn btn-link text-danger">{% trans "إلغاء الطلب" %}</button></form>
+    {% endif %}
+  </div>
+</div>
+
+{# ───── الرسائل ───── #}
+<div class="col-lg-5">
+  <div class="pm-card p-4">
+    <h2 class="fs-5 fw-bold">{% trans "الرسائل" %}</h2>
+    <div class="pm-rule mb-2">{% trans "ممنوع أرقام موبايل أو لينكات أو واتساب — أي اتفاق برّه المنصة مش مضمون." %}</div>
+    <div class="pm-chat mb-2" id="pmChat">
+      {% for m in chat %}<div class="pm-msg {% if m.sender_id == account.pk %}me{% else %}them{% endif %}"><div class="small fw-bold">{{ m.sender.name }}</div>{{ m.body }}<div class="small pm-muted" dir="ltr">{{ m.created_at|date:"Y-m-d H:i" }}</div></div>
+      {% empty %}<div class="pm-muted small">{% trans "مفيش رسائل لسه." %}</div>{% endfor %}
+    </div>
+    {% if order.status != 'cancelled' and order.status != 'completed' %}
+    <form method="post" action="{% url 'print_market:message_send' order.code %}" class="d-flex gap-2">{% csrf_token %}
+      <input name="body" class="form-control" maxlength="2000" required placeholder="{% trans 'اكتب رسالتك…' %}">
+      <button class="pm-btn"><i class="fas fa-paper-plane"></i></button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+</div>
+<script>var c=document.getElementById('pmChat');if(c){c.scrollTop=c.scrollHeight;}</script>
+{% endblock %}

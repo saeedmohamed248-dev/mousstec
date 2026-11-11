@@ -1,0 +1,111 @@
+"""🖨️ أدمن سوق المطابع — صاحب المنصة بيأكّد التحويلات ويسجّل التحويل للمطبعة."""
+from django.contrib import admin, messages
+from django.core.exceptions import ValidationError
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.html import format_html
+
+from .notify import notify
+from .models import (MarketAccount, MarketMessage, MarketOffer, MarketOrder, MarketPayment, MarketProduct,
+                     MarketProof)
+
+
+@admin.register(MarketAccount)
+class MarketAccountAdmin(admin.ModelAdmin):
+    list_display = ('name', 'role', 'email', 'city', 'is_active', 'blocked_attempts', 'created_at')
+    list_filter = ('role', 'is_active', 'city')
+    search_fields = ('name', 'email')
+    readonly_fields = ('blocked_attempts', 'created_at')
+
+
+@admin.register(MarketProduct)
+class MarketProductAdmin(admin.ModelAdmin):
+    list_display = ('title', 'shop', 'category', 'price_from', 'is_active')
+    list_filter = ('category', 'is_active')
+    search_fields = ('title', 'shop__name')
+
+
+class _OfferInline(admin.TabularInline):
+    model = MarketOffer
+    extra = 0
+    readonly_fields = ('price', 'delivery_days', 'note', 'status', 'created_at')
+    can_delete = False
+
+
+class _ProofInline(admin.TabularInline):
+    model = MarketProof
+    extra = 0
+    readonly_fields = ('version', 'file', 'note', 'status', 'customer_comment', 'created_at')
+    can_delete = False
+
+
+class _MessageInline(admin.TabularInline):
+    model = MarketMessage
+    extra = 0
+    readonly_fields = ('sender', 'body', 'created_at')
+    can_delete = False
+
+
+@admin.register(MarketOrder)
+class MarketOrderAdmin(admin.ModelAdmin):
+    list_display = ('title', 'customer', 'shop', 'status', 'payout_info', 'updated_at')
+    list_filter = ('status',)
+    search_fields = ('title', 'customer__name', 'shop__name', 'customer__email', 'shop__email')
+    readonly_fields = ('code', 'customer', 'shop', 'product', 'status', 'payout_done_at', 'created_at')
+    inlines = (_OfferInline, _ProofInline, _MessageInline)
+    actions = ('mark_payout_done',)
+
+    @admin.display(description='تحويل المطبعة')
+    def payout_info(self, obj):
+        if obj.payout_done_at:
+            return '✅'
+        if obj.status == 'completed':
+            offer = obj.accepted_offer
+            return f'⏳ {offer.price if offer else ""} ج.م ← {obj.shop.get_payout_method_display()} {obj.shop.payout_account}'
+        return '—'
+
+    @admin.action(description='✅ سجّل إن المبلغ اتحوّل للمطبعة')
+    def mark_payout_done(self, request, queryset):
+        n = queryset.filter(status='completed', payout_done_at__isnull=True).update(payout_done_at=timezone.now())
+        self.message_user(request, f'اتسجّل التحويل لـ {n} طلب (الطلبات المكتملة بس).')
+
+
+@admin.register(MarketPayment)
+class MarketPaymentAdmin(admin.ModelAdmin):
+    list_display = ('order', 'method', 'amount', 'fee', 'total', 'reference', 'receipt_link', 'status',
+                    'created_at')
+    list_filter = ('status', 'method')
+    search_fields = ('reference', 'order__title', 'order__customer__email')
+    readonly_fields = ('order', 'method', 'amount', 'fee', 'total', 'reference', 'receipt_link', 'status',
+                       'reviewed_by', 'reviewed_at', 'created_at')
+    exclude = ('receipt',)
+    actions = ('confirm_payments', 'reject_payments')
+
+    @admin.display(description='الإيصال')
+    def receipt_link(self, obj):
+        return format_html('<a href="{}" target="_blank">عرض</a>', reverse('print_market:file', args=['receipt', obj.pk]))
+
+    def _review(self, request, queryset, confirm):
+        done = 0
+        for pay in queryset.filter(status='pending'):
+            try:
+                pay.review(request.user, confirm, pay.review_note)
+                done += 1
+                order = pay.order
+                if confirm:
+                    notify(request, order.customer, 'الدفع اتأكّد', f'استلمنا فلوس «{order.title}» — المطبعة هتبدأ.', order)
+                    notify(request, order.shop, 'العميل دفع — ابدأ', f'Mouss Tec أكّدت دفع «{order.title}» — ابدأ التنفيذ.', order)
+                else:
+                    notify(request, order.customer, 'التحويل محتاج مراجعة',
+                           f'مالقيناش تحويل «{order.title}» — ارفع الإيصال تاني.', order)
+            except ValidationError as e:
+                self.message_user(request, f'{pay}: {"; ".join(e.messages)}', messages.ERROR)
+        self.message_user(request, f'اتراجع {done} دفعة.')
+
+    @admin.action(description='✅ أكّد التحويل (الطلب يبدأ تنفيذ)')
+    def confirm_payments(self, request, queryset):
+        self._review(request, queryset, True)
+
+    @admin.action(description='❌ ارفض التحويل (العميل يرفع تاني)')
+    def reject_payments(self, request, queryset):
+        self._review(request, queryset, False)

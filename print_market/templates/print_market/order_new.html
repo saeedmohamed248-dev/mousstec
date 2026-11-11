@@ -1,0 +1,21 @@
+{% extends "print_market/base.html" %}{% load i18n %}
+{% block title %}{% trans "طلب جديد" %}{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-md-8 col-lg-6"><div class="pm-card p-4">
+  <h1 class="fs-5 fw-bold">{% trans "طلب عرض سعر من" %} {{ shop.name }}</h1>
+  {% if product %}<div class="pm-muted mb-2">{{ product.title }}</div>{% endif %}
+  <div class="pm-rule mb-3">{% trans "ممنوع تكتب موبايل أو لينك أو واتساب — المطبعة هتردّ عليك هنا." %}</div>
+  <form method="post" enctype="multipart/form-data">{% csrf_token %}
+    {% if product %}<input type="hidden" name="product" value="{{ product.pk }}">{% endif %}
+    <label class="form-label">{% trans "عاوز إيه؟" %}</label>
+    <input name="title" value="{{ data.title }}" class="form-control mb-2" required maxlength="150">
+    <label class="form-label">{% trans "الكمية" %}</label>
+    <input name="quantity" type="number" min="1" value="{{ data.quantity }}" class="form-control mb-2" required dir="ltr">
+    <label class="form-label">{% trans "التفاصيل (المقاس، الورق، الألوان، الميعاد…)" %}</label>
+    <textarea name="details" class="form-control mb-2" rows="5" required maxlength="3000">{{ data.details }}</textarea>
+    <label class="form-label">{% trans "ملف التصميم أو صورة (اختياري)" %}</label>
+    <input name="attachment" type="file" class="form-control mb-3">
+    <button class="pm-btn w-100">{% trans "ابعت الطلب" %}</button>
+  </form>
+</div></div></div>
+{% endblock %}

@@ -543,6 +543,8 @@ urlpatterns = [
     path('superadmin/tenant/<int:tenant_id>/diag-topup-grant/', client_views.super_admin_diag_topup_grant, name='super_admin_diag_topup_grant'),
 
     # 🔔 Marketplace customer notifications (customer-facing)
+    # 🖨️ سوق المطابع (حسابات مطابع مجانية + عروض + بروفات + دفع لـ Mouss Tec بس)
+    path('marketplace/print-market/', include('print_market.urls')),
     path('marketplace/notifications/',                       client_views.customer_notifications_list, name='customer_notifications_list'),
     path('marketplace/notifications/<int:notification_id>/read/', client_views.customer_notification_read, name='customer_notification_read'),
 

@@ -1,0 +1,25 @@
+{% extends "print_market/base.html" %}{% load i18n %}
+{% block content %}
+<div class="pm-card p-4 mb-4 text-center">
+  <h1 class="fw-bold fs-3">{% trans "اطلب طباعتك من أحسن المطابع — وادفع بأمان" %}</h1>
+  <p class="pm-muted mb-3">{% trans "اختار منتج، المطبعة تبعتلك عرض، توافق على البروفة، وتستلم." %}</p>
+  <form class="row g-2 justify-content-center" method="get">
+    <div class="col-12 col-md-5"><input name="q" value="{{ q }}" class="form-control" placeholder="{% trans 'دوّر على منتج أو مطبعة…' %}"></div>
+    <div class="col-6 col-md-2"><select name="cat" class="form-select"><option value="">{% trans "كل الأقسام" %}</option>
+      {% for k, v in categories %}<option value="{{ k }}" {% if k == cat %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-md-2"><select name="city" class="form-select"><option value="">{% trans "كل المحافظات" %}</option>
+      {% for g in governorates %}<option {% if g == city %}selected{% endif %}>{{ g }}</option>{% endfor %}</select></div>
+    <div class="col-12 col-md-2"><button class="pm-btn w-100"><i class="fas fa-search me-1"></i>{% trans "بحث" %}</button></div>
+  </form>
+</div>
+<div class="row g-3">
+  {% for p in page %}{% include "print_market/_product_card.html" %}
+  {% empty %}<div class="col-12 text-center pm-muted py-5">{% trans "مفيش منتجات لسه — لو عندك مطبعة سجّل ونزّل منتجاتك مجاناً." %}</div>{% endfor %}
+</div>
+{% if page.has_other_pages %}
+<div class="d-flex justify-content-center gap-2 mt-4">
+  {% if page.has_previous %}<a class="pm-btn-light text-decoration-none" href="?q={{ q|urlencode }}&cat={{ cat }}&city={{ city|urlencode }}&page={{ page.previous_page_number }}">{% trans "السابق" %}</a>{% endif %}
+  {% if page.has_next %}<a class="pm-btn-light text-decoration-none" href="?q={{ q|urlencode }}&cat={{ cat }}&city={{ city|urlencode }}&page={{ page.next_page_number }}">{% trans "التالي" %}</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

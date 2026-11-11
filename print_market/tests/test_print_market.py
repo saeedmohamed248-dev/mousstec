@@ -1,0 +1,265 @@
+"""
+🖨️ سوق المطابع — اختبارات الدورة كاملة:
+* حارس التواصل بيمنع موبايل/إيميل/لينك/واتساب (وبيعدّ المحاولات) ومابيمنعش الكلام العادي.
+* تسجيل/دخول بالإيميل، ومطبعة مجانية تنزّل منتج يظهر في السوق.
+* طلب ← عرض ← رفض ← عرض جديد ← قبول ← دفع (سعر + رسوم تحويل بس) ← تأكيد Mouss Tec ← بروفة فيديو
+  ← تعديل ← بروفة ٢ ← موافقة ← تسليم ← استلام.
+* الصلاحيات: عميل تاني مايشوفش الطلب ولا ملفاته، والمطبعة ماتشوفش إيصال الدفع.
+* الفيديو بيتخدم بـ Range (للموبايل).
+"""
+import shutil
+import tempfile
+from decimal import Decimal
+
+from django.contrib.auth.models import User
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import Client, TestCase, override_settings
+from django.urls import reverse
+
+from clients.tests.test_printing_customer_flow import _TenantDomainMixin
+from print_market.contact_guard import find_contact
+from print_market.models import (MarketAccount, MarketOrder, MarketPayment, MarketProduct, MarketProof,
+                                 transfer_fee)
+
+PNG = (b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15'
+       b'\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82')
+PW = 'Strong-Pass-2026'
+
+
+def _png(name='r.png'):
+    return SimpleUploadedFile(name, PNG, content_type='image/png')
+
+
+class ContactGuardTests(TestCase):
+    def test_blocks_contacts(self):
+        for text in ('كلمني 01012345678', 'رقمي ٠١٠ ١٢٣ ٤٥ ٦٧٨', '+20 112 345 6789', 'a.b@gmail.com',
+                     'ابعت على wa.me/2010', 'شوف www.shop.com', 'كلمني واتس', 'تابعني @myprint_shop',
+                     'حوّلي فودافون كاش', 'mysite.net', '0 1 0 1 2 3 4 5 6 7 8'):
+            self.assertTrue(find_contact(text), text)
+
+    def test_allows_normal_text(self):
+        for text in ('١٠٠٠ كارت مقاس 9x5.5 ورق 350 جرام', 'محتاج 500 فلاير و 2000 ستيكر',
+                     'التسليم يوم 15/12 الساعة 3', 'السعر 1500 جنيه', ''):
+            self.assertEqual(find_contact(text), '', text)
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class PrintMarketFlowTests(_TenantDomainMixin, TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls._media = tempfile.mkdtemp()
+        cls._media_override = override_settings(MEDIA_ROOT=cls._media)
+        cls._media_override.enable()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._media_override.disable()
+        shutil.rmtree(cls._media, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        cache.clear()
+        self.shop_c, self.cust_c, self.other_c = Client(), Client(), Client()
+        self._signup(self.shop_c, 'shop', 'مطبعة النور', 'shop@x.com', 'القاهرة')
+        self._signup(self.cust_c, 'customer', 'أحمد', 'cust@x.com')
+        self._signup(self.other_c, 'customer', 'غريب', 'other@x.com')
+        self.shop = MarketAccount.objects.get(email='shop@x.com')
+        self.cust = MarketAccount.objects.get(email='cust@x.com')
+
+    def _signup(self, c, role, name, email, city=''):
+        r = c.post(reverse('print_market:signup'), {'role': role, 'name': name, 'email': email,
+                                                    'password': PW, 'city': city})
+        self.assertEqual(r.status_code, 302, r.content[:500])
+
+    def _u(self, name, order=None, *args):
+        if order is None:
+            return reverse(f'print_market:{name}', args=args)
+        return reverse(f'print_market:{name}', args=[order.code, *args])
+
+    # ── الحسابات ──
+    def test_signup_login_logout(self):
+        self.assertEqual(self.shop.role, 'shop')
+        self.assertTrue(self.shop.check_password(PW))
+        c = Client()
+        r = c.post(reverse('print_market:login'), {'email': 'SHOP@x.com', 'password': 'wrong'})
+        self.assertContains(r, 'غلط')
+        r = c.post(reverse('print_market:login'), {'email': 'SHOP@x.com', 'password': PW})
+        self.assertRedirects(r, reverse('print_market:shop_dashboard'), fetch_redirect_response=False)
+        self.assertEqual(c.get(reverse('print_market:shop_dashboard')).status_code, 200)
+        c.post(reverse('print_market:logout'))
+        r = c.get(reverse('print_market:shop_dashboard'))
+        self.assertEqual(r.status_code, 302)
+        # الخروج بيطلّع من الأجهزة التانية كمان
+        self.assertEqual(self.shop_c.get(reverse('print_market:shop_dashboard')).status_code, 302)
+
+    def test_duplicate_email_and_shop_needs_city(self):
+        r = Client().post(reverse('print_market:signup'), {'role': 'customer', 'name': 'x', 'email': 'cust@x.com',
+                                                           'password': PW})
+        self.assertEqual(r.status_code, 200)
+        r = Client().post(reverse('print_market:signup'), {'role': 'shop', 'name': 'x', 'email': 'n@x.com',
+                                                           'password': PW})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(MarketAccount.objects.filter(email='n@x.com').exists())
+
+    def test_customer_cannot_open_shop_pages(self):
+        r = self.cust_c.get(reverse('print_market:shop_dashboard'))
+        self.assertEqual(r.status_code, 302)
+
+    def test_password_reset(self):
+        from django.core import mail
+        self.client.post(reverse('print_market:password_forgot'), {'email': 'cust@x.com'})
+        self.assertEqual(len(mail.outbox), 1)
+        link = [w for w in mail.outbox[0].body.split() if '/password/reset/' in w][0]
+        path = link.split('testserver', 1)[-1]
+        r = self.client.post(path, {'password': 'Another-Pass-77'})
+        self.assertEqual(r.status_code, 302)
+        self.cust.refresh_from_db()
+        self.assertTrue(self.cust.check_password('Another-Pass-77'))
+        # اللينك بيبطل بعد الاستخدام
+        r = self.client.post(path, {'password': 'Third-Pass-88'})
+        self.assertRedirects(r, reverse('print_market:password_forgot'), fetch_redirect_response=False)
+
+    # ── المنتجات ──
+    def test_product_listing_and_contact_block(self):
+        r = self.shop_c.post(reverse('print_market:product_new'), {
+            'title': 'كروت شخصية', 'category': 'cards', 'price_from': '250', 'unit': '١٠٠٠ كارت',
+            'description': 'ورق 350 جرام', 'is_active': 'on', 'image': _png('p.png')})
+        self.assertEqual(r.status_code, 302)
+        p = MarketProduct.objects.get(shop=self.shop)
+        self.assertContains(Client().get(reverse('print_market:home') + '?q=كروت'), 'كروت شخصية')
+        self.assertContains(Client().get(reverse('print_market:product', args=[p.pk])), 'اطلب عرض سعر')
+        r = self.shop_c.post(reverse('print_market:product_edit', args=[p.pk]), {
+            'title': 'كروت', 'category': 'cards', 'description': 'كلمني 01012345678', 'is_active': 'on'})
+        self.assertEqual(r.status_code, 200)
+        p.refresh_from_db()
+        self.assertEqual(p.description, 'ورق 350 جرام')
+        self.shop.refresh_from_db()
+        self.assertEqual(self.shop.blocked_attempts, 1)
+
+    # ── الدورة كاملة ──
+    def _new_order(self):
+        r = self.cust_c.post(reverse('print_market:order_new', args=[self.shop.pk]), {
+            'title': 'فلايرز', 'details': '1000 فلاير A5 وشين', 'quantity': '1000'})
+        self.assertEqual(r.status_code, 302)
+        return MarketOrder.objects.get(customer=self.cust)
+
+    def test_full_flow(self):
+        order = self._new_order()
+        self.assertEqual(order.status, 'requested')
+        # عرض ← رفض ← عرض جديد ← قبول
+        self.shop_c.post(self._u('offer_submit', order), {'price': '1000', 'delivery_days': '3'})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'offered')
+        self.cust_c.post(self._u('offer_respond', order, order.pending_offer.pk), {'action': 'reject'})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'requested')
+        self.shop_c.post(self._u('offer_submit', order), {'price': '900', 'delivery_days': '2', 'note': 'ورق كوشيه'})
+        order.refresh_from_db()
+        offer = order.pending_offer
+        self.assertEqual(offer.price, Decimal('900.00'))
+        self.cust_c.post(self._u('offer_respond', order, offer.pk), {'action': 'accept'})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'awaiting_payment')
+        page = self.cust_c.get(self._u('order_detail', order))
+        self.assertRegex(page.content.decode(), r'900[.,]90')  # 900 + 0.1% = 0.9 رسوم إنستاباي
+
+        # الدفع: سعر العرض + رسوم التحويل بس
+        self.cust_c.post(self._u('payment_submit', order), {'method': 'instapay', 'reference': 'TX123',
+                                                            'receipt': _png()})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'payment_review')
+        pay = MarketPayment.objects.get(order=order)
+        self.assertEqual((pay.amount, pay.fee, pay.total), (Decimal('900'), Decimal('0.90'), Decimal('900.90')))
+
+        # المطبعة ماتشوفش الإيصال، والعميل يشوفه، وصاحب المنصة يشوفه
+        self.assertEqual(self.shop_c.get(self._u('file', None, 'receipt', pay.pk)).status_code, 404)
+        self.assertEqual(self.cust_c.get(self._u('file', None, 'receipt', pay.pk)).status_code, 200)
+        admin = User.objects.create_superuser('owner', 'o@x.com', 'x')
+        pay.review(admin, confirm=True)
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'paid')
+        with self.assertRaises(ValidationError):
+            pay.review(admin, confirm=True)   # مايتأكّدش مرتين
+
+        # مايتلغيش بعد الدفع
+        self.cust_c.post(self._u('order_cancel', order))
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'paid')
+
+        # بروفة فيديو ← تعديل ← بروفة ٢ ← موافقة
+        video = SimpleUploadedFile('proof.mp4', b'\x00' * 5000, content_type='video/mp4')
+        self.shop_c.post(self._u('proof_submit', order), {'file': video, 'note': 'شوف الحركة'})
+        p1 = MarketProof.objects.get(order=order)
+        self.assertEqual((p1.version, p1.kind), (1, 'video'))
+        self.assertContains(self.cust_c.get(self._u('order_detail', order)), '<video')
+        # Range للفيديو
+        r = self.cust_c.get(self._u('file', None, 'proof', p1.pk), HTTP_RANGE='bytes=0-99')
+        self.assertEqual(r.status_code, 206)
+        self.assertEqual(r['Content-Range'], 'bytes 0-99/5000')
+        self.assertEqual(len(b''.join(r.streaming_content)), 100)
+        # التسليم ممنوع قبل موافقة البروفة
+        self.shop_c.post(self._u('order_delivered', order))
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'paid')
+        # طلب تعديل لازم يبقى فيه تعليق
+        self.cust_c.post(self._u('proof_respond', order, p1.pk), {'action': 'reject', 'comment': ''})
+        p1.refresh_from_db()
+        self.assertEqual(p1.status, 'pending')
+        self.cust_c.post(self._u('proof_respond', order, p1.pk), {'action': 'reject', 'comment': 'كبّر اللوجو'})
+        p1.refresh_from_db()
+        self.assertEqual(p1.status, 'changes_requested')
+        self.shop_c.post(self._u('proof_submit', order), {'file': _png('v2.png')})
+        p2 = MarketProof.objects.get(order=order, version=2)
+        self.cust_c.post(self._u('proof_respond', order, p2.pk), {'action': 'approve'})
+        p2.refresh_from_db()
+        self.assertEqual(p2.status, 'approved')
+        my = self.cust_c.get(reverse('print_market:my_orders'))
+        self.assertContains(my, 'العميل وافق')
+
+        # تسليم ← استلام
+        self.shop_c.post(self._u('order_delivered', order))
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'delivered')
+        self.cust_c.post(self._u('order_received', order))
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'completed')
+
+    def test_strangers_and_contact_in_messages(self):
+        order = self._new_order()
+        self.assertEqual(self.other_c.get(self._u('order_detail', order)).status_code, 404)
+        self.assertEqual(Client().get(self._u('order_detail', order)).status_code, 302)
+        # عميل تاني مايقدرش يقدّم عرض أو يرد
+        self.other_c.post(self._u('offer_submit', order), {'price': '1', 'delivery_days': '1'})
+        self.assertFalse(order.offers.exists())
+        # رسالة عادية بتتبعت، ورسالة فيها رقم بتتمنع
+        self.cust_c.post(self._u('message_send', order), {'body': 'محتاجهم يوم الخميس'})
+        self.cust_c.post(self._u('message_send', order), {'body': 'كلمني على 0101 234 5678'})
+        self.assertEqual(list(order.messages.values_list('body', flat=True)), ['محتاجهم يوم الخميس'])
+        self.cust.refresh_from_db()
+        self.assertEqual(self.cust.blocked_attempts, 1)
+
+    def test_proof_not_allowed_before_offer_accepted(self):
+        order = self._new_order()
+        self.shop_c.post(self._u('proof_submit', order), {'file': _png()})
+        self.assertFalse(order.proofs.exists())
+
+    def test_payment_rejected_returns_to_awaiting(self):
+        order = self._new_order()
+        self.shop_c.post(self._u('offer_submit', order), {'price': '50', 'delivery_days': '1'})
+        order.refresh_from_db()
+        self.cust_c.post(self._u('offer_respond', order, order.pending_offer.pk), {'action': 'accept'})
+        self.cust_c.post(self._u('payment_submit', order), {'method': 'vodafone_cash', 'reference': 'x',
+                                                            'receipt': _png()})
+        pay = MarketPayment.objects.get(order=order)
+        self.assertEqual(pay.fee, Decimal('1.00'))   # ١٪ بحد أدنى جنيه
+        pay.review(None, confirm=False, note='مالقيناش التحويل')
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'awaiting_payment')
+
+    def test_transfer_fee_limits(self):
+        self.assertEqual(transfer_fee(Decimal('100000'), 'instapay'), Decimal('20.00'))
+        self.assertEqual(transfer_fee(Decimal('100'), 'instapay'), Decimal('0.50'))
+        self.assertEqual(transfer_fee(Decimal('5000'), 'vodafone_cash'), Decimal('50.00'))
