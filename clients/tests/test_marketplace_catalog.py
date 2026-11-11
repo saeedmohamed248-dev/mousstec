@@ -219,6 +219,60 @@ class CatalogLanguageSwitchTests(_TenantDomainMixin, TestCase):
         if not CatalogStore.objects.exists():
             seed_catalog(CatalogStore, CatalogItem)
 
+    def test_market_shows_company_offers_and_customer_requests(self):
+        """🛍️ السوق وشّين: «معروضات الشركات» و«طلبات العملاء» — والطلبات بتتعرض من غير بيانات العميل."""
+        from datetime import timedelta
+        from decimal import Decimal
+        from django.utils import timezone
+        from clients.models import MarketplaceCustomer, ServiceRequest
+        cust = MarketplaceCustomer.objects.create(
+            phone='01055512345', full_name='منى السرّية', sector='printing', city='طنطا',
+            is_verified=True, session_token='b6c1c0a8-3f0a-4f6e-9a55-0c1a2b3c4d5e')
+        soon = timezone.now() + timedelta(days=3)
+
+        def req(title, **kw):
+            data = dict(customer=cust, sector='printing', title=title, description='تفاصيل الطلب بالكامل هنا',
+                        customer_city='طنطا', status='open', is_approved=True, expires_at=soon,
+                        max_budget=Decimal('98765'))
+            data.update(kw)
+            return ServiceRequest.objects.create(**data)
+        req('محتاج ٥٠٠ علبة حلويات مطبوعة', urgency='urgent')
+        req('طلب لسه مستني الموافقة', status='pending_approval', is_approved=False)
+        req('طلب منتهي', expires_at=timezone.now() - timedelta(days=1))
+        req('طلب قطع غيار مش طباعة', sector='automotive')
+
+        c = HttpClient()
+        home = c.get('/marketplace/catalog/printing/').content.decode()
+        for needle in ('معروضات الشركات', 'طلبات العملاء', '?tab=requests', 'اكتب طلبك',
+                       '/marketplace/printing/?tab=login&amp;next=%2Fmarketplace%2Fdashboard%2F%3Fnew%3D1'):
+            self.assertIn(needle, home, needle)
+        page = c.get('/marketplace/catalog/printing/?tab=requests')
+        self.assertEqual(page.status_code, 200)
+        html = page.content.decode()
+        self.assertIn('محتاج ٥٠٠ علبة حلويات مطبوعة', html)
+        self.assertIn('طنطا', html)
+        for hidden in ('طلب لسه مستني الموافقة', 'طلب منتهي', 'طلب قطع غيار مش طباعة',
+                       'منى السرّية', '01055512345', '98765'):
+            self.assertNotIn(hidden, html, hidden)
+        self.assertIn('دخول الشركات', html)
+        # المسجّل ⇒ زرار «اكتب طلبك» بيودّيه لفورم الطلب في لوحته على طول
+        c.cookies['mp_session'] = str(cust.session_token)
+        self.assertIn('href="/marketplace/dashboard/?new=1"', c.get('/marketplace/catalog/printing/?tab=requests').content.decode())
+        # الإنجليزي مترجم (وبنرجّع اللغة عشان مانسيبهاش 'en' للاختبارات اللي بعدنا)
+        from django.conf import settings
+        from django.utils import translation
+        en = HttpClient(); en.cookies['django_language'] = 'en'
+        try:
+            en_html = en.get('/marketplace/catalog/printing/?tab=requests').content.decode()
+        finally:
+            translation.activate(settings.LANGUAGE_CODE)
+        for needle in ('Company listings', 'Customer requests', 'Post your request', 'Company sign-in'):
+            self.assertIn(needle, en_html, needle)
+        # سوق قطع الغيار بيعرض طلباته هو بس
+        auto = c.get('/marketplace/catalog/automotive/?tab=requests').content.decode()
+        self.assertIn('طلب قطع غيار مش طباعة', auto)
+        self.assertNotIn('محتاج ٥٠٠ علبة حلويات مطبوعة', auto)
+
     def test_switcher_on_all_catalog_pages_and_switches(self):
         item = CatalogItem.objects.first()
         c = HttpClient()

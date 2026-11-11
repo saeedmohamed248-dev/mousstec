@@ -710,6 +710,10 @@ function openNewRequest(prefill) {
     }
 }
 function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show')); }
+// 🛍️ جاي من زرار «اكتب طلبك» في صفحة السوق (?new=1) ⇒ نفتح فورم الطلب على طول
+document.addEventListener('DOMContentLoaded', function () {
+    if (new URLSearchParams(window.location.search).get('new') === '1') openNewRequest('');
+});
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 function toast(msg, type) {

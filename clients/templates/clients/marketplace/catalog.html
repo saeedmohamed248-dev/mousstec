@@ -48,6 +48,45 @@
         <h1>{{ meta.title }}</h1>
         <p>{{ meta.subtitle }}</p>
     </section>
+    {# 🛍️ السوق وشّين: معروضات الشركات + طلبات العملاء #}
+    <nav class="mtabs" aria-label="{% trans 'أقسام السوق' %}">
+        <a class="mtab {% if tab != 'requests' %}on{% endif %}" href="/marketplace/catalog/{{ sector }}/"><i class="fas fa-store"></i> {% trans "معروضات الشركات" %} <span class="n">{{ offers_count }}</span></a>
+        <a class="mtab {% if tab == 'requests' %}on{% endif %}" href="/marketplace/catalog/{{ sector }}/?tab=requests"><i class="fas fa-bullhorn"></i> {% trans "طلبات العملاء" %} <span class="n">{{ wanted_count }}</span></a>
+    </nav>
+    {% if tab == 'requests' %}
+    <a class="sell ask" href="{{ new_request_url }}"><i class="fas fa-pen-to-square" style="font-size:1.4rem;"></i>
+        <span><b>{% trans "محتاج حاجة معيّنة؟" %}</b><br><small>{% trans "اكتب طلبك والشركات تبعتلك عروض أسعارها — من غير ما اسمك أو رقمك يظهر لحد." %}</small></span>
+        <span class="go">{% trans "اكتب طلبك" %} ←</span></a>
+    {% if wanted.object_list %}
+    <div class="wanted">
+        {% for w in wanted.object_list %}
+        <article class="want">
+            <h3>{{ w.title }}</h3>
+            <p>{{ w.description|truncatechars:220 }}</p>
+            <div class="meta">
+                {% if w.urgency == 'urgent' %}<span class="hot">🔥 {% trans "عاجل" %}</span>{% elif w.urgency == 'soon' %}<span class="st">⏱️ {% trans "قريب" %}</span>{% endif %}
+                {% if w.customer_city %}<span class="st"><i class="fas fa-location-dot"></i> {{ w.customer_city }}</span>{% endif %}
+                <span class="st"><i class="fas fa-clock"></i> {% blocktrans with ago=w.created_at|timesince %}من {{ ago }}{% endblocktrans %}</span>
+                <span class="st"><i class="fas fa-tags"></i> {% if w.offers_count %}{% blocktrans count n=w.offers_count %}عرض واحد اتقدّم{% plural %}{{ n }} عروض اتقدّمت{% endblocktrans %}{% else %}{% trans "لسه مفيش عروض" %}{% endif %}</span>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% if wanted.has_other_pages %}
+    <nav class="pager">
+        {% if wanted.has_previous %}<a href="?tab=requests&page={{ wanted.previous_page_number }}">→ {% trans "السابق" %}</a>{% endif %}
+        <span>{{ wanted.number }} / {{ wanted.paginator.num_pages }}</span>
+        {% if wanted.has_next %}<a href="?tab=requests&page={{ wanted.next_page_number }}">{% trans "التالي" %} ←</a>{% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    <div class="empty"><i class="fas fa-bullhorn" style="font-size:2rem;"></i><p>{% trans "مفيش طلبات مفتوحة دلوقتي — كن أول واحد يكتب طلبه." %}</p></div>
+    {% endif %}
+    <div class="sell" style="background:var(--mt-card); color:var(--mt-text); border:1px solid var(--mt-line);"><i class="fas fa-shop" style="font-size:1.4rem; color:var(--mt-brand);"></i>
+        <span><b>{% trans "شركة وعايزة تقدّم عرض؟" %}</b><br><small>{% trans "ادخل لوحة شركتك وافتح «السوق المفتوح» — هتلاقي الطلبات دي وتبعت سعرك للعميل مباشرة." %}</small></span>
+        <a class="go" style="background:var(--mt-brand); color:#fff; text-decoration:none;" href="/login/">{% trans "دخول الشركات" %}</a>
+        <a class="go" style="border:1px solid var(--mt-brand); text-decoration:none;" href="/marketplace/sell/">{% trans "سجّل شركتك" %}</a></div>
+    {% else %}
     <form class="search" method="get" action="">
         <input type="search" name="q" value="{{ q }}" placeholder="{% if sector == 'automotive' %}{% trans 'دوّر على قطعة: بوجيهات، تيل فرامل، مساعدين…' %}{% else %}{% trans 'دوّر: كوبايات، أقلام، يونيفورم، كروت…' %}{% endif %}" aria-label="{% trans 'بحث' %}">
         {% if makes %}
@@ -101,9 +140,14 @@
     <a class="sell" href="/marketplace/sell/"><i class="fas fa-shop" style="font-size:1.4rem;"></i>
         <span><b>{% if sector == 'automotive' %}{% trans "عندك محل قطع غيار؟" %}{% else %}{% trans "عندك مطبعة أو مكتب تصميم؟" %}{% endif %}</b><br><small>{% trans "اعرض منتجاتك قدام العملاء اللي بيدوّروا كل يوم." %}</small></span>
         <span class="go">{% trans "اعرض منتجاتك هنا" %} ←</span></a>
+    <a class="sell ask" href="{{ new_request_url }}"><i class="fas fa-pen-to-square" style="font-size:1.4rem;"></i>
+        <span><b>{% trans "مش لاقي اللي محتاجه؟" %}</b><br><small>{% trans "اكتب طلبك والشركات تبعتلك عروض أسعارها — من غير ما اسمك أو رقمك يظهر لحد." %}</small></span>
+        <span class="go">{% trans "اكتب طلبك" %} ←</span></a>
     <div class="sec-title"><i class="fas fa-tags"></i> {% trans "المعروضات" %} <span class="badge-mt">{{ page.paginator.count }}</span></div>
     {% endif %}
+    {% endif %}
 
+    {% if tab != 'requests' %}
     {% if page.object_list %}
     <div class="grid">
         {% for it in page.object_list %}
@@ -128,6 +172,7 @@
     {% endif %}
     {% else %}
     <div class="empty"><i class="fas fa-magnifying-glass" style="font-size:2rem;"></i><p>{% trans "مالقيناش حاجة بالبحث ده — جرّب كلمة تانية، أو اطلب اللي محتاجه من لوحتك وإحنا ندوّرلك عليه." %}</p></div>
+    {% endif %}
     {% endif %}
     <p class="note"><i class="fas fa-circle-info"></i> {% trans "كل المتاجر دي بتنفّذ طلباتها عن طريق Mouss Tec — بتطلب سعر، وإحنا بنكلمك ونتابع معاك لحد ما تستلم." %}</p>
 </main>

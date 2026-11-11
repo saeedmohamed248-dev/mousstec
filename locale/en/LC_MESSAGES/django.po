@@ -25669,3 +25669,55 @@ msgstr "The file is larger than 15 MB — shrink it or send it on WhatsApp after
 
 msgid "التحويل محتاج فرعين على الأقل — عندك فرع واحد دلوقتي. ضيف فرع تاني وهيظهر هنا فورم التحويل."
 msgstr "Transfers need at least two branches — you have only one right now. Add a second branch and the transfer form will appear here."
+
+msgid "أقسام السوق"
+msgstr "Market sections"
+
+msgid "معروضات الشركات"
+msgstr "Company listings"
+
+msgid "طلبات العملاء"
+msgstr "Customer requests"
+
+msgid "محتاج حاجة معيّنة؟"
+msgstr "Need something specific?"
+
+msgid "مش لاقي اللي محتاجه؟"
+msgstr "Can't find what you need?"
+
+msgid "اكتب طلبك والشركات تبعتلك عروض أسعارها — من غير ما اسمك أو رقمك يظهر لحد."
+msgstr "Post your request and companies will send you their quotes — your name and number stay hidden."
+
+msgid "اكتب طلبك"
+msgstr "Post your request"
+
+msgid "عاجل"
+msgstr "Urgent"
+
+msgid "قريب"
+msgstr "Soon"
+
+#, python-format
+msgid "من %(ago)s"
+msgstr "%(ago)s ago"
+
+#, python-format
+msgid "عرض واحد اتقدّم"
+msgid_plural "%(n)s عروض اتقدّمت"
+msgstr[0] "%(n)s offer submitted"
+msgstr[1] "%(n)s offers submitted"
+
+msgid "مفيش طلبات مفتوحة دلوقتي — كن أول واحد يكتب طلبه."
+msgstr "No open requests right now — be the first to post one."
+
+msgid "شركة وعايزة تقدّم عرض؟"
+msgstr "A company that wants to send an offer?"
+
+msgid "ادخل لوحة شركتك وافتح «السوق المفتوح» — هتلاقي الطلبات دي وتبعت سعرك للعميل مباشرة."
+msgstr "Sign in to your company dashboard and open “Open Market” — you'll find these requests there and can send your price straight to the customer."
+
+msgid "دخول الشركات"
+msgstr "Company sign-in"
+
+msgid "لسه مفيش عروض"
+msgstr "No offers yet"

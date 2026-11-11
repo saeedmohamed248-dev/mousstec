@@ -13,12 +13,13 @@ from django.core.paginator import Paginator
 from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from django.utils.translation import get_language, gettext as _, gettext_lazy as _l
 
 from clients.catalog_seed import PARTS_CATEGORIES, PARTS_CATEGORIES_EN, PRINT_CATEGORIES, PRINT_CATEGORIES_EN
-from clients.models import CatalogItem, CatalogQuoteRequest, CatalogReview, CatalogStore
+from clients.models import CatalogItem, CatalogQuoteRequest, CatalogReview, CatalogStore, ServiceRequest
 from clients.services import catalog_stats
 from clients import catalog_options
 from clients.permissions import platform_owner_required
@@ -146,8 +147,41 @@ def _sector_or_404(sector):
     return SECTORS[sector]
 
 
+def _open_customer_requests(sector):
+    """📣 طلبات العملاء المفتوحة في القطاع — اللي الإدارة وافقت عليها ولسه ماانتهتش (نفس شرط فيد التجار).
+
+    بنجيب بس الحقول اللي بتتعرض للعامة: من غير اسم العميل ولا موبايله ولا ميزانيته ولا مرفقاته.
+    """
+    return (ServiceRequest.objects
+            .filter(sector=sector, status='open', is_approved=True, expires_at__gt=timezone.now())
+            .only('request_code', 'title', 'description', 'customer_city', 'urgency', 'offers_count', 'created_at')
+            .order_by('-created_at'))
+
+
+def _new_request_url(sector, customer):
+    """رابط «اكتب طلبك»: المسجّل يروح لفورم الطلب في لوحته، وغير المسجّل يدخل الأول ويرجع للفورم."""
+    target = '/marketplace/dashboard/?new=1'
+    if customer:
+        return target
+    from urllib.parse import quote
+    return f'/marketplace/{sector}/?tab=login&next={quote(target, safe="")}'
+
+
 def catalog_home(request, sector):
     meta = _sector_or_404(sector)
+    customer = _marketplace_auth(request)
+    wanted = _open_customer_requests(sector)
+    if request.GET.get('tab') == 'requests':
+        # 🛍️ السوق وشّين: معروضات الشركات + طلبات العملاء (عشان الشركات تدخل تشوف المطلوب وتقدّم عروض)
+        return render(request, 'clients/marketplace/catalog.html', {
+            'sector': sector, 'meta': meta, 'tab': 'requests', 'customer': customer,
+            'wanted': Paginator(wanted, PER_PAGE).get_page(request.GET.get('page')),
+            'wanted_count': wanted.count(),
+            'offers_count': CatalogItem.objects.filter(store__sector=sector, store__is_active=True,
+                                                       is_active=True).count(),
+            'new_request_url': _new_request_url(sector, customer),
+            'categories': [], 'page': None,
+        })
     items = (CatalogItem.objects.filter(store__sector=sector, store__is_active=True, is_active=True)
              .select_related('store'))
     cat = request.GET.get('cat', '')
@@ -183,7 +217,9 @@ def catalog_home(request, sector):
         'sector': sector, 'meta': meta, 'page': page, 'stores': stores,
         'categories': _categories(meta),
         'cat': cat, 'q': q, 'make': make, 'makes': makes,
-        'customer': _marketplace_auth(request),
+        'customer': customer, 'tab': 'offers',
+        'wanted_count': wanted.count(), 'offers_count': page.paginator.count,
+        'new_request_url': _new_request_url(sector, customer),
         'show_activity': not (q or cat or make) and page.number == 1,
         'recent': catalog_stats.recent_requests(sector) if page.number == 1 else [],
         'top': catalog_stats.top_items(sector) if not (q or cat or make) and page.number == 1 else [],
