@@ -74,7 +74,11 @@ class MarketOrderAdmin(admin.ModelAdmin):
         for order in queryset.filter(status='disputed'):
             order.resolve_dispute(for_shop)
             n += 1
-            if for_shop:
+            if for_shop and order.status == 'paid':
+                # المشكلة اتفتحت قبل التسليم وحكمنا إن المطبعة تكمّل
+                notify(request, order.customer, 'قرار المشكلة', f'راجعنا «{order.title}» — المطبعة هتكمّل التنفيذ.', order)
+                notify(request, order.shop, 'قرار المشكلة', f'راجعنا «{order.title}» — كمّل التنفيذ وسجّل التسليم.', order)
+            elif for_shop:
                 notify(request, order.customer, 'قرار المشكلة', f'راجعنا «{order.title}» والطلب اتقفل مكتمل.', order)
                 notify(request, order.shop, 'قرار المشكلة', f'راجعنا «{order.title}» — هنحوّلك المبلغ.', order)
             else:
@@ -83,7 +87,7 @@ class MarketOrderAdmin(admin.ModelAdmin):
                 notify(request, order.shop, 'قرار المشكلة', f'راجعنا «{order.title}» والطلب اتلغى لصالح العميل.', order)
         self.message_user(request, f'اتحل {n} نزاع (الطلبات اللي فيها مشكلة مفتوحة بس).')
 
-    @admin.action(description='⚖️ حل المشكلة لصالح المطبعة (يكتمل ويتحوّل لها)')
+    @admin.action(description='⚖️ حل المشكلة لصالح المطبعة (يكتمل لو اتسلّم — أو ترجع تكمّل التنفيذ)')
     def dispute_for_shop(self, request, queryset):
         self._resolve(request, queryset, True)
 

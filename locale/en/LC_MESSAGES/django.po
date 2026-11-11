@@ -26700,3 +26700,27 @@ msgstr[1] "%(n)s print shops"
 
 msgid "جديدة — مالهاش تقييمات"
 msgstr "New — no reviews yet"
+
+msgid "سوق المطابع مستنيك:"
+msgstr "Print shops market needs you:"
+
+msgid "المشكلة بتتفتح بعد ما الدفع يتأكّد وقبل تأكيد الاستلام."
+msgstr "An issue can be opened after payment is confirmed and before receipt is confirmed."
+
+#, python-format
+msgid "%(n)s إيصال دفع يتأكّد"
+msgid_plural "%(n)s إيصالات دفع تتأكّد"
+msgstr[0] "%(n)s payment receipt to confirm"
+msgstr[1] "%(n)s payment receipts to confirm"
+
+#, python-format
+msgid "%(n)s مشكلة مفتوحة"
+msgid_plural "%(n)s مشاكل مفتوحة"
+msgstr[0] "%(n)s open issue"
+msgstr[1] "%(n)s open issues"
+
+#, python-format
+msgid "%(n)s تحويل للمطابع"
+msgid_plural "%(n)s تحويلات للمطابع"
+msgstr[0] "%(n)s payout to print shops"
+msgstr[1] "%(n)s payouts to print shops"

@@ -5,7 +5,8 @@
     requested ─(المطبعة تقدّم عرض)→ offered ─(العميل يقبل)→ awaiting_payment
     ─(العميل يرفع إيصال)→ payment_review ─(Mouss Tec تأكّد)→ paid
     ─(المطبعة تسلّم)→ delivered ─(العميل يأكّد الاستلام، أو تلقائي بعد PRINT_MARKET_AUTO_CONFIRM_DAYS)→ completed
-    delivered ─(العميل «عندي مشكلة»)→ disputed ─(Mouss Tec تحكم)→ completed (للمطبعة) / cancelled (استرداد للعميل)
+    paid أو delivered ─(العميل «عندي مشكلة»)→ disputed ─(Mouss Tec تحكم)→
+        للمطبعة: completed (لو اتسلّم) أو يرجع paid (لو لسه ماتسلّمش — المطبعة تكمّل) / للعميل: cancelled (استرداد)
     العميل يرفض العرض ← يرجع requested والمطبعة تقدّم عرض جديد.
     الإلغاء مسموح قبل الدفع بس.
 
@@ -266,20 +267,27 @@ class MarketOrder(models.Model):
             order = self._locked()
             if customer.pk != order.customer_id:
                 raise ValidationError(_('مش مسموح.'))
-            if order.status != 'delivered':
-                raise ValidationError(_('المشكلة بتتفتح بعد ما المطبعة تسجّل التسليم وقبل التأكيد.'))
+            # 🐛 [FIX — دورة ناقصة]: العميل اللي دفع والمطبعة ماسلّمتش ماكانش ليه أي مخرج
+            #    (الإلغاء مقفول بعد الدفع و«عندي مشكلة» بعد التسليم بس) ⇒ مسموح من بعد الدفع.
+            if order.status not in ('paid', 'delivered'):
+                raise ValidationError(_('المشكلة بتتفتح بعد ما الدفع يتأكّد وقبل تأكيد الاستلام.'))
             order.dispute_reason = reason[:2000]
             order.disputed_at = timezone.now()
             order.save(update_fields=['dispute_reason', 'disputed_at'])
             self._set_status(order, 'disputed')
 
     def resolve_dispute(self, for_shop):
-        """صاحب المنصة بيحكم: للمطبعة ← مكتمل (يتحوّلها)، للعميل ← ملغي (استرداد يدوي للعميل)."""
+        """صاحب المنصة بيحكم: للعميل ← ملغي (استرداد يدوي للعميل). للمطبعة ← مكتمل (يتحوّلها) لو كانت
+        سلّمت، ولو المشكلة اتفتحت قبل التسليم الطلب بيرجع «اتدفع — جاري التنفيذ» والمطبعة تكمّل."""
         with transaction.atomic():
             order = self._locked()
             if order.status != 'disputed':
                 raise ValidationError(_('الطلب ده مافيهوش مشكلة مفتوحة.'))
-            self._set_status(order, 'completed' if for_shop else 'cancelled')
+            if not for_shop:
+                status = 'cancelled'
+            else:
+                status = 'completed' if order.delivered_at else 'paid'
+            self._set_status(order, status)
 
     @classmethod
     def auto_complete_due(cls):

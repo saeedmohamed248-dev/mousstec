@@ -338,6 +338,42 @@ class PrintMarketFlowTests(_TenantDomainMixin, TestCase):
         with self.assertRaises(ValidationError):
             order.resolve_dispute(for_shop=True)
 
+    @override_settings(OWNER_NOTIFY_SYNC=True, CATALOG_NOTIFY_EMAIL='owner@mousstec.test',
+                       EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_owner_notified_and_paid_but_not_delivered_has_a_way_out(self):
+        """🔔 صاحب المنصة بيتبلّغ بالإيصال والمشكلة والتحويل — والعميل اللي دفع والمطبعة ماسلّمتش يقدر يفتح مشكلة."""
+        from django.core import mail
+        order = self._new_order()
+        self.shop_c.post(self._u('offer_submit', order), {'price': '300', 'delivery_days': '2'})
+        order.refresh_from_db()
+        self.cust_c.post(self._u('offer_respond', order, order.pending_offer.pk), {'action': 'accept'})
+        mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.cust_c.post(self._u('payment_submit', order), {'method': 'instapay', 'reference': 'R9',
+                                                                'receipt': _png()})
+        owner = [m for m in mail.outbox if 'owner@mousstec.test' in m.to]
+        self.assertEqual(len(owner), 1)
+        self.assertIn('إيصال دفع', owner[0].subject)
+        self.assertIn('/print_market/marketpayment/', owner[0].body)
+        MarketPayment.objects.get(order=order).review(None, confirm=True)
+        # اتدفع والمطبعة لسه ماسلّمتش ⇒ العميل يقدر يفتح مشكلة (كان مالوش أي مخرج)
+        self.assertContains(self.cust_c.get(self._u('order_detail', order)), 'عندي مشكلة في الطلب')
+        mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.cust_c.post(self._u('order_dispute', order), {'reason': 'عدّى أسبوع ومفيش تسليم'})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'disputed')
+        self.assertTrue([m for m in mail.outbox if 'owner@mousstec.test' in m.to and 'مشكلة' in m.subject])
+        # الحكم للمطبعة قبل التسليم ⇒ ترجع تكمّل (مش «مكتمل» من غير تسليم)
+        order.resolve_dispute(for_shop=True)
+        self.assertEqual(order.status, 'paid')
+        # وبعد التسليم والاستلام صاحب المنصة بيتبلّغ يحوّل
+        self.shop_c.post(self._u('order_delivered', order))
+        mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.cust_c.post(self._u('order_received', order))
+        self.assertTrue([m for m in mail.outbox if 'owner@mousstec.test' in m.to and 'حوّل' in m.subject])
+
     def test_review_once_after_completed(self):
         order = self._delivered_order()
         self.cust_c.post(self._u('review_submit', order), {'rating': '5'})
