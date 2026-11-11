@@ -4,7 +4,8 @@
       {% if p.image %}<img src="{{ p.image.url }}" class="pm-thumb" alt="{{ p.title }}" loading="lazy">
       {% else %}<div class="pm-thumb d-flex align-items-center justify-content-center"><i class="fas fa-print fa-2x pm-muted"></i></div>{% endif %}
       <div class="fw-bold mt-2">{{ p.title }}</div>
-      <div class="small pm-muted">{{ p.shop.name }}{% if p.shop.city %} · {{ p.shop.city }}{% endif %}{% if p.shop_rating %} · {% include "print_market/_stars.html" with avg=p.shop_rating %}{% endif %}</div>
+      <div class="small pm-muted">{{ p.shop.name }}{% if p.shop.city %} · {{ p.shop.city }}{% endif %}</div>
+      {% if p.shop_rating %}<div class="small">{% include "print_market/_stars.html" with avg=p.shop_rating %}</div>{% endif %}
       {% if p.price_from %}<div class="small fw-bold" style="color:var(--pm)">{% trans "يبدأ من" %} {{ p.price_from|floatformat:"-2" }} {% trans "ج.م" %}{% if p.unit %} / {{ p.unit }}{% endif %}</div>{% endif %}
     </div>
   </a>

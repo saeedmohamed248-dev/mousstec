@@ -52,8 +52,9 @@
     {% endif %}
     {% if is_shop and order.status in 'requested offered' %}
       <form method="post" action="{% url 'print_market:offer_submit' order.code %}" class="row g-2 mt-2">{% csrf_token %}
-        <div class="col-6"><input name="price" type="number" step="0.01" min="0.01" class="form-control" placeholder="{% trans 'السعر (ج.م)' %}" required dir="ltr"></div>
-        <div class="col-6"><input name="delivery_days" type="number" min="1" max="365" class="form-control" placeholder="{% trans 'مدة التنفيذ (أيام)' %}" required dir="ltr"></div>
+        {# 🐛 [FIX]: الخانات كان ليها placeholder بس — أول ما تتملي المطبعة ماتعرفش دي السعر ولا المدة #}
+        <div class="col-6"><label class="form-label small mb-1">{% trans "السعر (ج.م)" %}</label><input name="price" type="number" step="0.01" min="0.01" class="form-control" placeholder="{% trans 'السعر (ج.م)' %}" required dir="ltr"></div>
+        <div class="col-6"><label class="form-label small mb-1">{% trans "مدة التنفيذ (أيام)" %}</label><input name="delivery_days" type="number" min="1" max="365" class="form-control" placeholder="{% trans 'مدة التنفيذ (أيام)' %}" required dir="ltr"></div>
         <div class="col-12"><input name="note" class="form-control" maxlength="500" placeholder="{% trans 'ملاحظات (اختياري)' %}"></div>
         <div class="col-12"><button class="pm-btn w-100">{% if pending_offer %}{% trans "ابعت عرض جديد بدل القديم" %}{% else %}{% trans "ابعت العرض" %}{% endif %}</button></div>
       </form>
