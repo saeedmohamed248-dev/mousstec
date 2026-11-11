@@ -69,6 +69,8 @@
                 <span class="st"><i class="fas fa-clock"></i> {% blocktrans with ago=w.created_at|timesince %}من {{ ago }}{% endblocktrans %}</span>
                 <span class="st"><i class="fas fa-tags"></i> {% if w.offers_count %}{% blocktrans count n=w.offers_count %}عرض واحد اتقدّم{% plural %}{{ n }} عروض اتقدّمت{% endblocktrans %}{% else %}{% trans "لسه مفيش عروض" %}{% endif %}</span>
             </div>
+            {# 🏢 للشركات: دخول الشركة ⇒ السوق المفتوح على الطلب ده نفسه وفورم العرض مفتوح #}
+            <a class="offer" href="/login/?next=%2Fmarketplace%2Fmerchant%2Ffeed%2F%3Freq%3D{{ w.request_code }}"><i class="fas fa-paper-plane"></i> {% trans "قدّم عرض" %} <small>({% trans "للشركات" %})</small></a>
         </article>
         {% endfor %}
     </div>
