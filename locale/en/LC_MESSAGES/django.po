@@ -25730,3 +25730,9 @@ msgstr "— No salesperson —"
 
 msgid "— بدون فني —"
 msgstr "— No technician —"
+
+msgid "قدّم عرض"
+msgstr "Send an offer"
+
+msgid "للشركات"
+msgstr "for companies"
