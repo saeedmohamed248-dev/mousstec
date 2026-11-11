@@ -10,7 +10,7 @@ import os
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -117,6 +117,13 @@ def notify_owner_async(req_id):
     threading.Thread(target=_run, daemon=True).start()
 
 
+def _with_photo_first(qs):
+    """📸 المنتجات اللي ليها صورة تظهر الأول (has_photo=1 قبل 0) — من غير ما نبوّظ ثبات الترتيب جوّه كل مجموعة."""
+    return qs.annotate(has_photo=Case(
+        When(Q(image__isnull=True) | Q(image=''), then=Value(0)),
+        default=Value(1), output_field=IntegerField()))
+
+
 def _is_en():
     return (get_language() or 'ar').startswith('en')
 
@@ -157,7 +164,9 @@ def catalog_home(request, sector):
                              | Q(car_models__icontains=q) | Q(store__name__icontains=q))
     # ترتيب ثابت بيخلط المتاجر (أول منتج من كل متجر، بعدين التاني…) — والصفحات مابتتكررش.
     # «اختيار Mouss Tec» وتقييم Mouss Tec الأعلى الأول (من غير ما يأثر على ثبات الصفحات).
-    items = items.order_by('-store__is_featured', 'sort', '-store__platform_score', 'store__sort', 'id')
+    # 📸 المنتجات اللي ليها صور الأول (طلب صاحب المنصة) — وبعدين نفس الترتيب الثابت القديم.
+    items = _with_photo_first(items).order_by('-has_photo', '-store__is_featured', 'sort',
+                                              '-store__platform_score', 'store__sort', 'id')
     page = Paginator(items, PER_PAGE).get_page(request.GET.get('page'))
     page.object_list = catalog_stats.decorate_items(page.object_list)
     stores = catalog_stats.decorate_stores(
@@ -184,7 +193,7 @@ def catalog_home(request, sector):
 def catalog_store(request, slug):
     store = get_object_or_404(CatalogStore, slug=slug, is_active=True)
     catalog_stats.decorate_stores([store])
-    items = store.items.filter(is_active=True).order_by('sort', 'id')
+    items = _with_photo_first(store.items.filter(is_active=True)).order_by('-has_photo', 'sort', 'id')
     page = Paginator(items, 100).get_page(1)
     page.object_list = catalog_stats.decorate_items(page.object_list)
     return render(request, 'clients/marketplace/catalog.html', {
@@ -258,8 +267,9 @@ def catalog_item(request, item_code):
             from django.db import transaction
             transaction.on_commit(lambda: notify_owner_async(req.pk))
             return redirect(f'/marketplace/catalog/item/{item.item_code}/?sent=1#quote')
-    related = list(CatalogItem.objects.filter(store=item.store, is_active=True).exclude(pk=item.pk)
-                   .select_related('store').order_by('sort')[:8])
+    related = list(_with_photo_first(CatalogItem.objects.filter(store=item.store, is_active=True)
+                                     .exclude(pk=item.pk)).select_related('store')
+                   .order_by('-has_photo', 'sort', 'id')[:8])
     catalog_stats.decorate_items([item])
     catalog_stats.decorate_stores([item.store])
     return render(request, 'clients/marketplace/catalog_item.html', {

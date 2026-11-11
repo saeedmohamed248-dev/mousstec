@@ -68,6 +68,23 @@ class CatalogTests(_TenantDomainMixin, TestCase):
         self.assertIn('href="/marketplace/catalog/automotive/" class="mt-card"', landing)
         self.assertIn('href="/marketplace/catalog/printing/" class="mt-card"', landing)
 
+    def test_items_with_photos_come_first(self):
+        """📸 المنتجات اللي ليها صورة بتظهر الأول في السوق وفي صفحة المتجر."""
+        CatalogItem.objects.update(image='')
+        store = CatalogStore.objects.filter(sector='printing').order_by('-sort').first()
+        last = store.items.order_by('-sort', '-id').first()  # آخر منتج في الترتيب العادي
+        CatalogItem.objects.filter(pk=last.pk).update(image='catalog/x.jpg')
+        c = HttpClient()
+        r = c.get('/marketplace/catalog/printing/')
+        self.assertEqual(r.context['page'].object_list[0].pk, last.pk)
+        r = c.get(f'/marketplace/catalog/store/{store.slug}/')
+        self.assertEqual(r.context['page'].object_list[0].pk, last.pk)
+        # من غير صور الترتيب الثابت زي ما هو، والصفحات مابتكررش
+        CatalogItem.objects.update(image='')
+        p1 = [i.pk for i in c.get('/marketplace/catalog/printing/').context['page'].object_list]
+        p2 = [i.pk for i in c.get('/marketplace/catalog/printing/?page=2').context['page'].object_list]
+        self.assertFalse(set(p1) & set(p2))
+
     def test_quote_request_created_and_validated(self):
         c = HttpClient()
         url = f'/marketplace/catalog/item/{self.item.item_code}/'
