@@ -9,6 +9,8 @@ from django.db.models import F, Min, Sum
 from clients.models import Client
 import logging
 
+from django.conf import settings
+
 from erp_core.orchestrator import run_agent_safely, AgentEventBus, AgentHealthMonitor, dlq
 from clients.services.modules import skip_if_disabled
 
@@ -1020,3 +1022,39 @@ def purge_screen_recordings():
     """🎥 مسح تسجيلات الشاشة الأقدم من مدة الحفظ (يومياً)."""
     from clients.views.screen_recording_views import purge_old_sessions
     return purge_old_sessions()
+
+
+@shared_task(ignore_result=True)
+def notify_merchants_new_request(request_code, tenant_ids):
+    """🔔 طلب عميل اتنشر في السوق المفتوح ⇒ إيميل + واتساب لكل شركة في القطاع، بلينك يفتح فورم العرض."""
+    from django.core.mail import send_mail
+
+    from clients.models import Client, ServiceRequest
+    from clients.services.whatsapp_notify import send_platform_whatsapp
+
+    req = ServiceRequest.objects.filter(request_code=request_code, status='open').first()
+    if req is None:
+        return 0
+    budget = f" — الميزانية حتى {req.max_budget:g} ج.م" if req.max_budget else ''
+    line = f'طلب جديد في السوق المفتوح: «{req.title[:120]}»{budget} — قدّم عرضك قبل غيرك.'
+    has_wa = bool(getattr(settings, 'WHATSAPP_ACCESS_TOKEN', '') and getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', ''))
+    tpl = getattr(settings, 'MARKETPLACE_REQUEST_WHATSAPP_TEMPLATE', '')
+    sent = 0
+    for tenant in Client.objects.filter(pk__in=tenant_ids, is_active=True).prefetch_related('domains'):
+        dom = next((d.domain for d in tenant.domains.all() if d.is_primary), None) or \
+            next((d.domain for d in tenant.domains.all()), None)
+        if not dom:
+            continue
+        link = f'https://{dom}/marketplace/merchant/feed/?req={req.request_code}'
+        if tenant.email:
+            try:
+                send_mail(f'Mouss Tec — طلب جديد: {req.title[:80]}',
+                          f'أهلاً {tenant.name}،\n\n{line}\n\nافتح الطلب وقدّم عرضك: {link}\n\n— السوق المفتوح | Mouss Tec',
+                          settings.DEFAULT_FROM_EMAIL, [tenant.email], fail_silently=True)
+            except Exception:  # noqa: BLE001
+                logger.exception('[MARKETPLACE NOTIFY] email failed for %s', tenant.schema_name)
+        if has_wa and tenant.phone:
+            send_platform_whatsapp(tenant.phone, template=tpl, params=(tenant.name, line, link),
+                                   text='' if tpl else f'🛒 Mouss Tec\n{tenant.name}، {line}\n{link}')
+        sent += 1
+    return sent

@@ -598,3 +598,49 @@ class CatalogOptionsTests(_TenantDomainMixin, TestCase):
         html = HttpClient().get(f'/marketplace/catalog/item/{it.item_code}/').content.decode()
         self.assertNotIn('name="opt_color"', html)
         self.assertNotIn('name="attachment"', html)
+
+
+@override_settings(ALLOWED_HOSTS=['*'], WHATSAPP_ACCESS_TOKEN='t', WHATSAPP_PHONE_NUMBER_ID='p',
+                   EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class MarketplaceRequestNotifiesCompaniesTests(_TenantDomainMixin, TestCase):
+    """🔔 الطلب لما يتوافق عليه بيوصل للشركات اللي في القطاع (إيميل + واتساب) بلينك فورم العرض — مش بس يتسجّل."""
+
+    def test_approve_notifies_sector_companies(self):
+        from datetime import timedelta
+        from unittest import mock
+
+        from django.core import mail
+        from django.utils import timezone
+
+        from clients.models import Client, Domain, MarketplaceCustomer, ServiceRequest
+        tenant = Client(schema_name='printco_notify', name='مطبعة الاختبار', owner_name='x', phone='01011112222',
+                        email='shop@print.test', industry='printing', status='active', is_active=True)
+        tenant.auto_create_schema = False
+        tenant.save()
+        Domain.objects.create(tenant=tenant, domain='printco.test', is_primary=True)
+        other = Client(schema_name='autoco_notify', name='مركز سيارات', owner_name='x', phone='01033334444',
+                       email='auto@x.test', industry='automotive', status='active', is_active=True)
+        other.auto_create_schema = False
+        other.save()
+        Domain.objects.create(tenant=other, domain='autoco.test', is_primary=True)
+        cust = MarketplaceCustomer.objects.create(phone='01055598700', full_name='شركة', sector='printing',
+                                                  is_verified=True)
+        req = ServiceRequest.objects.create(
+            customer=cust, sector='printing', title='محتاج 5000 كارت لفريق المبيعات',
+            description='ورق 350 جرام وشين', status='pending_approval', is_approved=False,
+            expires_at=timezone.now() + timedelta(days=3))
+        owner = User.objects.create(username='owner_notify', is_staff=True, is_superuser=True)
+        c = HttpClient()
+        c.force_login(owner)
+        with mock.patch('clients.services.whatsapp_notify.send_platform_whatsapp', return_value=True) as wa, \
+                mock.patch('clients.tasks.notify_merchants_new_request.delay', side_effect=Exception('no broker')), \
+                self.captureOnCommitCallbacks(execute=True):
+            r = c.post(f'/marketplace/admin/approve/{req.pk}/')
+        self.assertEqual(r.status_code, 200, r.content[:300])
+        to = [m for m in mail.outbox if 'shop@print.test' in m.to]
+        self.assertEqual(len(to), 1)
+        self.assertIn(f'/marketplace/merchant/feed/?req={req.request_code}', to[0].body)
+        self.assertIn('https://printco.test/', to[0].body)
+        self.assertFalse([m for m in mail.outbox if 'auto@x.test' in m.to])   # قطاع تاني مايوصلوش
+        self.assertTrue(any(call.args[0] == '01011112222' for call in wa.call_args_list))
+        self.assertFalse(any(call.args[0] == '01033334444' for call in wa.call_args_list))
