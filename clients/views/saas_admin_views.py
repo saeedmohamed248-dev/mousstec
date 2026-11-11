@@ -2294,6 +2294,17 @@ def trials_watch(request):
 
 
 @saas_admin_required
+@widget_required('visitors')
+def live_market(request):
+    """🟢 /superadmin/live/ — مين أونلاين دلوقتي في كل سوق (بالاسم لو معروف) + أرقام النهارده.
+    ?partial=1 بيرجّع جزء الصفحة بس (التحديث التلقائي كل ١٥ ثانية)."""
+    from clients.services.live_market import snapshot
+    ctx = snapshot()
+    tpl = 'clients/saas_admin/_live_body.html' if request.GET.get('partial') else 'clients/saas_admin/live_market.html'
+    return render(request, tpl, ctx)
+
+
+@saas_admin_required
 @widget_required('errors')
 def system_status(request):
     """

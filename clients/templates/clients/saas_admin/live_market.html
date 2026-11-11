@@ -1,0 +1,55 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% trans "لايف السوق" %} — Mouss Tec Super Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+<style>
+body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:20px; }
+.container { max-width:1400px; margin:0 auto; }
+.breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:12px; } .breadcrumb a { color:#1E2A57; text-decoration:none; }
+h1 { color:#1E2A57; font-weight:900; margin:0; font-size:24px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+h2 { color:#1E2A57; font-size:17px; font-weight:900; margin:22px 0 10px; }
+.sub { color:#6B6F76; font-size:13px; margin:4px 0 16px; }
+.dot { width:12px; height:12px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 0 #22c55e88; animation:pulse 1.6s infinite; display:inline-block; }
+@keyframes pulse { 70% { box-shadow:0 0 0 12px #22c55e00; } 100% { box-shadow:0 0 0 0 #22c55e00; } }
+.grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); }
+.card { background:#fff; border:1px solid #E8E2D6; border-radius:14px; padding:14px; }
+.card .n { font-size:32px; font-weight:900; color:#1E2A57; line-height:1.1; }
+.card .l { font-size:13px; color:#6B6F76; font-weight:700; }
+.card.big { background:#1E2A57; color:#fff; } .card.big .n { color:#fff; font-size:44px; } .card.big .l { color:#cbd5e1; }
+table { width:100%; border-collapse:collapse; background:#fff; border-radius:14px; overflow:hidden; border:1px solid #E8E2D6; font-size:13px; }
+th { background:#F1ECE2; color:#1E2A57; text-align:start; padding:9px 10px; font-weight:900; white-space:nowrap; }
+td { padding:8px 10px; border-top:1px solid #F1ECE2; vertical-align:middle; }
+.tbl-wrap { overflow-x:auto; }
+.pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:800; background:#EEF2FF; color:#3730A3; white-space:nowrap; }
+.src-facebook { background:#E7F0FF; color:#1D4ED8; } .src-instagram { background:#FCE7F3; color:#BE185D; }
+.src-google { background:#ECFDF3; color:#067647; } .src-direct { background:#F3F4F6; color:#374151; }
+.who a { color:#1E2A57; font-weight:800; text-decoration:none; } .muted { color:#9CA3AF; }
+.path { direction:ltr; unicode-bidi:isolate; font-family:monospace; font-size:12px; color:#475569; max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; vertical-align:middle; }
+.bar { height:8px; border-radius:6px; background:#E5E7EB; overflow:hidden; } .bar > i { display:block; height:100%; background:#1E2A57; }
+.alert { background:#FFFAEB; border:1px solid #FEDF89; color:#B54708; border-radius:12px; padding:10px 14px; font-weight:800; margin-bottom:12px; }
+.alert a { color:#B54708; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="breadcrumb"><a href="/superadmin/">{% trans "السوبر أدمن" %}</a> / {% trans "لايف السوق" %}</div>
+  <h1><span class="dot"></span> {% trans "لايف السوق" %}</h1>
+  <div class="sub">{% trans "بيتحدّث لوحده كل ١٥ ثانية · «أونلاين» = عمل حاجة في آخر ٥ دقايق" %}</div>
+  <div id="liveBody">{% include "clients/saas_admin/_live_body.html" %}</div>
+</div>
+<script>
+setInterval(function(){
+  if (document.hidden) return;
+  fetch('?partial=1', {credentials:'same-origin'}).then(function(r){ return r.ok ? r.text() : null; })
+    .then(function(html){ if (html) document.getElementById('liveBody').innerHTML = html; }).catch(function(){});
+}, 15000);
+</script>
+</body>
+</html>

@@ -698,9 +698,17 @@ class VisitorTrackingMiddleware:
             # 🛡️ VisitorLog موجود في public schema فقط (clients app في SHARED_APPS).
             # لازم نكتب فيه عبر schema_context عشان طلبات الـ tenants تنجح.
             with schema_context('public'):
+                # 📣 علامة الإعلان (fbclid/gclid/utm_source) بتتحفظ مع الصفحة — عشان «جاي منين» في لايف السوق
+                src = ''
+                if request.GET.get('utm_source'):
+                    src = '?utm_source=' + request.GET['utm_source'][:40]
+                elif 'fbclid' in request.GET:
+                    src = '?fbclid'
+                elif 'gclid' in request.GET:
+                    src = '?gclid'
                 VisitorLog.objects.create(
                     ip_address=ip,
-                    path=path[:500],
+                    path=(path[:500 - len(src)] + src),
                     method=request.method,
                     status_code=response.status_code,
                     user=user,

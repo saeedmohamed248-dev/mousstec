@@ -26589,3 +26589,111 @@ msgstr "Lowest offer"
 
 msgid "تقييم الشركة"
 msgstr "Company rating"
+
+msgid "إنستجرام"
+msgstr "Instagram"
+
+msgid "الزوار جايين منين النهارده"
+msgstr "Where today's visitors came from"
+
+msgid "الموجودين دلوقتي"
+msgstr "Online right now"
+
+msgid "بقاله"
+msgstr "For"
+
+msgid "بيتحدّث لوحده كل ١٥ ثانية · «أونلاين» = عمل حاجة في آخر ٥ دقايق"
+msgstr "Auto-refreshes every 15 seconds · “online” = active in the last 5 minutes"
+
+msgid "تيك توك"
+msgstr "TikTok"
+
+msgid "جاي منين"
+msgstr "Source"
+
+msgid "جوجل"
+msgstr "Google"
+
+msgid "راجعهم"
+msgstr "Review them"
+
+msgid "زوار"
+msgstr "Visitors"
+
+msgid "شركة مشتركة"
+msgstr "Subscribed company"
+
+msgid "صفحات"
+msgstr "Pages"
+
+msgid "عروض"
+msgstr "Offers"
+
+msgid "عشان الإعلانات تتعرف صح، حط ?utm_source=facebook في آخر رابط الإعلان."
+msgstr "To track ads correctly, add ?utm_source=facebook to the end of the ad link."
+
+msgid "عميل شركة"
+msgstr "Business customer"
+
+msgid "في صفحة"
+msgstr "Current page"
+
+msgid "فيسبوك"
+msgstr "Facebook"
+
+msgid "فين"
+msgstr "Where"
+
+msgid "لايف السوق"
+msgstr "Live market"
+
+msgid "مباشر"
+msgstr "Direct"
+
+msgid "مفيش حد أونلاين دلوقتي."
+msgstr "Nobody is online right now."
+
+msgid "مواقع تانية"
+msgstr "Other sites"
+
+msgid "مين"
+msgstr "Who"
+
+msgid "🌐 باقي الموقع"
+msgstr "🌐 Rest of site"
+
+msgid "🎨 سوق الطباعة والتصميم"
+msgstr "🎨 Printing & design market"
+
+msgid "🏢 الشركات (السيستم)"
+msgstr "🏢 Companies (system)"
+
+msgid "🖨️ سوق المطابع"
+msgstr "🖨️ Print shops market"
+
+msgid "🚗 سوق السيارات"
+msgstr "🚗 Automotive market"
+
+msgid "🛒 السوق (صفحات عامة)"
+msgstr "🛒 Marketplace (general pages)"
+
+msgid "مين أونلاين دلوقتي • أرقام النهارده"
+msgstr "Who's online now • today's numbers"
+
+#, python-format
+msgid "فيه %(n)s طلب عميل مستني موافقتك — المطابع مش هتشوفه غير بعد ما توافق."
+msgid_plural "فيه %(n)s طلب عميل مستنيين موافقتك — المطابع مش هتشوفهم غير بعد ما توافق."
+msgstr[0] "%(n)s customer request is waiting for your approval — print shops won't see it until you approve."
+msgstr[1] "%(n)s customer requests are waiting for your approval — print shops won't see them until you approve."
+
+#, python-format
+msgid "%(m)s دقيقة"
+msgid_plural "%(m)s دقايق"
+msgstr[0] "%(m)s minute"
+msgstr[1] "%(m)s minutes"
+
+#, python-format
+msgid "%(n)s مطبعة"
+msgid_plural "%(n)s مطابع"
+msgstr[0] "%(n)s print shop"
+msgstr[1] "%(n)s print shops"
