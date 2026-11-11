@@ -426,3 +426,12 @@ html[dir="rtl"] .breadcrumb-item + .breadcrumb-item::before { float: right; padd
   box-shadow: inset -3px 0 0 var(--mt-brand) !important; font-weight: 600;
 }
 .main-sidebar .nav-sidebar > .nav-item > .nav-link.active .nav-icon { color: var(--mt-brand) !important; }
+
+/* 🐛 [FIX]: على الموبايل عنوان الصفحة والـ breadcrumb في لوحة المالك كانوا بيخرجوا برّا الشاشة
+   (العنوان الطويل مابيلفّش) فالصفحة كلها تتسحب بالعرض. */
+@media (max-width: 767.98px) {
+  .content-header h1, .content-header .h4 { white-space: normal; overflow-wrap: anywhere; max-width: 100%; border: 0 !important; margin: 0 0 .25rem !important; padding: 0 !important; }
+  .content-header .breadcrumb { flex-wrap: wrap; max-width: 100%; }
+  .content-header .breadcrumb-item, .content-header .breadcrumb-item a { white-space: normal; overflow-wrap: anywhere; }
+  .content-header .row > [class*="col"], .content-header .container-fluid > .row { max-width: 100%; min-width: 0; flex-wrap: wrap; }
+}

@@ -55,7 +55,23 @@
     function flush(beacon) {
         if (stopped || !buf.length) return;
         if (beacon && navigator.sendBeacon) { beaconAll(buf.splice(0, buf.length)); return; }
-        var body = JSON.stringify({ sid: sid, seq: nextSeq(), events: buf.splice(0, buf.length), path: location.pathname });
+        // 🐛 [FIX]: الصفحات التقيلة (لوحة المالك) كانت بتبعت دفعة أكبر من حد السيرفر (٢MB) فتترفض 413
+        // وتضيع كلها بعد ما اترفعت من باقة الموظف — بنقسّم الدفعة، والحدث اللي لوحده أكبر من الحد مابيتبعتش.
+        var events = buf.splice(0, buf.length), part = [], size = 0;
+        events.forEach(function (e) {
+            var n = JSON.stringify(e).length;
+            if (n > CHUNK_MAX) return;
+            if (size + n > CHUNK_MAX) { post(part); part = []; size = 0; }
+            part.push(e); size += n;
+        });
+        post(part);
+    }
+
+    var CHUNK_MAX = 1500000;  // أقل من MAX_CHUNK_BYTES في السيرفر (٢MB) بهامش للحروف العربي (UTF-8)
+
+    function post(events) {
+        if (stopped || !events.length) return;
+        var body = JSON.stringify({ sid: sid, seq: nextSeq(), events: events, path: location.pathname });
         fetch(URL, {
             method: 'POST', credentials: 'same-origin', keepalive: body.length < BEACON_MAX,
             headers: { 'Content-Type': 'application/json' }, body: body,
