@@ -11,6 +11,21 @@
         @media (max-width:820px) { .layout { grid-template-columns:1fr; } }
         .pic { border-radius:18px; aspect-ratio:4/3; display:flex; align-items:center; justify-content:center; color:#fff; font-size:5rem; overflow:hidden; }
         .pic img { width:100%; height:100%; object-fit:cover; }
+        fieldset.opt { border:0; padding:0; margin:12px 0 0; }
+        fieldset.opt legend { font-weight:700; font-size:.9rem; margin-bottom:6px; padding:0; }
+        .opt-now { font-weight:400; color:var(--mt-muted); }
+        /* 🐛 [FIX]: الـ input المخفي كان من غير أب positioned فبيتحط في أول الصفحة؛ والشريط العلوي
+           الثابت كان بيغطي الاختيار بعد الـ scroll */
+        .pick-chip, .swatch { position:relative; scroll-margin-top:90px; }
+        .pick-chip { display:inline-block; margin:0 0 6px 6px; cursor:pointer; }
+        .pick-chip input, .swatch input { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; }
+        .pick-chip span { display:inline-block; border:1px solid var(--mt-line-2); border-radius:10px; padding:7px 12px; font-size:.85rem; background:#fff; }
+        .pick-chip input:checked + span { border-color:var(--mt-brand); background:var(--mt-brand); color:#fff; }
+        .pick-chip input:focus-visible + span, .swatch input:focus-visible + span { outline:3px solid #93c5fd; }
+        .swatch { display:inline-flex; flex-direction:column; align-items:center; gap:3px; margin:0 0 6px 8px; cursor:pointer; width:46px; }
+        .swatch span { width:34px; height:34px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px var(--mt-line-2); }
+        .swatch input:checked + span { box-shadow:0 0 0 3px var(--mt-brand); }
+        .swatch em { font-style:normal; font-size:.68rem; color:var(--mt-muted); white-space:nowrap; }
         .box { background:var(--mt-card); border:1px solid var(--mt-line); border-radius:16px; padding:16px; }
         h1 { font-size:1.4rem; margin:0 0 8px; line-height:1.5; }
         .meta { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 12px; }
@@ -31,15 +46,13 @@
         <a class="brand" href="/marketplace/catalog/{{ sector }}/"><i class="fas {{ meta.icon }}"></i> {{ meta.title }}</a>
         <span class="sp"></span>
         {% if customer %}<a class="lnk" href="/marketplace/dashboard/"><i class="fas fa-user"></i> {% trans "لوحتي" %}</a>{% endif %}
-    </div>
+    <span class="lang">{% include "clients/_language_switcher.html" %}</span></div>
 </header>
 <main class="wrap">
     <div class="crumbs"><a href="/marketplace/catalog/{{ sector }}/">{{ meta.title }}</a> ‹ <a href="/marketplace/catalog/store/{{ store.slug }}/">{{ store.l_name }}</a></div>
     <div class="layout">
         <div>
-            <div class="pic" style="background:{{ store.color }};">
-                {% if item.image %}<img src="{{ item.image.url }}" alt="{{ item.l_title }}">{% else %}<i class="fas {{ item.icon }}"></i>{% endif %}
-            </div>
+            <div class="pic" style="background:{{ store.color }};">{% if item.image %}<img src="{{ item.image.url }}" alt="{{ item.l_title }}">{% else %}<i class="fas {{ item.icon }}"></i>{% endif %}</div>
             <div class="box" style="margin-top:12px;">
                 <h1>{{ item.l_title }}</h1>
                 <div class="meta">
@@ -79,17 +92,39 @@
             <p style="color:var(--mt-muted); margin:0 0 6px; font-size:.9rem;">{% trans "اكتب بياناتك وهنكلمك بالسعر والمعاد — ببلاش ومن غير أي التزام." %}</p>
             {% if sent %}<div class="ok"><i class="fas fa-circle-check"></i> {% trans "تمام! طلبك وصل وهنكلمك على الموبايل بالسعر في أقرب وقت." %}</div>{% endif %}
             {% for e in errors %}<div class="err">{{ e }}</div>{% endfor %}
-            <form method="post" action="#quote">
+            <form method="post" action="#quote" enctype="multipart/form-data">
                 {% csrf_token %}
                 <label for="q-name">{% trans "اسمك" %} *</label>
                 <input id="q-name" name="name" value="{{ form.name }}" required maxlength="120" autocomplete="name">
                 <label for="q-phone">{% trans "رقم الموبايل (واتساب)" %} *</label>
                 <input id="q-phone" name="phone" value="{{ form.phone }}" required maxlength="30" inputmode="tel" dir="ltr" placeholder="01012345678" autocomplete="tel">
+                {% if opts.sizes %}
+                <fieldset class="opt"><legend>{% trans "المقاس" %}</legend>
+                    {% for v, label in opts.sizes %}<label class="pick-chip"><input type="radio" name="opt_size" value="{{ v }}" {% if chosen.size == v or not chosen.size and forloop.first %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+                </fieldset>{% endif %}
+                {% if opts.colors %}
+                <fieldset class="opt"><legend>{% trans "اللون" %} <span class="opt-now" id="colorName"></span></legend>
+
+                    {% for k, label, hex in opts.colors %}<label class="swatch" title="{{ label }}"><input type="radio" name="opt_color" value="{{ k }}" data-hex="{{ hex }}" data-name="{{ label }}" {% if chosen.color_key == k or not chosen.color_key and forloop.first %}checked{% endif %}><span style="background:{{ hex }};"></span><em>{{ label }}</em></label>{% endfor %}
+                </fieldset>{% endif %}
+                {% if opts.shapes %}
+                <fieldset class="opt"><legend>{% trans "الشكل" %}</legend>
+                    {% for v, label in opts.shapes %}<label class="pick-chip"><input type="radio" name="opt_shape" value="{{ v }}" {% if forloop.first %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+                </fieldset>{% endif %}
+                {% if opts.finishes %}
+                <fieldset class="opt"><legend>{% trans "التشطيب" %}</legend>
+                    {% for v, label in opts.finishes %}<label class="pick-chip"><input type="radio" name="opt_finish" value="{{ v }}" {% if forloop.first %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+                </fieldset>{% endif %}
                 <label for="q-qty">{% trans "الكمية" %}</label>
                 <input id="q-qty" name="quantity" value="{{ form.quantity }}" maxlength="60">
                 {% if sector == 'automotive' %}
                 <label for="q-car">{% trans "العربية (الماركة، الموديل، السنة)" %}</label>
                 <input id="q-car" name="car_info" value="{{ form.car_info }}" maxlength="200" placeholder="{% trans 'مثلاً: هيونداي إلنترا ٢٠١٨' %}">
+                {% endif %}
+                {% if sector == 'printing' %}
+                <label for="q-file">{% trans "ارفع اللوجو أو التصميم بتاعك (اختياري)" %}</label>
+                <input id="q-file" type="file" name="attachment" accept=".png,.jpg,.jpeg,.webp,.heic,.pdf,.ai,.eps,.psd,.svg,.cdr,image/*,application/pdf">
+                <small style="color:var(--mt-muted);">{% trans "صورة أو PDF أو ملف تصميم — لحد ١٥ ميجا." %}</small>
                 {% endif %}
                 <label for="q-details">{% trans "تفاصيل زيادة" %}</label>
                 <textarea id="q-details" name="details" maxlength="3000" placeholder="{% if sector == 'automotive' %}{% trans 'رقم الشاسيه أو رقم القطعة لو معاك، أصلي ولا بديل…' %}{% else %}{% trans 'المقاس، الألوان، اللوجو، المعاد اللي محتاجه فيه…' %}{% endif %}">{{ form.details }}</textarea>
@@ -103,7 +138,7 @@
     <div class="grid">
         {% for it in related %}
         <a class="card" href="/marketplace/catalog/item/{{ it.item_code }}/">
-            <div class="thumb" style="background:{{ store.color }};">{% if it.image %}<img src="{{ it.image.url }}" alt="{{ it.l_title }}" loading="lazy">{% else %}<i class="fas {{ it.icon }}"></i>{% endif %}</div>
+            {% include "clients/marketplace/_catalog_thumb.html" with it=it %}
             <div class="body"><h3>{{ it.l_title }}</h3><span class="cta">{% trans "اطلب سعر" %} ←</span></div>
         </a>
         {% endfor %}
@@ -111,5 +146,14 @@
     {% endif %}
 </main>
 {% include 'clients/ai_chatbot_widget.html' %}
+<script>
+/* 🎨 اسم اللون المختار جنب «اللون» */
+(function () {
+    var name = document.getElementById('colorName');
+    function apply(input) { if (input && name) name.textContent = '· ' + input.getAttribute('data-name'); }
+    document.querySelectorAll('input[name=opt_color]').forEach(function (i) { i.addEventListener('change', function () { apply(i); }); });
+    apply(document.querySelector('input[name=opt_color]:checked'));
+})();
+</script>
 </body>
 </html>

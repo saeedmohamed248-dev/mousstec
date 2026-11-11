@@ -27,7 +27,8 @@ class CatalogTests(_TenantDomainMixin, TestCase):
         for sector in ('printing', 'automotive'):
             self.assertGreaterEqual(CatalogStore.objects.filter(sector=sector).count(), 25)
         counts = CatalogStore.objects.annotate(n=Count('items')).values_list('n', flat=True)
-        self.assertTrue(all(10 <= n <= 20 for n in counts), sorted(counts))
+        # 🆕 الدفعة التانية بتزوّد ٥–١٠ منتجات على متاجر المطابع القديمة
+        self.assertTrue(all(10 <= n <= 30 for n in counts), sorted(counts))
         # الماركات الصيني والألماني موجودة
         makes = set(CatalogItem.objects.values_list('car_make', flat=True))
         for m in ('شيري', 'BMW', 'مرسيدس', 'MG', 'هيونداي'):
@@ -148,3 +149,216 @@ class CatalogNotifyAndEnglishTests(_TenantDomainMixin, TestCase):
         self.assertIn('Mugs', html)
         r = c.post(f'/marketplace/catalog/item/{self.item.item_code}/', {'name': 'A', 'phone': '1'})
         self.assertIn('Write your name', r.content.decode())
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class DashboardMarketEntryTests(_TenantDomainMixin, TestCase):
+    """🛍️ العميل أول ما يدخل لوحته يلاقي زرار السوق بارز (قطاعه + لينك للقطاع التاني)."""
+
+    def setUp(self):
+        if not CatalogStore.objects.exists():
+            seed_catalog(CatalogStore, CatalogItem)
+
+    def _dash(self, sector):
+        import uuid
+        from clients.models import MarketplaceCustomer
+        cust = MarketplaceCustomer.objects.create(
+            customer_type='individual', full_name='عميل', phone=f'+2010{uuid.uuid4().int % 10**8:08d}',
+            sector=sector, is_verified=True)
+        c = HttpClient(); c.cookies['mp_session'] = str(cust.session_token)
+        return c.get('/marketplace/dashboard/').content.decode()
+
+    def test_market_button_first_and_points_to_customer_sector(self):
+        for sector, other in (('printing', 'automotive'), ('automotive', 'printing')):
+            html = self._dash(sector)
+            n = CatalogItem.objects.filter(store__sector=sector, is_active=True).count()
+            self.assertIn('class="market-card"', html)
+            self.assertIn(f'href="/marketplace/catalog/{sector}/" class="market-card"', html)
+            self.assertIn(f'href="/marketplace/catalog/{sector}/" class="market-btn"', html)
+            self.assertIn(f'/marketplace/catalog/{other}/', html)
+            self.assertIn(f'{n} منتج', html)
+            # الكارت قبل «أهلاً» (أول حاجة في الصفحة)
+            self.assertLess(html.find('class="market-card"'), html.find('<section class="hero">'))
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class CatalogLanguageSwitchTests(_TenantDomainMixin, TestCase):
+    """🌐 زرار ع / EN في كل صفحات الكتالوج — وبيرجّع لنفس الصفحة باللغة الجديدة."""
+
+    def setUp(self):
+        if not CatalogStore.objects.exists():
+            seed_catalog(CatalogStore, CatalogItem)
+
+    def test_switcher_on_all_catalog_pages_and_switches(self):
+        item = CatalogItem.objects.first()
+        c = HttpClient()
+        for url in ('/marketplace/catalog/printing/', f'/marketplace/catalog/store/{item.store.slug}/',
+                    f'/marketplace/catalog/item/{item.item_code}/', '/marketplace/sell/'):
+            html = c.get(url).content.decode()
+            self.assertIn('name="language" value="en"', html, url)
+            self.assertIn('name="language" value="ar"', html, url)
+        r = c.post('/i18n/setlang/', {'language': 'en', 'next': '/marketplace/catalog/automotive/?make=BMW'})
+        self.assertEqual(r['Location'], '/marketplace/catalog/automotive/?make=BMW')
+        html = c.get('/marketplace/catalog/automotive/?make=BMW').content.decode()
+        self.assertIn('lang="en"', html)
+        self.assertIn('Spare parts market', html)
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class CatalogAIImagesCommandTests(_TenantDomainMixin, TestCase):
+    """🖼️ generate_catalog_images: صورة لكل نوع منتج، مابيلمسش الصور اللي اترفعت، وبيكمّل من مكانه."""
+
+    def setUp(self):
+        if not CatalogStore.objects.exists():
+            seed_catalog(CatalogStore, CatalogItem)
+
+    def test_one_image_per_type_and_skips_uploaded(self):
+        from io import StringIO
+        from unittest import mock
+        from django.core.management import call_command
+        from clients.management.commands import generate_catalog_images as cmd
+        mine = CatalogItem.objects.filter(store__sector='automotive').first()
+        mine.image.name = 'catalog/mine.jpg'; mine.save()
+        calls = []
+
+        def fake(prompt):
+            calls.append(prompt)
+            self.assertNotIn('Tiggo', prompt)
+            return b'\x89PNG fake'
+        with mock.patch.object(cmd, '_generate', side_effect=fake), \
+                mock.patch('django.core.files.storage.default_storage.save', side_effect=lambda n, c: n):
+            call_command('generate_catalog_images', '--sector', 'automotive', '--sleep', '0', stdout=StringIO())
+        keys = {cmd.image_key(i) for i in CatalogItem.objects.filter(store__sector='automotive')}
+        self.assertEqual(len(calls), len(keys))           # صورة لكل نوع، مش لكل منتج
+        self.assertFalse(CatalogItem.objects.filter(store__sector='automotive', image='').exists())
+        mine.refresh_from_db()
+        self.assertEqual(mine.image.name, 'catalog/mine.jpg')   # صورة صاحب المنصة زي ما هي
+        with mock.patch.object(cmd, '_generate', side_effect=fake):
+            call_command('generate_catalog_images', '--sector', 'automotive', '--sleep', '0', stdout=StringIO())
+        self.assertEqual(len(calls), len(keys))           # التشغيل التاني مابيولّدش تاني
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
+    """📥 import_catalog_images: ZIP بأسماء ملفات البرومبتات ⇒ كل صورة على كل منتجات نوعها مرة واحدة."""
+
+    def setUp(self):
+        if not CatalogStore.objects.exists():
+            seed_catalog(CatalogStore, CatalogItem)
+
+    def test_zip_import_maps_by_code_and_respects_uploaded(self):
+        import io
+        import os
+        import tempfile
+        import zipfile
+        from io import StringIO
+        from unittest import mock
+        from PIL import Image
+        from django.core.management import call_command
+        from clients.management.commands.generate_catalog_images import image_key, image_slots
+        slots = {name[:4]: key for name, key, *_ in image_slots()}
+        # نوع قطع غيار موجود في الداتا
+        it = CatalogItem.objects.filter(store__sector='automotive').first()
+        code = next(c for c, k in slots.items() if k == image_key(it))
+        same = [i for i in CatalogItem.objects.select_related('store') if image_key(i) == image_key(it)]
+        mine = same[-1]
+        mine.image.name = 'catalog/mine.jpg'; mine.save()
+        buf = io.BytesIO(); Image.new('RGB', (2400, 1800), 'red').save(buf, 'PNG')
+        path = os.path.join(tempfile.mkdtemp(), 'batch.zip')
+        with zipfile.ZipFile(path, 'w') as z:
+            z.writestr(f'{code}-whatever-name.png', buf.getvalue())
+            z.writestr('random.png', buf.getvalue())
+        saved = []
+        with mock.patch('django.core.files.storage.default_storage.save',
+                        side_effect=lambda n, c: saved.append((n, c.read())) or n):
+            out = StringIO()
+            call_command('import_catalog_images', path, stdout=out)
+        self.assertEqual(len(saved), 1)
+        self.assertTrue(saved[0][0].endswith('.webp'))
+        self.assertLessEqual(max(Image.open(io.BytesIO(saved[0][1])).size), 1600)   # اتصغّرت
+        self.assertIn('random.png', out.getvalue())
+        for i in same[:-1]:
+            i.refresh_from_db()
+            self.assertEqual(i.image.name, saved[0][0])
+        mine.refresh_from_db()
+        self.assertEqual(mine.image.name, 'catalog/mine.jpg')
+
+    def test_prompts_file_covers_every_product(self):
+        from clients.management.commands.generate_catalog_images import image_key, image_slots
+        keys = {k for _, k, *_ in image_slots()}
+        self.assertFalse({image_key(i) for i in CatalogItem.objects.select_related('store')} - keys)
+        names = [n for n, *_ in image_slots()]
+        self.assertEqual(len(names), len(set(n[:4] for n in names)))   # الأكواد مش متكررة
+
+
+class BundledCatalogPhotosTests(TestCase):
+    """🖼️ كل صورة في clients/catalog_photos اسمها كود معروف (p001…/a047) — وإلا مش هتترفع على حاجة."""
+
+    def test_bundled_photos_have_known_codes(self):
+        import os
+        from django.conf import settings as s
+        from clients.management.commands.generate_catalog_images import image_slots
+        codes = {n[:4] for n, *_ in image_slots()}
+        folder = os.path.join(s.BASE_DIR, 'clients', 'catalog_photos')
+        files = [f for f in os.listdir(folder) if f.lower().endswith(('.webp', '.png', '.jpg', '.jpeg'))]
+        self.assertTrue(files)
+        for f in files:
+            self.assertIn(f[:4].lower(), codes, f)
+            self.assertLess(os.path.getsize(os.path.join(folder, f)), 400 * 1024, f)   # صور خفيفة
+@override_settings(ALLOWED_HOSTS=['*'], CATALOG_NOTIFY_SYNC=True, CATALOG_NOTIFY_EMAIL='owner@mousstec.test',
+                   CATALOG_NOTIFY_WHATSAPP='', SUPPORT_WHATSAPP='',
+                   EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class CatalogOptionsTests(_TenantDomainMixin, TestCase):
+    """🎨 العميل بيحدد المقاس/اللون/الشكل/التشطيب ويرفع لوجو — وكل ده بيوصل لصاحب المنصة."""
+
+    def setUp(self):
+        cache.clear()
+        if not CatalogStore.objects.exists():
+            seed_catalog(CatalogStore, CatalogItem)
+
+    def test_every_printing_item_has_options(self):
+        from clients import catalog_options as co
+        for it in CatalogItem.objects.filter(store__sector='printing'):
+            opts = co.item_options(it)
+            self.assertTrue(opts['colors'], it.title)
+            self.assertTrue(opts['sizes'] or opts['shapes'] or opts['finishes'], it.title)
+
+    def test_options_and_logo_validated_saved_and_notified(self):
+        from django.core import mail
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from unittest import mock
+        it = CatalogItem.objects.filter(store__sector='printing', category='apparel').first()
+        url = f'/marketplace/catalog/item/{it.item_code}/'
+        html = HttpClient().get(url).content.decode()
+        for s in ('name="opt_size"', 'name="opt_color"', 'name="opt_shape"', 'name="attachment"',
+                  'enctype="multipart/form-data"'):
+            self.assertIn(s, html)
+        logo = SimpleUploadedFile('logo.png', b'\x89PNG fake', content_type='image/png')
+        with mock.patch('clients.services.whatsapp_notify.send_platform_whatsapp', return_value=True), \
+                mock.patch('django.core.files.storage.FileSystemStorage.save', side_effect=lambda n, c, **k: n), \
+                self.captureOnCommitCallbacks(execute=True):
+            HttpClient().post(url, {'name': 'أحمد', 'phone': '01011112222', 'opt_size': 'XL', 'opt_color': 'navy',
+                                    'opt_shape': 'أوفر سايز', 'opt_finish': 'مش موجود', 'attachment': logo})
+        q = CatalogQuoteRequest.objects.get()
+        self.assertEqual(q.options, {'size': 'XL', 'color_key': 'navy', 'color': 'كحلي', 'color_hex': '#1E3A8A',
+                                     'shape': 'أوفر سايز'})
+        self.assertTrue(q.attachment.name.endswith('logo.png'))
+        body = mail.outbox[0].body
+        self.assertIn('المقاس: XL', body)
+        self.assertIn('اللون: كحلي', body)
+        self.assertIn('لوجو/تصميم', body)
+
+    def test_bad_attachment_rejected(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        it = CatalogItem.objects.filter(store__sector='printing').first()
+        r = HttpClient().post(f'/marketplace/catalog/item/{it.item_code}/', {
+            'name': 'أحمد', 'phone': '01011112222',
+            'attachment': SimpleUploadedFile('virus.exe', b'MZ', content_type='application/octet-stream')})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(CatalogQuoteRequest.objects.exists())
+
+    def test_parts_have_no_options_or_upload(self):
+        it = CatalogItem.objects.filter(store__sector='automotive').first()
+        html = HttpClient().get(f'/marketplace/catalog/item/{it.item_code}/').content.decode()
+        self.assertNotIn('name="opt_color"', html)
+        self.assertNotIn('name="attachment"', html)

@@ -82,6 +82,16 @@
             {% if r.quantity %}<span class="muted">{% trans "الكمية:" %} {{ r.quantity }}</span>{% endif %}
             {% if r.car_info %}<span class="muted"><i class="fas fa-car"></i> {{ r.car_info }}</span>{% endif %}
         </div>
+        {% if r.options %}
+        {# 🎨 اختيارات العميل (مقاس/لون/شكل/تشطيب) #}
+        <div class="row" style="margin-top:6px;">
+            {% if r.options.size %}<span class="pill">{% trans "المقاس" %}: {{ r.options.size }}</span>{% endif %}
+            {% if r.options.color %}<span class="pill"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;border:1px solid #D9D2C5;background:{{ r.options.color_hex }};"></span> {{ r.options.color }}</span>{% endif %}
+            {% if r.options.shape %}<span class="pill">{% trans "الشكل" %}: {{ r.options.shape }}</span>{% endif %}
+            {% if r.options.finish %}<span class="pill">{% trans "التشطيب" %}: {{ r.options.finish }}</span>{% endif %}
+        </div>
+        {% endif %}
+        {% if r.attachment %}<div class="row" style="margin-top:6px;"><a href="{{ r.attachment.url }}" target="_blank" rel="noopener" style="color:#1E2A57; font-weight:700;"><i class="fas fa-paperclip"></i> {% trans "لوجو/تصميم العميل" %}</a></div>{% endif %}
         {% if r.details %}<div class="details">{{ r.details }}</div>{% endif %}
         <div class="row contact" style="margin-top:8px;">
             <a class="call" href="tel:{{ r.phone }}"><i class="fas fa-phone"></i> {% trans "اتصل" %}</a>
