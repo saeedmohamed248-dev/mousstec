@@ -85,6 +85,18 @@ class CatalogTests(_TenantDomainMixin, TestCase):
         p2 = [i.pk for i in c.get('/marketplace/catalog/printing/?page=2').context['page'].object_list]
         self.assertFalse(set(p1) & set(p2))
 
+    def test_branded_photos_and_their_stores_come_first(self):
+        """🏷️ صورة عليها اسم براند قبل الصورة العادية قبل الأيقونة — والشركة اللي عندها صور براند في أول المتاجر."""
+        CatalogItem.objects.update(image='')
+        stores = list(CatalogStore.objects.filter(sector='printing').order_by('-sort'))
+        plain = stores[0].items.order_by('-sort').first()
+        brand = stores[1].items.order_by('-sort').first()
+        CatalogItem.objects.filter(pk=plain.pk).update(image='catalog/photos/p001-aaaa.webp')
+        CatalogItem.objects.filter(pk=brand.pk).update(image='catalog/photos/p002v3-brand-bbbb.webp')
+        r = HttpClient().get('/marketplace/catalog/printing/')
+        self.assertEqual([i.pk for i in r.context['page'].object_list[:2]], [brand.pk, plain.pk])
+        self.assertEqual(r.context['stores'][0].pk, stores[1].pk)
+
     def test_quote_request_created_and_validated(self):
         c = HttpClient()
         url = f'/marketplace/catalog/item/{self.item.item_code}/'
@@ -479,6 +491,8 @@ class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
         self.assertEqual(auto_variant('catalog/photos/p109-ab12cd34.webp', 'p109'), 1)
         self.assertIsNone(auto_variant('catalog/photos/p108-ab12cd34.webp', 'p109'))
         self.assertIsNone(auto_variant('catalog/mine.jpg', 'p109'))
+        self.assertEqual(NAME_RE.match('p001-5-brand.webp').groups(), ('p001', '5'))
+        self.assertEqual(auto_variant('catalog/photos/p001v5-brand-ab12cd34.webp', 'p001'), 5)
 
     def test_prompts_file_covers_every_product(self):
         from clients.management.commands.generate_catalog_images import image_key, image_slots

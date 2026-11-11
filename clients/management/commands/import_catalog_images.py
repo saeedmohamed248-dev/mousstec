@@ -7,6 +7,7 @@
 * كل ملف اسمه بيبدأ بالكود (p001-… / a017-…) ⇒ بيتحط على كل منتجات النوع ده في كل المتاجر.
 * الامتداد مش مهم (png/jpg/webp)، والصورة بتتصغّر لو أكبر من ١٦٠٠ بكسل وتتحفظ WEBP خفيفة.
 * مابيلمسش منتج صاحب المنصة رفع له صورة بإيده من الأدمن (إلا بـ --overwrite).
+* اسم الملف فيه «-brand» (p001-5-brand.webp) ⇒ صورة عليها اسم براند متخيّل، والسوق بيعرضها الأول.
 * --bundled بيتشغّل لوحده في خطوة النشر (deploy/entrypoint.migrate.sh): المنتجات اللي ليها صورة بتتعدّى،
   فالصور الجديدة بس هي اللي بتترفع.
 * 🛍️ سوق حقيقي: لنفس الكود ممكن أكتر من نسخة (p109.webp، p109-2.webp، p109-3.webp…) ⇒ كل نسخة لمتجر واحد
@@ -123,6 +124,7 @@ class Command(BaseCommand):
             done = items = 0
             unknown, seen = [], set()
             files = {}   # الكود ⇒ {رقم النسخة: bytes}
+            branded = set()   # (الكود، رقم النسخة) للصور اللي عليها اسم براند (p001-5-brand.webp)
             short = {}   # الكود ⇒ كام نسخة ناقصة عشان كل متجر ياخد صورة لوحده
             for name, data in _iter_files(opts['path']):
                 m = NAME_RE.match(name.lower())
@@ -131,6 +133,8 @@ class Command(BaseCommand):
                     unknown.append(name)
                     continue
                 files.setdefault(m.group(1), {})[int(m.group(2) or 1)] = data
+                if '-brand' in name.lower():
+                    branded.add((m.group(1), int(m.group(2) or 1)))
             stores_of = {c: [i.store.slug for i in by_key.get(codes[c], [])] for c in files}
             slots = plan_variants({c: len(v) for c, v in files.items()}, stores_of)
             for code in sorted(files):
@@ -167,6 +171,9 @@ class Command(BaseCommand):
                 for idx, targets in sorted(plan.items()):
                     body, ext = _optimize(versions[order[idx - 1]])
                     tag = code if idx == 1 else f'{code}v{idx}'
+                    # 🏷️ «-brand-» في اسم الملف المحفوظ ⇒ السوق بيقدّم المنتج ده في الأول
+                    if (code, order[idx - 1]) in branded:
+                        tag += '-brand'
                     saved = default_storage.save(f'catalog/photos/{tag}-{uuid.uuid4().hex[:8]}{ext}',
                                                  ContentFile(body))
                     for it in targets:
