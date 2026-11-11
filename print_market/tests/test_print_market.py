@@ -259,6 +259,22 @@ class PrintMarketFlowTests(_TenantDomainMixin, TestCase):
         order.refresh_from_db()
         self.assertEqual(order.status, 'awaiting_payment')
 
+    def test_bad_numbers_dont_crash(self):
+        """🐛 NaN / Infinity في السعر كانوا بيطلّعوا 500."""
+        order = self._new_order()
+        for bad in ('NaN', 'Infinity', '-inf', 'sNaN', '1e30'):
+            r = self.shop_c.post(self._u('offer_submit', order), {'price': bad, 'delivery_days': '2'})
+            self.assertEqual(r.status_code, 302, bad)
+            r = self.shop_c.post(self._u('product_new'), {'title': 'كروت', 'price_from': bad})
+            self.assertEqual(r.status_code, 200, bad)
+        self.assertFalse(order.offers.exists())
+        self.assertFalse(MarketProduct.objects.filter(title='كروت').exists())
+
+    def test_home_lists_shops(self):
+        r = self.client.get(self._u('home'))
+        self.assertContains(r, 'مطبعة النور')
+        self.assertContains(r, self._u('shop', None, self.shop.pk))
+
     def test_transfer_fee_limits(self):
         self.assertEqual(transfer_fee(Decimal('100000'), 'instapay'), Decimal('20.00'))
         self.assertEqual(transfer_fee(Decimal('100'), 'instapay'), Decimal('0.50'))

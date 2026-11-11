@@ -26426,3 +26426,6 @@ msgstr "This link expired or is invalid — request a new one."
 
 msgid "كلمة السر اتغيّرت."
 msgstr "Password changed."
+
+msgid "المطابع في السوق"
+msgstr "Print shops on the market"

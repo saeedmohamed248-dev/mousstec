@@ -10,7 +10,8 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.core.validators import validate_email
-from django.db.models import F, Q
+from django.db import IntegrityError, transaction
+from django.db.models import Count, F, Q
 from django.http import FileResponse, Http404, HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -54,6 +55,17 @@ def _err(request, exc):
         messages.error(request, m)
 
 
+def _money(raw, msg):
+    """🐛 [FIX]: Decimal('NaN') / 'Infinity' كانوا بيعدّوا ويوقّعوا الصفحة 500 — رقم محدود بس."""
+    try:
+        val = Decimal((raw or '').strip().replace(',', ''))
+    except InvalidOperation:
+        raise ValidationError(msg) from None
+    if not val.is_finite() or abs(val) >= Decimal('1e10'):
+        raise ValidationError(msg)
+    return val
+
+
 def _back(request, order):
     return redirect('print_market:order_detail', code=order.code)
 
@@ -72,8 +84,14 @@ def home(request):
     if city in GOVERNORATES:
         qs = qs.filter(shop__city=city)
     page = Paginator(qs, 24).get_page(request.GET.get('page'))
+    # المطابع الموجودة — العميل يشوف مين معاه في السوق ويطلب طلب خاص حتى لو مالقاش منتج
+    shops = (MarketAccount.objects.filter(role='shop', is_active=True)
+             .annotate(n_products=Count('products', filter=Q(products__is_active=True)))
+             .order_by('-n_products', '-created_at'))
+    if city in GOVERNORATES:
+        shops = shops.filter(city=city)
     return render(request, 'print_market/home.html', _ctx(
-        request, page=page, q=q, cat=cat, city=city, categories=MarketProduct.CATEGORY_CHOICES,
+        request, page=page, shops=shops[:12], q=q, cat=cat, city=city, categories=MarketProduct.CATEGORY_CHOICES,
         governorates=GOVERNORATES))
 
 
@@ -130,7 +148,13 @@ def signup(request):
             acc = MarketAccount(role=role, email=email, name=data['name'][:120],
                                 city=data['city'] if data['city'] in GOVERNORATES else '')
             acc.set_password(password)
-            acc.save()
+            try:
+                with transaction.atomic():
+                    acc.save()
+            except IntegrityError:
+                # 🐛 [FIX]: ضغطتين على «سجّل» بنفس الإيميل كانوا بيطلّعوا 500
+                messages.error(request, _('الإيميل ده متسجّل قبل كده — ادخل بيه.'))
+                return redirect('print_market:login')
             messages.success(request, _('أهلاً بيك! حسابك اتعمل.'))
             dest = reverse('print_market:shop_dashboard') if acc.is_shop else auth.safe_next(
                 request, reverse('print_market:my_orders'))
@@ -192,10 +216,7 @@ def _product_from_post(request, shop, product):
     cat = request.POST.get('category')
     product.category = cat if cat in dict(MarketProduct.CATEGORY_CHOICES) else 'other'
     price = (request.POST.get('price_from') or '').strip()
-    try:
-        product.price_from = Decimal(price) if price else None
-    except InvalidOperation:
-        raise ValidationError(_('السعر لازم يكون رقم.')) from None
+    product.price_from = _money(price, _('السعر لازم يكون رقم.')) if price else None
     if product.price_from is not None and product.price_from < 0:
         raise ValidationError(_('السعر لازم يكون رقم.'))
     product.is_active = request.POST.get('is_active', 'on') == 'on'
@@ -365,10 +386,10 @@ def _action(view):
 def offer_submit(request, order):
     shop = request.pm_account
     note = _guarded(request, shop, request.POST.get('note'), 500)
+    price = _money(request.POST.get('price'), _('اكتب السعر والمدة أرقام.'))
     try:
-        price = Decimal((request.POST.get('price') or '').strip())
         days = int(request.POST.get('delivery_days') or 0)
-    except (InvalidOperation, ValueError):
+    except ValueError:
         raise ValidationError(_('اكتب السعر والمدة أرقام.')) from None
     MarketOffer.submit(order, shop, price, days, note)
     notify(request, order.customer, _('وصلك عرض سعر'), _('المطبعة بعتت عرض على طلبك «%(t)s».') % {'t': order.title},
