@@ -41,6 +41,8 @@ from ._common import (
     _post_sale_to_ledger,
     _record_invoice_payments,
     _resolve_customer,
+    _resolve_salesperson,
+    _salesperson_context,
 )
 
 
@@ -63,6 +65,7 @@ def job_card_create(request):
         "branches": Branch.objects.all() if branch is None else None,
         "services": ServiceCatalog.objects.all().order_by("name"),
         "treasuries": treasury_qs,
+        **_salesperson_context(request),
     })
 
 
@@ -124,6 +127,11 @@ def job_card_save(request):
     services = payload.get("services") or []
     if not items and not services:
         return _json_response_safe({"error": "أضف قطعاً أو خدمات قبل الحفظ."}, status=400)
+
+    # 🧑‍💼 البائع اللي اتختار في الشاشة — بياخد عمولة المبيعات على قطع أمر الشغل
+    salesperson, sp_err = _resolve_salesperson(payload)
+    if sp_err:
+        return _json_response_safe({"error": sp_err}, status=400)
 
     def _dec(key, default="0"):
         try:
@@ -286,6 +294,7 @@ def job_card_save(request):
                     invoice=invoice, product=product, quantity=qty,
                     unit_price=price,
                     cost_at_sale=product.average_cost or Decimal("0.00"),
+                    salesperson=salesperson,
                 )
                 before = inv.quantity
                 inv.quantity = before - qty

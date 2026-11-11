@@ -413,3 +413,38 @@ def _report_period(request, default='month'):
                 d_to.strftime('%Y-%m-%d') if d_to else _t('النهارده'))
             return d_from, (d_to + timedelta(days=1)) if d_to else None, label, 'custom'
     return month_start, None, _t("هذا الشهر"), 'month'
+
+
+# =====================================================================
+# 🧑‍💼 البائع على سطور الفاتورة (عمولة المبيعات)
+# =====================================================================
+def _salesperson_context(request):
+    """قائمة «البائع» في نقطة البيع وأمر الشغل + الافتراضي (الموظف اللي فاتح الشاشة)."""
+    from inventory.models import EmployeeProfile
+    staff = list(EmployeeProfile.objects.filter(user__is_active=True)
+                 .select_related('user').order_by('user__first_name', 'user__username'))
+    me = getattr(request.user, 'employee_profile', None)
+    return {
+        'salespeople': [{'id': p.pk, 'name': p.user.get_full_name() or p.user.username} for p in staff],
+        'default_salesperson_id': me.pk if me is not None and me.user.is_active else None,
+    }
+
+
+def _resolve_salesperson(payload):
+    """البائع اللي الكاشير اختاره ⇒ (EmployeeProfile | None, error | None).
+
+    المفتاح مش مبعوت أو فاضي ⇒ من غير بائع (مفيش عمولة) — نفس السلوك القديم لأي
+    صفحة/عميل API مابيبعتوش. رقم مش لموظف نشط ⇒ خطأ (مانسجّلش عمولة لحساب موقوف).
+    """
+    from inventory.models import EmployeeProfile
+    raw = payload.get('salesperson_id')
+    if raw in (None, '', 0, '0'):
+        return None, None
+    try:
+        pk = int(raw)
+    except (TypeError, ValueError):
+        return None, 'البائع المحدد غير صالح.'
+    prof = EmployeeProfile.objects.filter(pk=pk, user__is_active=True).first()
+    if prof is None:
+        return None, 'البائع المحدد غير موجود أو حسابه موقوف.'
+    return prof, None

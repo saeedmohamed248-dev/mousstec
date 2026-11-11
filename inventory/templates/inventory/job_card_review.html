@@ -537,13 +537,13 @@ body {
                         <tr>
                             <th style="width:50px;">{% trans "يُحاسب؟" %}</th>
                             <th>{% trans "الخدمة" %}</th>
-                            <th style="width:130px;">{% trans "الفني" %}</th>
+                            <th style="width:150px;">{% trans "الفني" %}</th>
                             <th style="width:110px;">{% trans "السعر" %}</th>
                             <th style="width:220px;">{% trans "ملاحظة المحاسب" %}</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for svc in invoice.service_items.all %}
+                        {% for row in service_rows %}{% with svc=row.svc %}
                             <tr class="{% if svc.is_billable %}billable{% else %}excluded{% endif %}">
                                 <td>
                                     <label class="row-toggle">
@@ -554,7 +554,13 @@ body {
                                 </td>
                                 <td><strong>{{ svc.service.name }}</strong></td>
                                 <td>
-                                    {% if svc.technician %}
+                                    {# 🔧 المدير يحدد الفني المنفّذ (صاحب عمولة الخدمة) — بيتقفل بعد ما العمولة تتحسب #}
+                                    {% if can_assign_tech and not row.tech_locked %}
+                                        <select name="svc_{{ svc.id }}_tech" style="width:100%;padding:6px;border-radius:8px;background:rgba(15,23,42,.7);color:#e2e8f0;border:1px solid #334155;font-family:inherit;font-size:12px;">
+                                            <option value="">{% trans "— بدون فني —" %}</option>
+                                            {% for t in technicians %}<option value="{{ t.pk|stringformat:'d' }}" {% if t.pk == row.selected_tech_id %}selected{% endif %}>{{ t.user.get_full_name|default:t.user.username }}</option>{% endfor %}
+                                        </select>
+                                    {% elif svc.technician %}
                                         {{ svc.technician.user.get_full_name|default:svc.technician.user.username }}
                                     {% else %}
                                         —
@@ -567,7 +573,7 @@ body {
                                            placeholder="{% trans 'ملاحظة اختيارية...' %}">
                                 </td>
                             </tr>
-                        {% endfor %}
+                        {% endwith %}{% endfor %}
                     </tbody>
                 </table>
                 {% else %}

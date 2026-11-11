@@ -1,5 +1,5 @@
 {% extends "inventory/_base_portal.html" %}
-{% load i18n %}
+{% load i18n %}{% load l10n %}
 {% block title %}{% trans "تعديل موظف" %} | Mouss Tec{% endblock %}
 
 {% block content %}
@@ -65,6 +65,12 @@
     </div>
 
     <div class="grid md:grid-cols-2 gap-5">
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1.5">{% trans "نسبة عمولة المبيعات %" %}</label>
+        <input type="number" name="commission_rate_pct" min="0" max="100" step="0.01" value="{{ prof.commission_rate_pct|unlocalize }}"
+               class="w-full bg-slate-950/60 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-purple-500 focus:outline-none">
+        <p class="text-[11px] text-slate-500 mt-1">{% trans "تُطبَّق على هامش الربح للقطع التي يبيعها الموظف" %}</p>
+      </div>
       <div>
         <label class="block text-xs font-bold text-slate-300 mb-1.5">{% trans "أقصى نسبة خصم مسموحة %" %}</label>
         <input type="number" name="max_discount_pct" min="0" max="100" step="1" value="{{ prof.max_discount_pct|floatformat:'0' }}"
