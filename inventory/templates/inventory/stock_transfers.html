@@ -59,6 +59,11 @@
   </table></div>
   <button id="tr-save" type="button" class="mt-3 bg-sky-600 hover:bg-sky-500 text-white font-black px-6 py-2.5 rounded-lg disabled:opacity-50"><i class="fas fa-truck-fast ml-1"></i> {% trans "تنفيذ التحويل" %}</button>
 </section>
+{% elif all_branches|length < 2 %}
+{# 🐛 [FIX]: بفرع واحد فورم التحويل كان بيختفي من غير أي تفسير — الشاشة تبان ناقصة #}
+<div class="bg-amber-500/10 border border-amber-500/40 text-amber-200 rounded-2xl p-4 mb-5 text-sm font-bold">
+  <i class="fas fa-circle-info ml-1"></i> {% trans "التحويل محتاج فرعين على الأقل — عندك فرع واحد دلوقتي. ضيف فرع تاني وهيظهر هنا فورم التحويل." %}
+</div>
 {% endif %}
 
 <form method="get" class="flex flex-wrap items-center gap-2 mb-3">
