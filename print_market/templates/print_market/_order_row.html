@@ -1,0 +1,8 @@
+{% load i18n %}<a href="{% url 'print_market:order_detail' o.code %}" class="pm-card p-3 mb-2 d-flex gap-3 align-items-center text-decoration-none text-reset flex-wrap">
+  <div class="flex-grow-1">
+    <div class="fw-bold">{{ o.title }}</div>
+    <div class="small pm-muted">{% if who == 'shop' %}{{ o.customer.name }}{% else %}{{ o.shop.name }}{% endif %} · {% trans "الكمية" %} {{ o.quantity }} · <span dir="ltr">{{ o.updated_at|date:"Y-m-d H:i" }}</span></div>
+  </div>
+  {% with p=o.latest_proof %}{% if p %}<span class="pm-badge st-{{ p.status }}"><i class="fas fa-image me-1"></i>{% trans "بروفة" %} {{ p.version }}: {{ p.get_status_display }}</span>{% endif %}{% endwith %}
+  {% include "print_market/_status.html" with s=o.status label=o.get_status_display %}
+</a>

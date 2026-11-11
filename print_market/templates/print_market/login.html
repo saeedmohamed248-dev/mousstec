@@ -1,0 +1,17 @@
+{% extends "print_market/base.html" %}{% load i18n %}
+{% block title %}{% trans "دخول" %}{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-md-6 col-lg-5">
+<div class="pm-card p-4">
+  <h1 class="fs-5 fw-bold mb-3">{% trans "ادخل على سوق المطابع" %}</h1>
+  <form method="post">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+    <label class="form-label">{% trans "الإيميل" %}</label>
+    <input name="email" type="email" value="{{ email }}" class="form-control mb-2" required dir="ltr">
+    <label class="form-label">{% trans "كلمة السر" %}</label>
+    <input name="password" type="password" class="form-control mb-3" required autocomplete="current-password">
+    <button class="pm-btn w-100">{% trans "دخول" %}</button>
+  </form>
+  <p class="small text-center mt-3 mb-1"><a href="{% url 'print_market:password_forgot' %}">{% trans "نسيت كلمة السر؟" %}</a></p>
+  <p class="small text-center mb-0">{% trans "مالكش حساب؟" %} <a href="{% url 'print_market:signup' %}{% if next %}?next={{ next|urlencode }}{% endif %}">{% trans "سجّل مجاناً" %}</a></p>
+</div></div></div>
+{% endblock %}
