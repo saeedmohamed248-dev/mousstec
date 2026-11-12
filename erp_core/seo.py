@@ -300,9 +300,32 @@ class PartListingSitemap(_Base):
         return obj.updated_at
 
 
+class PrintSeoSitemap(_Base):
+    """صفحات الطباعة حسب الخدمة والمحافظة — المحافظة اللي مافيهاش مطابع مش بتدخل (noindex)."""
+    changefreq = 'weekly'
+
+    def items(self):
+        from print_market.seo_data import GOVERNORATES, SERVICES
+        from print_market.seo_pages import gov_has_content
+        out = [(reverse('print_seo:index'), 0.8)]
+        out += [(reverse('print_seo:service', args=[s]), 0.8) for s in SERVICES]
+        for g in GOVERNORATES:
+            if gov_has_content(g):
+                out.append((reverse('print_seo:gov', args=[g]), 0.7))
+                out += [(reverse('print_seo:service_gov', args=[s, g]), 0.6) for s in SERVICES]
+        return out
+
+    def location(self, item):
+        return item[0]
+
+    def priority(self, item):
+        return item[1]
+
+
 SITEMAPS = {
     'pages': StaticSitemap, 'catalog-stores': CatalogStoreSitemap, 'catalog-items': CatalogItemSitemap,
     'print-shops': PrintShopSitemap, 'print-products': PrintProductSitemap, 'parts': PartListingSitemap,
+    'print-services': PrintSeoSitemap,
 }
 
 

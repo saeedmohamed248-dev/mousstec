@@ -77,6 +77,10 @@ body { font-family:'Cairo',sans-serif; background:var(--bg); color:var(--ink); }
   {% block content %}{% endblock %}
 </main>
 <footer class="text-center pm-muted small pb-4">
+  <div class="mb-2"><a href="/print/" class="pm-muted">{% trans "خدمات الطباعة حسب المحافظة" %}</a> ·
+    <a href="/print/business-cards/" class="pm-muted">{% trans "طباعة كروت شخصية" %}</a> ·
+    <a href="/print/flyers-brochures/" class="pm-muted">{% trans "طباعة فلايرات" %}</a> ·
+    <a href="/print/banners-rollups/" class="pm-muted">{% trans "طباعة بنرات" %}</a></div>
   {% trans "الدفع لـ Mouss Tec بس، والتواصل من جوه المنصة بس — عشان فلوسك وطلبك يبقوا في أمان." %}
 </footer>
 </body>

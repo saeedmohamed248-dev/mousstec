@@ -102,3 +102,55 @@ class SeoTests(_TenantDomainMixin, TestCase):
         self.assertEqual(item['name'], 'بنر <script>')
         self.assertEqual(item['offers']['lowPrice'], '150.00')
         self.assertEqual(item['offers']['priceCurrency'], 'EGP')
+
+
+@override_settings(ALLOWED_HOSTS=['*'], BASE_DOMAIN='mousstec.com')
+class PrintGovernoratePagesTests(_TenantDomainMixin, TestCase):
+    """🗺️ /print/<خدمة>/<محافظة>/: محتوى حقيقي، والمحافظة الفاضية noindex ومش في الـ sitemap."""
+
+    def setUp(self):
+        cache.clear()
+        from print_market.models import MarketAccount, MarketProduct
+        self.shop = MarketAccount(role='shop', name='مطبعة الدقي', email='gov@shop.test', city='الجيزة')
+        self.shop.set_password('x-Strong-2026-x')
+        self.shop.save()
+        MarketProduct.objects.create(shop=self.shop, title='كروت مط', category='cards', price_from=275)
+        self.c = HttpClient()
+
+    def test_governorate_names_match_market_and_districts_map(self):
+        from print_market.seo_data import GOVERNORATES, gov_of
+        from print_market.views import GOVERNORATES as MARKET_GOVS
+        self.assertEqual({g[1] for g in GOVERNORATES.values()}, set(MARKET_GOVS))
+        self.assertEqual(gov_of('المعادي'), 'cairo')
+        self.assertEqual(gov_of('الشيخ زايد'), 'giza')
+        self.assertEqual(gov_of('طنطا'), 'gharbia')
+        self.assertIsNone(gov_of('أونلاين'))
+
+    def test_pages_render_with_real_data(self):
+        html = self.c.get('/print/business-cards/giza/').content.decode()
+        self.assertIn('طباعة كروت شخصية في الجيزة', html)
+        self.assertIn('مطبعة الدقي', html)
+        self.assertIn('الأسعار تبدأ من', html)
+        self.assertIn('275', html)
+        self.assertNotIn('noindex', html)
+        self.assertIn('<link rel="canonical" href="https://mousstec.com/print/business-cards/giza/">', html)
+        types = [d['@type'] for d in _ld(html)]
+        self.assertIn('FAQPage', types)
+        self.assertIn('BreadcrumbList', types)
+        for url in ('/print/', '/print/business-cards/', '/print/in/giza/'):
+            self.assertEqual(self.c.get(url).status_code, 200, url)
+        self.assertContains(self.c.get('/print/in/giza/'), 'مطبعة الدقي')
+
+    def test_empty_governorate_is_noindex_and_not_in_sitemap(self):
+        self.assertContains(self.c.get('/print/business-cards/aswan/'), 'content="noindex, follow"')
+        sm = self.c.get('/sitemap-print-services.xml').content.decode()
+        self.assertIn('https://mousstec.com/print/business-cards/giza/', sm)
+        self.assertIn('https://mousstec.com/print/in/giza/', sm)
+        self.assertNotIn('/print/in/aswan/', sm)
+        self.assertNotIn('/print/business-cards/aswan/', sm)
+        self.assertIn('https://mousstec.com/print/flyers-brochures/', sm)   # الخدمة نفسها دايماً
+
+    def test_unknown_slugs_404(self):
+        self.assertEqual(self.c.get('/print/not-a-service/').status_code, 404)
+        self.assertEqual(self.c.get('/print/business-cards/not-a-gov/').status_code, 404)
+        self.assertEqual(self.c.get('/print/in/not-a-gov/').status_code, 404)
