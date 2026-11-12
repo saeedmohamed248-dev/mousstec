@@ -306,6 +306,10 @@ def custom_404_handler(request, exception=None):
         return redirect('/system/dashboard/')
     # 🐛 [FIX — SEO]: الدومين الرئيسي كان بيحوّل أي رابط مش موجود للرئيسية (302) ⇒ جوجل بيعتبره
     #    «soft 404» وبيقلّل ثقته في الموقع، والزائر مايعرفش إن اللينك غلط. صفحة 404 حقيقية بروابط مفيدة.
+    #    الـ host المجهول (IP مباشر / دومين مش متسجّل — مفيش tenant) بيفضل يتحوّل للرئيسية زي الأول:
+    #    فحص الصحة في النشر وCI بيضرب 127.0.0.1 ومستني رد مش 4xx.
+    if getattr(request, 'tenant', None) is None:
+        return redirect('smart_root')
     from django.shortcuts import render
     return render(request, 'errors/404_public.html', status=404)
 

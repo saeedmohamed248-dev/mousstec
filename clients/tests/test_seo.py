@@ -79,6 +79,11 @@ class SeoTests(_TenantDomainMixin, TestCase):
         self.assertIn('404', r.content.decode())
         self.assertIn('/marketplace/print-market/', r.content.decode())
 
+    def test_unknown_host_still_redirects_for_health_checks(self):
+        # فحص الصحة في CI/النشر بيضرب 127.0.0.1 (مش دومين متسجّل) ومستني رد مش 4xx
+        r = self.c.get('/', HTTP_HOST='127.0.0.1')
+        self.assertIn(r.status_code, (200, 302))
+
     def test_structured_data(self):
         from print_market.models import MarketAccount, MarketOrder, MarketProduct, MarketReview
         home = _ld(self.c.get('/').content.decode())
