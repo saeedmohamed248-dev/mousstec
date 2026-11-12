@@ -1,5 +1,7 @@
 {% extends "print_market/base.html" %}{% load i18n %}
 {% block title %}{{ shop.name }}{% endblock %}
+{% block meta_description %}{% if shop.about %}{{ shop.about|truncatechars:150 }}{% else %}{% blocktrans with n=shop.name c=shop.city %}{{ n }} — مطبعة في {{ c }} على سوق المطابع: اطلب عرض سعر، شوف البروفة قبل الطباعة وادفع بأمان.{% endblocktrans %}{% endif %}{% endblock %}
+{% block seo_head %}{{ seo_jsonld }}{% endblock %}
 {% block content %}
 <div class="pm-card p-4 mb-4 d-flex gap-3 align-items-center flex-wrap">
   {% if shop.logo %}<img src="{{ shop.logo.url }}" alt="" style="width:72px;height:72px;border-radius:16px;object-fit:cover">{% endif %}

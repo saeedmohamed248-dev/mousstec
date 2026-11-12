@@ -135,14 +135,63 @@ def shop_page(request, pk):
     shop = get_object_or_404(_rated_shops(), pk=pk)
     products = shop.products.filter(is_active=True)
     reviews = shop.reviews.filter(is_visible=True).select_related('customer', 'order')[:30]
-    return render(request, 'print_market/shop.html', _ctx(request, shop=shop, products=products, reviews=reviews))
+    return render(request, 'print_market/shop.html', _ctx(request, shop=shop, products=products, reviews=reviews,
+                                                          seo_jsonld=_shop_ld(request, shop, reviews)))
 
 
 def product_detail(request, pk):
     product = get_object_or_404(MarketProduct.objects.select_related('shop'), pk=pk, is_active=True,
                                 shop__is_active=True)
     shop = _rated_shops().get(pk=product.shop_id)
-    return render(request, 'print_market/product.html', _ctx(request, product=product, shop=shop))
+    return render(request, 'print_market/product.html', _ctx(request, product=product, shop=shop,
+                                                             seo_jsonld=_product_ld(request, product, shop)))
+
+
+# ───────────────────────── SEO (بيانات منظّمة لجوجل) ─────────────────────────
+
+def _abs(request, url):
+    from erp_core.seo import public_base
+    return url if url.startswith('http') else public_base() + url
+
+
+def _rating_ld(shop):
+    if not getattr(shop, 'rating_n', 0):
+        return None
+    return {'@type': 'AggregateRating', 'ratingValue': round(float(shop.rating_avg), 1),
+            'reviewCount': shop.rating_n, 'bestRating': 5, 'worstRating': 1}
+
+
+def _shop_ld(request, shop, reviews):
+    from erp_core.seo import breadcrumbs_ld, jsonld
+    url = reverse('print_market:shop', args=[shop.pk])
+    biz = {'@context': 'https://schema.org', '@type': 'LocalBusiness', 'name': shop.name, 'url': _abs(request, url),
+           'description': (shop.about or '')[:300] or None,
+           'address': {'@type': 'PostalAddress', 'addressRegion': shop.city, 'addressCountry': 'EG'} if shop.city else None,
+           'image': _abs(request, shop.logo.url) if shop.logo else None,
+           'aggregateRating': _rating_ld(shop),
+           'review': [{'@type': 'Review', 'reviewRating': {'@type': 'Rating', 'ratingValue': r.rating},
+                       'author': {'@type': 'Person', 'name': r.customer.name}, 'reviewBody': r.comment or None,
+                       'datePublished': r.created_at.date().isoformat()} for r in list(reviews)[:5]] or None}
+    biz = {k: v for k, v in biz.items() if v is not None}
+    crumbs = breadcrumbs_ld([('Mouss Tec', '/'), (_('سوق المطابع'), reverse('print_market:home')), (shop.name, url)])
+    return jsonld(biz) + jsonld(crumbs)
+
+
+def _product_ld(request, product, shop):
+    from erp_core.seo import breadcrumbs_ld, jsonld
+    url = reverse('print_market:product', args=[product.pk])
+    item = {'@context': 'https://schema.org', '@type': 'Product', 'name': product.title,
+            'description': (product.description or product.title)[:500], 'category': product.get_category_display(),
+            'image': _abs(request, product.image.url) if product.image else None,
+            'brand': {'@type': 'Brand', 'name': shop.name}}
+    if product.price_from:
+        item['offers'] = {'@type': 'AggregateOffer', 'lowPrice': str(product.price_from), 'priceCurrency': 'EGP',
+                          'offerCount': 1, 'availability': 'https://schema.org/InStock',
+                          'seller': {'@type': 'Organization', 'name': shop.name}, 'url': _abs(request, url)}
+    item = {k: v for k, v in item.items() if v is not None}
+    crumbs = breadcrumbs_ld([('Mouss Tec', '/'), (_('سوق المطابع'), reverse('print_market:home')),
+                             (shop.name, reverse('print_market:shop', args=[shop.pk])), (product.title, url)])
+    return jsonld(item) + jsonld(crumbs)
 
 
 # ───────────────────────── حسابات ─────────────────────────

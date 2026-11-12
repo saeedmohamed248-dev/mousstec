@@ -180,6 +180,7 @@ SHARED_APPS = (
     'daphne',          # ⚡ محرك الاتصالات الحية
     'django_tenants',
     'clients',         # 👑 إدارة الإمبراطورية السحابية والمزادات المركزية
+    'django.contrib.sitemaps',  # 🔎 sitemap.xml (erp_core/seo.py)
     'tenancy',         # 🏛️ SaaS tenant lifecycle, plans, entitlements (Wave 2 Phase 2A — services only; models still live in clients)
     'marketplace_b2b', # 🛒 B2B parts marketplace, blind bidding, escrow (Wave 2 Phase 2A — services + tests; models still live in clients)
     'design_store',    # 🎨 AI design store: chat + persistence + brand profile (Wave 2 Phase 2A — services + tests; models still live in clients)
@@ -310,6 +311,7 @@ MIDDLEWARE = [
     'axes.middleware.AxesMiddleware',                     # 3. صد هجمات التخمين السيبرانية
     'erp_core.middleware.AuditIPMiddleware',              # 4. تسجيل IP المستخدم لسجل المراجعة
     'erp_core.middleware.PWAInjectorMiddleware',          # 🔌 حقن PWA bootstrap في كل صفحة HTML
+    'erp_core.seo.SeoMiddleware',                         # 🔎 canonical + Open Graph للصفحات العامة، noindex للخاصة والشركات
     'erp_core.middleware.AttendanceReminderMiddleware',   # 👋 زرار سجّل حضورك للموظفين
     'hr.middleware.AttendanceGateMiddleware',             # 🚪 إجبار tech/engineer على تسجيل الحضور قبل الدخول للورشة
     'clients.middleware_impersonation.ImpersonationBannerMiddleware',  # 🎭 God Mode banner

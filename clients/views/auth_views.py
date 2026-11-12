@@ -930,7 +930,8 @@ def owner_auto_login(request):
 # 📰 Landing pages
 # =====================================================================
 def mousstec_landing_page(request):
-    return render(request, 'clients/landing.html')
+    from erp_core.seo import jsonld, organization_ld
+    return render(request, 'clients/landing.html', {'seo_jsonld': jsonld(organization_ld())})
 
 
 def set_region(request):

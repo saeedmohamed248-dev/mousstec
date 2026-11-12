@@ -7,6 +7,8 @@ from __future__ import annotations
 import logging
 import os
 
+from django.conf import settings
+
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.paginator import Paginator
@@ -241,7 +243,49 @@ def catalog_store(request, slug):
         'categories': [], 'customer': _marketplace_auth(request),
         'reviews': store.reviews.filter(is_visible=True)[:20],
         'min_reviews': catalog_stats.MIN_REVIEWS,
+        'seo_jsonld': _store_ld(store),
     })
+
+
+# ─────────────────────────── 🔎 SEO (بيانات منظّمة لجوجل) ───────────────────────────
+
+def _store_rating_ld(store):
+    if getattr(store, 'rating', None) and getattr(store, 'reviews_count', 0) >= catalog_stats.MIN_REVIEWS:
+        return {'@type': 'AggregateRating', 'ratingValue': round(float(store.rating), 1),
+                'reviewCount': store.reviews_count, 'bestRating': 5, 'worstRating': 1}
+    return None
+
+
+def _store_ld(store):
+    from erp_core.seo import breadcrumbs_ld, jsonld
+    meta = SECTORS[store.sector]
+    url = f'/marketplace/catalog/store/{store.slug}/'
+    org = {'@context': 'https://schema.org', '@type': 'Store', 'name': store.name, 'url': f'https://{settings.BASE_DOMAIN}{url}',
+           'description': (store.description or '')[:300] or None, 'aggregateRating': _store_rating_ld(store),
+           'address': {'@type': 'PostalAddress', 'addressCountry': 'EG'}}
+    org = {k: v for k, v in org.items() if v is not None}
+    crumbs = breadcrumbs_ld([('Mouss Tec', '/'), (meta['title'], f'/marketplace/catalog/{store.sector}/'),
+                             (store.name, url)])
+    return jsonld(org) + jsonld(crumbs)
+
+
+def _item_ld(item):
+    from erp_core.seo import breadcrumbs_ld, jsonld, public_base
+    store, meta = item.store, SECTORS[item.store.sector]
+    url = f'/marketplace/catalog/item/{item.item_code}/'
+    prod = {'@context': 'https://schema.org', '@type': 'Product', 'name': item.title,
+            'description': (item.description or item.title)[:500],
+            'category': _category_label(meta, item.category) or None,
+            'image': (item.image.url if item.image.url.startswith('http') else public_base() + item.image.url)
+            if item.image else None,
+            'brand': {'@type': 'Brand', 'name': store.name}, 'url': public_base() + url}
+    prod = {k: v for k, v in prod.items() if v is not None}
+    # الكتالوج من غير أسعار ولا تقييم للمنتج نفسه ⇒ جوجل بيعلّم «Product» كخطأ في Search Console؛
+    # بنكتفي بمسار التصفح (بيظهر في نتايج البحث) لحد ما يبقى فيه سعر.
+    prod = None
+    crumbs = breadcrumbs_ld([('Mouss Tec', '/'), (meta['title'], f'/marketplace/catalog/{store.sector}/'),
+                             (store.name, f'/marketplace/catalog/store/{store.slug}/'), (item.title, url)])
+    return (jsonld(prod) if prod else '') + jsonld(crumbs)
 
 
 def catalog_item(request, item_code):
@@ -319,6 +363,7 @@ def catalog_item(request, item_code):
         'form': form, 'errors': errors, 'related': related, 'customer': customer,
         'sent': request.GET.get('sent') == '1',
         'category_label': _category_label(SECTORS[item.store.sector], item.category),
+        'seo_jsonld': _item_ld(item),
     })
 
 
