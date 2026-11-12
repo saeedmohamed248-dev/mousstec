@@ -26969,3 +26969,820 @@ msgstr[1] "Last %(n)s days"
 
 msgid "صفحة التسجيل"
 msgstr "Sign-up page"
+
+# 👑 لوحة السوبر أدمن
+msgid "تسجيل الخروج"
+msgstr "Sign out"
+
+msgid "الباقات والاشتراكات"
+msgstr "Plans & subscriptions"
+
+msgid "تسعير"
+msgstr "Pricing"
+
+msgid "مزايا"
+msgstr "Features"
+
+msgid "تحرير"
+msgstr "Edit"
+
+msgid "العروض والكوبونات"
+msgstr "Offers & coupons"
+
+msgid "خصم مؤقت"
+msgstr "Temporary discount"
+
+msgid "أكواد خصم"
+msgstr "Discount codes"
+
+msgid "إحالات"
+msgstr "Referrals"
+
+msgid "قفل وفتح"
+msgstr "Lock & unlock"
+
+msgid "الاستخدام آخر 30 يوم"
+msgstr "Usage, last 30 days"
+
+msgid "هدية تشخيص"
+msgstr "Diagnostics gift"
+
+msgid "منح"
+msgstr "Grant"
+
+msgid "نمو"
+msgstr "Growth"
+
+msgid "تذاكر"
+msgstr "Tickets"
+
+msgid "ع.م"
+msgstr "Cairo time"
+
+msgid "جمعة مغلق"
+msgstr "Closed Fridays"
+
+msgid "إعلانات"
+msgstr "Announcements"
+
+msgid "أتمتة القنوات (واتساب)"
+msgstr "Channel automation (WhatsApp)"
+
+msgid "تفعيل واتساب/ماسنجر لأي شركة"
+msgstr "Enable WhatsApp/Messenger for any company"
+
+msgid "موظفين"
+msgstr "Staff"
+
+msgid "أدوار"
+msgstr "Roles"
+
+msgid "ربط"
+msgstr "Connect"
+
+msgid "مزامنة المنتجات والمبيعات مع متجر"
+msgstr "Sync products and sales with the store on"
+
+msgid "رصد لحظي لكل"
+msgstr "Live tracking of every"
+
+msgid "كل أحداث المنصة"
+msgstr "All platform events"
+
+msgid "نظرة عامة"
+msgstr "Overview"
+
+msgid "الشركات"
+msgstr "Companies"
+
+msgid "طلبات شراء التصاميم"
+msgstr "Design purchase requests"
+
+msgid "موافقات السوق"
+msgstr "Market approvals"
+
+msgid "نشاط الشركات"
+msgstr "Company activity"
+
+msgid "الزوار"
+msgstr "Visitors"
+
+msgid "سجل الأحداث"
+msgstr "Event log"
+
+msgid "طلبات الأسبوع"
+msgstr "Requests this week"
+
+msgid "متوسط سرعة الاستجابة"
+msgstr "Average response time"
+
+msgid "اشتراكات تنتهي قريباً"
+msgstr "Subscriptions ending soon"
+
+msgid "أكثر الصفحات زيارة (7 أيام)"
+msgstr "Most visited pages (7 days)"
+
+msgid "لا توجد بيانات بعد"
+msgstr "No data yet"
+
+msgid "مضت"
+msgstr "ago"
+
+msgid "لا توجد أحداث بعد"
+msgstr "No events yet"
+
+msgid "أنشط الشركات (7 أيام)"
+msgstr "Most active companies (7 days)"
+
+msgid "توزيع الأجهزة (7 أيام)"
+msgstr "Devices (7 days)"
+
+msgid "ديسكتوب"
+msgstr "Desktop"
+
+msgid "كل الحالات"
+msgstr "All statuses"
+
+msgid "كل القطاعات"
+msgstr "All sectors"
+
+msgid "مشتبه"
+msgstr "Suspected"
+
+msgid "ينتهي اليوم"
+msgstr "Ends today"
+
+msgid "اشتراك"
+msgstr "Subscription"
+
+msgid "تجديد +30 يوم"
+msgstr "Renew +30 days"
+
+msgid "إلغاء تفعيل"
+msgstr "Deactivate"
+
+msgid "لهذه الشركة؟"
+msgstr "for this company?"
+
+msgid "منح رصيد مجاني"
+msgstr "Grant free credit"
+
+msgid "وضع هذه الشركة تحت المراقبة؟"
+msgstr "Put this company under watch?"
+
+msgid "مراقبة"
+msgstr "Watch"
+
+msgid "لا توجد شركات مسجلة بعد"
+msgstr "No companies registered yet"
+
+msgid "فريدة اليوم"
+msgstr "Unique today"
+
+msgid "فريدة (أسبوع)"
+msgstr "Unique (week)"
+
+msgid "بث مباشر — آخر 50 طلب اليوم"
+msgstr "Live — last 50 requests today"
+
+msgid "يتحدث تلقائياً عند التحديث"
+msgstr "Updates when you refresh"
+
+msgid "الطريقة"
+msgstr "Method"
+
+msgid "لا توجد زيارات مسجلة اليوم بعد"
+msgstr "No visits recorded today yet"
+
+msgid "سجل أحداث المنصة — آخر 30 حدث"
+msgstr "Platform event log — last 30 events"
+
+msgid "لا توجد أحداث مسجلة بعد. ستظهر هنا عند تفعيل/تعليق/تسجيل شركات"
+msgstr "No events yet. They appear here when companies sign up, get activated or suspended"
+
+msgid "طلبات شراء باقات التصاميم — في انتظار التأكيد"
+msgstr "Design package purchases — awaiting confirmation"
+
+msgid "تفعيل يدوي — للحالات اللي العميل دفع لكن الـ"
+msgstr "Manual activation — for cases where the customer paid but the"
+
+msgid "ما اشتغلش"
+msgstr "didn't work"
+
+msgid "تأكيد الدفع وتفعيل الباقة"
+msgstr "Confirm payment and activate the package"
+
+msgid "تفعيل يدوي"
+msgstr "Manual activation"
+
+msgid "تأكيد"
+msgstr "Confirm"
+
+msgid "لا توجد طلبات شراء معلّقة حالياً. كل الطلبات مؤكدة"
+msgstr "No pending purchases. All requests are confirmed"
+
+msgid "إيصالات دفع فودافون كاش / إنستاباي — انتظار المراجعة"
+msgstr "Vodafone Cash / InstaPay receipts — awaiting review"
+
+msgid "إيصال جديد"
+msgstr "New receipt"
+
+msgid "فتح الصورة بحجم كامل"
+msgstr "Open full-size image"
+
+msgid "من رقم"
+msgstr "From number"
+
+msgid "اتصال"
+msgstr "Call"
+
+msgid "ملاحظة العميل"
+msgstr "Customer note"
+
+msgid "تأكيد الدفع وتفعيل الخدمة"
+msgstr "Confirm payment and activate the service"
+
+msgid "تأكيد وتفعيل"
+msgstr "Confirm & activate"
+
+msgid "لا توجد إيصالات دفع يدوي في الانتظار"
+msgstr "No manual payment receipts waiting"
+
+msgid "الإيصالات بتظهر هنا لما العملاء يرفعوا سكرين شوت تحويل فودافون كاش أو إنستاباي"
+msgstr "Receipts appear here when customers upload a Vodafone Cash or InstaPay transfer screenshot"
+
+msgid "طلبات طباعة تصاميم — عميل صمم وعاوز يطبع"
+msgstr "Design print requests — customer designed and wants it printed"
+
+msgid "سم"
+msgstr "cm"
+
+msgid "بكل المواصفات للمطبعة"
+msgstr "with all specs for the print shop"
+
+msgid "للمطبعة"
+msgstr "to the print shop"
+
+msgid "لا توجد طلبات طباعة حالياً"
+msgstr "No print requests right now"
+
+msgid "إدارة كل طلبات السوق (كل الحالات)"
+msgstr "Manage all market requests (all statuses)"
+
+msgid "طلبات السوق في انتظار الموافقة — راجع وقرر"
+msgstr "Market requests awaiting approval — review and decide"
+
+msgid "ميزانية"
+msgstr "Budget"
+
+msgid "مرفق"
+msgstr "Attachment"
+
+msgid "لا توجد طلبات في انتظار الموافقة حالياً"
+msgstr "No requests awaiting approval right now"
+
+msgid "عرض كل طلبات السوق (مفتوحة، مقبولة، مكتملة...)"
+msgstr "View all market requests (open, accepted, completed…)"
+
+msgid "نشطون اليوم"
+msgstr "Active today"
+
+msgid "عملوا تصاميم"
+msgstr "Made designs"
+
+msgid "أفراد"
+msgstr "Individuals"
+
+msgid "محظورين"
+msgstr "Blocked"
+
+msgid "آخر ١٠٠ عميل نشاطاً"
+msgstr "Last 100 active customers"
+
+msgid "اضغط الصف لتفاصيل العميل"
+msgstr "Tap a row for customer details"
+
+msgid "الاسم / الشركة"
+msgstr "Name / company"
+
+msgid "تصاميم"
+msgstr "Designs"
+
+msgid "مشتريات"
+msgstr "Purchases"
+
+msgid "غير موثق"
+msgstr "Unverified"
+
+msgid "عرض التفاصيل"
+msgstr "View details"
+
+msgid "منح هدية تصاميم مجانية"
+msgstr "Gift free designs"
+
+msgid "إرسال إشعار للعميل"
+msgstr "Send the customer a notification"
+
+msgid "حذف العميل نهائياً"
+msgstr "Delete customer permanently"
+
+msgid "لا يوجد عملاء بعد"
+msgstr "No customers yet"
+
+msgid "معتمدة"
+msgstr "Approved"
+
+msgid "صفحة المراجعة الكاملة (كل الحالات)"
+msgstr "Full review page (all statuses)"
+
+msgid "قطع الغيار الجديدة — تنتظر موافقتك قبل النشر"
+msgstr "New spare parts — waiting for your approval before publishing"
+
+msgid "عرض الصور"
+msgstr "View photos"
+
+msgid "لا توجد قطع غيار تنتظر المراجعة حالياً"
+msgstr "No spare parts waiting for review"
+
+msgid "عرض كل القطع (معتمدة، مرفوضة...)"
+msgstr "View all parts (approved, rejected…)"
+
+msgid "في الـ"
+msgstr "in"
+
+msgid "طلبات إرجاع"
+msgstr "Return requests"
+
+msgid "تم تحريرها"
+msgstr "Released"
+
+msgid "طلبات إرجاع تنتظر قرار الإدارة"
+msgstr "Return requests awaiting a decision"
+
+msgid "ضمان"
+msgstr "Warranty"
+
+msgid "سبب الإرجاع"
+msgstr "Return reason"
+
+msgid "طُلب الإرجاع"
+msgstr "Return requested"
+
+msgid "عرض القطعة"
+msgstr "View part"
+
+msgid "قبول الإرجاع"
+msgstr "Accept return"
+
+msgid "رفض وتحرير للبائع"
+msgstr "Reject and release to seller"
+
+msgid "لا توجد طلبات إرجاع قيد الانتظار"
+msgstr "No pending return requests"
+
+msgid "نشاط الشركات — ترتيب حسب آخر نشاط"
+msgstr "Company activity — sorted by last activity"
+
+msgid "لم يدخل النظام بعد"
+msgstr "Hasn't logged in yet"
+
+msgid "طلب اليوم"
+msgstr "requests today"
+
+msgid "آخر أحداث"
+msgstr "Latest events"
+
+msgid "لا يوجد شركات بعد"
+msgstr "No companies yet"
+
+msgid "تفاصيل العميل"
+msgstr "Customer details"
+
+msgid "جاري التحميل"
+msgstr "Loading"
+
+msgid "تفعيل اشتراك يدوي"
+msgstr "Manual subscription activation"
+
+msgid "فترة الاشتراك"
+msgstr "Subscription period"
+
+msgid "بدون خصم"
+msgstr "No discount"
+
+msgid "مدفوع (يتسجّل فاتورة)"
+msgstr "Paid (an invoice is recorded)"
+
+msgid "هدية مجانية"
+msgstr "Free gift"
+
+msgid "ملاحظة (اختياري): رقم التحويل / سبب الهدية"
+msgstr "Note (optional): transfer number / gift reason"
+
+msgid "الإجمالي المطلوب"
+msgstr "Total due"
+
+msgid "تفعيل الاشتراك الآن"
+msgstr "Activate subscription now"
+
+msgid "حذف نهائي"
+msgstr "Permanent delete"
+
+msgid "هذا الإجراء لا يمكن التراجع عنه"
+msgstr "This action cannot be undone"
+
+msgid "سيتم حذف الشركة وجميع بياناتها نهائياً"
+msgstr "The company and all its data will be deleted permanently"
+
+msgid "للتأكيد: اكتب اسم الـ"
+msgstr "To confirm, type the"
+
+msgid "اكتب"
+msgstr "Type"
+
+msgid "اكتب اسم الـ"
+msgstr "Type the"
+
+msgid "للتأكيد"
+msgstr "to confirm"
+
+msgid "حذف الشركة نهائياً"
+msgstr "Delete company permanently"
+
+msgid "اختر حزمة"
+msgstr "Choose a package"
+
+msgid "ج/شهر"
+msgstr "EGP/mo"
+
+msgid "لا توجد حزم"
+msgstr "No packages"
+
+msgid "متاحة. أضف حزم من لوحة الإدارة أولاً"
+msgstr "available. Add packages from the admin panel first"
+
+msgid "تفعيل الحزمة"
+msgstr "Activate package"
+
+msgid "هدية بدون سبب"
+msgstr "Gift (no reason)"
+
+msgid "ترحيب تلقائي"
+msgstr "automatic welcome"
+
+msgid "إلغاء الهدية"
+msgstr "Cancel the gift"
+
+msgid "؟ الرصيد المتبقي منها هيتشال فوراً"
+msgstr "? Its remaining credit will be removed immediately."
+
+msgid "فشل الإلغاء"
+msgstr "Cancel failed"
+
+msgid "معرف العميل غير صالح"
+msgstr "Invalid customer ID"
+
+msgid "تعذر تحميل بيانات العميل"
+msgstr "Couldn't load customer details"
+
+msgid "هدية رصيد"
+msgstr "Credit gift"
+
+msgid "تصاميم متبقية"
+msgstr "Designs left"
+
+msgid "واتساب متبقي"
+msgstr "WhatsApp left"
+
+msgid "علامات مائية"
+msgstr "Watermarks"
+
+msgid "الهدايا النشطة حالياً (يمكن إلغاء كل واحدة على حدة)"
+msgstr "Active gifts (each can be cancelled separately)"
+
+msgid "ملاحظة: أي شركة جديدة بتاخد"
+msgstr "Note: every new company gets an"
+
+msgid "هدية ترحيب تلقائية (10 تصاميم + 5 واتساب + 5 علامة مائية)"
+msgstr "automatic welcome gift (10 designs + 5 WhatsApp + 5 watermarks)"
+
+msgid "لو ضفت هدية تانية، الرصيد المعروض"
+msgstr "If you add another gift, the balance shown"
+
+msgid "مجموع الهدايا كلها"
+msgstr "the total of all gifts"
+
+msgid "قوالب سريعة"
+msgstr "Quick templates"
+
+msgid "ترحيب"
+msgstr "Welcome"
+
+msgid "سبب الهدية (يظهر للعميل)"
+msgstr "Gift reason (shown to the customer)"
+
+msgid "مثال: هدية الترحيب الذهبية، تعويض، عيد ميلاد المنصة"
+msgstr "e.g. golden welcome gift, compensation, platform anniversary"
+
+msgid "تنتهي بعد كم يوم؟ (اختياري — اتركه فاضي للمدى المفتوح)"
+msgstr "Expires after how many days? (optional — leave empty for no expiry)"
+
+msgid "مثال"
+msgstr "e.g."
+
+msgid "إرسال الهدية"
+msgstr "Send gift"
+
+msgid "هل أنت متأكد من تأكيد الإيصال وتفعيل الخدمة؟"
+msgstr "Are you sure you want to confirm the receipt and activate the service?"
+
+msgid "اترفض"
+msgstr "Rejected"
+
+msgid "تم بنجاح"
+msgstr "Done"
+
+msgid "رفض الطلب"
+msgstr "reject the request"
+
+msgid "هل أنت متأكد من"
+msgstr "Are you sure you want to"
+
+msgid "؟"
+msgstr "?"
+
+msgid "تم تأكيد الدفع وتفعيل الباقة"
+msgstr "Payment confirmed and package activated"
+
+msgid "تم رفض الطلب"
+msgstr "Request rejected"
+
+msgid "سبب الإلغاء (هيوصل للعميل)"
+msgstr "Cancellation reason (sent to the customer)"
+
+msgid "؟ العميل هيتبلّغ"
+msgstr "? The customer will be notified."
+
+msgid "موافقة ونشر القطعة في السوق؟"
+msgstr "Approve and publish this part in the market?"
+
+msgid "تم النشر"
+msgstr "Published"
+
+msgid "تم الرفض"
+msgstr "Rejected"
+
+msgid "هدية تصاميم مجانية"
+msgstr "Free designs gift"
+
+msgid "إرسال هدية إلى"
+msgstr "Send a gift to"
+
+msgid "عدد التصاميم"
+msgstr "Number of designs"
+
+msgid "السبب / الرسالة (اختياري)"
+msgstr "Reason / message (optional)"
+
+msgid "هدية ترحيب من إدارة المنصة"
+msgstr "Welcome gift from the platform team"
+
+msgid "إرسال إشعار"
+msgstr "Send notification"
+
+msgid "المرسل إليه"
+msgstr "Recipient"
+
+msgid "مثال: عرض خاص لك"
+msgstr "e.g. A special offer for you"
+
+msgid "اكتب رسالتك للعميل"
+msgstr "Write your message to the customer"
+
+msgid "أيقونة"
+msgstr "Icon"
+
+msgid "رابط زر (اختياري)"
+msgstr "Button link (optional)"
+
+msgid "نص الزر (مثال: تصفّح الآن)"
+msgstr "Button text (e.g. Browse now)"
+
+msgid "إرسال الإشعار"
+msgstr "Send notification"
+
+msgid "حذف عميل نهائياً"
+msgstr "Delete customer permanently"
+
+msgid "هذا الإجراء لا يمكن التراجع عنه. سيتم حذف"
+msgstr "This cannot be undone. It will delete"
+
+msgid "بيانات العميل + جميع الطلبات + التصاميم + المشتريات + الإشعارات"
+msgstr "customer data + all requests + designs + purchases + notifications"
+
+msgid "للتأكيد، اكتب رقم موبايل العميل"
+msgstr "To confirm, type the customer's mobile number"
+
+msgid "رقم الموبايل للتأكيد"
+msgstr "Mobile number to confirm"
+
+msgid "فشل إرسال الهدية"
+msgstr "Sending the gift failed"
+
+msgid "فشل إرسال الإشعار"
+msgstr "Sending the notification failed"
+
+msgid "فك حظر"
+msgstr "Unblock"
+
+msgid "؟ مش هيقدر يدخل السوق لحد ما تفك الحظر"
+msgstr "? They won't be able to use the market until you unblock them."
+
+msgid "ملاحظة الإدارة (اختياري)"
+msgstr "Admin note (optional)"
+
+msgid "سيتم استرداد المبلغ كاملاً للمشتري والشحن على المنصة. متابعة؟"
+msgstr "The buyer gets a full refund and the platform pays shipping. Continue?"
+
+msgid "فشل العملية"
+msgstr "Action failed"
+
+msgid "اكتب سبب رفض الإرجاع (10 حروف على الأقل)"
+msgstr "Write the reason for rejecting the return (at least 10 characters)"
+
+msgid "السبب قصير جداً"
+msgstr "Reason is too short"
+
+msgid "سيتم تحرير المبلغ للبائع. متابعة؟"
+msgstr "The amount will be released to the seller. Continue?"
+
+msgid "تأكيد نهائي: حذف العميل لا يمكن التراجع عنه. متابعة؟"
+msgstr "Final confirmation: deleting the customer cannot be undone. Continue?"
+
+msgid "فشل الحذف"
+msgstr "Delete failed"
+
+msgid "تم الحذف"
+msgstr "Deleted"
+
+msgid "ابحث عن صفحة، شركة، مستخدم"
+msgstr "Search for a page, company, user"
+
+msgid "تسعير · مزايا · تحرير"
+msgstr "Pricing · features · edit"
+
+msgid "نمو · تحصيل"
+msgstr "Growth · collection"
+
+msgid "كل أحداث المنصة + فلاتر"
+msgstr "All platform events + filters"
+
+msgid "مين أونلاين دلوقتي"
+msgstr "Who's online now"
+
+msgid "الشركات التجريبية · مين محتاج مكالمة"
+msgstr "Trial companies · who needs a call"
+
+msgid "كل حملة جابت كام تسجيل وكام مشترك وكام فلوس"
+msgstr "Signups, subscribers and revenue per campaign"
+
+msgid "كام كلّفت كل شركة قصاد اشتراكها"
+msgstr "Each company's cost vs. its subscription"
+
+msgid "قفل/فتح موديول + مين بيستخدمه"
+msgstr "Lock/unlock a module + who uses it"
+
+msgid "موظفين دعم/مبيعات/محاسبة وصلاحياتهم"
+msgstr "Support/sales/accounting staff and permissions"
+
+msgid "كوبونات للإعلانات والمسوّقين + برنامج الإحالة"
+msgstr "Coupons for ads and marketers + referral program"
+
+msgid "وصول"
+msgstr "Access"
+
+msgid "أتمتة القنوات"
+msgstr "Channel automation"
+
+msgid "اشتراك واتساب/ماسنجر لكل مستأجر"
+msgstr "WhatsApp/Messenger subscription per tenant"
+
+msgid "طلبات نشر الشركات"
+msgstr "Company listing requests"
+
+msgid "القطع النشطة"
+msgstr "Active parts"
+
+msgid "لا توجد نتائج. جرّب كلمة تانية"
+msgstr "No results. Try another word"
+
+msgid "شركات / مستخدمون"
+msgstr "Companies / users"
+
+# 👑 السوبر أدمن — رسائل الإجراءات
+msgid "الشركة رقم «%(id)s» مش موجودة — غالباً اتحذفت أو الصفحة قديمة. حدّث الصفحة وجرّب تاني."
+msgstr "Company #%(id)s doesn’t exist — it was probably deleted or the page is outdated. Refresh and try again."
+
+msgid "اتعلّق حساب «%(name)s»."
+msgstr "“%(name)s” has been suspended."
+
+msgid "اتفعّل حساب «%(name)s» — ساري حتى %(date)s."
+msgstr "“%(name)s” has been activated — valid until %(date)s."
+
+msgid "«%(name)s» بقت تحت المراقبة."
+msgstr "“%(name)s” is now under watch."
+
+msgid "اتشالت المراقبة عن «%(name)s»."
+msgstr "Watch removed from “%(name)s”."
+
+msgid "اتمدّدت تجربة «%(name)s» حتى %(date)s."
+msgstr "Trial for “%(name)s” extended until %(date)s."
+
+msgid "الباقة غير موجودة أو موقوفة."
+msgstr "The plan doesn’t exist or is disabled."
+
+msgid "تم تفعيل اشتراك «%(name)s» — باقة %(plan)s (%(period)s) — %(amount)s — فاتورة %(invoice)s — ينتهي %(end)s"
+msgstr "Subscription activated for “%(name)s” — %(plan)s plan (%(period)s) — %(amount)s — invoice %(invoice)s — ends %(end)s"
+
+msgid "🎁 هدية"
+msgstr "🎁 Gift"
+
+msgid "مفيش باقة مربوطة بالشركة — فعّل اشتراك الأول."
+msgstr "This company has no plan — activate a subscription first."
+
+msgid "تم تجديد اشتراك «%(name)s» حتى %(end)s — فاتورة %(invoice)s"
+msgstr "Subscription for “%(name)s” renewed until %(end)s — invoice %(invoice)s"
+
+msgid "حزمة AI غير موجودة."
+msgstr "AI package not found."
+
+msgid "تم تفعيل حزمة AI «%(addon)s» لشركة «%(name)s»"
+msgstr "AI package “%(addon)s” activated for “%(name)s”"
+
+msgid "تم إلغاء حزمة AI من «%(name)s»"
+msgstr "AI package removed from “%(name)s”"
+
+msgid "لا يوجد اشتراك لهذه الشركة."
+msgstr "This company has no subscription."
+
+msgid "❌ يجب تحديد رصيد واحد على الأقل (تصاميم / واتساب / علامات مائية)."
+msgstr "❌ Choose at least one credit (designs / WhatsApp / watermarks)."
+
+msgid "🎁 تم منح «%(name)s» هدية: %(d)s تصميم + %(w)s واتساب + %(m)s علامة مائية"
+msgstr "🎁 Gift granted to “%(name)s”: %(d)s designs + %(w)s WhatsApp + %(m)s watermarks"
+
+msgid "(تنتهي خلال %(n)s يوم)"
+msgstr "(expires in %(n)s days)"
+
+msgid "تم إلغاء الهدية #%(id)s من «%(name)s»"
+msgstr "Gift #%(id)s cancelled for “%(name)s”"
+
+msgid "الهدية غير موجودة."
+msgstr "Gift not found."
+
+msgid "فشل الحذف: اسم التأكيد لا يتطابق مع اسم الـ Schema."
+msgstr "Delete failed: the confirmation doesn’t match the schema name."
+
+msgid "تم حذف شركة «%(name)s» نهائياً."
+msgstr "“%(name)s” was deleted permanently."
+
+msgid "مش هينفع تتمسح «%(name)s»: عليها سجلات مالية لازم تفضل (%(what)s). مااتمسحش أي حاجة — استخدم «تعليق» بدل الحذف."
+msgstr "“%(name)s” can’t be deleted: it has financial records that must be kept (%(what)s). Nothing was deleted — use “Suspend” instead."
+
+msgid "فشل حذف الشركة: %(err)s"
+msgstr "Deleting the company failed: %(err)s"
+
+msgid "الإجراء ده مش معروف — حدّث الصفحة وجرّب تاني."
+msgstr "Unknown action — refresh the page and try again."
+
+# 👑 السوبر أدمن
+msgid "طلبات للسيرفر اليوم"
+msgstr "Server requests today"
+
+msgid "طلبات للسيرفر الأسبوع ده"
+msgstr "Server requests this week"
+
+# 👑 السوبر أدمن
+msgid "أجهزة (IP) مختلفة اليوم"
+msgstr "Distinct IPs today"
+
+msgid "أجهزة (IP) مختلفة الأسبوع ده"
+msgstr "Distinct IPs this week"
+
+msgid "دفع فعلاً"
+msgstr "Actually paid"
+
+
+msgid "%(n)s<span class=\"text-xs text-emerald-400/60\"> يوم متبقي</span>"
+msgid_plural "%(n)s<span class=\"text-xs text-emerald-400/60\"> يوم متبقي</span>"
+msgstr[0] "%(n)s<span class=\"text-xs text-emerald-400/60\"> day left</span>"
+msgstr[1] "%(n)s<span class=\"text-xs text-emerald-400/60\"> days left</span>"
+
+msgid "%(n)s<span class=\"text-xs text-amber-400/60\"> يوم متبقي</span>"
+msgid_plural "%(n)s<span class=\"text-xs text-amber-400/60\"> يوم متبقي</span>"
+msgstr[0] "%(n)s<span class=\"text-xs text-amber-400/60\"> day left</span>"
+msgstr[1] "%(n)s<span class=\"text-xs text-amber-400/60\"> days left</span>"
+
+# 👑 السوبر أدمن
+msgid "اتسجّلت"
+msgstr "Joined"
