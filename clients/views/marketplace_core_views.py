@@ -90,6 +90,16 @@ def _expire_overdue_requests(qs=None):
     return len(overdue)
 
 
+def _notify_owner_pending(svc_request):
+    from clients.services.owner_notify import notify_owner
+    cust = svc_request.customer
+    budget = f' — ميزانية {svc_request.max_budget:g} ج.م' if svc_request.max_budget else ''
+    notify_owner(f'السوق المفتوح: طلب مستني موافقتك ({svc_request.get_sector_display()})',
+                 f'«{svc_request.title[:150]}»{budget}\nمن: {cust.company_name or cust.full_name} — {cust.phone}\n'
+                 'المطابع/التجار مش هيشوفوه غير بعد ما توافق.',
+                 '/superadmin/marketplace/requests/?status=pending_approval')
+
+
 def _accepted_offers_cache_key(merchant_id):
     return f'mp_accepted_unseen:{merchant_id}'
 
@@ -147,6 +157,17 @@ def _accept_tender_offer(offer_code, customer):
         )
     offer.service_request = svc_request
     _flag_offer_accepted_for_merchant(offer)
+    # 🐛 [FIX — دورة ناقصة]: الشركة كانت بتعرف بالقبول من عدّاد في لوحتها بس، والعميل بيتقاله
+    #    «التاجر هيتواصل معاك» — لو الشركة مافتحتش لوحتها الصفقة بتضيع. إيميل + واتساب فوراً.
+    from clients.tasks import notify_merchant_offer_accepted
+    oid = offer.pk
+
+    def _dispatch():
+        try:
+            notify_merchant_offer_accepted.delay(oid)
+        except Exception:  # noqa: BLE001 — من غير Celery/Redis نبعت على طول
+            notify_merchant_offer_accepted(oid)
+    transaction.on_commit(_dispatch)
     return offer, None
 
 
@@ -766,6 +787,8 @@ def marketplace_create_request(request):
     MarketplaceCustomer.objects.filter(pk=customer.pk).update(total_requests=F('total_requests') + 1)
 
     # 🔔 لا نرسل إشعارات للتجار — الطلب ينتظر موافقة الإدارة أولاً
+    # 🐛 [FIX — دورة ناقصة]: بس صاحب المنصة ماكانش بيتبلّغ — الطلب يفضل مستني لحد ما يفتح اللوحة بالصدفة.
+    _notify_owner_pending(svc_request)
 
     return JsonResponse({
         "status": "success",
@@ -1211,7 +1234,8 @@ def marketplace_merchant_create_request(request):
         logger.error(f"[B2B REQUEST] Failed for {tenant.name}: {e}")
         return JsonResponse({"error": "فشل إنشاء الطلب"}, status=500)
 
-    # 🔔 لا نرسل إشعارات — ينتظر موافقة الإدارة أولاً
+    # 🔔 لا نرسل إشعارات للتجار — ينتظر موافقة الإدارة أولاً (وصاحب المنصة بيتبلّغ)
+    _notify_owner_pending(svc_request)
 
     return JsonResponse({
         "status": "success",

@@ -16,8 +16,8 @@
   <div class="pm-steps mt-3">
     <span class="on">{% trans "الطلب" %}</span>
     <span class="{% if order.status != 'requested' %}on{% endif %}">{% trans "العرض" %}</span>
-    <span class="{% if order.status in 'paid delivered completed' %}on{% endif %}">{% trans "الدفع" %}</span>
-    <span class="{% if order.status in 'delivered completed' %}on{% endif %}">{% trans "التسليم" %}</span>
+    <span class="{% if order.status in 'paid delivered completed disputed' %}on{% endif %}">{% trans "الدفع" %}</span>
+    <span class="{% if order.status in 'delivered completed' or order.status == 'disputed' and order.delivered_at %}on{% endif %}">{% trans "التسليم" %}</span>
     <span class="{% if order.status == 'completed' %}on{% endif %}">{% trans "تم" %}</span>
   </div>
   {% endif %}
@@ -149,7 +149,7 @@
   {% if order.status == 'delivered' and order.auto_confirm_at %}
     <div class="pm-rule mt-3"><i class="fas fa-hourglass-half me-1"></i>{% trans "الطلب هيتأكّد تلقائي يوم" %} <span dir="ltr">{{ order.auto_confirm_at|date:"Y-m-d H:i" }}</span> {% trans "لو مفيش مشكلة." %}</div>
   {% endif %}
-  {% if is_customer and order.status == 'delivered' %}
+  {% if is_customer and order.status in 'paid delivered' %}
     <details class="mt-2"><summary class="text-danger fw-bold">{% trans "عندي مشكلة في الطلب" %}</summary>
       <form method="post" action="{% url 'print_market:order_dispute' order.code %}" class="mt-2">{% csrf_token %}
         <textarea name="reason" class="form-control mb-2" rows="3" maxlength="2000" required placeholder="{% trans 'إيه المشكلة؟ (ماوصلش، مختلف عن البروفة، فيه عيب…)' %}"></textarea>

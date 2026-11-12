@@ -16,6 +16,7 @@ from django.utils import timezone
 
 from clients.models import Client, MarketplaceCustomer, ServiceRequest, VisitorLog
 from clients.services.live_market import area_of, snapshot, source_of
+from print_market.models import MarketAccount
 from clients.tests.test_printing_customer_flow import _TenantDomainMixin
 
 
@@ -76,6 +77,9 @@ class LiveMarketTests(_TenantDomainMixin, TestCase):
         ServiceRequest.objects.create(customer=self.cust, sector='printing', title='5000 كارت',
                                       description='تفاصيل الطلب', status='pending_approval',
                                       expires_at=timezone.now() + timedelta(days=3))
+        from print_market.models import MarketOrder
+        MarketOrder.objects.create(customer=MarketAccount.objects.create(role='customer', name='ع', email='c@live.t'),
+                                   shop=self.pm, title='كروت', details='x', status='disputed')
         c = HttpClient()
         self.assertEqual(c.get('/superadmin/live/').status_code, 302)
         c.force_login(User.objects.create(username='staff_nobody', is_staff=True))
@@ -84,7 +88,8 @@ class LiveMarketTests(_TenantDomainMixin, TestCase):
         r = c.get('/superadmin/live/')
         self.assertEqual(r.status_code, 200)
         html = r.content.decode()
-        for s in ('شركة الأفق', 'مطبعة النور الحديثة', 'مطبعة الإبداع', '197.2.*.*', 'مستني موافقتك', 'فيسبوك'):
+        for s in ('شركة الأفق', 'مطبعة النور الحديثة', 'مطبعة الإبداع', '197.2.*.*', 'مستني موافقتك', 'فيسبوك',
+                  'سوق المطابع مستنيك', '1 مشكلة مفتوحة', 'marketorder/?status__exact=disputed'):
             self.assertIn(s, html)
         self.assertNotIn('197.2.2.2', html)   # الـ IP الكامل مابيظهرش
         self.assertNotIn('/superadmin/live/</span>', html)   # صاحب المنصة مش بيظهر كزائر

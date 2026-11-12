@@ -4,6 +4,14 @@
   <a href="/superadmin/marketplace/requests/">{% trans "راجعهم" %}</a></div>
 {% endif %}
 
+{% with t=owner_todo %}{% if t.pm_payments or t.pm_disputes or t.pm_payouts %}
+<div class="alert"><i class="fas fa-print"></i> {% trans "سوق المطابع مستنيك:" %}
+  {% if t.pm_payments %}<a href="/{{ admin_url }}/print_market/marketpayment/?status__exact=pending">{% blocktrans count n=t.pm_payments %}{{ n }} إيصال دفع يتأكّد{% plural %}{{ n }} إيصالات دفع تتأكّد{% endblocktrans %}</a> · {% endif %}
+  {% if t.pm_disputes %}<a href="/{{ admin_url }}/print_market/marketorder/?status__exact=disputed">{% blocktrans count n=t.pm_disputes %}{{ n }} مشكلة مفتوحة{% plural %}{{ n }} مشاكل مفتوحة{% endblocktrans %}</a> · {% endif %}
+  {% if t.pm_payouts %}<a href="/{{ admin_url }}/print_market/marketorder/?status__exact=completed">{% blocktrans count n=t.pm_payouts %}{{ n }} تحويل للمطابع{% plural %}{{ n }} تحويلات للمطابع{% endblocktrans %}</a>{% endif %}
+</div>
+{% endif %}{% endwith %}
+
 {# ① الأرقام اللحظية — كل كارت بيفلتر على سوقه #}
 <div class="kpis">
   <a class="kpi big" href="?tab={{ tab }}"><div class="n">{{ online_total }}</div><div class="l">{% trans "أونلاين دلوقتي" %}</div></a>

@@ -2300,8 +2300,10 @@ def live_market(request):
     ?tab=online|today|stats  ·  ?area=printing  ·  ?q=بحث
     ?partial=1 بيرجّع جزء الصفحة بس (التحديث التلقائي كل ١٥ ثانية)."""
     from clients.services.live_market import TABS, snapshot
+    from django.conf import settings as dj_settings
     tab = request.GET.get('tab') if request.GET.get('tab') in TABS else 'online'
     ctx = snapshot(tab=tab, area=request.GET.get('area', ''), q=request.GET.get('q', '')[:60])
+    ctx['admin_url'] = dj_settings.ADMIN_URL
     tpl = 'clients/saas_admin/_live_body.html' if request.GET.get('partial') else 'clients/saas_admin/live_market.html'
     return render(request, tpl, ctx)
 
