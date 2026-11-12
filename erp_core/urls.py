@@ -12,6 +12,8 @@ from django.db import connection
 
 from erp_core import private_media
 from erp_core.admin_guard import lock_shared_models_to_platform
+from django.contrib.sitemaps import views as sitemap_views
+from erp_core import seo
 
 # 🔒 جداول المنصة المشتركة مابتظهرش في أدمن الشركات (كانت بتعرض بيانات كل الشركات)
 lock_shared_models_to_platform()
@@ -302,7 +304,14 @@ def custom_404_handler(request, exception=None):
         if industry == 'printing':
             return redirect(f'/{ADMIN_URL}/')
         return redirect('/system/dashboard/')
-    return redirect('smart_root')
+    # 🐛 [FIX — SEO]: الدومين الرئيسي كان بيحوّل أي رابط مش موجود للرئيسية (302) ⇒ جوجل بيعتبره
+    #    «soft 404» وبيقلّل ثقته في الموقع، والزائر مايعرفش إن اللينك غلط. صفحة 404 حقيقية بروابط مفيدة.
+    #    الـ host المجهول (IP مباشر / دومين مش متسجّل — مفيش tenant) بيفضل يتحوّل للرئيسية زي الأول:
+    #    فحص الصحة في النشر وCI بيضرب 127.0.0.1 ومستني رد مش 4xx.
+    if getattr(request, 'tenant', None) is None:
+        return redirect('smart_root')
+    from django.shortcuts import render
+    return render(request, 'errors/404_public.html', status=404)
 
 def custom_400_handler(request, exception=None):
     """🛡️ بديل صفحة Django الخام "Bad Request (400)".
@@ -377,6 +386,14 @@ urlpatterns = [
 
     # 👑 دخول مباشر للسوبر أدمن بتوكن (بدون باسورد) — يتولّد من أمر owner_login_link
     path('account/owner-login/', client_views.owner_auto_login, name='owner_auto_login'),
+
+    # 🔎 SEO: تعليمات الزحف + خريطة الموقع (قبل أي include بيمسك الجذر)
+    path('robots.txt', seo.robots_txt, name='robots_txt'),
+    path('sitemap.xml', sitemap_views.index, {'sitemaps': seo.SITEMAPS, 'sitemap_url_name': 'sitemap_section'},
+         name='sitemap_index'),
+    path('sitemap-<section>.xml', sitemap_views.sitemap, {'sitemaps': seo.SITEMAPS}, name='sitemap_section'),
+    # 🗺️ صفحات الطباعة حسب الخدمة والمحافظة (SEO)
+    path('print/', include('print_market.seo_urls')),
 
     # 0. 🌐 الموجه التكيفي الذكي (بوابة الإمبراطورية السحابية)
     path('', smart_root_router, name='smart_root'),

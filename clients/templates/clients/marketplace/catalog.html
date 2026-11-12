@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% if store %}{{ store.l_name }}{% else %}{{ meta.title }}{% endif %} | Mouss Tec</title>
-    <meta name="description" content="{% if store %}{{ store.l_tagline }}{% else %}{{ meta.subtitle }}{% endif %}">
+    <meta name="description" content="{% if store %}{{ store.l_name }} — {{ store.l_tagline }}{% if store.l_description %}. {{ store.l_description|truncatechars:110 }}{% endif %}{% else %}{{ meta.subtitle }}{% endif %}">
     {% include "clients/marketplace/_catalog_style.html" %}
+    {{ seo_jsonld }}
 </head>
 <body>
 <header class="top">

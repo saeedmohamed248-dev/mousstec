@@ -27786,3 +27786,147 @@ msgstr[1] "%(n)s<span class=\"text-xs text-amber-400/60\"> days left</span>"
 # 👑 السوبر أدمن
 msgid "اتسجّلت"
 msgstr "Joined"
+
+msgid "اطلب صيانة أو قطعة غيار لعربيتك واستلم عروض أسعار من مراكز صيانة وتجار موثّقين. قارن السعر والتقييم واختار الأنسب."
+msgstr "Request car maintenance or a spare part and get quotes from verified service centers and dealers. Compare price and rating and pick the best."
+
+msgid "اكتب طلب الطباعة أو التصميم مرة واحدة والمطابع تبعتلك عروض أسعارها — كروت، بروشورات، علب، يونيفورم وبنرات. قارن السعر والتقييم واختار."
+msgstr "Post your printing or design request once and print shops send you their quotes — cards, brochures, boxes, uniforms and banners. Compare price and rating and choose."
+
+msgid "الصفحة دي مش موجودة"
+msgstr "This page doesn't exist"
+
+msgid "الصفحة مش موجودة"
+msgstr "Page not found"
+
+msgid "باقات Mouss Tec لبرنامج الحسابات أونلاين: مراكز الصيانة وتجار قطع الغيار والمطابع واستوديوهات التصميم — فواتير ومخزون وخزينة وتقارير. جرّب مجاناً."
+msgstr "Mouss Tec online accounting plans for service centers, spare-parts dealers, print shops and design studios — invoices, inventory, cash and reports. Try it free."
+
+msgid "سوق Mouss Tec: اطلب طباعة وتصميم أو قطع غيار وصيانة سيارات، واستلم عروض أسعار من مطابع ومراكز موثّقة في كل محافظات مصر."
+msgstr "Mouss Tec marketplace: request printing and design or car parts and maintenance, and get quotes from verified print shops and centers across Egypt."
+
+msgid "سوق المطابع في مصر: اطلب طباعة كروت وفلايرز وبنرات وعلب من مطابع بتقييمات حقيقية، شوف البروفة قبل الطباعة وادفع بأمان."
+msgstr "Egypt's print shops market: order business cards, flyers, banners and boxes from print shops with real reviews, see the proof before printing and pay safely."
+
+msgid "سياسة الخصوصية والشروط والأحكام لمنصة Mouss Tec — إزاي بنحمي بياناتك وحقوقك وإنت بتستخدم البرنامج والأسواق."
+msgstr "Mouss Tec privacy policy and terms — how we protect your data and rights while you use the software and marketplaces."
+
+msgid "قطع غيار سيارات جديدة ومستعملة من تجار ومراكز موثّقة — دوّر بالماركة والموديل، قارن الأسعار، واشتري بأمان على Mouss Tec."
+msgstr "New and used car parts from verified dealers and centers — search by make and model, compare prices and buy safely on Mouss Tec."
+
+msgid "يمكن اللينك اتغيّر أو المنتج اتشال. جرّب واحدة من دول:"
+msgstr "The link may have changed or the item was removed. Try one of these:"
+
+#, python-format
+msgid "%(n)s — مطبعة في %(c)s على سوق المطابع: اطلب عرض سعر، شوف البروفة قبل الطباعة وادفع بأمان."
+msgstr "%(n)s — a print shop in %(c)s on the print shops market: request a quote, see the proof before printing and pay safely."
+
+#, python-format
+msgid "%(t)s من %(n)s على سوق المطابع — اطلب عرض سعر وشوف البروفة قبل الطباعة."
+msgstr "%(t)s from %(n)s on the print shops market — request a quote and see the proof before printing."
+
+msgid "أسئلة شائعة"
+msgstr "FAQ"
+
+msgid "أفكار ومنتجات تقدر تطلب سعرها"
+msgstr "Ideas and products you can request a quote for"
+
+msgid "اختار الخدمة أو المحافظة — وشوف المطابع بتقييماتها وأسعارها، أو اكتب طلبك مرة واحدة والمطابع تبعتلك عروضها."
+msgstr "Pick a service or governorate — see print shops with their ratings and prices, or post your request once and print shops send you quotes."
+
+msgid "اكتب طلبك والمطابع تبعتلك عروض"
+msgstr "Post your request and get quotes"
+
+msgid "الأسعار تبدأ من"
+msgstr "Prices start from"
+
+msgid "الخدمات"
+msgstr "Services"
+
+msgid "المحافظات"
+msgstr "Governorates"
+
+msgid "تصفّح سوق المطابع"
+msgstr "Browse the print shops market"
+
+msgid "خدمات الطباعة حسب المحافظة"
+msgstr "Printing services by governorate"
+
+msgid "خدمات الطباعة في مصر"
+msgstr "Printing services in Egypt"
+
+msgid "خدمات الطباعة في مصر حسب المحافظة"
+msgstr "Printing services in Egypt by governorate"
+
+msgid "خدمات طباعة تانية"
+msgstr "Other printing services"
+
+msgid "دليل خدمات الطباعة في مصر: كروت شخصية، فلايرات، بنرات، ستيكرات، علب، هدايا وتيشيرتات — في كل المحافظات. قارن المطابع بالتقييمات واطلب عروض أسعار."
+msgstr "Guide to printing services in Egypt: business cards, flyers, banners, stickers, boxes, gifts and t-shirts — in every governorate. Compare print shops by rating and request quotes."
+
+msgid "طباعة بنرات"
+msgstr "Banner printing"
+
+msgid "طباعة فلايرات"
+msgstr "Flyer printing"
+
+msgid "طباعة كروت شخصية"
+msgstr "Business card printing"
+
+msgid "لسه بنضيف مطابع في المحافظة دي — اكتب طلبك والمطابع اللي بتوصل لمحافظتك تبعتلك عروضها."
+msgstr "We're still adding print shops in this governorate — post your request and shops that deliver to you will send quotes."
+
+msgid "متاجر طباعة على Mouss Tec"
+msgstr "Print stores on Mouss Tec"
+
+msgid "مطابع بتقدّم الخدمة دي"
+msgstr "Print shops offering this service"
+
+msgid "منتجات بأسعار"
+msgstr "Products with prices"
+
+#, python-format
+msgid "%(s)s في %(g)s: قارن مطابع %(g)s بالتقييمات والأسعار، شوف البروفة قبل الطباعة واطلب عروض أسعار من أكتر من مطبعة."
+msgstr "%(s)s in %(g)s: compare %(g)s print shops by rating and price, see the proof before printing and get quotes from several shops."
+
+#, python-format
+msgid "%(s)s في محافظات تانية"
+msgstr "%(s)s in other governorates"
+
+#, python-format
+msgid "%(s)s في مصر: قارن المطابع بالتقييمات والأسعار، شوف البروفة قبل الطباعة واطلب عروض أسعار من أكتر من مطبعة."
+msgstr "%(s)s in Egypt: compare print shops by rating and price, see the proof before printing and get quotes from several shops."
+
+#, python-format
+msgid "المطابع والمتاجر في %(g)s — سواء إنت في"
+msgstr "Print shops and stores in %(g)s — whether you're in"
+
+#, python-format
+msgid "المطابع والمتاجر في محافظة %(g)s."
+msgstr "Print shops and stores in %(g)s governorate."
+
+#, python-format
+msgid "خدمات الطباعة في %(g)s"
+msgstr "Printing services in %(g)s"
+
+#, python-format
+msgid "متاجر طباعة في %(g)s"
+msgstr "Print stores in %(g)s"
+
+#, python-format
+msgid "مطابع في %(g)s"
+msgstr "Print shops in %(g)s"
+
+#, python-format
+msgid "مطابع في %(g)s: كروت وفلايرات وبنرات وعلب وهدايا — قارن المطابع بالتقييمات واطلب عروض أسعار."
+msgstr "Print shops in %(g)s: cards, flyers, banners, boxes and gifts — compare shops by rating and request quotes."
+
+#, python-format
+msgid "مواصفات %(s)s الشائعة"
+msgstr "Common %(s)s specs"
+
+#, python-format
+msgid "فيه مطبعة واحدة ظاهرة هنا بتقييمها."
+msgid_plural "فيه %(n)s مطابع ومتاجر ظاهرين هنا بتقييماتهم."
+msgstr[0] "One print shop is listed here with its rating."
+msgstr[1] "%(n)s print shops and stores are listed here with their ratings."

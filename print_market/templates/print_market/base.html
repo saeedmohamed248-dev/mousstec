@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}{% trans "سوق المطابع" %}{% endblock %} | Mouss Tec</title>
+<meta name="description" content="{% block meta_description %}{% trans "سوق المطابع في مصر: اطلب طباعة كروت وفلايرز وبنرات وعلب من مطابع بتقييمات حقيقية، شوف البروفة قبل الطباعة وادفع بأمان." %}{% endblock %}">
+{% block seo_head %}{% endblock %}
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
 <link href="/static/vendor/bootstrap/bootstrap.rtl.min.css" rel="stylesheet">
@@ -75,6 +77,10 @@ body { font-family:'Cairo',sans-serif; background:var(--bg); color:var(--ink); }
   {% block content %}{% endblock %}
 </main>
 <footer class="text-center pm-muted small pb-4">
+  <div class="mb-2"><a href="/print/" class="pm-muted">{% trans "خدمات الطباعة حسب المحافظة" %}</a> ·
+    <a href="/print/business-cards/" class="pm-muted">{% trans "طباعة كروت شخصية" %}</a> ·
+    <a href="/print/flyers-brochures/" class="pm-muted">{% trans "طباعة فلايرات" %}</a> ·
+    <a href="/print/banners-rollups/" class="pm-muted">{% trans "طباعة بنرات" %}</a></div>
   {% trans "الدفع لـ Mouss Tec بس، والتواصل من جوه المنصة بس — عشان فلوسك وطلبك يبقوا في أمان." %}
 </footer>
 </body>

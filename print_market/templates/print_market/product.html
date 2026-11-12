@@ -1,5 +1,7 @@
 {% extends "print_market/base.html" %}{% load i18n %}
 {% block title %}{{ product.title }}{% endblock %}
+{% block meta_description %}{% if product.description %}{{ product.description|truncatechars:150 }}{% else %}{% blocktrans with t=product.title n=shop.name %}{{ t }} من {{ n }} على سوق المطابع — اطلب عرض سعر وشوف البروفة قبل الطباعة.{% endblocktrans %}{% endif %}{% endblock %}
+{% block seo_head %}{{ seo_jsonld }}{% endblock %}
 {% block content %}
 <div class="row g-4">
   <div class="col-md-6">
