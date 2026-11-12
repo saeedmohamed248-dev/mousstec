@@ -4,6 +4,14 @@
   <a href="/superadmin/marketplace/requests/">{% trans "راجعهم" %}</a></div>
 {% endif %}
 
+{% with t=today.owner_todo %}{% if t.pm_payments or t.pm_disputes or t.pm_payouts %}
+<div class="alert"><i class="fas fa-print"></i> {% trans "سوق المطابع مستنيك:" %}
+  {% if t.pm_payments %}<a href="/{{ admin_url }}/print_market/marketpayment/?status__exact=pending">{% blocktrans count n=t.pm_payments %}{{ n }} إيصال دفع يتأكّد{% plural %}{{ n }} إيصالات دفع تتأكّد{% endblocktrans %}</a> · {% endif %}
+  {% if t.pm_disputes %}<a href="/{{ admin_url }}/print_market/marketorder/?status__exact=disputed">{% blocktrans count n=t.pm_disputes %}{{ n }} مشكلة مفتوحة{% plural %}{{ n }} مشاكل مفتوحة{% endblocktrans %}</a> · {% endif %}
+  {% if t.pm_payouts %}<a href="/{{ admin_url }}/print_market/marketorder/?status__exact=completed">{% blocktrans count n=t.pm_payouts %}{{ n }} تحويل للمطابع{% plural %}{{ n }} تحويلات للمطابع{% endblocktrans %}</a>{% endif %}
+</div>
+{% endif %}{% endwith %}
+
 <div class="grid">
   <div class="card big"><div class="n">{{ online_total }}</div><div class="l">{% trans "أونلاين دلوقتي" %}</div></div>
   {% for a in online_areas %}<div class="card"><div class="n">{{ a.n }}</div><div class="l">{{ a.label }}</div></div>{% endfor %}

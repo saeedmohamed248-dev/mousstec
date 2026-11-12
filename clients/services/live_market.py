@@ -233,6 +233,12 @@ def today_stats(now=None):
         requests=MarketOrder.objects.filter(created_at__gte=start).count(),
         offers=MarketOffer.objects.filter(created_at__gte=start).count())
     pending = ServiceRequest.objects.filter(status='pending_approval').count()
+    from print_market.models import MarketPayment
+    owner_todo = {
+        'pm_payments': MarketPayment.objects.filter(status='pending').count(),
+        'pm_disputes': MarketOrder.objects.filter(status='disputed').count(),
+        'pm_payouts': MarketOrder.objects.filter(status='completed', payout_done_at__isnull=True).count(),
+    }
 
     # 📣 مصادر الزيارات (أول طلب لكل زائر النهارده في الصفحات العامة)
     first = {}
@@ -245,7 +251,8 @@ def today_stats(now=None):
         src[s] = src.get(s, 0) + 1
     total = sum(src.values()) or 1
     sources = [{'key': k, 'label': SOURCES[k], 'n': n, 'pct': round(100 * n / total)} for k, n in src.items()]
-    return {'areas': areas, 'sources': sources, 'pending_requests': pending, 'since': start}
+    return {'areas': areas, 'sources': sources, 'pending_requests': pending, 'owner_todo': owner_todo,
+            'since': start}
 
 
 def snapshot(now=None):

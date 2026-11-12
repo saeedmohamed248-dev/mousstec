@@ -26,6 +26,11 @@ from .models import (ATTACH_EXT, IMAGE_EXT, PROOF_EXT, MarketAccount, MarketMess
 from .notify import notify
 from .services import run_auto_complete
 
+
+def _owner(subject, body, path):
+    from clients.services.owner_notify import notify_owner
+    notify_owner(subject, body, f'/{settings.ADMIN_URL}/print_market/{path}')
+
 GOVERNORATES = (
     'القاهرة', 'الجيزة', 'الإسكندرية', 'القليوبية', 'الشرقية', 'الدقهلية', 'الغربية', 'المنوفية',
     'البحيرة', 'كفر الشيخ', 'دمياط', 'بورسعيد', 'الإسماعيلية', 'السويس', 'الفيوم', 'بني سويف',
@@ -480,7 +485,10 @@ def payment_submit(request, order):
     if not reference or not receipt:
         raise ValidationError(_('اكتب رقم العملية وارفع صورة الإيصال.'))
     check_upload(receipt, IMAGE_EXT, IMAGE_MAX_MB)
-    MarketPayment.submit(order, request.pm_account, method, reference, receipt)
+    pay = MarketPayment.submit(order, request.pm_account, method, reference, receipt)
+    _owner('سوق المطابع: إيصال دفع مستني تأكيدك',
+           f'«{order.title}» — {pay.total} ج.م ({pay.get_method_display()}) — رقم العملية: {pay.reference}\n'
+           'المطبعة مش هتبدأ غير بعد ما تأكّد.', 'marketpayment/?status__exact=pending')
     return _('استلمنا الإيصال — هنأكّده في أقرب وقت.')
 
 
@@ -545,6 +553,8 @@ def order_delivered(request, order):
 @_action
 def order_received(request, order):
     order.confirm_received(request.pm_account)
+    _owner('سوق المطابع: حوّل للمطبعة', f'«{order.title}» اكتمل — حوّل لـ {order.shop.name}.',
+           'marketorder/?status__exact=completed')
     notify(request, order.shop, _('العميل أكّد الاستلام'),
            _('العميل أكّد استلام «%(t)s» — Mouss Tec هتحوّلك المبلغ.') % {'t': order.title}, order)
     return _('شكراً! الطلب اكتمل.')
@@ -554,6 +564,8 @@ def order_received(request, order):
 def order_dispute(request, order):
     reason = _guarded(request, request.pm_account, request.POST.get('reason'), 2000)
     order.open_dispute(request.pm_account, reason)
+    _owner('سوق المطابع: عميل فتح مشكلة', f'«{order.title}» ({order.shop.name}):\n{reason[:500]}',
+           f'marketorder/{order.pk}/change/')
     notify(request, order.shop, _('العميل عنده مشكلة في الطلب'),
            _('العميل فتح مشكلة على «%(t)s» — Mouss Tec هتراجع وتكلّمكم من المنصة.') % {'t': order.title}, order)
     return _('وصلتنا المشكلة — التحويل للمطبعة واقف لحد ما نراجع ونرد عليك.')

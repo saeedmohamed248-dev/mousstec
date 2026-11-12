@@ -1024,6 +1024,47 @@ def purge_screen_recordings():
     return purge_old_sessions()
 
 
+def _tenant_link(tenant, path):
+    dom = next((d.domain for d in tenant.domains.all() if d.is_primary), None) or \
+        next((d.domain for d in tenant.domains.all()), None)
+    return f'https://{dom}{path}' if dom else ''
+
+
+def _notify_tenant(tenant, subject, line, link, tpl_setting='MARKETPLACE_REQUEST_WHATSAPP_TEMPLATE'):
+    """إيميل + واتساب (من رقم المنصة) لشركة مشتركة — مابيوقّعش المهمة لو فشل."""
+    from django.core.mail import send_mail
+
+    from clients.services.whatsapp_notify import send_platform_whatsapp
+    if tenant.email:
+        try:
+            send_mail(subject, f'أهلاً {tenant.name}،\n\n{line}\n\n{link}\n\n— السوق المفتوح | Mouss Tec',
+                      settings.DEFAULT_FROM_EMAIL, [tenant.email], fail_silently=True)
+        except Exception:  # noqa: BLE001
+            logger.exception('[MARKETPLACE NOTIFY] email failed for %s', tenant.schema_name)
+    if tenant.phone and getattr(settings, 'WHATSAPP_ACCESS_TOKEN', '') and \
+            getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', ''):
+        tpl = getattr(settings, tpl_setting, '')
+        send_platform_whatsapp(tenant.phone, template=tpl, params=(tenant.name, line, link),
+                               text='' if tpl else f'🛒 Mouss Tec\n{tenant.name}، {line}\n{link}')
+
+
+@shared_task(ignore_result=True)
+def notify_merchant_offer_accepted(offer_id):
+    """✅ العميل قبل عرض الشركة ⇒ إيميل + واتساب فوراً عشان تكلّمه (العميل بيتقاله «التاجر هيتواصل معاك»)."""
+    from clients.models import TenderOffer
+    offer = (TenderOffer.objects.select_related('merchant', 'service_request', 'service_request__customer')
+             .prefetch_related('merchant__domains').filter(pk=offer_id, status='accepted').first())
+    if offer is None:
+        return False
+    req, cust = offer.service_request, offer.service_request.customer
+    who = cust.company_name or cust.full_name
+    line = (f'🎉 {who} قبل عرضك ({offer.price:g} ج.م) على «{req.title[:100]}» — '
+            f'كلّمه دلوقتي على {cust.phone} عشان تقفلوا الصفقة.')
+    link = _tenant_link(offer.merchant, '/marketplace/merchant/feed/')
+    _notify_tenant(offer.merchant, f'Mouss Tec — عرضك اتقبل: {req.title[:80]}', line, link)
+    return True
+
+
 @shared_task(ignore_result=True)
 def notify_merchants_new_request(request_code, tenant_ids):
     """🔔 طلب عميل اتنشر في السوق المفتوح ⇒ إيميل + واتساب لكل شركة في القطاع، بلينك يفتح فورم العرض."""

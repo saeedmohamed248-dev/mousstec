@@ -2299,7 +2299,9 @@ def live_market(request):
     """🟢 /superadmin/live/ — مين أونلاين دلوقتي في كل سوق (بالاسم لو معروف) + أرقام النهارده.
     ?partial=1 بيرجّع جزء الصفحة بس (التحديث التلقائي كل ١٥ ثانية)."""
     from clients.services.live_market import snapshot
+    from django.conf import settings as dj_settings
     ctx = snapshot()
+    ctx['admin_url'] = dj_settings.ADMIN_URL
     tpl = 'clients/saas_admin/_live_body.html' if request.GET.get('partial') else 'clients/saas_admin/live_market.html'
     return render(request, tpl, ctx)
 
