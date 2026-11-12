@@ -295,7 +295,9 @@ class AdvanceService:
         """
         from hr.models import AdvanceInstallment
 
-        today = timezone.now().date()
+        # 🐛 [FIX]: كان تاريخ UTC — سلفة اتعتمدت أول يوم في الشهر قبل ٢ الفجر كان أول قسط
+        #    بيتخصم من مرتب الشهر نفسه بدل الشهر الجاي.
+        today = timezone.localdate()
         # Start from the 1st of next month
         if today.month == 12:
             start_month = date(today.year + 1, 1, 1)
