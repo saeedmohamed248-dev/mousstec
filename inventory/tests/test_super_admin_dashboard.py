@@ -210,3 +210,63 @@ class SuperAdminDashboardTests(ERPTenantTestCase):
         self.assertIsNotNone(m)
         data = json.loads(m.group(1))
         self.assertTrue(all(set(p['prices']) == {'1', '3', '6', '12'} for p in data))
+
+    # ── 🌐 عربي / إنجليزي + أرقام حقيقية ─────────────────────────────
+    def test_dashboard_in_english_has_no_untranslated_arabic(self):
+        """زرار تغيير اللغة موجود، والصفحة بالإنجليزي مافيهاش جمل عربي متسابة (غير الداتا نفسها)."""
+        from clients.models import MarketplaceCustomer, PlatformEvent
+        # أوصاف الأحداث وأسماء العملاء داتا متسجّلة (من اختبارات تانية) مش نصوص الصفحة
+        PlatformEvent.objects.all().delete()
+        MarketplaceCustomer.objects.all().delete()
+        html = self._get('/superadmin/').content.decode()
+        self.assertIn('name="language" value="en"', html)
+        self.assertIn('dir="rtl"', html)
+        self.c.cookies['django_language'] = 'en'
+        r = self.c.get('/superadmin/', HTTP_HOST=PLATFORM_HOST, HTTP_ACCEPT_LANGUAGE='en')
+        html = r.content.decode()
+        self.assertIn('dir="ltr"', html)
+        self.assertIn('name="language" value="ar"', html)
+        for s in ('Overview', 'Companies', 'Platform numbers', 'Event log'):
+            self.assertIn(s, html)
+        # نشيل الداتا (أسماء الشركات) والسطر الوحيد اللي مقصود يفضل عربي (زرار «العربية»)
+        body = html.replace(self.tenant.name, '').replace('العربية', '').replace('التحويل للعربي', '')
+        body = re.sub(r'<script.*?</script>', lambda m: m.group(0) if 'openCmdk' in m.group(0) else '', body,
+                      flags=re.S)
+        body = re.sub(r'<!--.*?-->|//[^\n]*|/\*.*?\*/', '', body, flags=re.S)
+        left = sorted(set(re.findall(r'[ء-ي][ء-ي ]{3,}', body)))
+        self.assertEqual(left, [], left[:40])
+
+    def test_owner_traffic_is_not_counted_as_visitors(self):
+        from clients.models import VisitorLog
+        VisitorLog.objects.all().delete()
+        for _ in range(5):
+            VisitorLog.objects.create(ip_address='10.9.9.9', path='/superadmin/support/count/', tenant_schema='public')
+        VisitorLog.objects.create(ip_address='41.1.1.1', path='/marketplace/', tenant_schema='public')
+        VisitorLog.objects.create(ip_address='41.1.1.1', path='/marketplace/notifications/', tenant_schema='public')
+        r = self._get('/superadmin/')
+        vs = r.context['visitor_stats']
+        self.assertEqual(vs['unique_today'], 1)
+        self.assertEqual([p['path'] for p in vs['top_pages']], ['/marketplace/'])
+
+    def test_customer_spent_counts_paid_purchases_once(self):
+        """«المصروف» كان بيتضرب في عدد الطلبات×التصاميم وبيحسب اللي ماتدفعش."""
+        import uuid
+        from clients.models import CustomerDesign, DesignPackage, DesignPurchase, MarketplaceCustomer
+        cust = MarketplaceCustomer.objects.create(customer_type='individual', full_name='عميل', sector='printing',
+                                                  phone=f'+2010{uuid.uuid4().int % 10**8:08d}', is_verified=True)
+        pkg = DesignPackage.objects.create(slug=f'p-{uuid.uuid4().hex[:6]}', name_ar='باقة', designs_count=10,
+                                           price_egp=Decimal('100'), price_per_design=Decimal('10'))
+        for st in ('paid', 'exhausted', 'rejected', 'pending'):
+            DesignPurchase.objects.create(customer=cust, package=pkg, designs_total=10, price_paid=Decimal('100'),
+                                          status=st)
+        for i in range(3):
+            CustomerDesign.objects.create(customer=cust, title=f'd{i}', description='x')
+        r = self._get('/superadmin/')
+        row = next(c for c in r.context['marketplace_customers'] if c.pk == cust.pk)
+        self.assertEqual(row.spent_total, Decimal('200'))
+        self.assertEqual(row.purchases_count, 4)
+
+    def test_every_tenant_action_shows_a_message(self):
+        for action in ('suspend', 'activate', 'flag_fraud', 'unflag_fraud', 'extend_trial', 'bogus'):
+            r = self._post('/superadmin/', {'action': action, 'tenant_id': self.tenant.pk}, follow=True)
+            self.assertTrue(list(r.context['messages']), action)
