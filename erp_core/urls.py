@@ -394,6 +394,8 @@ urlpatterns = [
     path('sitemap-<section>.xml', sitemap_views.sitemap, {'sitemaps': seo.SITEMAPS}, name='sitemap_section'),
     # 🗺️ صفحات الطباعة حسب الخدمة والمحافظة (SEO)
     path('print/', include('print_market.seo_urls')),
+    # 📝 المقالات (SEO)
+    path('blog/', include('blog.urls')),
 
     # 0. 🌐 الموجه التكيفي الذكي (بوابة الإمبراطورية السحابية)
     path('', smart_root_router, name='smart_root'),
