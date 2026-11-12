@@ -61,6 +61,7 @@ OG_IMAGES = (
     ('/marketplace/parts', 'seo/og-automotive.jpg'),
     ('/automotive', 'seo/og-automotive.jpg'),
     ('/marketplace', 'seo/og-printing.jpg'),
+    ('/blog', 'seo/og-printing.jpg'),
     ('/printing', 'seo/og-printing.jpg'),
     ('', 'seo/og-default.jpg'),
 )
@@ -86,7 +87,10 @@ def canonical_url(request):
 
 def _static_url(rel):
     from django.templatetags.static import static
-    url = static(rel)
+    try:
+        url = static(rel)
+    except ValueError:   # ملف مش في الـ manifest (collectstatic لسه ماشتغلش) — مانوقّعش الصفحة
+        url = settings.STATIC_URL.rstrip('/') + '/' + rel
     return url if url.startswith('http') else f'{public_base()}{url}'
 
 
@@ -122,16 +126,13 @@ def _meta_tags(request, body):
     lang = (getattr(request, 'LANGUAGE_CODE', '') or 'ar')[:2]
     if not _has(body, b'rel="canonical"') and not _has(body, b"rel='canonical'"):
         out.append(f'<link rel="canonical" href="{esc(url)}">')
-    if not _has(body, b'property="og:title"'):
-        out += [
-            f'<meta property="og:type" content="website">',
-            f'<meta property="og:site_name" content="{SITE_NAME}">',
-            f'<meta property="og:locale" content="{"en_US" if lang == "en" else "ar_EG"}">',
-            f'<meta property="og:title" content="{esc(title)}">',
-            f'<meta property="og:url" content="{esc(url)}">',
-        ]
-        if desc:
-            out.append(f'<meta property="og:description" content="{esc(desc)}">')
+    # كل وسم لوحده — الصفحة ممكن تحط بعضهم (زي og:type=article في المقال) والباقي ناقص
+    og = (('og:type', 'website'), ('og:site_name', SITE_NAME),
+          ('og:locale', 'en_US' if lang == 'en' else 'ar_EG'), ('og:title', title), ('og:url', url),
+          ('og:description', desc))
+    for prop, value in og:
+        if value and not _has(body, f'property="{prop}"'.encode()):
+            out.append(f'<meta property="{prop}" content="{esc(value)}">')
     if not _has(body, b'property="og:image"'):
         out += [f'<meta property="og:image" content="{esc(_og_image(request.path))}">',
                 '<meta property="og:image:width" content="1200">',
@@ -322,10 +323,27 @@ class PrintSeoSitemap(_Base):
         return item[1]
 
 
+class BlogSitemap(_Base):
+    changefreq = 'monthly'
+    priority = 0.7
+
+    def items(self):
+        from django.utils import timezone
+
+        from blog.models import Article
+        return Article.objects.filter(is_published=True, published_at__lte=timezone.now()).order_by('pk')
+
+    def location(self, obj):
+        return obj.get_absolute_url()
+
+    def lastmod(self, obj):
+        return obj.updated_at
+
+
 SITEMAPS = {
     'pages': StaticSitemap, 'catalog-stores': CatalogStoreSitemap, 'catalog-items': CatalogItemSitemap,
     'print-shops': PrintShopSitemap, 'print-products': PrintProductSitemap, 'parts': PartListingSitemap,
-    'print-services': PrintSeoSitemap,
+    'print-services': PrintSeoSitemap, 'blog': BlogSitemap,
 }
 
 

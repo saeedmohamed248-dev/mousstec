@@ -27930,3 +27930,92 @@ msgid "فيه مطبعة واحدة ظاهرة هنا بتقييمها."
 msgid_plural "فيه %(n)s مطابع ومتاجر ظاهرين هنا بتقييماتهم."
 msgstr[0] "One print shop is listed here with its rating."
 msgstr[1] "%(n)s print shops and stores are listed here with their ratings."
+
+msgid ""
+"## عنوان — ### عنوان فرعي — - بند في قايمة — **كلام عريض** — [نص "
+"اللينك](/print/business-cards/) — والجداول بـ | عمود | عمود |"
+msgstr ""
+"## heading — ### sub-heading — - list item — **bold text** — [link "
+"text](/print/business-cards/) — and tables with | column | column |"
+
+msgid ""
+"slug خدمة من /print/ (مثال business-cards) — بيظهر لينكها في آخر المقال."
+msgstr ""
+"Service slug from /print/ (e.g. business-cards) — its link shows at the end "
+"of the article."
+
+msgid "آخر تعديل"
+msgstr "Last updated"
+
+msgid "اكتب طلبك دلوقتي"
+msgstr "Post your request now"
+
+msgid ""
+"اكتب طلبك مرة واحدة والمطابع تبعتلك عروضها — قارن بالسعر والتقييم واختار."
+msgstr ""
+"Post your request once and print shops send you their quotes — compare price"
+" and rating and choose."
+
+msgid "الرابط"
+msgstr "Link"
+
+msgid "المقال"
+msgstr "Article"
+
+msgid "المقالات"
+msgstr "Articles"
+
+msgid "الوصف (بيظهر في جوجل)"
+msgstr "Description (shown on Google)"
+
+msgid "بالإنجليزي وبشَرطة — مثال: business-card-prices"
+msgstr "English with dashes — e.g. business-card-prices"
+
+msgid "جملة أو اتنين — ١٢٠ لـ ١٦٠ حرف أحسن حاجة."
+msgstr "One or two sentences — 120 to 160 characters is best."
+
+msgid "خدمات الطباعة"
+msgstr "Printing services"
+
+msgid "خدمة مرتبطة"
+msgstr "Related service"
+
+msgid ""
+"دليلك قبل ما تطبع: الخامات، المقاسات، الأسعار، وإزاي تختار المطبعة الصح."
+msgstr ""
+"Your guide before printing: materials, sizes, prices and how to pick the "
+"right print shop."
+
+msgid "صورة الغلاف"
+msgstr "Cover image"
+
+msgid "عايز تطبع؟ خلّي المطابع تتنافس على طلبك"
+msgstr "Want to print? Let print shops compete for your order"
+
+msgid "في المقال ده"
+msgstr "In this article"
+
+msgid "مفيش مقالات لسه."
+msgstr "No articles yet."
+
+msgid "مقال"
+msgstr "Article"
+
+msgid "مقالات الطباعة والتصميم"
+msgstr "Printing & design articles"
+
+msgid "مقالات تانية"
+msgstr "More articles"
+
+msgid ""
+"مقالات عملية عن الطباعة والتصميم: أسعار، خامات، مقاسات، وإزاي تختار المطبعة "
+"الصح — من Mouss Tec."
+msgstr ""
+"Practical articles on printing and design: prices, materials, sizes and how "
+"to choose the right print shop — from Mouss Tec."
+
+#, python-format
+msgid "دقيقة قراءة"
+msgid_plural "%(m)s دقايق قراءة"
+msgstr[0] "1 min read"
+msgstr[1] "%(m)s min read"

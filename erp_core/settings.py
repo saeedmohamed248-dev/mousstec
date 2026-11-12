@@ -181,6 +181,7 @@ SHARED_APPS = (
     'django_tenants',
     'clients',         # 👑 إدارة الإمبراطورية السحابية والمزادات المركزية
     'django.contrib.sitemaps',  # 🔎 sitemap.xml (erp_core/seo.py)
+    'blog',            # 📝 مقالات SEO (/blog/)
     'tenancy',         # 🏛️ SaaS tenant lifecycle, plans, entitlements (Wave 2 Phase 2A — services only; models still live in clients)
     'marketplace_b2b', # 🛒 B2B parts marketplace, blind bidding, escrow (Wave 2 Phase 2A — services + tests; models still live in clients)
     'design_store',    # 🎨 AI design store: chat + persistence + brand profile (Wave 2 Phase 2A — services + tests; models still live in clients)
