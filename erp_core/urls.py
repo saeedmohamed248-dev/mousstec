@@ -615,6 +615,7 @@ urlpatterns = [
     # ⚙️ System Status (DB / Redis / Celery / disk / memory)
     path('superadmin/system/', saas_admin_views.system_status, name='saas_system_status'),
     path('superadmin/live/', saas_admin_views.live_market, name='saas_live_market'),
+    path('superadmin/live/v/<str:token>/', saas_admin_views.live_visitor, name='saas_live_visitor'),
 
     # 🩺 Tenant Health / Churn Risk
     path('superadmin/churn-risk/', saas_admin_views.churn_risk, name='saas_churn_risk'),

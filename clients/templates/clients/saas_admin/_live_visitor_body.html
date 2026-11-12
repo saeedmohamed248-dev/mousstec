@@ -1,0 +1,101 @@
+{% load i18n %}
+{% with v=visitor %}
+<h1>{% if v.is_online %}<span class="dot"></span>{% else %}<span class="dot off"></span>{% endif %}
+  {% if v.who %}{{ v.who }}{% else %}{% trans "زائر" %} <span dir="ltr" style="font-size:18px">{{ v.ip_masked }}</span>{% endif %}
+  {% if v.kind == 'company' %}<span class="pill">{% trans "شركة مشتركة" %}</span>
+  {% elif v.kind == 'company_customer' %}<span class="pill">{% trans "عميل شركة" %}</span>
+  {% elif v.kind == 'customer' %}<span class="pill">{% trans "عميل" %}</span>
+  {% elif v.kind == 'pm_shop' %}<span class="pill">{% trans "مطبعة" %}</span>
+  {% elif v.kind == 'pm_customer' %}<span class="pill">{% trans "عميل سوق المطابع" %}</span>
+  {% elif v %}<span class="pill gray">{% trans "زائر مجهول" %}</span>{% endif %}
+</h1>
+<div class="sub">
+  {% if v.is_online %}<b style="color:#067647">{% trans "أونلاين دلوقتي" %}</b> ·{% elif v %}{% trans "آخر ظهور" %}: <span dir="ltr">{{ v.last_seen|date:"Y-m-d H:i:s" }}</span> ({% blocktrans with t=v.last_seen|timesince %}من {{ t }}{% endblocktrans %}) ·{% endif %}
+  {% if v.link %}<a href="{{ v.link }}" style="color:#1E2A57;font-weight:800">{% trans "افتح ملفه" %} <i class="fas fa-up-right-from-square"></i></a>{% endif %}
+</div>
+
+<div class="chips" style="margin-bottom:14px">
+  {% for d in day_options %}
+    <a class="chip{% if days == d %} on{% endif %}" href="?days={{ d }}{% if bg %}&bg=1{% endif %}">{% if d == 1 %}{% trans "اليوم" %}{% else %}{% blocktrans count n=d %}آخر {{ n }} يوم{% plural %}آخر {{ n }} يوم{% endblocktrans %}{% endif %}</a>
+  {% endfor %}
+  <a class="chip{% if bg %} on{% endif %}" href="?days={{ days }}{% if not bg %}&bg=1{% endif %}"><i class="fas fa-gears"></i> {% trans "اعرض طلبات الخلفية" %}</a>
+</div>
+
+{% if not v %}
+  <div class="empty">{% trans "مفيش نشاط للزائر ده في الفترة دي. جرّب فترة أطول." %}</div>
+{% else %}
+{# ① ملف الزائر #}
+<div class="profile">
+  <div class="f"><div class="k">{% trans "أول ظهور في الفترة" %}</div><div class="v"><span dir="ltr">{{ v.first_seen|date:"Y-m-d H:i" }}</span></div></div>
+  <div class="f"><div class="k">{% trans "آخر نشاط" %}</div><div class="v"><span dir="ltr">{{ v.last_seen|date:"Y-m-d H:i:s" }}</span></div></div>
+  <div class="f"><div class="k">{% trans "الزيارات" %}</div><div class="v">{{ totals.sessions }}</div></div>
+  <div class="f"><div class="k">{% trans "الصفحات اللي شافها" %}</div><div class="v">{{ totals.pages }}</div></div>
+  <div class="f"><div class="k">{% trans "العمليات اللي عملها" %}</div><div class="v">{{ totals.actions }}</div></div>
+  <div class="f"><div class="k">{% trans "إجمالي الوقت" %}</div><div class="v">{% if totals.seconds >= 60 %}{% widthratio totals.seconds 60 1 %} {% trans "دقيقة" %}{% else %}{% blocktrans with s=totals.seconds %}{{ s }} ث{% endblocktrans %}{% endif %}</div></div>
+  <div class="f"><div class="k">{% trans "السوق" %}</div><div class="v">{{ v.area_label }}</div></div>
+  <div class="f"><div class="k">{% trans "جاي منين (أول مرة)" %}</div><div class="v">{{ v.source_label }}</div></div>
+  <div class="f"><div class="k">{% trans "الجهاز" %}</div><div class="v">{% if v.device == 'mobile' %}<i class="fas fa-mobile-screen"></i> {% trans "موبايل" %}{% else %}<i class="fas fa-desktop"></i> {% trans "كمبيوتر" %}{% endif %}
+    {% if v.os or v.browser %}<span class="muted" dir="ltr" style="font-size:12px">{{ v.os }} {{ v.browser }}</span>{% endif %}</div></div>
+  <div class="f"><div class="k">{% trans "الـ IP" %}</div><div class="v" dir="ltr">{{ v.ip_masked }}{% if v.country %} · {{ v.country }}{% endif %}</div></div>
+  {% if v.phone %}<div class="f"><div class="k">{% trans "الموبايل" %}</div><div class="v" dir="ltr">{{ v.phone }}</div></div>{% endif %}
+  {% if totals.errors %}<div class="f" style="border-color:#FECDCA"><div class="k">{% trans "أخطاء قابلته" %}</div><div class="v" style="color:#B42318">{{ totals.errors }}</div></div>{% endif %}
+</div>
+
+{# ② أكتر الصفحات #}
+{% if top_pages %}
+<h2><i class="fas fa-ranking-star"></i> {% trans "أكتر صفحات شافها" %}</h2>
+<div class="tbl-wrap"><table>
+  <thead><tr><th>{% trans "الصفحة" %}</th><th>{% trans "مرات" %}</th><th>{% trans "الوقت" %}</th></tr></thead>
+  <tbody>{% for p in top_pages %}
+    <tr><td>{% if p.label %}<b>{{ p.label }}</b>{% endif %}<span class="path" title="{{ p.path }}">{{ p.path }}</span></td>
+      <td>{{ p.views }}</td>
+      <td>{% if not p.seconds %}<span class="muted">—</span>{% elif p.seconds >= 60 %}{% widthratio p.seconds 60 1 %} {% trans "دقيقة" %}{% else %}{{ p.seconds }} {% trans "ث" %}{% endif %}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endif %}
+
+{# ③ الزيارات خطوة بخطوة #}
+<h2><i class="fas fa-route"></i> {% trans "الرحلة خطوة بخطوة" %}</h2>
+{% if truncated %}<div class="alert">{% trans "النشاط كتير جداً — بنعرض أول ٣٠٠٠ طلب بس في الفترة دي. صغّر الفترة." %}</div>{% endif %}
+{% for s in sessions %}
+<details class="session"{% if forloop.first %} open{% endif %}>
+  <summary>
+    <i class="fas fa-chevron-down muted"></i>
+    <span class="stitle">{% blocktrans with n=forloop.revcounter %}زيارة {{ n }}{% endblocktrans %} · <span dir="ltr">{{ s.start|date:"D d/m" }} {{ s.start|time:"H:i:s" }} → {{ s.end|time:"H:i:s" }}</span></span>
+    <span class="smeta">
+      <span class="pill gray"><i class="fas fa-clock"></i> {% if s.duration_seconds >= 60 %}{% widthratio s.duration_seconds 60 1 %} {% trans "دقيقة" %}{% else %}{{ s.duration_seconds }} {% trans "ث" %}{% endif %}</span>
+      <span class="pill gray"><i class="fas fa-file-lines"></i> {{ s.pages }}</span>
+      {% if s.actions %}<span class="pill amber"><i class="fas fa-hand-pointer"></i> {{ s.actions }}</span>{% endif %}
+      {% if s.errors %}<span class="pill red"><i class="fas fa-triangle-exclamation"></i> {{ s.errors }}</span>{% endif %}
+      <span class="pill src-{{ s.source }}">{{ s.source_label }}</span>
+      <span class="pill gray">{% if s.device == 'mobile' %}<i class="fas fa-mobile-screen"></i>{% else %}<i class="fas fa-desktop"></i>{% endif %} <span dir="ltr">{{ s.os }} {{ s.browser }}</span></span>
+    </span>
+    <span class="muted" style="font-size:12px;width:100%">{% trans "دخل من" %}: <b>{% if s.entry.label %}{{ s.entry.label }}{% else %}<span class="ltr">{{ s.entry.path|truncatechars:50 }}</span>{% endif %}</b>
+      · {% trans "وقف عند" %}: <b>{% if s.exit.label %}{{ s.exit.label }}{% else %}<span class="ltr">{{ s.exit.path|truncatechars:50 }}</span>{% endif %}</b>
+      {% if s.referer %}· {% trans "الرابط اللي جه منه" %}: <span class="ltr">{{ s.referer|truncatechars:50 }}</span>{% endif %}</span>
+  </summary>
+  <ol class="timeline">
+  {% for st in s.steps %}
+    <li class="{% if st.kind == 'background' %}bg{% endif %}">
+      <span class="t">{{ st.time|time:"H:i:s" }}</span>
+      <span class="ic {% if st.is_error %}error{% elif st.kind == 'action' %}action{% elif st.kind == 'background' %}bg{% elif st.is_exit %}exit{% elif st.is_entry %}entry{% endif %}">
+        {% if st.is_error %}<i class="fas fa-xmark"></i>{% elif st.kind == 'action' %}<i class="fas fa-hand-pointer"></i>{% elif st.kind == 'background' %}<i class="fas fa-gear"></i>{% elif st.is_exit %}<i class="fas fa-flag-checkered"></i>{% elif st.is_entry %}<i class="fas fa-right-to-bracket"></i>{% else %}<i class="fas fa-eye"></i>{% endif %}</span>
+      <div class="body">
+        <div class="lbl">
+          {% if st.kind == 'action' %}{{ st.label }}{% elif st.label %}{% trans "شاف" %}: {{ st.label }}{% elif st.kind == 'page' %}{% trans "فتح صفحة" %}{% else %}{% trans "طلب خلفية" %}{% endif %}
+          {% if st.is_entry %}<span class="pill green">{% trans "أول صفحة" %}</span>{% endif %}
+          {% if st.is_exit %}<span class="pill">{% trans "وقف هنا" %}</span>{% endif %}
+          {% if st.is_error %}<span class="pill red">{% blocktrans with c=st.status %}خطأ {{ c }}{% endblocktrans %}</span>{% endif %}
+          {% if st.kind == 'action' %}<span class="pill amber" dir="ltr">{{ st.method }}</span>{% endif %}
+        </div>
+        <span class="path" title="{{ st.path }}">{{ st.path }}</span>
+        {% if st.seconds %}<div class="dur"><i class="fas fa-hourglass-half"></i>
+          {% if st.seconds >= 60 %}{% trans "قعد حوالي" %} {% widthratio st.seconds 60 1 %} {% trans "دقيقة" %}{% else %}{% blocktrans with sec=st.seconds %}قعد {{ sec }} ثانية{% endblocktrans %}{% endif %}</div>{% endif %}
+      </div>
+    </li>
+  {% endfor %}
+  </ol>
+</details>
+{% endfor %}
+{% endif %}
+{% endwith %}
