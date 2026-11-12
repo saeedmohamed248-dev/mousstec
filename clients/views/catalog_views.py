@@ -217,7 +217,13 @@ def catalog_home(request, sector):
         pairs = set(CatalogItem.objects.filter(store__sector='automotive', is_active=True)
                     .exclude(car_make='').values_list('car_make', 'car_make_en'))
         makes = sorted({(m, (m_en if _is_en() and m_en else m)) for m, m_en in pairs}, key=lambda x: x[1])
+    # 📣 جاي من إعلان الشركات (utm_campaign=shops) ⇒ زرار «سجّل شركتك» يظهر فوق الصفحة.
+    #    🐛 [FIX]: الإعلان كان بيوصّل أصحاب المطابع للسوق وزرار التسجيل مدفون تحت المعروضات
+    #    فمحدش سجّل. بنقبل كمان «role=shop» الملزوق في رابط الإعلان القديم.
+    from_shops_ad = (request.GET.get('utm_campaign') == 'shops'
+                     or 'role=shop' in (request.META.get('QUERY_STRING') or '').replace('%3D', '='))
     return render(request, 'clients/marketplace/catalog.html', {
+        'from_shops_ad': from_shops_ad,
         'sector': sector, 'meta': meta, 'page': page, 'stores': stores,
         'categories': _categories(meta),
         'cat': cat, 'q': q, 'make': make, 'makes': makes,

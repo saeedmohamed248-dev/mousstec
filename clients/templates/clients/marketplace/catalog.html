@@ -15,7 +15,8 @@
         {% if sector == 'printing' %}<a class="lnk" href="/marketplace/catalog/automotive/"><i class="fas fa-car"></i> {% trans "قطع الغيار" %}</a>
         {% else %}<a class="lnk" href="/marketplace/catalog/printing/"><i class="fas fa-palette"></i> {% trans "الطباعة" %}</a>{% endif %}
         {% if customer %}<a class="lnk" href="/marketplace/dashboard/"><i class="fas fa-user"></i> {% trans "لوحتي" %}</a>
-        {% else %}<a class="lnk" href="/marketplace/{{ sector }}/?tab=login"><i class="fas fa-right-to-bracket"></i> {% trans "دخول" %}</a>{% endif %}
+        {% else %}<a class="lnk" href="/marketplace/{{ sector }}/?tab=login"><i class="fas fa-right-to-bracket"></i> {% trans "دخول" %}</a>
+        <a class="lnk" href="/marketplace/sell/" style="font-weight:700;"><i class="fas fa-shop"></i> {% trans "سجّل شركتك" %}</a>{% endif %}
     <span class="lang">{% include "clients/_language_switcher.html" %}</span></div>
 </header>
 
@@ -48,6 +49,11 @@
         <h1>{{ meta.title }}</h1>
         <p>{{ meta.subtitle }}</p>
     </section>
+    {% if from_shops_ad and not customer %}
+    <a class="sell" href="/marketplace/sell/" style="border:2px solid var(--mt-brand);"><i class="fas fa-shop" style="font-size:1.4rem;"></i>
+        <span><b>{% if sector == 'automotive' %}{% trans "عندك محل قطع غيار؟" %}{% else %}{% trans "عندك مطبعة أو مكتب تصميم؟" %}{% endif %}</b><br><small>{% trans "اعرض منتجاتك قدام العملاء اللي بيدوّروا كل يوم." %}</small></span>
+        <span class="go">{% trans "سجّل شركتك" %} ←</span></a>
+    {% endif %}
     {# 🛍️ السوق وشّين: معروضات الشركات + طلبات العملاء #}
     <nav class="mtabs" aria-label="{% trans 'أقسام السوق' %}">
         <a class="mtab {% if tab != 'requests' %}on{% endif %}" href="/marketplace/catalog/{{ sector }}/"><i class="fas fa-store"></i> {% trans "معروضات الشركات" %} <span class="n">{{ offers_count }}</span></a>
