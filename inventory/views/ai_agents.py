@@ -109,6 +109,8 @@ def _agent_b2b_market(query: str, schema_name: str) -> list:
 
             results = [
                 {
+                    'listing_id': m.pk,
+                    'seller_id': m.tenant_id,
                     'tenant_name': m.tenant.name,
                     'is_verified': m.tenant.is_verified_merchant,
                     'rating': float(m.tenant.market_rating or 0) if m._rated else 0,
@@ -327,7 +329,9 @@ def b2b_market_search_api(request):
     if not query:
         return _json_response_safe({'results': []})
     schema = getattr(connection, 'schema_name', 'public')
-    results = _agent_b2b_market(query, schema)
+    me = getattr(getattr(connection, 'tenant', None), 'pk', None)
+    # 🛒 «اطلب من التاجر» بيتخفي على أصناف الشركة نفسها (النتايج متكاشّة لكل الشركات)
+    results = [dict(r, is_mine=(r.get('seller_id') == me)) for r in _agent_b2b_market(query, schema)]
     return _json_response_safe({'status': 'success', 'results_count': len(results), 'results': results})
 
 

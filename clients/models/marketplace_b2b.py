@@ -241,6 +241,51 @@ class BidOffer(models.Model):
     def __str__(self):
         return f"Offer by {self.seller.name} for Bid #{self.bidding_request.id} - {self.offer_price} EGP"
 
+class B2BPurchaseRequest(models.Model):
+    """🛒 طلب شراء مباشر من تاجر في سوق B2B (مش مزاد).
+
+    🐛 [FIX — دورة ناقصة]: البحث في السوق كان بيوري السعر والرصيد ومفيش أي زرار يتعامل بيه
+    مع التاجر غير «طلب تسعير» أعمى. دلوقتي المشتري يطلب الكمية من التاجر ده بسعره المنشور،
+    والتاجر يوافق أو يعتذر — بعد الموافقة كل واحد بيشوف بيانات تواصل التاني ويكملوا البيع
+    والتسليم بينهم (فاتورة عادية عند البائع). الفلوس مابتعدّيش على المنصة هنا.
+    """
+    STATUS_CHOICES = (
+        ('pending', _('مستني رد التاجر')),
+        ('accepted', _('التاجر وافق')),
+        ('rejected', _('التاجر اعتذر')),
+        ('cancelled', _('اتلغى')),
+    )
+    buyer = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='b2b_requests_sent',
+                              verbose_name=_("الشركة الطالبة"))
+    seller = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='b2b_requests_received',
+                               verbose_name=_("التاجر"))
+    listing = models.ForeignKey(GlobalB2BMarketplace, on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='purchase_requests', verbose_name=_("الصنف المنشور"))
+    # نسخة من بيانات الصنف وقت الطلب — التاجر ممكن يغيّر سعره أو يشيل الصنف بعدين
+    part_number = models.CharField(max_length=100, verbose_name=_("رقم القطعة"))
+    product_name = models.CharField(max_length=255, blank=True, verbose_name=_("اسم الصنف"))
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("سعر الجملة"))
+    quantity = models.PositiveIntegerField(verbose_name=_("الكمية"))
+    note = models.CharField(max_length=500, blank=True, verbose_name=_("ملاحظة المشتري"))
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', db_index=True,
+                              verbose_name=_("الحالة"))
+    seller_reply = models.CharField(max_length=500, blank=True, verbose_name=_("رد التاجر"))
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("طلب شراء B2B")
+        verbose_name_plural = _("🛒 طلبات الشراء المباشر B2B")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"B2B-{self.pk} {self.part_number} × {self.quantity} ({self.buyer} ← {self.seller})"
+
+    @property
+    def total(self):
+        return (self.unit_price * self.quantity).quantize(Decimal('0.01'))
+
+
 # =====================================================================
 # 🏦 6. دفتر الأستاذ المالي (Immutable Escrow Ledger)
 # =====================================================================

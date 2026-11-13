@@ -155,6 +155,57 @@ class QuickCollectTests(QuickEntryBase):
         c.force_login(clerk)
         self.assertEqual(c.get(self.url, HTTP_HOST=self.host).status_code, 403)
 
+    # ── 💳 تسديد الفواتير المفتوحة من رصيده المقدّم (من شاشة التحصيل نفسها) ──
+    def test_credit_settles_open_invoices_oldest_first_without_new_cash(self):
+        """🐛 رصيد العميل اللي «ليه» كان بيفضل جنب فواتيره المفتوحة — والكاشير بيحصّل تاني."""
+        old = self.delivered(self.cust, '1000')
+        new = self.delivered(self.cust, '800')
+        self.post(order='account', amount='1500')                          # دفعة مقدّمة
+        self.treasury.refresh_from_db()
+        cash_before = self.treasury.balance
+        r = self.c.get(f'{self.url}?customer={self.cust.pk}', HTTP_HOST=self.host)
+        self.assertContains(r, 'id="qcCredit"')
+        self.assertEqual((r.context['credit'], r.context['credit_settles']), (D('1500.00'), D('1500.00')))
+
+        r = self.post(action='apply_credit')
+        self.assertContains(r, 'id="qcSettled"')
+        self.assertEqual(r.context['settled'], {'amount': D('1500.00'), 'count': 2})
+        old.refresh_from_db()
+        new.refresh_from_db()
+        self.treasury.refresh_from_db()
+        self.assertEqual((old.remaining, new.remaining), (D('0.00'), D('300.00')))   # الأقدم الأول
+        self.assertEqual(self.treasury.balance, cash_before)                          # مفيش فلوس جديدة
+        self.assertEqual(self.cust.account_summary()['credit'], D('0.00'))
+        self.assertEqual(self.cust.account_summary()['balance'], D('300.00'))
+        # الدفتر: الدفعة المقدّمة اتنقلت من «دفعات مقدمة» للذمم
+        self.assertEqual((bal('1100'), bal('2400')), (D('300.00'), D('0.00')))
+        # ضغطة تانية مابتصرفش حاجة
+        r = self.post(action='apply_credit')
+        self.assertEqual(r.context['settled'], {'amount': D('0'), 'count': 0})
+        self.assertNotContains(r, 'id="qcCredit"')
+
+    def test_credit_card_after_an_on_account_payment(self):
+        self.delivered(self.cust, '400')
+        r = self.post(order='account', amount='400')                       # دفع «على الحساب» وعليه فاتورة
+        self.assertContains(r, 'اتسجّل التحصيل')
+        self.assertContains(r, 'id="qcCredit"')                            # يقدر يسدّدها على طول
+
+    def test_no_credit_card_without_open_invoices_or_permission(self):
+        self.post(order='account', amount='200')
+        r = self.c.get(f'{self.url}?customer={self.cust.pk}', HTTP_HOST=self.host)
+        self.assertNotContains(r, 'id="qcCredit"')                         # مفيش فواتير مفتوحة
+        self.delivered(self.cust, '100')
+        from django.contrib.auth.models import Permission
+        clerk = User.objects.create_user('collector', 'k@x.com', 'x', is_staff=True)
+        clerk.user_permissions.add(Permission.objects.get(codename='add_printtransaction'))
+        c = Client()
+        c.force_login(clerk)
+        r = c.get(f'{self.url}?customer={self.cust.pk}', HTTP_HOST=self.host)
+        self.assertNotContains(r, 'id="qcCredit"')
+        r = c.post(self.url, {'customer': str(self.cust.pk), 'action': 'apply_credit'}, HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(self.cust.account_summary()['credit'], D('200.00'))
+
 
 class QuickPurchaseTests(QuickEntryBase):
 

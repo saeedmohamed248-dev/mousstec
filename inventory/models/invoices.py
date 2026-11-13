@@ -310,6 +310,54 @@ class PurchaseShipmentCost(models.Model):
             self.behavior = PurchaseInvoiceExtraCost.default_behavior_for(self.kind)
         super().save(*args, **kwargs)
 
+class DocumentSequence(models.Model):
+    """🔢 عدّاد أرقام المستندات لكل شركة (كل schema ليها عدّاد).
+
+    🐛 [FIX]: رقم الفاتورة كان رقم الـ id من sequence بتاع Postgres — والـ sequence مش
+    بيرجع مع الـ rollback (أي حفظ وقع في النص بياكل رقم) وبينط ٣٢ رقم بعد ما Postgres يقع
+    ويقوم، فالفواتير كان فيها فجوات مش مفهومة (المراجع والضرايب بيسألوا عليها). دلوقتي
+    الرقم بيتاخد من الصف ده بـ SELECT … FOR UPDATE جوه نفس الـ transaction بتاعة
+    الفاتورة: الفاتورة اتحفظت ⇒ الرقم اتاخد، الحفظ وقع ⇒ الرقم رجع زي ما كان.
+    """
+    name = models.CharField(max_length=40, unique=True)
+    last_value = models.PositiveBigIntegerField(default=0)
+    # آخر رقم كان موجود لما العدّاد اتعمل — الفجوات اللي قبله «قديمة» (قبل الترقيم المتسلسل)
+    start_value = models.PositiveBigIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("عدّاد أرقام")
+        verbose_name_plural = _("عدّادات الأرقام")
+
+    def __str__(self):
+        return f"{self.name}: {self.last_value}"
+
+    @classmethod
+    def next_value(cls, name, model):
+        """الرقم الجاي لـ ``model`` — لازم يتنده جوه ``transaction.atomic()``.
+
+        بياخد أكبر من (آخر رقم في العدّاد، أكبر id موجود) — لو حد دخّل صفوف من غير العدّاد
+        (استيراد/fixtures) مايحصلش تكرار.
+        """
+        from django.db.models import Max
+        seq = cls.objects.select_for_update().filter(name=name).first()
+        if seq is None:   # أول مرة للشركة دي — الفجوات القديمة لحد هنا «قبل الترقيم المتسلسل»
+            top = model.objects.aggregate(m=Max('pk'))['m'] or 0
+            cls.objects.get_or_create(name=name, defaults={'last_value': top, 'start_value': top})
+            seq = cls.objects.select_for_update().get(name=name)
+        top = model.objects.aggregate(m=Max('pk'))['m'] or 0
+        value = max(seq.last_value, top) + 1
+        cls.objects.filter(pk=seq.pk).update(last_value=value)
+        if connection.vendor == 'postgresql':
+            # الـ sequence بتاع Postgres يفضل قدّام — أي insert من غير العدّاد مايلبسش في رقم مستخدم
+            with connection.cursor() as cur:
+                cur.execute(
+                    "SELECT setval(s::regclass, GREATEST(%s, COALESCE(pg_sequence_last_value(s::regclass), 0)), true) "
+                    "FROM pg_get_serial_sequence(%s, 'id') AS s WHERE s IS NOT NULL",
+                    [value, model._meta.db_table])
+        return value
+
+
 class SaleInvoice(models.Model):
     INVOICE_TYPES = (('sale', _('بيع قطع غيار')), ('maintenance', _('صيانة شاملة')))
     STATUS_CHOICES = (
@@ -518,6 +566,18 @@ class SaleInvoice(models.Model):
         if self.pk and self.status == 'posted' and self.customer_id:
             from inventory.services.invoice_service import InvoiceService
             InvoiceService.recalc_loyalty_points([self.customer_id])
+
+    def save(self, *args, **kwargs):
+        # 🔢 رقم الفاتورة متسلسل من غير فجوات (DocumentSequence) — الـ id هو رقم الفاتورة
+        #    في كل مكان (الطباعة، الكشوف، القيود، الواتساب) فمفيش رقمين يتلخبطوا.
+        if self.pk is None and not kwargs.get('force_update'):
+            with transaction.atomic():
+                self.pk = DocumentSequence.next_value('sale_invoice', SaleInvoice)
+                kwargs['force_insert'] = True
+                kwargs.pop('update_fields', None)
+                super().save(*args, **kwargs)
+            return
+        super().save(*args, **kwargs)
 
     def __str__(self): return f"INV #{self.id} - {self.customer.name}"
 

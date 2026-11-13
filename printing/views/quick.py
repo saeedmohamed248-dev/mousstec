@@ -48,7 +48,7 @@ def _pick(items, pk):
 @tenant_or_404
 def quick_collect(request):
     from printing.models import PrintCustomer, PrintOrder
-    from printing.quick_entry import collect_from_customer, open_orders
+    from printing.quick_entry import collect_from_customer, open_orders, settle_open_orders_from_credit
 
     if not request.user.has_perm('printing.add_printtransaction'):
         return HttpResponseForbidden(_("لا تملك صلاحية تسجيل تحصيل."))
@@ -58,8 +58,19 @@ def quick_collect(request):
     if data.get('customer'):
         customer = PrintCustomer.objects.filter(pk=data.get('customer') if str(data.get('customer')).isdigit() else None).first()
 
-    errors, done = [], None
-    if request.method == 'POST' and customer is not None:
+    errors, done, settled = [], None, None
+    can_settle = request.user.has_perm('printing.add_printcreditallocation')
+    if request.method == 'POST' and customer is not None and data.get('action') == 'apply_credit':
+        # 💳 تسديد الفواتير المفتوحة من رصيده المقدّم (مفيش فلوس جديدة داخلة الخزنة)
+        if not can_settle:
+            return HttpResponseForbidden(_("لا تملك صلاحية التسديد من الرصيد المقدّم."))
+        try:
+            amount, count = settle_open_orders_from_credit(user=request.user, customer=customer)
+        except ValidationError as exc:
+            errors = exc.messages
+        else:
+            settled = {'amount': amount, 'count': count}
+    elif request.method == 'POST' and customer is not None:
         try:
             txn = collect_from_customer(
                 user=request.user, customer_id=customer.pk, amount=data.get('amount'),
@@ -74,10 +85,17 @@ def quick_collect(request):
         errors = [_("اختار العميل.")]
 
     ctx = {'title': _("💵 تحصيل من عميل"), 'treasuries': treasuries, 'errors': errors, 'done': done,
-           'form': data if errors else {}, 'customer': customer}
+           'form': data if errors and not settled else {}, 'customer': customer, 'settled': settled,
+           'can_settle': can_settle}
+    if customer is not None:
+        summary = customer.account_summary()
+        orders = open_orders(customer)
+        # رصيد مقدّم + فواتير مفتوحة ⇒ زرار «سدّد منه» (قبل التحصيل وبعده)
+        ctx['credit'] = summary['credit'] if orders else Decimal('0')
+        ctx['credit_settles'] = min(summary['credit'], sum((o.remaining for o in orders), Decimal('0')))
     if customer is not None and not done:
-        ctx['orders'] = open_orders(customer)
-        ctx['balance'] = customer.account_summary()['balance']
+        ctx['orders'] = orders
+        ctx['balance'] = summary['balance']
         wanted = data.get('order')
         ctx['selected_order'] = wanted if wanted else (str(ctx['orders'][0].pk) if ctx['orders'] else 'account')
     elif customer is None:
