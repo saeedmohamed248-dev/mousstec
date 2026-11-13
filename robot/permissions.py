@@ -32,6 +32,10 @@ _MATRIX = {
     # Money out of a branch treasury / onto a vendor's account, by voice.
     "expense":           {"manager", "supervisor", "accountant", "cashier"},
     "purchase":          {"manager", "supervisor", "purchasing", "accountant"},
+    # Money in from a customer's account, out to a vendor's, an employee's advance (robot/money.py).
+    "collect":           {"manager", "supervisor", "accountant", "cashier"},
+    "vendor_pay":        {"manager", "accountant"},
+    "advance":           {"manager", "accountant", "hr"},
     # Quran / music in the shop, by voice (robot/assistant.py).
     "media":             {"manager", "supervisor"},
     # The staff's questions: today's sales, what's running low.
@@ -39,6 +43,10 @@ _MATRIX = {
     "stock_report":      {"manager", "supervisor", "stock", "purchasing"},
     # What the ERP doesn't know, looked up on the internet (Google Search).
     "web_search":        {"manager", "supervisor"},
+    # The safe, who owes what, who's in today (robot/assistant.py).
+    "treasury_report":   {"manager", "accountant"},
+    "accounts_report":   {"manager", "supervisor", "accountant", "cashier", "sales"},
+    "attendance_report": {"manager", "supervisor", "hr"},
 }
 
 _SUPERUSER_ROLES = {"owner", "admin"}
@@ -59,6 +67,12 @@ _ACTION_LABEL = {
     "sales_report": "مبيعات النهارده",
     "stock_report": "النواقص",
     "web_search": "البحث على النت",
+    "collect": "التحصيل من عميل",
+    "vendor_pay": "الدفع لمورد",
+    "advance": "تسجيل سلفة",
+    "treasury_report": "رصيد الخزنة",
+    "accounts_report": "حسابات العملاء والموردين",
+    "attendance_report": "الحضور والغياب",
 }
 
 

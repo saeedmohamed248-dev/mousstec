@@ -1063,3 +1063,21 @@ After «يا موس» ← «أيوه، تحت أمرك», a question said quietl
 be words (`LIVE_TEACH_AFTER_MS`, not a cough), its recording now goes to the server, which hears it
 (`[EARS] nothing understood here … — in a conversation: the server hears it`). Chatter outside a
 conversation, a cough, or `[robot] teach = no`: as before, no minutes on it.
+
+### Everything the counter does, by voice (brain-0.9.15)
+
+- **A PIN for anything only staff may ask.** With no camera, «سجل مصروف 200 بنزين», «بعنا كام النهارده؟»
+  and «شغّل قرآن» were refused though the wizard's invoices asked a PIN. Now whoever isn't known is asked
+  their PIN (`wizard.hold`), and what they said is done once it's right (`views._answer_voice`); the PIN
+  is remembered `STAFF_S` and its owner's role still decides.
+- **Money in and out** (`robot/money.py`, held on the branch question like an expense, by the ERP's own
+  services): «حصّل 500 جنيه من أحمد محمود» (`customer_payments.collect` — a registered customer, never
+  «عميل نقدي», never more than they owe), «ادفع 1000 جنيه للمورد الأمل» (`vendor_payments.pay_vendor` —
+  never more than is owed), «سجل سلفة 500 جنيه للموظف محمد علي» (`AdvanceService`: HR's policy; approved
+  and paid at once only when the asker may approve advances, a request otherwise).
+  Roles: `collect`, `vendor_pay`, `advance` (robot/permissions.py).
+- **The books, asked** (`assistant.staff_question`): «رصيد الخزنة كام», «أحمد محمود عليه كام» / «حساب العميل …»,
+  «حساب المورد …», «صرفنا كام النهارده», «مبيعات امبارح» / «مبيعات الشهر ده», «مين حاضر / غايب النهارده»
+  — each behind its role (`treasury_report`, `accounts_report`, `attendance_report`, `sales_report`).
+- «🧠 مخ الفهم» writes any way of saying these as the sentences above (intents `collect`, `vendor_pay`,
+  `advance`, `staff`).

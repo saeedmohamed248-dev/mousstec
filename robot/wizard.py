@@ -354,7 +354,27 @@ def _staff(device, employee):
     return Employee.objects.filter(pk=emp_id).select_related("user").first()
 
 
+def known_staff(device):
+    """The employee who said their PIN here lately (STAFF_S), or None."""
+    return _staff(device, None)
+
+
+def hold(text: str, device, via: str = "robot"):
+    """Something only staff may ask («سجل مصروف 200 بنزين», «بعنا كام النهارده؟»), from someone
+    the robot doesn't know: their PIN is asked, and what they said is done once it's right
+    (views._answer_voice). None when PINs are locked out here — the refusal stands."""
+    if _pin_locked(device):
+        return None
+    _put(device, {"kind": "ask", "action": "", "lines": [], "step": "pin", "via": via,
+                  "replay": (text or "")[:300]})
+    return ("ده للموظفين بس. قولي الرقم السري بتاعك (بتاع صفحة الكاشير)؟",
+            {"action": "wizard_pin", "kind": "ask"})
+
+
 def _begin(device, state: dict, staff):
+    if state.get("kind") == "ask":
+        cache.delete(_key(device))                    # (not _end: what's said next is no secret)
+        return "", {"action": "wizard_replay", "replay": state.get("replay", "")}
     if not permissions.employee_can(staff, state["action"]):
         _end(device)
         return permissions.denial_message(state["action"]), {"action": "denied"}
@@ -489,7 +509,8 @@ def _on_pin(text, device, state, employee):
         state["pin_misses"] = state.get("pin_misses", 0) + 1
         if state["pin_misses"] >= PIN_TRIES:
             _end(device)
-            return ("ماشي، لغيت الفاتورة. لما تحب قول «فاتورة مبيعات» تاني.",
+            return (("ماشي، لغيت. لما تحب قولها تاني." if state.get("kind") == "ask"
+                     else "ماشي، لغيت الفاتورة. لما تحب قول «فاتورة مبيعات» تاني."),
                     {"action": "wizard_cancelled"})
         _put(device, state)
         return ("مستني الرقم السري بس: قوله رقم رقم، أربع أرقام أو أكتر. ولو عايز تلغي قول «الغي».",

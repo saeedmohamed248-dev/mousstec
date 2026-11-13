@@ -104,30 +104,100 @@ def media_header(payload: dict) -> str:
 # ---------------------------------------------------------------------------
 
 LOW_STOCK_SAID = 5
+ABSENT_SAID = 6
+
+_HOW_MUCH = r"(?:كام|قد ايه|اد ايه|قد اي)"
+_SAFE = r"(?:ال)?(?:خزنه|خزينه|خزن|درج)"
+_TREASURY = re.compile(rf"(?:رصيد|فلوس)\s+{_SAFE}|{_SAFE}\s+(?:فيها|فيه|بها)\s+{_HOW_MUCH}"
+                       rf"|(?:في|ف|جوه)\s+{_SAFE}\s+{_HOW_MUCH}|{_HOW_MUCH}\s+(?:في|ف|جوه)\s+{_SAFE}"
+                       rf"|معانا\s+{_HOW_MUCH}\s+(?:في|ف)\s+{_SAFE}")
+_SPENT = re.compile(rf"^(?:(?:احنا)\s+)?(?:صرفنا|(?:ال)?مصاريف|(?:ال)?مصروفات)\s+(?:{_HOW_MUCH}\s+)?{_TODAY}(?:\s+{_HOW_MUCH})?$"
+                    rf"|^{_TODAY}\s+(?:صرفنا|(?:ال)?مصاريف|(?:ال)?مصروفات)\s+{_HOW_MUCH}$")
+_MONTH = r"(?:الشهر ده|الشهر دا|الشهر|هذا الشهر|this month)"
+_YESTERDAY = r"(?:امبارح|إمبارح|البارحه|yesterday)"
+_SOLD = r"(?:بعنا|بيعنا|اتباع|(?:ال)?مبيعات)"
+_SALES_MONTH = re.compile(rf"^(?:(?:احنا|هو)\s+)?{_SOLD}.*{_MONTH}|^{_MONTH}.*{_SOLD}")
+_SALES_YESTERDAY = re.compile(rf"^(?:(?:احنا|هو)\s+)?{_SOLD}.*{_YESTERDAY}|^{_YESTERDAY}.*{_SOLD}")
+_PRESENT = re.compile(r"^(?:مين|من)\s+(?:اللي\s+)?(?:حاضر|حضر|جه|جاي|موجود)(?:\s|$)|^(?:ال)?حضور\s|^(?:ال)?حضور$")
+_ABSENT = re.compile(r"^(?:مين|من)\s+(?:اللي\s+)?(?:غايب|غاب|مجاش|ماجاش|مش موجود|مش جاي)(?:\s|$)|^(?:ال)?غياب(?:\s|$)")
+_CUSTOMER_OWES = re.compile(rf"^(?:كشف\s+)?حساب\s+(?:ال)?عميل\s+(?P<a>.+?)(?:\s+{_HOW_MUCH})?$"
+                            rf"|^(?:ال)?عميل\s+(?P<b>.+?)\s+(?:عليه|عليها|حسابه)\s+{_HOW_MUCH}$"
+                            rf"|^{_HOW_MUCH}\s+علي\s+(?:ال)?عميل\s+(?P<c>.+)$")
+_SOMEONE_OWES = re.compile(rf"^(?P<a>.+?)\s+(?:عليه|عليها)\s+{_HOW_MUCH}$|^{_HOW_MUCH}\s+علي\s+(?P<b>.+)$")
+_VENDOR_OWED = re.compile(rf"^(?:كشف\s+)?حساب\s+(?:ال)?مورد\s+(?P<a>.+?)(?:\s+{_HOW_MUCH})?$"
+                          rf"|^(?:ال)?مورد\s+(?P<b>.+?)\s+(?:ليه|له|ليها|لها|حسابه)\s+{_HOW_MUCH}(?:\s+عندنا)?$"
+                          rf"|^(?:علينا|عليا)\s+{_HOW_MUCH}\s+(?:لل?مورد|ل)\s*(?P<c>.+)$"
+                          rf"|^{_HOW_MUCH}\s+(?:علينا|عليا)\s+(?:لل?مورد|ل)\s*(?P<d>.+)$")
+# What each question needs (robot/permissions.py).
+_NEEDS = {"sales_today": "sales_report", "sales_month": "sales_report", "sales_yesterday": "sales_report",
+          "spent_today": "sales_report", "low_stock": "stock_report", "treasury": "treasury_report",
+          "customer_balance": "accounts_report", "vendor_balance": "accounts_report",
+          "present": "attendance_report", "absent": "attendance_report"}
+
+
+def _named(match) -> str:
+    return next((g.strip() for g in match.groups() if g and g.strip()), "") if match else ""
 
 
 def staff_question(text: str) -> Optional[str]:
-    """'sales_today' | 'low_stock' | None."""
+    """Which of the staff's questions this is — a key of `_NEEDS` — or None."""
     t = _said(text)
     if _SALES.search(t):
         return "sales_today"
     if _LOW.search(t):
         return "low_stock"
+    if any(ch.isdigit() for ch in t):            # «مصاريف 200 بنزين النهارده» is an entry, not a question
+        return None
+    if _SALES_MONTH.search(t):
+        return "sales_month"
+    if _SALES_YESTERDAY.search(t):
+        return "sales_yesterday"
+    if _SPENT.search(t):
+        return "spent_today"
+    if _TREASURY.search(t):
+        return "treasury"
+    if _VENDOR_OWED.search(t):
+        return "vendor_balance"
+    if _CUSTOMER_OWES.search(t):
+        return "customer_balance"
+    if _ABSENT.search(t):
+        return "absent"
+    if _PRESENT.search(t):
+        return "present"
+    # «أحمد محمود عليه كام؟» — only of someone registered: «الفلتر عليه كام» is about a part.
+    bare = _SOMEONE_OWES.search(t)
+    if bare:
+        from . import entries
+        who, count = entries.find_customer(_named(bare))
+        if who is not None or count:
+            return "customer_balance"
     return None
 
 
-def staff_answer(kind: str, device, employee) -> tuple:
+def staff_answer(kind: str, device, employee, text: str = "") -> tuple:
     """(reply, payload) — the dashboard's numbers, for the right role only."""
     from inventory.services.reporting_service import ReportingService
 
     from .services import spoken_price
 
-    action = "sales_report" if kind == "sales_today" else "stock_report"
+    action = _NEEDS.get(kind, "sales_report")
     if employee is None:
         return WHO_ARE_YOU, {"action": "denied", "needs": "face"}
     if not permissions.employee_can(employee, action):
         return permissions.denial_message(action), {"action": "denied"}
+    if kind in ("sales_month", "sales_yesterday"):
+        return _sales_of(kind, device)
+    if kind == "treasury":
+        return _treasury_answer(device, employee)
+    if kind in ("customer_balance", "vendor_balance"):
+        return _balance_answer(kind, _said(text))
+    if kind in ("present", "absent"):
+        return _attendance_answer(kind)
     stats = ReportingService.get_today_dashboard_stats(getattr(employee, "user", None), device.branch)
+    if kind == "spent_today":
+        spent = stats["total_expenses_today"] or 0
+        reply = f"مصاريف النهارده {spoken_price(spent)}." if spent else "لسه مفيش مصاريف النهارده."
+        return reply, {"action": "spent_today", "total": float(spent)}
     if kind == "sales_today":
         count, total = stats["invoices_count"], stats["total_sales_today"] or 0
         if not count:
@@ -145,6 +215,112 @@ def staff_answer(kind: str, device, employee) -> tuple:
     reply = f"فيه {total} صنف قرّب يخلص: {listed}"
     reply += "، وغيرهم في الداشبورد." if total > len(rows) else "."
     return reply, {"action": "low_stock", "count": total}
+
+
+def _sales_of(kind: str, device) -> tuple:
+    """This month's sales, or yesterday's, on the robot's branch — net of returns, as the dashboard counts."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+    from inventory.models import SaleInvoice
+    from inventory.services.reporting_service import ReportingService
+
+    from .services import spoken_price
+
+    now = timezone.localtime()
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if kind == "sales_month":
+        start, end, when = today.replace(day=1), None, "الشهر ده"
+    else:
+        start, end, when = today - timedelta(days=1), today, "امبارح"
+    qs = SaleInvoice.objects.filter(date_created__gte=start).exclude(status="quotation")
+    if end is not None:
+        qs = qs.filter(date_created__lt=end)
+    if device.branch is not None:
+        qs = qs.filter(branch=device.branch)
+    total, _profit = ReportingService.net_sales_profit(qs)
+    count = qs.filter(is_return=False).count()
+    reply = (f"{when} اتباع {count} فاتورة بـ {spoken_price(total)}." if count
+             else f"مفيش مبيعات {when}.")
+    return reply, {"action": kind, "count": count, "total": float(total)}
+
+
+def _treasury_answer(device, employee) -> tuple:
+    from inventory.services.reporting_service import ReportingService
+
+    from .services import spoken_price
+
+    summary = ReportingService.get_treasury_summary(getattr(employee, "user", None), device.branch)
+    rows = summary["treasuries_data"]
+    if not rows:
+        return "الفرع ده مالوش خزنة شغالة.", {"action": "treasury", "count": 0}
+    if len(rows) == 1:
+        reply = f"{rows[0]['name']} فيها {spoken_price(rows[0]['balance'])}."
+    else:
+        listed = "، ".join(f"{r['name']} فيها {spoken_price(r['balance'])}" for r in rows[:4])
+        reply = f"{listed}. الإجمالي {spoken_price(summary['total_treasury_balance'])}."
+    return reply, {"action": "treasury", "count": len(rows), "total": float(summary["total_treasury_balance"])}
+
+
+def _balance_answer(kind: str, said: str) -> tuple:
+    from . import entries
+    from .services import spoken_price
+
+    if kind == "vendor_balance":
+        name = _named(_VENDOR_OWED.search(said))
+        vendor = entries.find_vendor(name) if name else None
+        if vendor is None:
+            return f"مش لاقي المورد «{name}» في الموردين.", {"action": kind, "found": False}
+        owed = vendor.balance or 0
+        if owed > 0:
+            reply = f"علينا للمورد {vendor.name} {spoken_price(owed)}."
+        elif owed < 0:
+            reply = f"المورد {vendor.name} ليه عندنا مقدم {spoken_price(-owed)}."
+        else:
+            reply = f"مفيش حاجة علينا للمورد {vendor.name}."
+        return reply, {"action": kind, "found": True, "balance": float(owed)}
+    name = _named(_CUSTOMER_OWES.search(said)) or _named(_SOMEONE_OWES.search(said))
+    customer, count = entries.find_customer(name) if name else (None, 0)
+    if customer is None:
+        if count > 1:
+            return f"فيه أكتر من عميل اسمه {name}. قول اسمه كامل زي ما هو متسجل.", {"action": kind, "found": False}
+        return f"مش لاقي عميل متسجل اسمه «{name}».", {"action": kind, "found": False}
+    owed = customer.balance or 0
+    if owed > 0:
+        reply = f"{customer.name} عليه {spoken_price(owed)}."
+    elif owed < 0:
+        reply = f"{customer.name} ليه عندنا {spoken_price(-owed)}."
+    else:
+        reply = f"{customer.name} مش عليه حاجة."
+    return reply, {"action": kind, "found": True, "balance": float(owed)}
+
+
+def _attendance_answer(kind: str) -> tuple:
+    from django.utils import timezone
+    from hr.models import AttendanceRecord, Employee
+
+    today = timezone.localdate()
+    records = (AttendanceRecord.objects.filter(date=today).select_related("employee__user"))
+    here = [r.employee for r in records if r.status in ("present", "late") and r.clock_in is not None]
+    here_ids = {e.pk for e in here}
+
+    def called(emp):
+        return emp.user.get_full_name() or emp.user.username
+
+    if kind == "present":
+        if not here:
+            return "لسه محدش سجل حضور النهارده.", {"action": kind, "count": 0}
+        names = "، ".join(called(e) for e in here[:ABSENT_SAID])
+        more = f"، و{len(here) - ABSENT_SAID} غيرهم" if len(here) > ABSENT_SAID else ""
+        return f"حاضر النهارده {len(here)}: {names}{more}.", {"action": kind, "count": len(here)}
+    excused = {r.employee_id for r in records if r.status in ("excused", "holiday")}
+    away = [e for e in Employee.objects.select_related("user").filter(is_active=True, user__is_active=True)
+            if e.pk not in here_ids and e.pk not in excused]
+    if not away:
+        return "مفيش حد غايب النهارده.", {"action": kind, "count": 0}
+    names = "، ".join(called(e) for e in away[:ABSENT_SAID])
+    more = f"، و{len(away) - ABSENT_SAID} غيرهم" if len(away) > ABSENT_SAID else ""
+    return f"لسه مسجلش حضور النهارده {len(away)}: {names}{more}.", {"action": kind, "count": len(away)}
 
 
 # ---------------------------------------------------------------------------

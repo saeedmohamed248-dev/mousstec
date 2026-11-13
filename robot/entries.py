@@ -518,11 +518,11 @@ def answer(entry, text: str):
     if branch is None:
         return None
     try:
-        record(entry, branch)
+        said = record(entry, branch)
     except EntryError as exc:
         _finish(entry, "failed", branch=branch, message=str(exc))
         return str(exc), {"action": "entry_failed", "entry_id": entry.pk}
-    return (f"تمام، سجلت {entry.summary} على فرع {talk.branch_said(branch.name)}.",
+    return (said or f"تمام، سجلت {entry.summary} على فرع {talk.branch_said(branch.name)}.",
             {"action": "entry_done", "entry_id": entry.pk, "branch": branch.name})
 
 
@@ -540,7 +540,14 @@ def _finish(entry, status, *, branch=None, message="", **links):
 
 
 def record(entry, branch):
-    """Write the held request to the books on `branch` (raises EntryError)."""
+    """Write the held request to the books on `branch` (raises EntryError). Returns the words
+    to say when they aren't the usual «تمام، سجلت …» (an advance waiting for approval), else ''."""
+    from . import money
+
+    if entry.kind in money.KINDS:
+        said = money.record(entry, branch)
+        _finish(entry, "done", branch=branch, message=said[:255])
+        return said
     if entry.kind == "expense":
         tx = record_expense(branch=branch, amount=Decimal(str(entry.data["amount"])),
                             description=entry.data.get("description", ""),
@@ -566,6 +573,7 @@ def record(entry, branch):
         _finish(entry, "done", branch=branch, sale_invoice=invoice)
     else:
         raise EntryError("النوع ده مش بيتسجل بالصوت.")
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -763,8 +771,13 @@ def voice_request(text: str, device, employee):
     Checks permission and validates everything that doesn't depend on the
     branch, so the branch answer only has to pick where it goes.
     """
-    from . import permissions, services
+    from . import money, permissions, services
 
+    # A collection, a vendor payment, an advance (robot/money.py) — before the expense, whose
+    # «دفعنا …» would take «دفعنا 1000 للمورد الأمل» for one.
+    paid = money.voice_request(text, device, employee)
+    if paid is not None:
+        return paid
     exp = parse_expense(text)
     if exp is not None:
         if not permissions.employee_can(employee, "expense"):
