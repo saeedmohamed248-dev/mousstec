@@ -234,6 +234,23 @@ const T = {
         });
     });
 
+    // ── 🗑️ إلغاء طلب تسعير مش محتاجينه (كان من لوحة Django بس) ─────────
+    document.querySelectorAll('.cancel-rfq-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (!confirm('{% filter escapejs %}{% trans "إلغاء طلب التسعير ده؟ مش هيظهر في الانتظار تاني." %}{% endfilter %}')) return;
+            btn.disabled = true;
+            try {
+                const resp = await fetch(`/system/rfq/${btn.dataset.rfqId}/cancel/`, {
+                    method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) { showToast(data.error || T.error, 'error'); btn.disabled = false; return; }
+                showToast('✓ {% filter escapejs %}{% trans "اتلغى طلب التسعير." %}{% endfilter %}');
+                setTimeout(() => window.location.reload(), 700);
+            } catch (err) { showToast(`${T.error} ${err.message}`, 'error'); btn.disabled = false; }
+        });
+    });
+
     // ── Accept quote → draft PO ─────────────────────────────
     document.querySelectorAll('.accept-btn').forEach(btn => {
         btn.addEventListener('click', async () => {

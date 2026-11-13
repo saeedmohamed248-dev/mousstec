@@ -83,8 +83,9 @@
         <div class="header">
             {% trans "مركز الصيانة الفني" as default_center %}
             <div class="logo-section">
-                <h1>{{ invoice.branch.name|default:default_center }}</h1>
-                <p>{% trans "المركز المعتمد لخدمات السيارات المتقدمة" %}</p>
+                {# 🐛 [FIX]: العنوان كان اسم الفرع + جملة ثابتة «المركز المعتمد…» لكل الشركات — دلوقتي اسم المحل والفرع #}
+                <h1>{% firstof request.tenant.name invoice.branch.name default_center %}</h1>
+                <p>{% if request.tenant.name and invoice.branch.name %}{{ invoice.branch.name }}{% if invoice.branch.location %} — {{ invoice.branch.location }}{% endif %}{% else %}{% trans "المركز المعتمد لخدمات السيارات المتقدمة" %}{% endif %}</p>
                 <p>{% trans "تليفون:" %} <span dir="ltr">{{ invoice.branch.phone|default:not_listed }}</span></p>
                 <div class="barcode-box">*INV-{{ invoice.id }}*</div>
             </div>

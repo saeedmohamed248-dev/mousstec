@@ -10,6 +10,9 @@
         <h1 class="text-xl font-black text-white">🔒 {% trans "ليس لديك صلاحية للوصول" %}</h1>
         {% if message %}
         <p class="text-sm text-slate-300 font-bold">{{ message }}</p>
+        {% elif not allowed_roles %}
+        {# 🐛 [FIX]: الشاشة المخفية عن الموظف كانت بتقول «هذه الصفحة مخصصة لـ .» من غير أدوار #}
+        <p class="text-sm text-slate-400">{% trans "الشاشة دي مش ظاهرة لحسابك." %} {% trans "دورك الحالي:" %} <span class="text-slate-200 font-bold">{{ current_role }}</span>. {% trans "تواصل مع المدير لتغيير صلاحياتك." %}</p>
         {% else %}
         <p class="text-sm text-slate-400">
             {% trans "هذه الصفحة مخصصة لـ" %}

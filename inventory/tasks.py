@@ -250,67 +250,86 @@ def process_financial_reconciliation(self, schema_name: str = 'public', date_str
 # 3. Proactive Maintenance Reminder Bot
 # ─────────────────────────────────────────────────────────────────────
 
+def due_maintenance_customers(today, window_days=3):
+    """جوه schema الشركة: العملاء اللي عربياتهم صيانتها مستحقة — تذكيرات «العملاء المتوقع رجوعهم»
+    (متأخر/مستحق ولسه مااتبعتلهمش) + العربيات اللي «الزيارة الجاية» بتاعتها خلال ``window_days``.
+    بيرجّع [(اسم العميل, العربية)] من غير تكرار، والمتأخر الأول."""
+    from inventory.models import ServiceNudge, Vehicle
+
+    rows, seen = [], set()
+    nudges = (ServiceNudge.objects
+              .filter(status=ServiceNudge.STATUS_PENDING,
+                      urgency__in=(ServiceNudge.URGENCY_OVERDUE, ServiceNudge.URGENCY_DUE))
+              .select_related('vehicle__customer').order_by('urgency', 'due_at'))
+    visits = (Vehicle.objects
+              .filter(estimated_next_visit__gte=today,
+                      estimated_next_visit__lte=today + timedelta(days=window_days))
+              .select_related('customer').order_by('estimated_next_visit'))
+    for vehicle in [n.vehicle for n in nudges] + list(visits):
+        customer = vehicle.customer
+        if vehicle.pk in seen or customer is None or not customer.phone or customer.is_walk_in:
+            continue
+        seen.add(vehicle.pk)
+        rows.append((customer.name, f"{vehicle.brand} {vehicle.model_name}".strip()))
+    return rows
+
+
 @shared_task(name='inventory.tasks.dispatch_maintenance_reminders')
 def dispatch_maintenance_reminders():
-    """
-    Scans all tenant schemas for vehicles whose `estimated_next_visit` falls
-    within the next 3 days and dispatches WhatsApp/SMS reminders.
+    """🔧 كل يوم ٩ الصبح: صاحب الورشة بيعرف مين من عملائه صيانة عربيته مستحقة.
 
-    Triggered by Celery Beat daily at 09:00.
-    Pipeline: Outbound Orchestrator sets `estimated_next_visit` → this bot reads it.
+    🐛 [FIX — دورة ناقصة]: البوت كان «stub» — بيكتب «Would send» في اللوج بس، ولا عميل ولا صاحب
+    ورشة وصله حاجة، وكمان كان بيستثني الشركات اللي في التجربة. رسالة من رقم الورشة لعميلها برّه
+    نافذة الـ ٢٤ ساعة محتاجة قالب Meta متوافَق عليه لكل رقم، فالتذكير بيروح لصاحب الورشة (إيميل +
+    واتساب من رقم المنصة) برابط شاشة «العملاء المتوقع رجوعهم» — فيها زرار واتساب لكل عميل بالرسالة
+    جاهزة من رقم الورشة نفسها. مرة واحدة في اليوم لكل شركة.
     """
+    from django.conf import settings
+    from django.core.cache import cache
+    from django.core.mail import send_mail
+
+    from clients.services.whatsapp_notify import send_platform_whatsapp
+    from clients.tasks import _tenant_link
+
     TenantModel = get_tenant_model()
     today = timezone.localdate()
-    reminder_window = today + timedelta(days=3)
-    total_sent = 0
+    notified = 0
+    tenants = (TenantModel.objects.exclude(schema_name='public')
+               .filter(is_active=True, status__in=('trial', 'active'))
+               .exclude(industry='printing').prefetch_related('domains'))
+    for tenant in tenants:
+        key = f'maint_reminder_owner:{tenant.schema_name}:{today}'
+        try:
+            if cache.get(key):
+                continue
+            with schema_context(tenant.schema_name):
+                rows = due_maintenance_customers(today)
+            if not rows:
+                continue
+            names = '، '.join(f'{n} ({car})' if car else n for n, car in rows[:5])
+            more = f' و{len(rows) - 5} غيرهم' if len(rows) > 5 else ''
+            line = (f'🔧 {len(rows)} عميل صيانة عربيته مستحقة: {names}{more}. '
+                    f'ابعتلهم تذكير بضغطة من «العملاء المتوقع رجوعهم».')
+            link = _tenant_link(tenant, '/system/crm/retention/')
+            # المالك اللي قفل «ملخص اليوم» على قناة ما مابيوصلوش عليها برضه
+            if tenant.daily_summary_email and tenant.email and '@' in tenant.email:
+                send_mail(f'🔧 {len(rows)} عميل صيانته مستحقة — {tenant.name}',
+                          f'أهلاً {tenant.owner_name or tenant.name}،\n\n{line}\n\n{link}\n\n— Mouss Tec',
+                          settings.DEFAULT_FROM_EMAIL, [tenant.email], fail_silently=True)
+            if tenant.daily_summary_whatsapp and tenant.phone:
+                tpl = getattr(settings, 'WHATSAPP_MAINTENANCE_DIGEST_TEMPLATE', '')
+                send_platform_whatsapp(tenant.phone, country=getattr(tenant, 'country', 'EG') or 'EG',
+                                       template=tpl, params=(tenant.name, len(rows), link),
+                                       text='' if tpl else f'{tenant.name}، {line}\n{link}\n— Mouss Tec')
+            cache.set(key, 1, 60 * 60 * 26)
+            notified += 1
+            AgentHealthMonitor.heartbeat('maintenance_reminder_bot', schema=tenant.schema_name,
+                                         metadata={'due': len(rows), 'date': str(today)})
+        except Exception:  # noqa: BLE001 — شركة واحدة مابتوقفش الباقي
+            logger.exception('[MAINTENANCE REMINDER BOT] tenant %s failed', tenant.schema_name)
 
-    for tenant in TenantModel.objects.exclude(schema_name='public').filter(status='active'):
-        def _execute(t=tenant):
-            from inventory.models import Vehicle
-
-            with schema_context(t.schema_name):
-                due_vehicles = Vehicle.objects.filter(
-                    estimated_next_visit__lte=reminder_window,
-                    estimated_next_visit__gte=today,
-                ).select_related('customer')
-
-                sent = 0
-                for vehicle in due_vehicles:
-                    customer = vehicle.customer
-                    if not customer or not customer.phone:
-                        continue
-
-                    msg = (
-                        f"تذكير صيانة 🔧\n"
-                        f"عزيزنا {customer.name}، موعد صيانة سيارتك "
-                        f"{vehicle.brand} {vehicle.model_name} "
-                        f"اقترب ({vehicle.estimated_next_visit}).\n"
-                        f"احجز موعدك الآن مع {t.name}!"
-                    )
-                    # 💡 [هنا يتم ربط WhatsApp API / Twilio / UltraMsg]
-                    logger.info(
-                        f"📲 [MAINTENANCE REMINDER BOT] Would send to "
-                        f"{customer.phone}: {msg[:60]}…"
-                    )
-                    sent += 1
-
-                AgentHealthMonitor.heartbeat(
-                    'maintenance_reminder_bot', schema=t.schema_name,
-                    metadata={'sent': sent, 'date': str(today)}
-                )
-                return sent
-
-        result = run_agent_safely(
-            agent_name='maintenance_reminder_bot',
-            func=_execute,
-            payload={'schema': tenant.schema_name, 'window': str(reminder_window)},
-            schema=tenant.schema_name,
-            failure_threshold=5,
-        )
-        total_sent += (result or 0)
-
-    logger.info(f"📲 [MAINTENANCE REMINDER BOT] Dispatched {total_sent} reminders across all tenants.")
-    return f"Reminders dispatched: {total_sent}"
+    logger.info(f"📲 [MAINTENANCE REMINDER BOT] notified {notified} workshop owner(s).")
+    return f"Workshops notified: {notified}"
 
 
 # ─────────────────────────────────────────────────────────────────────

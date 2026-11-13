@@ -455,6 +455,82 @@ class PrintMarketFlowTests(_TenantDomainMixin, TestCase):
         self.assertEqual(transfer_fee(Decimal('100'), 'instapay'), Decimal('0.50'))
         self.assertEqual(transfer_fee(Decimal('5000'), 'vodafone_cash'), Decimal('50.00'))
 
+    # ── 🧭 جولة «جرّب كأنك عميل» (نوفمبر) ──
+    def test_product_form_keeps_what_was_typed_after_a_blocked_word(self):
+        """🐛 رقم موبايل في الوصف ⇒ القسم والسعر والوحدة كانوا بيرجعوا فاضيين والمنتج يتنشر «أخرى» من غير سعر."""
+        r = self.shop_c.post(reverse('print_market:product_new'), {
+            'title': 'فلاير A5', 'category': 'flyers', 'price_from': '900', 'unit': '1000 فلاير',
+            'description': 'واتساب 01012345678', 'is_active': 'on'})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(MarketProduct.objects.exists())
+        html = r.content.decode()
+        self.assertRegex(html, r'<option value="flyers"\s+selected')
+        self.assertIn('value="900"', html)
+        self.assertIn('value="1000 فلاير"', html)
+
+    def test_money_shows_dot_decimals_in_arabic(self):
+        """🐛 «520,52 ج.م» (فاصلة عشرية) — العميل ممكن يحوّل 52052."""
+        order = self._new_order()
+        self.shop_c.post(self._u('offer_submit', order), {'price': '520', 'delivery_days': '2'})
+        order.refresh_from_db()
+        self.cust_c.post(self._u('offer_respond', order, order.pending_offer.pk), {'action': 'accept'})
+        html = self.cust_c.get(self._u('order_detail', order)).content.decode()
+        self.assertIn('520.52', html)
+        self.assertNotIn('520,52', html)
+
+    def test_owner_dashboard_lists_market_work_and_payout_tells_the_shop(self):
+        from django.conf import settings as dj
+        from print_market.admin import MarketOrderAdmin, MarketPaymentAdmin
+        from django.contrib import admin as dj_admin
+        owner = User.objects.create_superuser('pm_owner', 'pmo@x.com', 'x')
+        c = Client()
+        c.force_login(owner)
+        order = self._new_order()
+        self.shop_c.post(self._u('offer_submit', order), {'price': '500', 'delivery_days': '2'})
+        order.refresh_from_db()
+        self.cust_c.post(self._u('offer_respond', order, order.pending_offer.pk), {'action': 'accept'})
+        self.cust_c.post(self._u('payment_submit', order), {'method': 'instapay', 'reference': 'T', 'receipt': _png()})
+        r = c.get('/superadmin/')
+        self.assertEqual((r.context['pm_payments_pending'], r.context['pm_payouts_due']), (1, 0))
+        self.assertContains(r, 'print_market/marketpayment/?status__exact=pending')
+
+        # الإيصال مايتمسحش من الأدمن، والطلب مايتعملش من الأدمن
+        req = r.wsgi_request
+        self.assertFalse(MarketPaymentAdmin(MarketPayment, dj_admin.site).has_delete_permission(req))
+        self.assertFalse(MarketOrderAdmin(MarketOrder, dj_admin.site).has_add_permission(req))
+
+        MarketPayment.objects.get(order=order).review(owner, confirm=True)
+        self.shop_c.post(self._u('order_delivered', order))
+        self.cust_c.post(self._u('order_received', order))
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'completed')
+        r = c.get('/superadmin/')
+        self.assertEqual((r.context['pm_payments_pending'], r.context['pm_payouts_due']), (0, 1))
+
+        r = c.post(f'/{dj.ADMIN_URL}/print_market/marketorder/',
+                   {'action': 'mark_payout_done', '_selected_action': [order.pk]})
+        self.assertEqual(r.status_code, 302)
+        order.refresh_from_db()
+        self.assertIsNotNone(order.payout_done_at)
+        self.assertTrue(MarketNotification.objects.filter(account=self.shop, title='اتحوّلك المبلغ').exists())
+        self.assertEqual(c.get('/superadmin/').context['pm_payouts_due'], 0)
+
+
+class PartsReceiptCopyTests(_TenantDomainMixin, TestCase):
+    """🐛 شراء قطعة مش «تفعيل خدمة» — المشتري كان بيقرا «هيتم التفعيل» بعد ما يدفع تمن قطعة."""
+
+    def test_parts_receipt_page_talks_about_the_order(self):
+        from clients.models import ManualPaymentReceipt
+        parts = ManualPaymentReceipt.objects.create(purchase_type='parts', purchase_id=999999, amount=Decimal('100'),
+                                                    sender_phone='', txn_reference='')
+        sub = ManualPaymentReceipt.objects.create(purchase_type='subscription', purchase_id=999999,
+                                                  amount=Decimal('100'), sender_phone='', txn_reference='')
+        html = Client().get(reverse('manual_payment_upload', args=[parts.receipt_code])).content.decode()
+        self.assertIn('ونبلّغ البائع يشحن', html)
+        self.assertNotIn('ويفعّل الخدمة', html)
+        html = Client().get(reverse('manual_payment_upload', args=[sub.receipt_code])).content.decode()
+        self.assertIn('ويفعّل الخدمة', html)
+
 
 @override_settings(ALLOWED_HOSTS=['*'])
 class PrintMarketIsolationTests(_TenantDomainMixin, TestCase):

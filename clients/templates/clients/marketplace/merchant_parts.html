@@ -97,7 +97,7 @@
                         <strong><i class="fas fa-location-dot"></i> اشحن إلى:</strong> {{ o.shipping_name }} — <span dir="ltr">{{ o.shipping_phone }}</span><br>
                         {{ o.shipping_city }}{% if o.shipping_city %} — {% endif %}{{ o.shipping_address }}
                         {% if o.shipping_tracking %}<br><strong>الشحن:</strong> {{ o.shipping_tracking }}{% endif %}
-                        {% if o.ship_deadline %}<br><span style="color:#fcd34d;"><i class="fas fa-clock"></i> اشحن قبل {{ o.ship_deadline|date:"d/m/Y H:i" }} — غير كده الطلب بيتلغي والفلوس بترجع للمشتري.</span>{% endif %}
+                        {% if o.ship_deadline %}<br><span style="color:#fcd34d;"><i class="fas fa-clock"></i> اشحن قبل <span dir="ltr">{{ o.ship_deadline|date:"d/m/Y H:i" }}</span> — غير كده الطلب بيتلغي والفلوس بترجع للمشتري.</span>{% endif %}
                     </div>
                 </div>
                 <div class="actions">

@@ -14,7 +14,7 @@ from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.db import connection, transaction
-from django.db.models import Avg, Count, Max, Min
+from django.db.models import Avg, Count, Max, Min, Q
 from django.core.exceptions import ValidationError
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -44,14 +44,16 @@ def b2b_market_search_api(request):
     if not part_number:
         return JsonResponse({"error": "برجاء تزويد رقم القطعة"}, status=400)
 
+    # 🐛 [FIX]: تاجر من غير ولا تقييم كان بيرجع 5.0 (الافتراضي) — النجوم للتقييم الحقيقي بس
+    rated = Count('tenant__tender_offers', filter=Q(tenant__tender_offers__customer_rating__isnull=False))
     results = GlobalB2BMarketplace.objects.filter(
         part_number__iexact=part_number, available_qty__gt=0,
         tenant__is_active=True, tenant__is_marketplace_active=True, tenant__is_fraud_flagged=False,
-    ).select_related('tenant').order_by('-tenant__is_verified_merchant', 'wholesale_price')[:15]
+    ).select_related('tenant').annotate(_rated=rated).order_by('-tenant__is_verified_merchant', 'wholesale_price')[:15]
 
     data = [{
         "dealer_name": item.tenant.name, "is_verified": item.tenant.is_verified_merchant,
-        "rating": float(item.tenant.market_rating or 5.0), "price": float(item.wholesale_price),
+        "rating": float(item.tenant.market_rating or 0) if item._rated else 0, "price": float(item.wholesale_price),
         "qty_available": item.available_qty, "condition": item.get_condition_display(),
     } for item in results]
 

@@ -75,7 +75,7 @@
         <div id="cust-results" class="mt-2 max-h-44 overflow-y-auto space-y-1"></div>
         <div class="grid grid-cols-2 gap-2 mt-3">
           <div><label class="lbl">{% trans "اسم العميل" %}</label><input id="cust-name" class="inp"></div>
-          <div><label class="lbl">{% trans "الهاتف" %}</label><input id="cust-phone" class="inp"></div>
+          <div><label class="lbl">{% trans "الهاتف" %}</label><input id="cust-phone" type="tel" dir="ltr" class="inp"></div>
         </div>
         <p id="cust-status" class="text-xs text-slate-500 mt-2">{% trans "سيتم إنشاء عميل جديد أو ربط فاتورة بعميل موجود تلقائياً — العميل الجديد محتاج رقم موبايل، من غيره الاسم بيتكتب على الفاتورة بس." %}</p>
       </div>
@@ -87,7 +87,7 @@
           <div class="col-span-2"><label class="lbl">{% trans "رقم الشاسيه (VIN)" %}</label><input id="veh-chassis" maxlength="17" class="inp font-mono"></div>
           <div><label class="lbl">{% trans "رقم اللوحة" %}</label><input id="veh-plate" class="inp"></div>
           <div><label class="lbl">{% trans "العداد (كم)" %}</label><input id="veh-mileage" type="number" class="inp"></div>
-          <div><label class="lbl">{% trans "الماركة" %}</label><input id="veh-brand" value="BMW" class="inp"></div>
+          <div><label class="lbl">{% trans "الماركة" %}</label><input id="veh-brand" placeholder="{% trans "مثال: تويوتا / هيونداي / BMW" %}" class="inp"></div>
           <div><label class="lbl">{% trans "الموديل" %}</label><input id="veh-model" placeholder="F30 / X5..." class="inp"></div>
         </div>
         <p class="text-xs text-slate-500 mt-2">{% trans "اختياري — اتركه فارغاً للبيع بدون ربط مركبة." %}</p>
@@ -114,11 +114,12 @@
       </div>
 
       <div class="panel">
-        <h3 class="text-sm font-black text-amber-300 mb-3"><i class="fas fa-tools"></i> {% trans "المصنعيات / الخدمات" %}</h3>
+        <h3 class="text-sm font-black text-amber-300 mb-3 flex items-center justify-between gap-2"><span><i class="fas fa-tools"></i> {% trans "المصنعيات / الخدمات" %}</span>
+          {% if can_manage_services %}<a href="{% url 'inventory:services_catalog' %}" target="_blank" class="text-[11px] font-bold text-amber-200/80 hover:text-amber-100 underline">{% trans "إدارة الخدمات" %}</a>{% endif %}</h3>
         <div class="flex gap-2 mb-2">
           <select id="svc-select" class="inp flex-1">
             <option value="">{% trans "— اختر خدمة من الكتالوج —" %}</option>
-            {% for s in services %}<option value="{{ s.id }}" data-price="{{ s.labor_price|stringformat:'.2f' }}">{{ s.name }} ({{ s.labor_price }} {{ tenant_currency_symbol|default:'ج.م' }})</option>{% endfor %}
+            {% for s in services %}<option value="{{ s.id }}" data-price="{{ s.labor_price|stringformat:'.2f' }}">{{ s.name }} ({{ s.labor_price|amount }} {{ tenant_currency_symbol|default:'ج.م' }})</option>{% endfor %}
           </select>
           <button onclick="addService()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 rounded-lg"><i class="fas fa-plus"></i></button>
         </div>
@@ -509,6 +510,8 @@ if ($('branch-picker')) $('branch-picker').addEventListener('change', () => {
   if ($('part-search').value.trim()) doPartSearch($('part-search').value);
 });
 syncBranch();
-setInvoiceType('sale');
+// 🐛 [FIX]: «أمر شغل جديد» كان بيفتح دايماً على «فاتورة قطع غيار فقط» — مركز الصيانة كان لازم
+//    يغيّرها كل مرة (ولو نسي، الكارت بيتحفظ بيع قطع من غير فحص/خدمات). تاجر القطع بس بيبدأ بالقطع.
+setInvoiceType('{% if request.tenant.business_type == "parts_dealer" or request.tenant.business_type == "scrap_importer" %}sale{% else %}maintenance{% endif %}');
 </script>
 {% endblock %}

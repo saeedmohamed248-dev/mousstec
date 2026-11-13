@@ -102,7 +102,7 @@
       <div class="sm:col-span-2"><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "اسم الصنف" %} *</label><input id="ni-name" type="text" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
       <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "رقم القطعة / الكود" %} <span class="text-slate-500 font-normal">{% trans "(فاضي = كود تلقائي)" %}</span></label><input id="ni-sku" type="text" dir="ltr" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm font-mono"></div>
       <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الباركود" %}</label><input id="ni-barcode" type="text" dir="ltr" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm font-mono"></div>
-      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الماركة" %}</label><input id="ni-brand" type="text" value="BMW" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الماركة" %}</label><input id="ni-brand" type="text" placeholder="{% trans "مثال: تويوتا / هيونداي / BMW" %}" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
       <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الحالة" %}</label><select id="ni-condition" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm">{% for v, l in conditions %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
       <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "التصنيف" %}</label><select id="ni-category" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"><option value="">—</option>{% for v, l in part_categories %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
       <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الموديلات المتوافقة" %}</label><input id="ni-car-model" type="text" placeholder="F30, E90..." class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
@@ -221,7 +221,7 @@ const NI_FIELDS = { name: 'ni-name', sku: 'ni-sku', barcode: 'ni-barcode', brand
   car_year: 'ni-car-year', engine_code: 'ni-engine', qty: 'ni-qty', cost: 'ni-cost',
   retail_price: 'ni-retail', b2b_wholesale_price: 'ni-wholesale', min_stock_level: 'ni-min-stock',
   warranty_months: 'ni-warranty', description: 'ni-desc' };
-const NI_DEFAULTS = { brand: 'BMW', condition: 'new', qty: 1, cost: 0, min_stock_level: 2, warranty_months: 0 };
+const NI_DEFAULTS = { brand: '', condition: 'new', qty: 1, cost: 0, min_stock_level: 2, warranty_months: 0 };
 let editingNewKey = null;
 const iModal = $('item-modal');
 function openItemModal(key, preset) {

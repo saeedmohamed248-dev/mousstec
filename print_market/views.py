@@ -338,6 +338,17 @@ def product_form(request, pk=None):
             return redirect('print_market:shop_dashboard')
         except ValidationError as e:
             _err(request, e)
+            # 🐛 [FIX]: الغلطة بتقف في نص التعبئة (مثلاً رقم موبايل في الوصف) — القسم والسعر والوحدة
+            #    كانوا بيرجعوا فاضيين، والتاجر بيصلّح الوصف ويحفظ فالمنتج يتنشر «أخرى» من غير سعر.
+            #    نرجّع اللي كتبه زي ما هو (من غير حفظ).
+            P = request.POST
+            product.title = (P.get('title') or '').strip()[:150]
+            product.description = (P.get('description') or '')[:2000]
+            product.unit = (P.get('unit') or '').strip()[:40]
+            if P.get('category') in dict(MarketProduct.CATEGORY_CHOICES):
+                product.category = P.get('category')
+            product.price_from = (P.get('price_from') or '').strip()[:20] or None
+            product.is_active = P.get('is_active', 'on') == 'on'
     return render(request, 'print_market/product_form.html', _ctx(
         request, product=product, categories=MarketProduct.CATEGORY_CHOICES))
 

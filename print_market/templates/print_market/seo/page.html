@@ -17,7 +17,7 @@
   {% if sv %}<p class="mb-2">{{ sv.intro }}</p>{% endif %}
   {% if gov %}<p class="pm-muted mb-2">{% if gov.3 %}{% blocktrans with g=gov.1 %}المطابع والمتاجر في {{ g }} — سواء إنت في{% endblocktrans %} {{ gov.3|slice:":6"|join:"، " }}.{% else %}{% blocktrans with g=gov.1 %}المطابع والمتاجر في محافظة {{ g }}.{% endblocktrans %}{% endif %}
     {% if shops or stores %}{% blocktrans count n=total %}فيه مطبعة واحدة ظاهرة هنا بتقييمها.{% plural %}فيه {{ n }} مطابع ومتاجر ظاهرين هنا بتقييماتهم.{% endblocktrans %}{% else %}{% trans "لسه بنضيف مطابع في المحافظة دي — اكتب طلبك والمطابع اللي بتوصل لمحافظتك تبعتلك عروضها." %}{% endif %}</p>{% endif %}
-  {% if min_price %}<div class="mb-3"><span class="pm-chip">{% trans "الأسعار تبدأ من" %} {{ min_price|floatformat:"-2" }} {% trans "ج.م" %}</span></div>{% endif %}
+  {% if min_price %}<div class="mb-3"><span class="pm-chip">{% trans "الأسعار تبدأ من" %} {{ min_price|num:"-2" }} {% trans "ج.م" %}</span></div>{% endif %}
   <div class="d-flex gap-2 flex-wrap">
     <a href="{{ request_url }}" class="pm-btn text-decoration-none"><i class="fas fa-bullhorn me-1"></i>{% trans "اكتب طلبك والمطابع تبعتلك عروض" %}</a>
     <a href="{% url 'print_market:home' %}" class="pm-btn-light text-decoration-none">{% trans "تصفّح سوق المطابع" %}</a>

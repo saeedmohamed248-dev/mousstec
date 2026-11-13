@@ -29,6 +29,7 @@ from inventory.views import (
     tenant_required,
 )
 from inventory.views.utils import module_required
+from .services_catalog import can_manage_services
 from ._common import (
     _RollbackWith,
     _WALK_IN_CREDIT_ERROR,
@@ -64,6 +65,7 @@ def job_card_create(request):
         "branch": branch,
         "branches": Branch.objects.all() if branch is None else None,
         "services": ServiceCatalog.objects.all().order_by("name"),
+        "can_manage_services": can_manage_services(request.user),
         "treasuries": treasury_qs,
         **_salesperson_context(request),
     })
@@ -169,7 +171,9 @@ def job_card_save(request):
                         customer=customer,
                         chassis_number=chassis,
                         car_plate=(payload.get("vehicle_plate") or "").strip() or None,
-                        brand=(payload.get("vehicle_brand") or "BMW").strip(),
+                        # 🐛 [FIX]: الماركة كانت متعبّية «BMW» في الفورم وفي الحفظ — أي عربية تويوتا أو
+                        #    هيونداي العميل مكتبش ماركتها كانت بتتسجّل BMW (من أيام مراكز BMW بس).
+                        brand=(payload.get("vehicle_brand") or "").strip(),
                         model_name=(payload.get("vehicle_model") or "").strip() or None,
                     )
 

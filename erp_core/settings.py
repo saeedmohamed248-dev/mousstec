@@ -450,6 +450,8 @@ USE_THOUSAND_SEPARATOR = True
 
 LANGUAGES = [('ar', _('Arabic')), ('en', _('English'))]
 LOCALE_PATHS = [BASE_DIR / 'locale']
+# 🔢 العشري بنقطة في العربي (erp_core/formats/ar/formats.py)
+FORMAT_MODULE_PATH = ['erp_core.formats']
 
 # =====================================================================
 # 📁 إدارة الأصول الرقمية والتخزين السحابي (Cloud Storage Stack)
@@ -728,6 +730,10 @@ WHATSAPP_OTP_TEMPLATE = env.str('WHATSAPP_OTP_TEMPLATE', 'otp_verification')
 WHATSAPP_RENEWAL_TEMPLATE = env.str('WHATSAPP_RENEWAL_TEMPLATE', '')
 # 📲 قالب Meta لملخص اليوم للمالك (متغيّرات: الاسم، المبيعات، العدد، المحصّل، الخزنة، الآجل) — فاضي = رسالة نصية
 WHATSAPP_DAILY_SUMMARY_TEMPLATE = env.str('WHATSAPP_DAILY_SUMMARY_TEMPLATE', '')
+# 🔧 قالب Meta لتنبيه «عملاء صيانتهم مستحقة» للمالك (متغيّرات: الاسم، العدد، الرابط) — فاضي = رسالة نصية
+WHATSAPP_MAINTENANCE_DIGEST_TEMPLATE = env.str('WHATSAPP_MAINTENANCE_DIGEST_TEMPLATE', '')
+# 👋 قالب Meta لرسالة الترحيب بعد التسجيل (متغيّرات: الشركة، رابط الدخول) — فاضي = رسالة نصية
+WHATSAPP_WELCOME_TEMPLATE = env.str('WHATSAPP_WELCOME_TEMPLATE', '')
 # ⏳ خصم عرض «اشترك قبل ما التجربة تخلص» (آخر يومين) — صفر = تذكير من غير خصم
 TRIAL_END_OFFER_PERCENT = env.int('TRIAL_END_OFFER_PERCENT', 20)
 

@@ -592,7 +592,7 @@
                 {% else %}
                 <a href="/marketplace/diagnostics/" class="side-link"><i class="fas fa-stethoscope lead"></i> تشخيص عربيتي <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/marketplace/advisor/" class="side-link"><i class="fas fa-brain lead"></i> مستشار صيانة العربية <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/marketplace/design-store/" class="side-link"><i class="fas fa-wand-magic-sparkles lead"></i> التصميم الذكي (AI) <i class="fas fa-arrow-left tail"></i></a>
+                {# 🐛 [FIX]: «التصميم الذكي» هنا كان بيرجّع عميل السيارات للوحة برسالة «متاح لعملاء الطباعة فقط» (_enforce_printing_sector) #}
                 <a href="/marketplace/merchant/feed/" class="side-link"><i class="fas fa-store lead"></i> أنا تاجر — بوابة التجار <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/marketplace/catalog/automotive/" class="side-link"><i class="fas fa-store lead"></i> {% trans "معروضات قطع الغيار لكل العربيات" %} <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/marketplace/parts/" class="side-link"><i class="fas fa-cogs lead"></i> سوق قطع الغيار <i class="fas fa-arrow-left tail"></i></a>

@@ -536,7 +536,7 @@ def _get_or_create_purchase_product(raw, cost):
         part_number=sku[:100],
         name=name[:200],
         barcode=barcode,
-        brand=_txt("brand", 100, "BMW"),
+        brand=_txt("brand", 100, "—"),   # 🐛 [FIX]: كان «BMW» لأي صنف جديد من غير ماركة
         condition=condition,
         part_category=part_category,
         car_model=_txt("car_model", 100, "—"),

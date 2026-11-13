@@ -736,8 +736,14 @@ def super_admin_dashboard(request):
     # 🛍️ طلبات أسعار جديدة من كتالوج السوق (متاجر Mouss Tec)
     from clients.models import CatalogQuoteRequest
     catalog_new = CatalogQuoteRequest.objects.filter(status='new').count()
+    # 🖨️ سوق المطابع: إيصالات/مشاكل/تحويلات للمطابع — كانت بتوصل إيميل بس (notify_owner)
+    #    ومش ظاهرة هنا، فلو الإيميل مش متظبط العميل يدفع والمطبعة ماتبدأش أبداً.
+    from print_market.models import MarketOrder, MarketPayment
+    pm_payments_pending = MarketPayment.objects.filter(status='pending').count()
+    pm_disputes = MarketOrder.objects.filter(status='disputed').count()
+    pm_payouts_due = MarketOrder.objects.filter(status='completed', payout_done_at__isnull=True).count()
     attention_total = (
-        catalog_new +
+        catalog_new + pm_payments_pending + pm_disputes + pm_payouts_due +
         uploaded_receipts_count + support_unseen + len(pending_refund_orders)
         + len(pending_design_purchases) + len(pending_marketplace_requests)
         + len(pending_parts_listings) + print_needs_action
@@ -760,6 +766,9 @@ def super_admin_dashboard(request):
         'ai_addons': ai_addons,
         'support_unseen': support_unseen,
         'attention_total': attention_total,
+        'pm_payments_pending': pm_payments_pending,
+        'pm_disputes': pm_disputes,
+        'pm_payouts_due': pm_payouts_due,
         'catalog_new': catalog_new,
         'pending_design_purchases': pending_design_purchases,
         'pending_manual_receipts': pending_manual_receipts,

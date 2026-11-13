@@ -290,7 +290,10 @@
         const businessTypeSelect = document.getElementById('id_business_type');
 
         // إخفاء select القطاع الأصلي (نستخدم الكروت بدلاً منه)
-        if (industrySelect) industrySelect.style.display = 'none';
+        // 🐛 [FIX]: الـ select مخفي وعليه required — المتصفح كان بيوقف الإرسال قبل حدث submit
+        //    («invalid form control is not focusable») فزرار «ابدأ التجربة» مابيعملش أي حاجة ولا رسالة
+        //    «اختار مجالك» بتظهر. التحقق بقى من الـ submit handler تحت (والسيرفر برضه).
+        if (industrySelect) { industrySelect.style.display = 'none'; industrySelect.required = false; }
 
         const businessTypesByIndustry = {
             automotive: ['service_center', 'parts_dealer', 'scrap_importer', 'both'],

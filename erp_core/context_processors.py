@@ -218,6 +218,7 @@ def _nav_permissions(role):
         from inventory.views_serials import VIEW_ROLES as serial_roles
         from inventory.views_stock_count import COUNT_ROLES
         from inventory.views_transfers import TRANSFER_ROLES
+        from inventory.views_lightning.services_catalog import SERVICE_ROLES
     except Exception:
         return {}
     stock_roles = ('admin', 'manager', 'stock')  # الاستيراد/التصوير/استوديو الصور
@@ -226,6 +227,7 @@ def _nav_permissions(role):
         'stock_count': role in COUNT_ROLES,
         'serials': role in serial_roles,
         'stock_tools': role in stock_roles,
+        'services': role in SERVICE_ROLES,      # 🛠️ كتالوج الخدمات والمصنعيات
     }
 
 

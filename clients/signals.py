@@ -94,7 +94,11 @@ def auto_setup_new_tenant(sender, instance, created, **kwargs):
             admin_url = getattr(settings, 'ADMIN_URL', 'secure-portal')
 
             # بناء رابط الدخول المباشر (بدون token — اليوزر يدخل بالإيميل والباسورد اللي اختارهم)
-            full_login_url = f"{protocol}://{domain_name}{port_suffix}/{admin_url}/"
+            # 🐛 [FIX]: كان /secure-portal/ (لوحة Django الفنية) — لمراكز الصيانة دي مش السيستم.
+            #    ولو الدومين اتعمل قبل الـ signal (domain_name فاضي) الرابط كان «https:///…».
+            if not domain_name:
+                domain_name = getattr(Domain.objects.filter(tenant=instance, is_primary=True).first(), 'domain', '')
+            full_login_url = f"{protocol}://{domain_name}{port_suffix}/login/"
 
             current_app.send_task(
                 'clients.tasks.async_welcome_bot_task',
@@ -112,13 +116,9 @@ def auto_setup_new_tenant(sender, instance, created, **kwargs):
         except Exception as e:
             logger.error(f"🔴 [ORCHESTRATOR ERROR]: Failed to route secure task to Welcome Bot - {e}")
 
-        # 🎁 هدية التسجيل: 10 تصاميم AI مجاناً لكل شركة جديدة
-        # (يتشغل تلقائي بمجرد إنشاء الـ tenant — مستقل عن باقة الاشتراك)
-        try:
-            from erp_core.ai.credits import grant_signup_bonus_tenant
-            grant_signup_bonus_tenant(instance)
-        except Exception as e:
-            logger.warning(f"🎁 [SIGNUP BONUS]: Failed to grant tenant signup bonus - {e}")
+        # 🐛 [FIX]: كان فيه هدية تانية هنا (grant_signup_bonus_tenant = 3 تصاميم) فوق هدية الترحيب
+        #    اللي فوق (10 تصاميم + 5 واتساب + 5 علامات) — كل شركة جديدة كانت بتاخد 13 تصميم والصفحة
+        #    الرئيسية بتقول 10. هدية واحدة بس زي المكتوب للعميل.
 
 
 # =====================================================================
