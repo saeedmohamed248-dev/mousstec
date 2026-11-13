@@ -503,51 +503,61 @@ class Brain:
                 text = self._plain(text)
                 text = self._commanded(text, utt.samples, woke)
                 text = self._fixed(text)
-                if not text:
+                if not text and not self._unheard_to_server(utt, said):
                     self.log(f"[EARS] nothing understood ({utt.speech_ms} ms, level "
                              f"{utt.quietest}–{utt.loudest}, {took:.1f} s)")
                     return
-                if not self._for_me_while_playing(text):
-                    self.log(f'[EARS] "{text}" — ignored while {self.media.kind} plays (no «يا {self.cfg.name}»)')
-                    return
-                self.log(f'[EARS] "{text}" — heard in {took:.1f} s ({self.ears.model_name})')
-                t_heard = time.monotonic()
-                sure = self._sureness(text, words, confs)
-                if self.online is False:         # known down: don't wait on it
-                    # 🐛 [FIX]: a learned sentence (or trusted words), with Vosk unsure of a word, got
-                    # «مسمعتكش كويس» every time offline, though it was heard right.
-                    self.answer_offline(text, said, unsure=self._unsure(sure) and not self._learned
-                                        and not self._trusted(text))
-                    return
-                self._trusted_now = not self._learned and self._trusted(text)
-                # A learned sentence (or one of trusted words), now and then heard by a teacher
-                # again — behind the answer.
-                # 🐛 [FIX]: staff saying «عندك فلتر زيت» to each other used up the recheck — and their
-                # recording went up. Only a sentence said to the robot is heard again.
-                to_me = strip_name(self.knowledge.names, text)[0] or said < self._talking_until
-                again = (to_me and self._recheck_due() and
-                         {"wav": wavs.ulaw_wav(wavs.louder(utt.samples)), "heard": self._as_heard}) or {}
-                known = "learned" if self._learned else "trusted" if self._trusted_now else ""
-                talking = said < self._talking_until    # said while a conversation was on, here
-                if self._needs_teacher(text, sure):
-                    # «🎓»: a teacher hears the recording (every question, or the ones it's not sure of).
-                    # What the ears wrote (`heard`), not what a lesson made of it. 🐛 [FIX]: the server kept
-                    # the lesson's own words as the ears', so a lesson seen twice made its words «trusted».
-                    raw = {"heard": self._as_heard} if normalize(self._as_heard) != normalize(text) else {}
-                    answer = self._ask(
-                        transcript=text, wav=wavs.ulaw_wav(wavs.louder(utt.samples)), check=True, **raw,
-                        confidence=sure[0] if sure else None, caps=self._caps(),
-                        said_ago_ms=self._ago(said), **({"talking": True} if talking else {}))
-                    if answer.heard_by:
-                        self.log(f"[TEACH] «{text}» — {answer.heard_by} heard «{answer.taught}»")
-                elif self.online and self.cfg.answer_here and self._answer_here(text, said, t0, known=known,
-                                                                                 **again):
-                    return
-                else:                            # «known» only when it is: the request as before otherwise
-                    # 🐛 [FIX]: a recheck sent with this question made the answer wait for a teacher (up to
-                    # 6 s) — the recheck is for an answer given here, behind it (_answer_here → _check).
-                    answer = self._ask(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said),
-                                       **({"talking": True} if talking else {}), **({"known": known} if known else {}))
+                if not text:
+                    # 🐛 [FIX]: من لوج المحل (brain-0.9.13): «يا موس» ← «أيوه، تحت أمرك» ← السؤال بصوت واطي،
+                    # Vosk مسمعش منه حاجة («nothing understood») والروبوت سكت. جوه المحادثة السؤال ده ليه:
+                    # السيرفر يسمع التسجيل نفسه (Azure) بدل السكوت.
+                    self.log(f"[EARS] nothing understood here ({utt.speech_ms} ms, level "
+                             f"{utt.quietest}–{utt.loudest}, {took:.1f} s) — in a conversation: the server hears it")
+                    t_heard = time.monotonic()
+                    answer = self._ask(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps(),
+                                       said_ago_ms=self._ago(said), talking=True)
+                else:
+                    if not self._for_me_while_playing(text):
+                        self.log(f'[EARS] "{text}" — ignored while {self.media.kind} plays (no «يا {self.cfg.name}»)')
+                        return
+                    self.log(f'[EARS] "{text}" — heard in {took:.1f} s ({self.ears.model_name})')
+                    t_heard = time.monotonic()
+                    sure = self._sureness(text, words, confs)
+                    if self.online is False:         # known down: don't wait on it
+                        # 🐛 [FIX]: a learned sentence (or trusted words), with Vosk unsure of a word, got
+                        # «مسمعتكش كويس» every time offline, though it was heard right.
+                        self.answer_offline(text, said, unsure=self._unsure(sure) and not self._learned
+                                            and not self._trusted(text))
+                        return
+                    self._trusted_now = not self._learned and self._trusted(text)
+                    # A learned sentence (or one of trusted words), now and then heard by a teacher
+                    # again — behind the answer.
+                    # 🐛 [FIX]: staff saying «عندك فلتر زيت» to each other used up the recheck — and their
+                    # recording went up. Only a sentence said to the robot is heard again.
+                    to_me = strip_name(self.knowledge.names, text)[0] or said < self._talking_until
+                    again = (to_me and self._recheck_due() and
+                             {"wav": wavs.ulaw_wav(wavs.louder(utt.samples)), "heard": self._as_heard}) or {}
+                    known = "learned" if self._learned else "trusted" if self._trusted_now else ""
+                    talking = said < self._talking_until    # said while a conversation was on, here
+                    if self._needs_teacher(text, sure):
+                        # «🎓»: a teacher hears the recording (every question, or the ones it's not sure of).
+                        # What the ears wrote (`heard`), not what a lesson made of it. 🐛 [FIX]: the server kept
+                        # the lesson's own words as the ears', so a lesson seen twice made its words «trusted».
+                        raw = {"heard": self._as_heard} if normalize(self._as_heard) != normalize(text) else {}
+                        answer = self._ask(
+                            transcript=text, wav=wavs.ulaw_wav(wavs.louder(utt.samples)), check=True, **raw,
+                            confidence=sure[0] if sure else None, caps=self._caps(),
+                            said_ago_ms=self._ago(said), **({"talking": True} if talking else {}))
+                        if answer.heard_by:
+                            self.log(f"[TEACH] «{text}» — {answer.heard_by} heard «{answer.taught}»")
+                    elif self.online and self.cfg.answer_here and self._answer_here(text, said, t0, known=known,
+                                                                                     **again):
+                        return
+                    else:                            # «known» only when it is: the request as before otherwise
+                        # 🐛 [FIX]: a recheck sent with this question made the answer wait for a teacher (up to
+                        # 6 s) — the recheck is for an answer given here, behind it (_answer_here → _check).
+                        answer = self._ask(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said),
+                                           **({"talking": True} if talking else {}), **({"known": known} if known else {}))
             else:                                # no Whisper here (or a slow one): the server listens
                 t_heard, text = t0, ""
                 answer = self._ask(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps(),
@@ -686,6 +696,12 @@ class Brain:
             return self.server.voice(**kwargs)
 
     # ---- the live socket (live.py)
+    def _unheard_to_server(self, utt, said: float) -> bool:
+        """Nothing these ears made of it, said in a conversation, long enough to be
+        words (not a cough): the server hears its recording instead."""
+        return bool(self.online and self.cfg.teach and said < self._talking_until
+                    and utt.speech_ms >= LIVE_TEACH_AFTER_MS)
+
     def _hears_here(self) -> bool:
         """These ears hear it (the server gets the words), not the server."""
         return self.ears.ready and (self.online is False or not self.server_hears_first)
