@@ -54,6 +54,9 @@ urlpatterns = [
 
     # 🛒 سوق B2B التفاعلي — بحث حي في السوق المركزي للقطع والمزادات
     path('b2b-market/', views.b2b_marketplace, name='b2b_marketplace'),
+    path('b2b-market/request/', views.b2b_request_create, name='b2b_request_create'),
+    path('b2b-market/requests/', views.b2b_requests_page, name='b2b_requests'),
+    path('b2b-market/requests/<int:pk>/respond/', views.b2b_request_respond, name='b2b_request_respond'),
     
     # 🚀 واجهة الكاشير السريعة (Point of Sale - Zero Latency)
     path('pos/', views.pos_interface, name='pos_interface'),
