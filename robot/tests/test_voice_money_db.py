@@ -385,3 +385,14 @@ class ADayInTheShopTests(_MoneyFixture):
         self.assertEqual(Customer.objects.get(pk=self.ahmed.pk).balance, Decimal("300.00"))
         self.assertEqual(self.till_balance(), Decimal("1050.00"))          # 1000 − 100 + 150
         self.assertEqual(self.stock(self.oil), 4)
+
+
+class PinLetGoTests(_MoneyFixture):
+
+    def test_something_else_said_at_the_pin_is_answered_not_held(self):
+        reply, payload = self.say("رصيد الخزنة كام؟", employee=None)
+        self.assertEqual(payload["action"], "wizard_pin", reply)
+        reply, payload = self.say("عندك فلتر زيت؟", employee=None)        # the next customer
+        self.assertIn("فلتر زيت", reply)
+        self.assertNotEqual(payload.get("action"), "wizard_pin")
+        self.assertFalse(wizard.wants_secret(self.device))

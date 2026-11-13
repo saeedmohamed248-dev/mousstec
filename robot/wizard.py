@@ -503,6 +503,11 @@ def _pin_digits(text: str) -> str:
 
 def _on_pin(text, device, state, employee):
     pin = _pin_digits(text)
+    if len(pin) < 4 and state.get("kind") == "ask":
+        # A PIN asked of whoever said «شغّل قرآن» or «بعنا كام؟» — and they (or the next customer)
+        # said something else: that's answered, nobody is held at «مستني الرقم السري».
+        cache.delete(_key(device))
+        return None
     if len(pin) < 4:
         # 🐛 [FIX]: «طرق مبيع» (a misheard «فاتورة مبيعات») counted as a wrong PIN: three of those
         # and the invoice was off before the PIN was ever said. Words with no number aren't a try.

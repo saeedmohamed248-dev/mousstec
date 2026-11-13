@@ -65,9 +65,10 @@ class MediaTests(AssistantDbTestCase):
         self.assertEqual(payload["action"], "denied")
         self.assertIn("تشغيل القرآن والموسيقى", reply)
 
-    def test_nobody_recognized_is_asked_to_look_at_the_camera(self):
+    def test_nobody_recognized_is_asked_their_pin(self):
+        # No camera: the PIN is asked (robot/wizard.hold), not «بص للكاميرا» for ever.
         _intent, reply, payload = self.say("شغل قران")
-        self.assertEqual(reply, assistant.WHO_ARE_YOU)
+        self.assertEqual(payload["action"], "wizard_pin", reply)
         self.assertNotIn("media", payload)
 
     def test_the_esp32_cant_play_so_it_doesnt_promise(self):
@@ -139,7 +140,7 @@ class StaffQuestionTests(AssistantDbTestCase):
     def test_nothing_low_and_who_may_ask(self):
         make_inventory(make_product(name="زيت", retail_price="100"), self.branch, quantity=40)
         self.assertEqual(self.say("النواقص", _staff("manager"))[1], "مفيش حاجة قرّبت تخلص.")
-        self.assertEqual(self.say("النواقص")[1], assistant.WHO_ARE_YOU)
+        self.assertEqual(self.say("النواقص")[2]["action"], "wizard_pin")       # nobody known: their PIN
 
 
 class OutOfStockTests(AssistantDbTestCase):
@@ -310,7 +311,7 @@ class WebSearchTests(AssistantDbTestCase):
         reply, payload, looked, _ = self.ask("دوّر على النت على سعر الدولار", _staff("cashier"))
         self.assertEqual(payload["action"], "denied")
         looked.assert_not_called()
-        self.assertEqual(self.ask("دوّر على النت على سعر الدولار")[0], assistant.WHO_ARE_YOU)
+        self.assertEqual(self.ask("دوّر على النت على سعر الدولار")[1]["action"], "wizard_pin")
 
     def test_a_stock_question_stays_the_shops(self):
         _, payload, looked, _ = self.ask("عندك كوتش؟", _staff("manager"))

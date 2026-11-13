@@ -522,7 +522,7 @@ def answer(entry, text: str):
     except EntryError as exc:
         _finish(entry, "failed", branch=branch, message=str(exc))
         return str(exc), {"action": "entry_failed", "entry_id": entry.pk}
-    return (said or f"تمام، سجلت {entry.summary} على فرع {talk.branch_said(branch.name)}.",
+    return ((said if isinstance(said, str) else "") or f"تمام، سجلت {entry.summary} على فرع {talk.branch_said(branch.name)}.",
             {"action": "entry_done", "entry_id": entry.pk, "branch": branch.name})
 
 
