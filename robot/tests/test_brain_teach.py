@@ -256,3 +256,39 @@ class RoundTwentyOneReviewTests(TeachTests):
         brain.say_text = mock.Mock()
         loop.Brain._check(brain, "يا موس عندك فلتر زيت", 0.0, FOUND, b"RIFF")
         brain.say_text.assert_not_called()                             # no «معلش، مسمعتكش» after a right answer
+
+    def test_nothing_heard_in_a_conversation_goes_to_the_server(self):
+        # 🐛 From the shop's log (brain-0.9.13): «يا موس» ← «أيوه، تحت أمرك» ← the question said
+        # quietly, Vosk made nothing of it («nothing understood»), and the robot stayed silent.
+        ears = _Ears("يا موس", [0.3, 0.3])
+        brain = self._brain(ears)
+        self._say(brain)
+        self.assertIn("[HERE] 🔊 أيوه، تحت أمرك.", self.lines)
+        ears.text, ears.words, ears.confs = "", [], []
+        self.server.voice.reset_mock()
+        brain.handle(vad.Utterance(samples=np.zeros(12800, np.int16), speech_ms=800,
+                                   quietest=1, loudest=1547, cut=False))
+        kwargs = self.server.voice.call_args.kwargs
+        self.assertTrue(kwargs["wav"].startswith(b"RIFF"))   # the server hears the recording itself
+        self.assertNotIn("transcript", kwargs)
+        self.assertTrue(kwargs["talking"])
+        self.assertIn(f"🔊 {FOUND}", self.lines)
+        self.assertTrue(any("nothing understood here" in line for line in self.lines))
+
+    def test_nothing_heard_outside_a_conversation_or_a_cough_stays_here(self):
+        ears = _Ears("", [])
+        brain = self._brain(ears)
+        for talking_until, speech_ms in ((0.0, 800), (float("inf"), 480)):
+            with self.subTest(talking_until=talking_until, speech_ms=speech_ms):
+                self.server.voice.reset_mock()
+                brain._talking_until = talking_until
+                brain.handle(vad.Utterance(samples=np.zeros(8000, np.int16), speech_ms=speech_ms,
+                                           quietest=1, loudest=831, cut=False))
+                self.server.voice.assert_not_called()             # chatter or a cough: no minutes on it
+        self.assertTrue(any(line.startswith("[EARS] nothing understood (") for line in self.lines))
+        self.cfg.teach = False                                   # the shop turned the teachers off
+        self.server.voice.reset_mock()
+        brain._talking_until = float("inf")
+        brain.handle(vad.Utterance(samples=np.zeros(12800, np.int16), speech_ms=800,
+                                   quietest=1, loudest=1547, cut=False))
+        self.server.voice.assert_not_called()

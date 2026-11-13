@@ -1055,3 +1055,11 @@ and again to be answered, and «العربية بتسخن، مشكلة إيه؟�
 `run_windows.bat robotpc` makes the PC by the robot the robot's own: it starts with Windows (a
 watcher in Startup, `run_windows.bat watch`), starts again 10 s after it ever stops, and the PC never
 sleeps or hibernates (`powercfg`). Signing in without a password stays the owner's to set (netplwiz).
+
+### What Vosk didn't hear, in a conversation (brain-0.9.14)
+
+After «يا موس» ← «أيوه، تحت أمرك», a question said quietly could come out of Vosk as nothing
+(`[EARS] nothing understood`) and the robot stayed silent. Said in a conversation and long enough to
+be words (`LIVE_TEACH_AFTER_MS`, not a cough), its recording now goes to the server, which hears it
+(`[EARS] nothing understood here … — in a conversation: the server hears it`). Chatter outside a
+conversation, a cough, or `[robot] teach = no`: as before, no minutes on it.
