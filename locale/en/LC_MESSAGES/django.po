@@ -28144,3 +28144,155 @@ msgstr "Confirm payment — money is held in escrow and the seller ships"
 
 msgid "تأكيد الإيصال؟ الفلوس هتتحجز في الـ Escrow والبائع هيتبلّغ يشحن."
 msgstr "Confirm this receipt? The money will be held in escrow and the seller will be told to ship."
+
+# 🔢 الترقيم المتسلسل + 🛒 طلبات B2B + 💳 تسديد الرصيد المقدّم
+msgid "الشركة الطالبة"
+msgstr "Requesting company"
+
+msgid "الصنف المنشور"
+msgstr "Published item"
+
+msgid "ملاحظة المشتري"
+msgstr "Buyer note"
+
+msgid "رد التاجر"
+msgstr "Seller reply"
+
+msgid "طلب شراء B2B"
+msgstr "B2B purchase request"
+
+msgid "🛒 طلبات الشراء المباشر B2B"
+msgstr "🛒 B2B direct purchase requests"
+
+msgid "مستني رد التاجر"
+msgstr "Awaiting seller reply"
+
+msgid "التاجر وافق"
+msgstr "Seller accepted"
+
+msgid "التاجر اعتذر"
+msgstr "Seller declined"
+
+msgid "عدّاد أرقام"
+msgstr "Number counter"
+
+msgid "عدّادات الأرقام"
+msgstr "Number counters"
+
+msgid "للتاجر"
+msgstr "To seller"
+
+msgid "بيانات التواصل"
+msgstr "Contact details"
+
+msgid "اعتذر"
+msgstr "Decline"
+
+msgid "رد للمشتري (اختياري): ميعاد التسليم، السعر النهائي…"
+msgstr "Reply to buyer (optional): delivery time, final price…"
+
+msgid "حصلت مشكلة — جرّب تاني."
+msgstr "Something went wrong — try again."
+
+msgid "تلغي الطلب؟"
+msgstr "Cancel this request?"
+
+msgid "مفيش طلبات شراء جاتلك لسه — أصنافك المنشورة في السوق هي اللي بيطلبوها."
+msgstr "No purchase requests yet — buyers request your published market items."
+
+msgid "لسه ماطلبتش حاجة — دوّر على الصنف في سوق B2B ودوس «اطلب من التاجر»."
+msgstr "You haven't requested anything yet — find the item in the B2B market and press “Order from seller”."
+
+msgid "تسلسل أرقام الفواتير"
+msgstr "Invoice number sequence"
+
+msgid "طلبات الشراء"
+msgstr "Purchase requests"
+
+msgid "طلب شراء من التاجر"
+msgstr "Purchase request to seller"
+
+msgid "الطلب بيوصل للتاجر بسعره المنشور. لما يوافق، هتشوفوا تليفون وإيميل بعض وتكمّلوا البيع والتسليم بينكم."
+msgstr "The request reaches the seller at the published price. Once accepted, you both see each other's phone and email and complete the sale and delivery between you."
+
+msgid "الإجمالي التقريبي"
+msgstr "Approximate total"
+
+msgid "ابعت الطلب للتاجر"
+msgstr "Send request to seller"
+
+msgid "ملاحظة للتاجر (اختياري): ميعاد التسليم، طريقة الدفع…"
+msgstr "Note to seller (optional): delivery time, payment method…"
+
+msgid "صنفك"
+msgstr "Your item"
+
+msgid "اطلب من التاجر"
+msgstr "Order from seller"
+
+msgid "الكمية لازم من 1 لحد"
+msgstr "Quantity must be from 1 up to"
+
+msgid "اتبعت الطلب للتاجر."
+msgstr "Request sent to the seller."
+
+msgid "طلبات الشراء B2B"
+msgstr "B2B purchase requests"
+
+msgid "طلبات الشراء المباشر بين الشركات في السوق. بعد ما التاجر يوافق، كل طرف بيشوف بيانات تواصل التاني ويكملوا البيع والتسليم بينهم (البائع يعمل فاتورة عادية)."
+msgstr "Direct purchase requests between companies in the market. After the seller accepts, each side sees the other's contact details and they complete the sale and delivery (the seller issues a normal invoice)."
+
+msgid "طلبات جاتلي"
+msgstr "Received"
+
+msgid "كل رقم فاتورة (بيع، مرتجع، أمر شغل، عرض سعر) بيتاخد بالترتيب ومابيضيعش لو الحفظ وقع. الصفحة دي بتوريك أي رقم ناقص وسببه — عشان المراجع أو الضرايب."
+msgstr "Every invoice number (sale, return, job card, quotation) is taken in order and isn't lost if a save fails. This page shows any missing number and why — for your auditor or the tax authority."
+
+msgid "آخر رقم"
+msgstr "Last number"
+
+msgid "مستندات موجودة"
+msgstr "Existing documents"
+
+msgid "أرقام ناقصة"
+msgstr "Missing numbers"
+
+msgid "التسلسل كامل — مفيش ولا رقم ناقص."
+msgstr "The sequence is complete — no missing numbers."
+
+msgid "فيه أرقام ناقصة من غير سبب مسجّل — كلّم الدعم."
+msgstr "Some numbers are missing with no recorded reason — contact support."
+
+msgid "اتمسحت"
+msgstr "Deleted"
+
+msgid "فجوة قديمة (قبل تفعيل الترقيم المتسلسل)"
+msgstr "Old gap (before sequential numbering was enabled)"
+
+msgid "مفيش سبب مسجّل"
+msgstr "No recorded reason"
+
+msgid "مفيش رصيد مقدّم أو فواتير مفتوحة تتسدّد."
+msgstr "No advance credit or open invoices to settle."
+
+msgid "فلوس دفعها قبل كده ومش متسدّدة على فاتورة — سدّد بيها فواتيره المفتوحة (الأقدم الأول) من غير ما تحصّل تاني."
+msgstr "Money paid earlier that isn't settled on an invoice — use it to settle open invoices (oldest first) instead of collecting again."
+
+msgid "لا تملك صلاحية التسديد من الرصيد المقدّم."
+msgstr "You don't have permission to settle from advance credit."
+
+#, python-format
+msgid "معروض آخر %(n)s رقم ناقص بس."
+msgstr "Showing only the last %(n)s missing numbers."
+
+#, python-format
+msgid "اتسدّد %(a)s من رصيده المقدّم على %(n)s فاتورة."
+msgstr "Settled %(a)s from advance credit on %(n)s invoice(s)."
+
+#, python-format
+msgid "ليه رصيد مقدّم %(a)s"
+msgstr "Has advance credit %(a)s"
+
+#, python-format
+msgid "سدّد %(a)s من رصيده"
+msgstr "Settle %(a)s from credit"
