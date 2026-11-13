@@ -95,9 +95,29 @@ _LOW = re.compile(r"^(?:(?:ايه|ايش|اي|انهي)\s+(?:اللي|الحاج
 
 
 
-# robot/entries.py: an expense, a purchase or a sale said to be written down.
+# robot/entries.py: an expense, a purchase or a sale said to be written down — and robot/money.py:
+# a collection from a customer, a payment to a vendor, an employee's advance.
 _ENTRY = re.compile(r"^(?:(?:سجل|سجلي|اعمل|اكتب|ضيف|اضف)\s+)?(?:مصروف|مصاريف|صرف|صرفنا|صرفت|دفعنا|دفعت"
-                    r"|فاتوره شراء|فاتوره بيع|شراء|مشتريات|اشترينا|اشتريت|بيع|بعت|بعنا|بعتله|بعتلها)\s")
+                    r"|فاتوره شراء|فاتوره بيع|شراء|مشتريات|اشترينا|اشتريت|بيع|بعت|بعنا|بعتله|بعتلها"
+                    r"|تحصيل|حصل|حصلي|حصلت|حصلنا|ادفع|سدد|سددنا|سلفه)\s")
+# robot/assistant.py: the staff's other questions about the books (the safe, who owes what,
+# what was spent, who's in) — the server's to answer, each behind its role.
+_HOW_MUCH = r"(?:كام|قد ايه|اد ايه|قد اي)"
+_SAFE = r"(?:ال)?(?:خزنه|خزينه|خزن|درج)"
+_BOOKS = (
+    ("sales_month", re.compile(r"^(?:(?:احنا|هو)\s+)?(?:بعنا|بيعنا|اتباع|(?:ال)?مبيعات).*(?:الشهر ده|الشهر دا|الشهر)")),
+    ("sales_yesterday", re.compile(r"^(?:(?:احنا|هو)\s+)?(?:بعنا|بيعنا|اتباع|(?:ال)?مبيعات).*(?:امبارح|البارحه)")),
+    ("spent_today", re.compile(rf"^(?:احنا\s+)?(?:صرفنا|(?:ال)?مصاريف|(?:ال)?مصروفات)\s+(?:{_HOW_MUCH}\s+)?{_TODAY}"
+                               rf"(?:\s+{_HOW_MUCH})?$")),
+    ("treasury", re.compile(rf"(?:رصيد|فلوس)\s+{_SAFE}|{_SAFE}\s+(?:فيها|فيه|بها)\s+{_HOW_MUCH}"
+                            rf"|(?:في|ف|جوه)\s+{_SAFE}\s+{_HOW_MUCH}|{_HOW_MUCH}\s+(?:في|ف|جوه)\s+{_SAFE}")),
+    ("vendor_balance", re.compile(rf"^(?:كشف\s+)?حساب\s+(?:ال)?مورد\s+\S|^(?:علينا|عليا)\s+{_HOW_MUCH}\s+لل?مورد"
+                                  rf"|^(?:ال)?مورد\s+.+\s+(?:ليه|له)\s+{_HOW_MUCH}")),
+    ("customer_balance", re.compile(rf"^(?:كشف\s+)?حساب\s+(?:ال)?عميل\s+\S|^(?:ال)?عميل\s+.+\s+عليه\s+{_HOW_MUCH}$"
+                                    rf"|^{_HOW_MUCH}\s+علي\s+(?:ال)?عميل\s+\S")),
+    ("absent", re.compile(r"^(?:مين|من)\s+(?:اللي\s+)?(?:غايب|غاب|مجاش|ماجاش)(?:\s|$)|^(?:ال)?غياب(?:\s|$)")),
+    ("present", re.compile(r"^(?:مين|من)\s+(?:اللي\s+)?(?:حاضر|حضر|جه)(?:\s|$)|^(?:ال)?حضور(?:\s|$)")),
+)
 
 
 def _said(text: str) -> str:
@@ -132,7 +152,9 @@ def staff_question(text: str):
         return "sales_today"
     if _LOW.search(t):
         return "low_stock"
-    return None
+    if any(ch.isdigit() for ch in t):
+        return None
+    return next((kind for kind, said in _BOOKS if said.search(t)), None)
 
 
 # ---- robot/services.py

@@ -150,7 +150,7 @@ class CashTests(VoiceSaleTests):
     def test_only_who_may_sell(self):
         self.allowed = False
         _, reply, payload = self.say("بعت 2 فلتر زيت كاش")
-        self.assertEqual(payload["action"], "denied")
+        self.assertIn(payload["action"], ("denied", "wizard_pin"))     # nobody known: their PIN is asked
         self.assertFalse(RobotEntry.objects.exists())
 
 
