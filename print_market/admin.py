@@ -121,8 +121,15 @@ class MarketPaymentAdmin(admin.ModelAdmin):
     exclude = ('receipt',)
     actions = ('confirm_payments', 'reject_payments')
 
+    def has_add_permission(self, request):
+        # 🐛 [FIX]: الدفعة بيعملها العميل وهو بيرفع الإيصال — صفحة «إضافة» من الأدمن (كل
+        #    الحقول للقراءة بس) كانت بتقع NoReverseMatch لأن receipt_link بيتنادى من غير pk.
+        return False
+
     @admin.display(description='الإيصال')
     def receipt_link(self, obj):
+        if not getattr(obj, 'pk', None):
+            return '—'
         return format_html('<a href="{}" target="_blank">عرض</a>', reverse('print_market:file', args=['receipt', obj.pk]))
 
     def _review(self, request, queryset, confirm):

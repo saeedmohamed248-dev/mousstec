@@ -1245,7 +1245,7 @@ def bank_statement_upload(request):
         with transaction.atomic():
             statement = BankStatement.objects.create(
                 treasury=treasury,
-                statement_date=timezone.now().date(),
+                statement_date=timezone.localdate(),
                 period_start=period_start,
                 period_end=period_end,
                 opening_balance=opening_balance,
@@ -1264,7 +1264,7 @@ def bank_statement_upload(request):
                     with transaction.atomic():
                         BankStatementLine.objects.create(
                             statement=statement,
-                            transaction_date=row.get('date') or timezone.now().date(),
+                            transaction_date=row.get('date') or timezone.localdate(),
                             description=(row.get('description') or '')[:300],
                             reference=(row.get('reference') or '')[:100],
                             amount=abs(amount),

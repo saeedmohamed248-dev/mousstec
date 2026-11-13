@@ -30,10 +30,11 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from clients.models import CustomerDesign
-from clients.services.design_persistence import (
-    persist_image_with_variants,
-    _is_already_persisted,
-)
+# 🐛 [FIX]: كان بيستورد `_is_already_persisted` (مش مستخدمة) من الـ shim
+#    clients.services.design_persistence — والـ shim بيعمل `import *` اللي مابيصدّرش
+#    الأسماء اللي بتبدأ بـ _ ⇒ ImportError، فالأمر ده ومهمة الفحص اليومية
+#    (audit_design_storage_daily) كانوا بيقعوا كل يوم من غير ما حد ياخد باله.
+from design_store.services.design_persistence import persist_image_with_variants
 
 logger = logging.getLogger('mouss_tec_core')
 

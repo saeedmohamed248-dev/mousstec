@@ -655,7 +655,9 @@ class SaleInvoiceItem(models.Model):
                 self.unit_price = Decimal('0.00')
 
             if self.product.warranty_months > 0:
-                self.warranty_end_date = timezone.now().date() + timedelta(days=30 * self.product.warranty_months)
+                # 🐛 [FIX]: كان timezone.now().date() (تاريخ UTC) — البيع بعد ١٢ بالليل بتوقيت
+                #    المحل كان بيبدأ الضمان من امبارح فيخلص قبل ميعاده بيوم.
+                self.warranty_end_date = timezone.localdate() + timedelta(days=30 * self.product.warranty_months)
         super().save(*args, **kwargs)
 
     class Meta:

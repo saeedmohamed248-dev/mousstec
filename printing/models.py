@@ -243,7 +243,7 @@ class Designer(models.Model):
 
     def get_month_stats(self, month=None, year=None):
         """إحصائيات الشهر: عدد الأعمال، متوسط التقييم، إجمالي الساعات"""
-        today = timezone.now().date()
+        today = timezone.localdate()
         m = month or today.month
         y = year or today.year
         logs = self.work_logs.filter(date__month=m, date__year=y)
@@ -1374,7 +1374,7 @@ class PriceQuotation(models.Model):
     def is_expired(self):
         if not self.valid_until:
             return False
-        return timezone.now().date() > self.valid_until
+        return timezone.localdate() > self.valid_until
 
     @property
     def tax_amount(self):
@@ -1394,7 +1394,7 @@ class PriceQuotation(models.Model):
     def save(self, *args, **kwargs):
         if not self.valid_until:
             from datetime import timedelta as _td
-            self.valid_until = timezone.now().date() + _td(days=7)
+            self.valid_until = timezone.localdate() + _td(days=7)
         if self.quote_number:
             return super().save(*args, **kwargs)
         # 🐛 [FIX]: عرضين في نفس اللحظة كانوا بياخدوا نفس الرقم فالتاني يقع

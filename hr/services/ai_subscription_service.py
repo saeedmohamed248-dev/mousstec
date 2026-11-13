@@ -34,7 +34,7 @@ class AISubscriptionService:
 
         prices = AIDesignSubscription.PLAN_PRICES
         limits = AIDesignSubscription.PLAN_LIMITS
-        today = timezone.now().date()
+        today = timezone.localdate()
 
         # فحص اشتراك نشط حالي
         existing = AIDesignSubscription.objects.filter(
@@ -105,7 +105,7 @@ class AISubscriptionService:
         """
         from hr.models import AIDesignSubscription
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         sub = AIDesignSubscription.objects.filter(
             designer=designer, status='active',
         ).order_by('-end_date').first()
@@ -133,7 +133,7 @@ class AISubscriptionService:
         """
         from hr.models import AIDesignSubscription
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         sub = AIDesignSubscription.objects.filter(
             designer=designer, status='active',
             end_date__gte=today,
@@ -151,7 +151,7 @@ class AISubscriptionService:
         from hr.models import AIDesignSubscription
 
         # أولاً: اشتراك نشط
-        today = timezone.now().date()
+        today = timezone.localdate()
         active = AIDesignSubscription.objects.filter(
             designer=designer, status='active',
         ).order_by('-end_date').first()
