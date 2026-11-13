@@ -265,6 +265,24 @@
                 <span class="min-w-0"><span class="num block">{{ uploaded_receipts_count }}</span><span class="lbl block">{% trans "إيصالات دفع مستنية تأكيد" %}</span></span>
             </button>
             {% endif %}
+            {% if pm_payments_pending %}
+            <a href="/{{ admin_url }}/print_market/marketpayment/?status__exact=pending" class="sa-alert hot">
+                <span class="sa-ico sm tone-red"><i class="fas fa-receipt"></i></span>
+                <span class="min-w-0"><span class="num block">{{ pm_payments_pending }}</span><span class="lbl block">{% trans "سوق المطابع: إيصالات مستنية تأكيد" %}</span></span>
+            </a>
+            {% endif %}
+            {% if pm_disputes %}
+            <a href="/{{ admin_url }}/print_market/marketorder/?status__exact=disputed" class="sa-alert hot">
+                <span class="sa-ico sm tone-orange"><i class="fas fa-scale-balanced"></i></span>
+                <span class="min-w-0"><span class="num block">{{ pm_disputes }}</span><span class="lbl block">{% trans "سوق المطابع: مشاكل مستنية حكمك" %}</span></span>
+            </a>
+            {% endif %}
+            {% if pm_payouts_due %}
+            <a href="/{{ admin_url }}/print_market/marketorder/?status__exact=completed" class="sa-alert">
+                <span class="sa-ico sm tone-green"><i class="fas fa-money-bill-transfer"></i></span>
+                <span class="min-w-0"><span class="num block">{{ pm_payouts_due }}</span><span class="lbl block">{% trans "سوق المطابع: طلبات اكتملت — حوّل للمطبعة" %}</span></span>
+            </a>
+            {% endif %}
             {% if catalog_new %}
             <a href="{% url 'catalog_requests_admin' %}" class="sa-alert hot">
                 <span class="sa-ico sm tone-violet"><i class="fas fa-tags"></i></span>
@@ -1120,10 +1138,11 @@
 
                         <!-- Actions -->
                         <div class="receipt-actions w-full sm:w-auto flex sm:flex-col gap-2 flex-shrink-0">
-                            <button type="button" onclick="reviewReceipt('{{ mr.receipt_code|escapejs }}', 'confirm')"
+                            {# 🐛 [FIX]: شراء قطعة مش «تفعيل خدمة» — التأكيد بيحط الفلوس في الـ Escrow والبائع يشحن #}
+                            <button type="button" onclick="reviewReceipt('{{ mr.receipt_code|escapejs }}', 'confirm', {% if mr.purchase_type == 'parts' %}true{% else %}false{% endif %})"
                                     class="flex-1 sm:flex-none text-[11px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition"
-                                    title="{% trans "تأكيد الدفع وتفعيل الخدمة" %}">
-                                <i class="fas fa-check me-1"></i>{% trans "تأكيد وتفعيل" %}
+                                    title="{% if mr.purchase_type == 'parts' %}{% trans "تأكيد الدفع — الفلوس تتحجز في الـ Escrow والبائع يشحن" %}{% else %}{% trans "تأكيد الدفع وتفعيل الخدمة" %}{% endif %}">
+                                <i class="fas fa-check me-1"></i>{% if mr.purchase_type == 'parts' %}{% trans "تأكيد الدفع" %}{% else %}{% trans "تأكيد وتفعيل" %}{% endif %}
                             </button>
                             <button type="button" onclick="reviewReceipt('{{ mr.receipt_code|escapejs }}', 'reject')"
                                     class="flex-1 sm:flex-none text-[11px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition">
@@ -1552,7 +1571,7 @@
                             <p class="text-xs text-slate-400 mb-2">{{ pl.description|truncatechars:100 }}</p>
                             <div class="flex flex-wrap gap-3 text-[10px] text-slate-500">
                                 <span><i class="fas fa-car me-1"></i>{{ pl.car_make.name }} {{ pl.car_model }}</span>
-                                <span class="text-emerald-400 font-black"><i class="fas fa-tag me-1"></i>{{ pl.price_egp }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
+                                <span class="text-emerald-400 font-black"><i class="fas fa-tag me-1"></i>{{ pl.price_egp|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                                 <span><i class="fas fa-user me-1"></i>{{ pl.seller_label }}</span>
                                 <span><i class="fas fa-clock me-1"></i>{{ pl.created_at|timesince }} {% trans "مضت" %}</span>
                                 {% if pl.city %}<span><i class="fas fa-map-marker-alt me-1"></i>{{ pl.city }}</span>{% endif %}
@@ -2477,12 +2496,13 @@ document.addEventListener('keydown', function(e) {
 
 <script>
 // 💵 مراجعة إيصالات الدفع اليدوي (Vodafone/InstaPay)
-async function reviewReceipt(receiptCode, action) {
+async function reviewReceipt(receiptCode, action, isOrder) {
     let notes = '';
     if (action === 'reject') {
         notes = prompt('{{ _("سبب الرفض (اختياري)")|escapejs }}:');
         if (notes === null) return;   // 🐛 [FIX]: «إلغاء» في نافذة السبب كان بيرفض الإيصال برضه
-    } else if (!confirm('{{ _("هل أنت متأكد من تأكيد الإيصال وتفعيل الخدمة؟")|escapejs }}')) {
+    } else if (!confirm(isOrder ? '{{ _("تأكيد الإيصال؟ الفلوس هتتحجز في الـ Escrow والبائع هيتبلّغ يشحن.")|escapejs }}'
+                                : '{{ _("هل أنت متأكد من تأكيد الإيصال وتفعيل الخدمة؟")|escapejs }}')) {
         return;
     }
     const row = document.querySelector('[data-receipt="' + receiptCode + '"]');

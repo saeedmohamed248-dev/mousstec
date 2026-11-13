@@ -32,11 +32,11 @@
   <div class="pm-card p-4 mb-3">
     <h2 class="fs-5 fw-bold">{% trans "عرض السعر" %}</h2>
     {% if offer %}
-      <div class="fs-4 fw-bold" style="color:var(--pm)">{{ offer.price|floatformat:"-2" }} {% trans "ج.م" %}</div>
+      <div class="fs-4 fw-bold" style="color:var(--pm)">{{ offer.price|num:"-2" }} {% trans "ج.م" %}</div>
       <div class="pm-muted small">{% trans "التنفيذ في" %} {{ offer.delivery_days }} {% trans "يوم" %}</div>
       {% if offer.note %}<p class="mt-2 mb-0" style="white-space:pre-wrap">{{ offer.note }}</p>{% endif %}
     {% elif pending_offer %}
-      <div class="fs-4 fw-bold" style="color:var(--pm)">{{ pending_offer.price|floatformat:"-2" }} {% trans "ج.م" %}</div>
+      <div class="fs-4 fw-bold" style="color:var(--pm)">{{ pending_offer.price|num:"-2" }} {% trans "ج.م" %}</div>
       <div class="pm-muted small">{% trans "التنفيذ في" %} {{ pending_offer.delivery_days }} {% trans "يوم" %}</div>
       {% if pending_offer.note %}<p class="mt-2" style="white-space:pre-wrap">{{ pending_offer.note }}</p>{% endif %}
       {% if is_customer %}
@@ -70,14 +70,14 @@
       {% for m, f in fees.items %}
         <div class="pm-card p-3 mb-2" style="background:#f8f6ff">
           <div class="fw-bold">{{ f.label }}</div>
-          <div class="small">{% trans "سعر العرض" %} {{ offer.price|floatformat:"-2" }} + {% trans "رسوم التحويل" %} {{ f.fee|floatformat:"-2" }} = <b>{{ f.total|floatformat:"-2" }} {% trans "ج.م" %}</b></div>
+          <div class="small">{% trans "سعر العرض" %} {{ offer.price|num:"-2" }} + {% trans "رسوم التحويل" %} {{ f.fee|num:"-2" }} = <b>{{ f.total|num:"-2" }} {% trans "ج.م" %}</b></div>
           {% if m == 'instapay' %}<div class="small mt-1">{% trans "حوّل على" %} <code dir="ltr">{{ instapay_handle }}</code>{% if instapay_link %} — <a href="{{ instapay_link }}" target="_blank" rel="noopener">{% trans "افتح إنستاباي" %}</a>{% endif %}</div>
           {% else %}<div class="small mt-1">{% trans "حوّل على محفظة" %} <code dir="ltr">{{ vodafone_number }}</code></div>{% endif %}
         </div>
       {% endfor %}
       <form method="post" action="{% url 'print_market:payment_submit' order.code %}" enctype="multipart/form-data" class="mt-3">{% csrf_token %}
         <select name="method" class="form-select mb-2" required><option value="">{% trans "حوّلت بإيه؟" %}</option>
-          {% for m, f in fees.items %}<option value="{{ m }}">{{ f.label }} — {{ f.total|floatformat:"-2" }} {% trans "ج.م" %}</option>{% endfor %}</select>
+          {% for m, f in fees.items %}<option value="{{ m }}">{{ f.label }} — {{ f.total|num:"-2" }} {% trans "ج.م" %}</option>{% endfor %}</select>
         <input name="reference" class="form-control mb-2" maxlength="100" required placeholder="{% trans 'رقم العملية أو اسم اللي حوّل' %}">
         <label class="form-label small">{% trans "صورة الإيصال" %}</label>
         <input name="receipt" type="file" accept="image/*" class="form-control mb-2" required>
@@ -89,7 +89,7 @@
     {% for p in payments %}
       <div class="d-flex align-items-center gap-2 small mt-2 flex-wrap">
         {% include "print_market/_status.html" with s=p.status label=p.get_status_display %}
-        <span>{{ p.get_method_display }} · {{ p.total|floatformat:"-2" }} {% trans "ج.م" %} · <span dir="ltr">{{ p.created_at|date:"Y-m-d H:i" }}</span></span>
+        <span>{{ p.get_method_display }} · {{ p.total|num:"-2" }} {% trans "ج.م" %} · <span dir="ltr">{{ p.created_at|date:"Y-m-d H:i" }}</span></span>
         {% if is_customer %}<a href="{% url 'print_market:file' 'receipt' p.pk %}" target="_blank">{% trans "الإيصال" %}</a>{% endif %}
         {% if p.review_note %}<span class="pm-muted">— {{ p.review_note }}</span>{% endif %}
       </div>

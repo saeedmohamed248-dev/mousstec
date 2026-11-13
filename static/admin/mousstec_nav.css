@@ -42,6 +42,15 @@ a:hover { color: var(--mt-accent); }
 .form-control, .select2-container--default .select2-selection--single, .select2-container--default .select2-selection--multiple {
   border-color: var(--mt-line-2) !important; border-radius: var(--mt-radius) !important; background: var(--mt-card) !important; }
 .form-control:focus { border-color: var(--mt-brand-2) !important; box-shadow: 0 0 0 3px var(--mt-brand-soft) !important; }
+/* 🐛 [FIX]: أزرار الحفظ في Jazzmin كلاسها «btn btn-success form-control» — قاعدة .form-control اللي فوق
+   (خلفية بيضا) جاية بعد .btn-success فبتكسبها: «احفظ / احفظ واستمر» بقوا أبيض في أبيض ومش باينين
+   في أي فورم (عرض سعر، طلب، عميل…). اللون هنا أخصّ فبيكسب. */
+.btn-primary.form-control, .btn-success.form-control, .btn-info.form-control {
+  background: var(--mt-brand) !important; border-color: var(--mt-brand) !important; color: #fff !important; }
+.btn-primary.form-control:hover, .btn-success.form-control:hover, .btn-info.form-control:hover {
+  background: var(--mt-brand-2) !important; border-color: var(--mt-brand-2) !important; }
+.btn-danger.form-control { background: var(--mt-bad) !important; border-color: var(--mt-bad) !important; color: #fff !important; }
+.btn-warning.form-control { background: var(--mt-warn) !important; border-color: var(--mt-warn) !important; color: #fff !important; }
 
 /* الجداول */
 .table thead th, #result_list thead th { background: var(--mt-card-2) !important; color: var(--mt-muted) !important;
@@ -435,3 +444,6 @@ html[dir="rtl"] .breadcrumb-item + .breadcrumb-item::before { float: right; padd
   .content-header .breadcrumb-item, .content-header .breadcrumb-item a { white-space: normal; overflow-wrap: anywhere; }
   .content-header .row > [class*="col"], .content-header .container-fluid > .row { max-width: 100%; min-width: 0; flex-wrap: wrap; }
 }
+
+/* 🐛 [FIX]: فوتر لوحة المطابع كان بيعرض «Jazzmin version 3.0.1» للعميل — اسم مكتبة تقنية مالوش لازمة */
+.main-footer .float-right { display: none !important; }

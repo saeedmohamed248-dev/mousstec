@@ -56,6 +56,17 @@
   {% else %}
   <p class="text-sm text-slate-400">{% trans "مفيش أصناف وصلت لحد التنبيه في الفرع ده." %}</p>
   {% endif %}
+  {# ✍️ أمر لأصناف تانية (مش من النواقص) — بيتعمل مسودة والأصناف بتتضاف من صفحته #}
+  {% if branch %}
+  <form method="post" action="{% url 'inventory:purchase_order_create' %}" class="mt-4 pt-4 border-t border-slate-700/50 flex flex-wrap items-center gap-2">{% csrf_token %}
+    <input type="hidden" name="branch" value="{{ branch.pk|stringformat:'d' }}"><input type="hidden" name="empty" value="1">
+    <select name="vendor" required class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+      <option value="">{% trans "اختار المورد" %}</option>
+      {% for v in vendors %}<option value="{{ v.pk|stringformat:'d' }}">{{ v.name }}</option>{% endfor %}
+    </select>
+    <button class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold"><i class="fas fa-file-circle-plus"></i> {% trans "أمر شراء لأصناف أختارها" %}</button>
+  </form>
+  {% endif %}
 </section>
 
 <div class="flex gap-2 flex-wrap mb-3 text-xs">

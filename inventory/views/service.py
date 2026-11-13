@@ -10,6 +10,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.db.models import Sum, F, Q
 from django.utils import timezone
 from django.db import connection, transaction, close_old_connections
@@ -580,6 +581,27 @@ def rfq_accept_quote(request, quote_id):
         "total": float(po.total_amount),
         "status": po.status,
     })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_POST
+def rfq_cancel(request, rfq_id):
+    """POST → إلغاء طلب تسعير مش محتاجينه.
+
+    🐛 [FIX — دورة ناقصة]: الإلغاء كان من لوحة Django بس — الطلب اللي العميل اتراجع عنه
+    أو القطعة اتلاقت كان بيفضل «في انتظار الردود» في برج التحكم للأبد."""
+    from inventory.models import RFQ
+    profile = getattr(request.user, 'employee_profile', None)
+    if not (request.user.is_superuser or (profile and profile.role in {'admin', 'manager', 'stock'})):
+        return JsonResponse({"error": "role_forbidden"}, status=403)
+    with transaction.atomic():
+        rfq = get_object_or_404(RFQ.objects.select_for_update(), id=rfq_id)
+        if rfq.status in (RFQ.STATUS_ORDERED, RFQ.STATUS_CANCELLED):
+            return JsonResponse({"error": _t("الطلب ده اتحوّل لأمر شراء أو اتلغى قبل كده.")}, status=400)
+        rfq.status = RFQ.STATUS_CANCELLED
+        rfq.save(update_fields=['status'])
+    return JsonResponse({"ok": True, "status": rfq.status})
 
 
 # ─────────────────────────────────────────────────────────────────────

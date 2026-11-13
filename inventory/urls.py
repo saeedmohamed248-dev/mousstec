@@ -152,6 +152,7 @@ urlpatterns = [
     path('reports/products/', views_lightning.products_report, name='products_report'),
     path('reports/reorder/', views_lightning.reorder_report, name='reorder_report'),
     path('reports/services/', views_lightning.services_report, name='services_report'),
+    path('services/', views_lightning.services_catalog, name='services_catalog'),
     path('reports/pnl/', views_lightning.pnl_report, name='pnl_report'),
     path('reports/trial-balance/', views_lightning.trial_balance, name='trial_balance'),
     path('reports/balance-sheet/', views_lightning.balance_sheet, name='balance_sheet'),
@@ -178,6 +179,7 @@ urlpatterns = [
     path('purchase-orders/', views_purchase_orders.po_list, name='purchase_order_list'),  # 📝 أوامر الشراء
     path('purchase-orders/create/', views_purchase_orders.po_create, name='purchase_order_create'),
     path('purchase-orders/<int:pk>/', views_purchase_orders.po_detail, name='purchase_order_detail'),
+    path('purchase-orders/<int:pk>/lines/', views_purchase_orders.po_lines, name='purchase_order_lines'),
     path('purchase-orders/<int:pk>/<str:action>/', views_purchase_orders.po_action, name='purchase_order_action'),
     path('eta/', views_eta.eta_overview, name='eta_overview'),  # 🧾 الفاتورة الإلكترونية
     path('invoices/<int:pk>/eta.json', views_eta.eta_invoice_json, name='eta_invoice_json'),
@@ -243,6 +245,7 @@ urlpatterns = [
     path('invoice/<int:invoice_id>/rfq/create/', views.rfq_create, name='rfq_create'),
     path('rfq/quote/<int:quote_id>/log/', views.rfq_log_quote, name='rfq_log_quote'),
     path('rfq/quote/<int:quote_id>/accept/', views.rfq_accept_quote, name='rfq_accept_quote'),
+    path('rfq/<int:rfq_id>/cancel/', views.rfq_cancel, name='rfq_cancel'),  # 🗑️ إلغاء طلب تسعير
     # 🗼 RFQ Control Tower — inventory manager macro view
     path('inventory/rfq-management/', views.rfq_management, name='rfq_management'),
     # 🪪 Vehicle Health Passport — full lifetime timeline per VIN

@@ -69,6 +69,11 @@ class MarketOrderAdmin(admin.ModelAdmin):
     inlines = (_OfferInline, _ProofInline, _MessageInline)
     actions = ('mark_payout_done', 'dispute_for_shop', 'dispute_for_customer')
 
+    def has_add_permission(self, request):
+        # 🐛 [FIX]: «أضف طلب» كان ظاهر — الطلب بيعمله العميل من السوق، والعميل/المطبعة هنا للقراءة بس
+        #    فالحفظ كان بيقع (العميل مطلوب ومش قابل للتعديل).
+        return False
+
     def _resolve(self, request, queryset, for_shop):
         n = 0
         for order in queryset.filter(status='disputed'):
@@ -106,7 +111,15 @@ class MarketOrderAdmin(admin.ModelAdmin):
 
     @admin.action(description='✅ سجّل إن المبلغ اتحوّل للمطبعة')
     def mark_payout_done(self, request, queryset):
-        n = queryset.filter(status='completed', payout_done_at__isnull=True).update(payout_done_at=timezone.now())
+        # 🐛 [FIX]: التحويل كان بيتسجّل من غير ما المطبعة تعرف — آخر إشعار عندها «هنحوّلك المبلغ».
+        orders = list(queryset.filter(status='completed', payout_done_at__isnull=True).select_related('shop'))
+        n = MarketOrder.objects.filter(pk__in=[o.pk for o in orders], payout_done_at__isnull=True).update(
+            payout_done_at=timezone.now())
+        for order in orders:
+            offer = order.accepted_offer
+            notify(request, order.shop, 'اتحوّلك المبلغ',
+                   f'Mouss Tec حوّلتلك {offer.price if offer else ""} ج.م تمن «{order.title}»'
+                   f' على {order.shop.get_payout_method_display()} {order.shop.payout_account}'.rstrip() + '.', order)
         self.message_user(request, f'اتسجّل التحويل لـ {n} طلب (الطلبات المكتملة بس).')
 
 
@@ -124,6 +137,11 @@ class MarketPaymentAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         # 🐛 [FIX]: الدفعة بيعملها العميل وهو بيرفع الإيصال — صفحة «إضافة» من الأدمن (كل
         #    الحقول للقراءة بس) كانت بتقع NoReverseMatch لأن receipt_link بيتنادى من غير pk.
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # 🐛 [FIX]: «احذف المدفوعات المحدّدة» كان ظاهر جنب «أكّد التحويل» — مسح إيصال (حتى المرفوض)
+        #    بيمسح أثر فلوس العميل ومين راجعها. الإيصال بيترفض بس، مابيتمسحش.
         return False
 
     @admin.display(description='الإيصال')

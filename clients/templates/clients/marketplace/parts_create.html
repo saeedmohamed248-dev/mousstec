@@ -171,7 +171,7 @@
         <div class="commission-card">
             <strong><i class="fas fa-calculator"></i> ملخص العمولة:</strong>
             <div class="commission-row"><span>السعر المعروض</span><span id="sumPrice">— {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
-            <div class="commission-row"><span>عمولة المنصة ({{ commission_pct|floatformat:"-2" }}%){% if commission_pct == "0" %} — السوق مجاناً دلوقتي 🎉{% endif %}</span><span id="sumCommission" style="color:#fca5a5;">— {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="commission-row"><span>عمولة المنصة ({{ commission_pct|num:"-2" }}%){% if commission_pct == "0" %} — السوق مجاناً دلوقتي 🎉{% endif %}</span><span id="sumCommission" style="color:#fca5a5;">— {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="commission-row"><span>👈 صافي مكسبك</span><span id="sumPayout" style="color:#6ee7b7;">— {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <p style="margin: 10px 0 0; font-size: 0.78rem; color: var(--muted);">الفلوس تتحرر في حسابك بعد انتهاء فترة الضمان.</p>
         </div>

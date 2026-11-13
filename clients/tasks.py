@@ -46,11 +46,17 @@ def async_welcome_bot_task(self, client_name, client_phone, business_type, full_
             msg += f"🔑 كلمة المرور المؤقتة: {secret_credential}\n"
             
         msg += "\nنتمنى لك أرباحاً هائلة والتفوق على منافسيك!"
-        
-        # 💡 [مكان دمج بوابة WhatsApp API (مثل Twilio/Ultramsg) أو البريد الإلكتروني]
-        # example: twilio_client.messages.create(body=msg, from_='+123', to=client_phone)
-        
-        logger.info(f"📨 [AI WELCOME BOT]: Secure onboarding message dispatched to {client_name} ({client_phone}).")
+
+        # 🐛 [FIX — دورة ناقصة]: البوت كان «stub» — بيكتب «dispatched» في اللوج ومابيبعتش حاجة.
+        #    دلوقتي واتساب من رقم المنصة (نفس تذكير التجديد) — قالب WHATSAPP_WELCOME_TEMPLATE لو
+        #    متظبط ({{1}} الشركة، {{2}} رابط الدخول)، وإلا رسالة نصية. الإيميل بيوصل من شاشة التسجيل.
+        from django.conf import settings as _s
+        from clients.services.whatsapp_notify import send_platform_whatsapp
+        tpl = getattr(_s, 'WHATSAPP_WELCOME_TEMPLATE', '')
+        sent = bool(client_phone) and send_platform_whatsapp(
+            client_phone, template=tpl, params=(client_name, full_login_url), text='' if tpl else msg)
+        logger.info("📨 [AI WELCOME BOT]: onboarding message for %s — whatsapp %s.",
+                    client_name, 'sent' if sent else 'not sent')
         # print(msg) # مفيد للعرض أثناء الـ Local Development
         
     except Exception as exc:

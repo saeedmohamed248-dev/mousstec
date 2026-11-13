@@ -29,7 +29,7 @@
     </div>
     <div>
       <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الماركة" %}</label>
-      <input name="brand" value="BMW" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+      <input name="brand" placeholder="{% trans "مثال: تويوتا / هيونداي / BMW" %}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
     </div>
     <div>
       <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "حالة القطعة" %}</label>
@@ -136,7 +136,6 @@ document.getElementById('quick-form').addEventListener('submit', async (e) => {
     msg.className = 'text-sm text-center text-emerald-400 font-bold';
     msg.textContent = `{% trans "تم! قطعة" %} #${data.product_id} (${data.sku}) · {% trans "مخزون افتتاحي:" %} ${data.stock}`;
     e.target.reset();
-    e.target.querySelector('[name=brand]').value = 'BMW';
     e.target.querySelector('[name=min_stock_level]').value = '2';
     btn.disabled = false;
     e.target.querySelector('[name=part_number]').focus();

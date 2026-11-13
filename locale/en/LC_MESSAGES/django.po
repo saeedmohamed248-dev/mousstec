@@ -28019,3 +28019,128 @@ msgid "دقيقة قراءة"
 msgid_plural "%(m)s دقايق قراءة"
 msgstr[0] "1 min read"
 msgstr[1] "%(m)s min read"
+
+# 🧭 جولة «جرّب الموقع كأنك عميل» (نوفمبر)
+msgid "مثال: تويوتا / هيونداي / BMW"
+msgstr "e.g. Toyota / Hyundai / BMW"
+
+msgid "الشاشة دي مش ظاهرة لحسابك."
+msgstr "This screen isn't available for your account."
+
+msgid "ارفع البروفة وابعتها للعميل"
+msgstr "Upload the proof and send it to the customer"
+
+msgid "العميل وافق؟ علّم «مش محتاجة بروفة»"
+msgstr "Customer approved? Mark «no proof needed»"
+
+msgid "إلغاء طلب التسعير ده؟ مش هيظهر في الانتظار تاني."
+msgstr "Cancel this quotation request? It will no longer show as waiting."
+
+msgid "اتلغى طلب التسعير."
+msgstr "Quotation request cancelled."
+
+msgid "الطلب ده اتحوّل لأمر شراء أو اتلغى قبل كده."
+msgstr "This request was already ordered or cancelled."
+
+msgid "أمر شراء لأصناف أختارها"
+msgstr "Purchase order for items I choose"
+
+msgid "الأمر فاضي — ضيف أصناف من تحت."
+msgstr "The order is empty — add items below."
+
+msgid "آخر سعر"
+msgstr "Last price"
+
+msgid "مفيش صنف بالرقم أو الباركود ده."
+msgstr "No item with this number or barcode."
+
+msgid "الكمية لازم تبقى أكبر من صفر والسعر مش بالسالب."
+msgstr "Quantity must be above zero and price not negative."
+
+msgid "ضيف صنف واحد على الأقل قبل ما تبعت الأمر للمورد."
+msgstr "Add at least one item before sending the order to the vendor."
+
+msgid "الخدمات والمصنعيات"
+msgstr "Services & labor"
+
+msgid "الخدمات دي بتظهر في «أمر الشغل» بسعرها، ونسبة عمولة الفني بتتحسب له لما الفاتورة تتقفل."
+msgstr "These services appear in the job card with their price, and the technician's commission is calculated when the invoice is closed."
+
+msgid "اتضافت الخدمة."
+msgstr "Service added."
+
+msgid "اتعدّلت الخدمة."
+msgstr "Service updated."
+
+msgid "اتمسحت الخدمة."
+msgstr "Service deleted."
+
+msgid "اكتب اسم الخدمة."
+msgstr "Enter the service name."
+
+msgid "الخدمة دي اتباعت في فواتير قبل كده — مش هتتمسح عشان التقارير والعمولات. عدّل اسمها أو سعرها بدل المسح."
+msgstr "This service was already sold on invoices — it won't be deleted to keep reports and commissions. Edit its name or price instead."
+
+msgid "الخدمة مش موجودة."
+msgstr "Service not found."
+
+msgid "السعر والساعات والعمولة لازم يكونوا أرقام صحيحة (العمولة من ٠ لـ ١٠٠)."
+msgstr "Price, hours and commission must be valid numbers (commission 0–100)."
+
+msgid "اسم الخدمة"
+msgstr "Service name"
+
+msgid "مثال: تغيير زيت + فلتر"
+msgstr "e.g. Oil + filter change"
+
+msgid "سعر المصنعية"
+msgstr "Labor price"
+
+msgid "الوقت (ساعات)"
+msgstr "Time (hours)"
+
+#, python-format
+msgid "عمولة الفني %%"
+msgstr "Technician commission %%"
+
+msgid "إضافة خدمة"
+msgstr "Add service"
+
+msgid "اتباعت"
+msgstr "Times sold"
+
+msgid "تمسح الخدمة؟"
+msgstr "Delete this service?"
+
+msgid "لسه مفيش خدمات — ضيف أول خدمة من فوق."
+msgstr "No services yet — add the first one above."
+
+msgid "إدارة الخدمات"
+msgstr "Manage services"
+
+msgid "حوّل المبلغ وارفع سكرين شوت التحويل — الفلوس بتفضل محجوزة عند المنصة لحد ما تستلم القطعة وتتأكد منها."
+msgstr "Transfer the amount and upload a screenshot — the money stays held by the platform until you receive and check the part."
+
+msgid "بعد إرسال الإيصال، فريقنا بيراجعه خلال دقائق ويبلّغ البائع يشحن."
+msgstr "After you send the receipt, our team reviews it within minutes and tells the seller to ship."
+
+msgid "هنأكد الدفع خلال دقائق ونبلّغ البائع يشحن."
+msgstr "We'll confirm the payment within minutes and tell the seller to ship."
+
+msgid "✅ تم استلام الإيصال — هنأكد الدفع خلال دقائق ونبلّغ البائع يشحن."
+msgstr "✅ Receipt received — we'll confirm the payment within minutes and tell the seller to ship."
+
+msgid "سوق المطابع: إيصالات مستنية تأكيد"
+msgstr "Print market: receipts awaiting confirmation"
+
+msgid "سوق المطابع: مشاكل مستنية حكمك"
+msgstr "Print market: disputes awaiting your decision"
+
+msgid "سوق المطابع: طلبات اكتملت — حوّل للمطبعة"
+msgstr "Print market: completed orders — pay the print shop"
+
+msgid "تأكيد الدفع — الفلوس تتحجز في الـ Escrow والبائع يشحن"
+msgstr "Confirm payment — money is held in escrow and the seller ships"
+
+msgid "تأكيد الإيصال؟ الفلوس هتتحجز في الـ Escrow والبائع هيتبلّغ يشحن."
+msgstr "Confirm this receipt? The money will be held in escrow and the seller will be told to ship."

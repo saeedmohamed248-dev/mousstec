@@ -10,7 +10,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Sum, F, Q
+from django.db.models import Count, Sum, F, Q
 from django.utils import timezone
 from django.db import connection, transaction, close_old_connections
 from django.core.cache import cache
@@ -96,7 +96,10 @@ def _agent_b2b_market(query: str, schema_name: str) -> list:
         # 🔌 إدارة الـ DB connections بشكل صحيح داخل الـ thread
         close_old_connections()
         with schema_context('public'):
-            matches = GlobalB2BMarketplace.objects.select_related('tenant').filter(
+            # 🐛 [FIX]: التقييم الافتراضي للتاجر 5.00 (من غير أي تقييم) كان بيبان ★★★★★ لأي تاجر
+            #    جديد «غير معتمد» — تقييم مش حقيقي. النجوم بتظهر بس لو التاجر اتقيّم فعلاً.
+            rated = Count('tenant__tender_offers', filter=Q(tenant__tender_offers__customer_rating__isnull=False))
+            matches = GlobalB2BMarketplace.objects.select_related('tenant').annotate(_rated=rated).filter(
                 Q(part_number__icontains=query) | Q(product_name__icontains=query),
                 available_qty__gt=0,
                 tenant__is_active=True,
@@ -108,7 +111,7 @@ def _agent_b2b_market(query: str, schema_name: str) -> list:
                 {
                     'tenant_name': m.tenant.name,
                     'is_verified': m.tenant.is_verified_merchant,
-                    'rating': float(m.tenant.market_rating or 5.0),
+                    'rating': float(m.tenant.market_rating or 0) if m._rated else 0,
                     'part_number': m.part_number,
                     'product_name': m.product_name,
                     'wholesale_price': float(m.wholesale_price),

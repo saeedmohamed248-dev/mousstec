@@ -48,6 +48,11 @@
     "background:#B4541F;color:#fff;border:0;border-radius:999px;padding:11px 16px;" +
     "font:800 13px Cairo,Tahoma,sans-serif;box-shadow:0 8px 24px rgba(225,29,72,.35);cursor:pointer}" +
     ".mt-sw-fab:hover{filter:brightness(1.08)}" +
+    // 🐛 [FIX]: على الكمبيوتر الزرار العريض كان راكب على إجمالي الفاتورة في نقطة البيع (العمود
+    //    الشمال في العربي) — الكاشير مش شايف «الإجمالي بعد الخصم». بقى دايرة بالأيقونة والكلام
+    //    بيظهر لما الماوس يقف عليه (أو الفوكس بالكيبورد).
+    ".mt-sw-fab{padding:10px 12px}.mt-sw-fab>span:not(.mt-sw-dot){display:none}" +
+    ".mt-sw-fab:hover>span:not(.mt-sw-dot),.mt-sw-fab:focus-visible>span:not(.mt-sw-dot){display:inline}" +
     // 🐛 [FIX]: على الموبايل الزرار كان عريض (أيقونة + «مشكلة؟ كلّمنا») وراكب على المحتوى وعلى
     //    القائمة الجانبية وهي مفتوحة — بقى دايرة صغيرة بالأيقونة بس، وبيستخبى والقائمة مفتوحة.
     "@media(max-width:600px){.mt-sw-fab{padding:10px 12px;bottom:14px;left:12px;font-size:18px}" +

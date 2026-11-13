@@ -6,7 +6,7 @@
       <div class="fw-bold mt-2">{{ p.title }}</div>
       <div class="small pm-muted">{{ p.shop.name }}{% if p.shop.city %} · {{ p.shop.city }}{% endif %}</div>
       {% if p.shop_rating %}<div class="small">{% include "print_market/_stars.html" with avg=p.shop_rating %}</div>{% endif %}
-      {% if p.price_from %}<div class="small fw-bold" style="color:var(--pm)">{% trans "يبدأ من" %} {{ p.price_from|floatformat:"-2" }} {% trans "ج.م" %}{% if p.unit %} / {{ p.unit }}{% endif %}</div>{% endif %}
+      {% if p.price_from %}<div class="small fw-bold" style="color:var(--pm)">{% trans "يبدأ من" %} {{ p.price_from|num:"-2" }} {% trans "ج.م" %}{% if p.unit %} / {{ p.unit }}{% endif %}</div>{% endif %}
     </div>
   </a>
 </div>
