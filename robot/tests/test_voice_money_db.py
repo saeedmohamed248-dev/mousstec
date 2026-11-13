@@ -396,3 +396,176 @@ class PinLetGoTests(_MoneyFixture):
         self.assertIn("فلتر زيت", reply)
         self.assertNotEqual(payload.get("action"), "wizard_pin")
         self.assertFalse(wizard.wants_secret(self.device))
+
+
+class QuoteTests(_MoneyFixture):
+
+    def test_a_quote_is_a_draft_nothing_leaves_the_shelf_or_the_till(self):
+        from inventory.models import SaleInvoice
+        before = self.till_balance()
+        for said, action in (("اعملي عرض سعر", "wizard_customer"), ("أحمد محمود", "wizard_item"),
+                             ("2 فلتر زيت", "wizard_confirm"), ("أيوه", "wizard_more")):
+            reply, payload = self.say(said)
+            self.assertEqual(payload["action"], action, reply)
+        reply, payload = self.say("لا")                                   # no «كاش ولا آجل؟»: no money in a quote
+        self.assertEqual((payload["action"], payload["kind"]), ("entry_ask_branch", "quote"), reply)
+        self.assertIn("عرض سعر 2 فلتر زيت لـأحمد محمود بإجمالي 900 جنيه", reply)
+        reply, payload = self.say("هنا")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        invoice = SaleInvoice.objects.get()
+        self.assertIn(f"عرض سعر رقم {invoice.pk}", reply)
+        self.assertEqual((invoice.status, invoice.total_amount, invoice.customer_id),
+                         ("quotation", Decimal("900.00"), self.ahmed.pk))
+        self.assertEqual((self.stock(self.oil), self.till_balance()), (5, before))
+        self.assertEqual(Customer.objects.get(pk=self.ahmed.pk).balance, Decimal("0.00"))
+
+
+class ReturnTests(_MoneyFixture):
+
+    def sell_cash(self, said="بعت 2 فلتر زيت كاش"):
+        from inventory.models import SaleInvoice
+        self.say(said)
+        reply, payload = self.say("هنا")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        return SaleInvoice.objects.filter(is_return=False).latest("id")
+
+    def test_a_piece_back_the_cash_out_the_stock_in(self):
+        from inventory.models import SaleInvoice
+        invoice = self.sell_cash()
+        self.assertEqual((self.stock(self.oil), self.till_balance()), (3, Decimal("1900.00")))
+        reply, payload = self.say(f"رجّع 1 فلتر زيت من فاتورة رقم {invoice.pk}")
+        self.assertEqual((payload["action"], payload["kind"]), ("entry_confirm", "return"), reply)
+        self.assertIn(f"مرتجع فاتورة {invoice.pk}", reply)
+        self.assertEqual(self.stock(self.oil), 3)                         # nothing before «أيوه»
+        reply, payload = self.say("أيوه")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertIn("رد للعميل 450 جنيه كاش", reply)
+        self.assertEqual((self.stock(self.oil), self.till_balance()), (4, Decimal("1450.00")))
+        ret = SaleInvoice.objects.get(is_return=True)
+        self.assertEqual((ret.original_invoice_id, ret.status), (invoice.pk, "posted"))
+        # the rest of it, then nothing's left
+        self.say(f"رجّع فاتورة رقم {invoice.pk}")
+        reply, payload = self.say("أيوه")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertEqual((self.stock(self.oil), self.till_balance()), (5, Decimal("1000.00")))
+        reply, payload = self.say(f"رجّع فاتورة رقم {invoice.pk}")
+        self.assertIn("اترجعت كلها", reply)
+
+    def test_on_credit_nothing_leaves_the_till_the_account_goes_down(self):
+        self.sell_on_credit()
+        from inventory.models import SaleInvoice
+        invoice = SaleInvoice.objects.get()
+        before = self.till_balance()
+        self.say(f"رجع فاتورة رقم {invoice.pk}")
+        reply, payload = self.say("ايوه")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertEqual(self.till_balance(), before)
+        self.assertEqual(Customer.objects.get(pk=self.ahmed.pk).balance, Decimal("0.00"))
+        self.assertEqual(self.stock(self.oil), 5)
+
+    def test_what_cannot_be_returned(self):
+        invoice = self.sell_cash()
+        for said, words in ((f"رجّع 5 فلتر زيت من فاتورة رقم {invoice.pk}", "2 بس"),
+                            (f"رجّع بوجيه من فاتورة رقم {invoice.pk}", "مش لاقي «بوجيه»"),
+                            ("رجّع فاتورة رقم 999999", "مش لاقي فاتورة"),
+                            ("اعمل مرتجع", "قول رقم الفاتورة")):
+            reply, payload = self.say(said)
+            self.assertEqual(payload["action"], "entry_incomplete", said)
+            self.assertIn(words, reply, said)
+        self.assertIsNone(money.parse("رجع الصوت زي ما كان"))
+        self.assertIsNone(money.parse("ارجع بكره"))
+
+    def test_the_till_short_or_a_no_nothing_is_returned(self):
+        invoice = self.sell_cash()
+        self.say(f"رجّع فاتورة رقم {invoice.pk}")
+        reply, payload = self.say("لا")
+        self.assertEqual(payload["action"], "entry_cancelled", reply)
+        Treasury.objects.filter(pk=self.till.pk).update(balance=Decimal("10.00"))
+        self.say(f"رجّع فاتورة رقم {invoice.pk}")
+        reply, payload = self.say("أيوه")
+        self.assertEqual(payload["action"], "entry_failed", reply)
+        from inventory.models import SaleInvoice
+        self.assertFalse(SaleInvoice.objects.filter(is_return=True).exists())
+        self.assertEqual((self.stock(self.oil), self.till_balance()), (3, Decimal("10.00")))
+
+
+class TransferTests(_MoneyFixture):
+
+    def setUp(self):
+        from inventory.tests.factories import make_treasury
+        super().setUp()
+        Treasury.objects.filter(pk=self.till.pk).update(name="خزنة الكاش")
+        self.bank = make_treasury(self.branch, name="حساب البنك", balance="0.00", type="bank")
+
+    def test_between_the_branchs_treasuries(self):
+        reply, payload = self.say("حوّل 300 جنيه من خزنة الكاش لخزنة البنك")
+        self.assertEqual((payload["action"], payload["kind"]), ("entry_confirm", "transfer"), reply)
+        self.assertIn("تحويل 300 جنيه من خزنة الكاش إلى حساب البنك", reply)
+        reply, payload = self.say("أيوه")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertEqual((self.till_balance(), Treasury.objects.get(pk=self.bank.pk).balance),
+                         (Decimal("700.00"), Decimal("300.00")))
+        # a transfer isn't an expense
+        reply, payload = self.say("صرفنا كام النهارده؟")
+        self.assertIn("مفيش مصاريف", reply)
+
+    def test_never_more_than_is_there_and_both_named(self):
+        reply, payload = self.say("حول 5000 جنيه من خزنة الكاش للبنك")
+        self.assertEqual(payload["action"], "entry_incomplete")
+        self.assertIn("1000 جنيه بس", reply)
+        reply, payload = self.say("حول 100 جنيه من خزنة الكاش لخزنة المريخ")
+        self.assertIn("مش عارف أنهي خزنة", reply)
+        reply, payload = self.say("حول 100 جنيه")
+        self.assertIn("قولها كاملة", reply)
+        self.assertEqual(self.till_balance(), Decimal("1000.00"))
+
+
+class PayrollTests(_MoneyFixture):
+
+    def setUp(self):
+        from hr.models import Employee
+        super().setUp()
+        Employee.objects.filter(pk=self.manager.pk).update(base_salary=Decimal("300.00"))
+        from django.utils import timezone
+        self.month = timezone.localdate().month
+
+    def test_calculated_then_paid_on_a_yes(self):
+        from hr.models import PayrollRun
+        reply, payload = self.say("احسب مرتبات الشهر ده")
+        self.assertEqual(payload["action"], "payroll_calculated", reply)
+        self.assertIn("مفيش فلوس خرجت", reply)
+        run = PayrollRun.objects.get()
+        self.assertEqual((run.status, run.period_month), ("calculated", self.month))
+        self.assertEqual(self.till_balance(), Decimal("1000.00"))
+        reply, payload = self.say(f"اصرف مرتبات شهر {self.month}")
+        self.assertEqual((payload["action"], payload["kind"]), ("entry_confirm", "payroll"), reply)
+        self.assertEqual(PayrollRun.objects.get().status, "calculated")   # nothing before «أيوه»
+        reply, payload = self.say("أيوه")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        run.refresh_from_db()
+        self.assertEqual(run.status, "paid")
+        self.assertEqual(self.till_balance(), Decimal("1000.00") - run.total_net)
+        reply, payload = self.say(f"اصرف مرتبات شهر {self.month}")
+        self.assertIn("اتصرفت قبل كده", reply)
+
+    def test_not_calculated_yet_or_not_a_manager(self):
+        from hr.models import Employee, PayrollRun
+        reply, payload = self.say("اصرف المرتبات")
+        self.assertIn("لسه متحسبتش", reply)
+        user, _ = make_employee(username="acc7", role="accountant", branch=self.branch)
+        accountant, _ = Employee.objects.get_or_create(user=user)
+        reply, payload = self.say("احسب مرتبات الشهر ده", employee=accountant)
+        self.assertEqual(payload["action"], "payroll_calculated", reply)
+        reply, payload = self.say("اصرف المرتبات", employee=accountant)   # keeps them; doesn't pay them
+        self.assertEqual(payload["action"], "denied", reply)
+        self.assertEqual(PayrollRun.objects.get().status, "calculated")
+
+    def test_no_treasury_covers_them_none_is_paid(self):
+        from hr.models import PayrollRun
+        self.say("احسب مرتبات الشهر ده")
+        Treasury.objects.all().update(balance=Decimal("1.00"))
+        self.say("اصرف المرتبات")
+        reply, payload = self.say("أيوه")
+        self.assertEqual(payload["action"], "entry_failed", reply)
+        self.assertEqual(PayrollRun.objects.get().status, "calculated")   # not left approved-and-unpaid
+        self.assertFalse(FinancialTransaction.objects.filter(description__startswith="راتب").exists())

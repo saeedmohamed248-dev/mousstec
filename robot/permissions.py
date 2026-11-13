@@ -36,6 +36,12 @@ _MATRIX = {
     "collect":           {"manager", "supervisor", "accountant", "cashier"},
     "vendor_pay":        {"manager", "accountant"},
     "advance":           {"manager", "accountant", "hr"},
+    # A sale returned, money between the branch's treasuries, the month's salaries (calculated by
+    # whoever keeps them; paid only by a manager).
+    "return":            {"manager", "supervisor", "accountant"},
+    "transfer":          {"manager", "accountant"},
+    "payroll":           {"manager", "accountant", "hr"},
+    "payroll_pay":       {"manager"},
     # Quran / music in the shop, by voice (robot/assistant.py).
     "media":             {"manager", "supervisor"},
     # The staff's questions: today's sales, what's running low.
@@ -70,6 +76,10 @@ _ACTION_LABEL = {
     "collect": "التحصيل من عميل",
     "vendor_pay": "الدفع لمورد",
     "advance": "تسجيل سلفة",
+    "return": "عمل مرتجع",
+    "transfer": "التحويل بين الخزن",
+    "payroll": "حساب المرتبات",
+    "payroll_pay": "صرف المرتبات",
     "treasury_report": "رصيد الخزنة",
     "accounts_report": "حسابات العملاء والموردين",
     "attendance_report": "الحضور والغياب",

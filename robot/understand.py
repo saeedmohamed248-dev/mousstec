@@ -58,7 +58,8 @@ LESSONS_MOST = 400
 LESSONS_KEEP_S = 600
 HINTS_MOST = 40                    # part names sent with the sentence
 
-INTENTS = frozenset({"part", "car", "stock", "sale", "purchase", "expense", "collect", "vendor_pay", "advance", "answer", "yes", "no", "cancel",
+INTENTS = frozenset({"part", "car", "stock", "sale", "purchase", "expense", "collect", "vendor_pay", "advance",
+                     "quote", "return", "transfer", "payroll", "answer", "yes", "no", "cancel",
                      "thanks", "greeting", "chat", "workshop", "staff", "other", "unclear"})
 # What can be learned whatever came before it (never an answer to a step's question).
 _LEARNABLE = frozenset({"part", "car", "stock", "sale", "purchase", "cancel", "thanks", "greeting", "chat",
@@ -86,6 +87,7 @@ _PROMPT = """\
 - intent واحد من: part (سؤال عن قطعة: موجودة؟ بكام؟ فين؟ تركب على إيه؟)، car (العربية أو الموتور بس)،
   stock (إضافة للمخزون)، sale (فاتورة مبيعات)، purchase (فاتورة مشتريات)، expense (مصروف)،
   collect (تحصيل فلوس من عميل آجل)، vendor_pay (دفع فلوس لمورد)، advance (سلفة لموظف)،
+  quote (عرض سعر)، return (مرتجع بيع)، transfer (تحويل بين خزن)، payroll (حساب أو صرف المرتبات)،
   answer (إجابة على سؤال الروبوت المستني)، yes، no، cancel (إلغاء)، thanks، greeting،
   chat (دردشة أو مناقشة عامة في أي موضوع: كورة، الجو، الشغل، رأيه في عربية)،
   workshop (سؤال فني: صيانة، وايرنج، فيشة كمبيوتر، كود عطل، عطل، تركيب)، staff (سؤال إداري: مبيعات النهارده، النواقص)،
@@ -98,6 +100,9 @@ _PROMPT = """\
   • «اعمل فاتورة مبيعات»، «اعمل فاتورة مشتريات»، «سجل مصروف <المبلغ> <على إيه>».
   • تحصيل: «حصل <المبلغ> جنيه من <اسم العميل>»؛ دفع لمورد: «ادفع <المبلغ> جنيه للمورد <اسم المورد>»؛
     سلفة: «سجل سلفة <المبلغ> جنيه للموظف <اسم الموظف>». المبلغ بالأرقام، والاسم زي ما اتقال بالظبط.
+  • عرض سعر: «اعمل عرض سعر»؛ مرتجع: «رجع فاتورة رقم <الرقم>» أو «رجع <العدد> <القطعة> من فاتورة رقم <الرقم>»؛
+    تحويل: «حول <المبلغ> جنيه من خزنة <الاسم> لخزنة <الاسم>»؛
+    مرتبات: «احسب مرتبات شهر <رقم الشهر>» أو «اصرف مرتبات شهر <رقم الشهر>» (من غير شهر: «احسب مرتبات الشهر ده»).
   • سؤال إداري (staff) بالشكل ده: «بعنا كام النهارده»، «مبيعات امبارح»، «مبيعات الشهر ده»،
     «صرفنا كام النهارده»، «رصيد الخزنة كام»، «حساب العميل <الاسم>»، «حساب المورد <الاسم>»،
     «مين حاضر النهارده»، «مين غايب النهارده»، «ايه النواقص».
