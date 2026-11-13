@@ -35,6 +35,8 @@
 #include <WiFiClientSecure.h>
 #include "SD_MMC.h"
 #include <time.h>
+#include <Preferences.h>
+#include <esp_system.h>
 
 // A request body held in RAM, handed to HTTPClient as a stream. POST(buffer,
 // size) writes the whole body in one call and fails with -3 (SEND_PAYLOAD_
@@ -116,15 +118,36 @@ const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";
 #define HREF_GPIO_NUM 23
 #define PCLK_GPIO_NUM 22
 
+// A weak 5 V browns the board out the moment the radio transmits at full
+// power: it restarted over and over and never reached the server (the shop's
+// first boot: "Brownout detector was triggered"). After one brownout the
+// radio stays at a lower power for good — as the bridge does.
+bool wifiLowPower() {
+  Preferences prefs;
+  prefs.begin("cam", false);
+  bool low = prefs.getBool("txlow", false);
+  if (!low && esp_reset_reason() == ESP_RST_BROWNOUT) {
+    low = true;
+    prefs.putBool("txlow", true);
+  }
+  prefs.end();
+  return low;
+}
+
 void connectWifi() {
   // Clock (UTC) to date photos taken offline; once set it keeps running.
   configTime(0, 0, "pool.ntp.org", "time.google.com");
-  Serial.printf("[CAM] WiFi \"%s\"", WIFI_SSID);
+  bool low = wifiLowPower();
+  // Printed before the radio starts: if the log ends here, the board died
+  // (brownout) switching the radio on — the 5 V supply, not the Wi-Fi.
+  Serial.printf("[CAM] WiFi \"%s\" (TX %s)", WIFI_SSID,
+                low ? "8.5 dBm: low, a brownout happened before" : "13 dBm");
   WiFi.mode(WIFI_STA);
   // Power save makes the radio doze between beacons, adding up to a few
   // hundred ms to every upload: the live view crawled. The camera is on
   // mains power, so it stays awake.
   WiFi.setSleep(false);
+  WiFi.setTxPower(low ? WIFI_POWER_8_5dBm : WIFI_POWER_13dBm);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED) {
@@ -133,7 +156,7 @@ void connectWifi() {
     // Wrong password or no router: say so and start over instead of hanging.
     if (millis() - t0 > 30000) { Serial.println(" no WiFi, restarting"); ESP.restart(); }
   }
-  Serial.printf(" %s (signal %d dBm)\n", WiFi.localIP().toString().c_str(), (int) WiFi.RSSI());
+  Serial.printf(" connected, IP %s (signal %d dBm)\n", WiFi.localIP().toString().c_str(), (int) WiFi.RSSI());
 }
 
 bool initCamera() {
@@ -304,6 +327,16 @@ void pushLiveFrame(bool motion) {
   esp_camera_fb_return(fb);
   sumMs += millis() - t0; sumBytes += len; frames++;
   if (code != 200) failed++;
+  // Each change of answer, at once: whether the server is reached (200),
+  // refuses the token (401) or can't be reached (negative) shows on the
+  // first frame, not twenty frames later.
+  static int lastCode = 0;
+  if (code != lastCode) {
+    Serial.printf("[CAM] /camera/frame/ → %d%s\n", code,
+                  code == 200 ? " (live)" : code == 401 ? " (bad token or domain)" :
+                  code < 0 ? " (can't reach the server)" : "");
+    lastCode = code;
+  }
   if (frames == 20) {
     Serial.printf("[CAM] 20 frames: %lu ms each, %lu KB each, %d failed (last %d)\n",
                   sumMs / 20, sumBytes / 20 / 1024, failed, code);
