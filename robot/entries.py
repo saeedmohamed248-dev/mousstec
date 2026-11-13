@@ -517,7 +517,7 @@ def answer(entry, text: str):
     if is_cancel(text):
         _finish(entry, "cancelled", message="اتلغت بالصوت")
         return "ماشي، لغيتها ومسجلتش حاجة.", {"action": "entry_cancelled", "entry_id": entry.pk}
-    if entry.data.get("confirm"):
+    if entry.data.get("confirm") is True:
         if not talk.just_yes(text):
             return None
         branch = branch_by_id(entry.data.get("branch_id")) or entry.device.branch
