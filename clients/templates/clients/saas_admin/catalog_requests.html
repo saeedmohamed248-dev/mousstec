@@ -31,6 +31,9 @@
         .contact a { text-decoration:none; font-weight:800; border-radius:10px; padding:7px 12px; display:inline-flex; gap:6px; align-items:center; font-size:13px; }
         .call { background:#1E2A57; color:#fff; }
         .wa { background:#16a34a; color:#fff; }
+        .ask { background:#b45309; color:#fff; }
+        .printer { background:#fff; color:#1E2A57; border:1px solid #1E2A57; }
+        .pill.warn { background:#fef3c7; color:#92400e; }
         .details { background:#FBF9F5; border-radius:10px; padding:8px 10px; margin-top:8px; white-space:pre-wrap; font-size:13.5px; }
         form.upd { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; align-items:flex-start; }
         form.upd select, form.upd textarea { border:1px solid #D9D2C5; border-radius:10px; padding:7px 10px; font:inherit; font-size:13px; }
@@ -73,7 +76,8 @@
         <div class="row">
             <span class="title">{{ r.item_title }}</span>
             <span class="pill {{ r.status }}">{{ r.get_status_display }}</span>
-            {% if r.notified_email is False or r.notified_whatsapp is False %}<span class="pill" style="background:#fee2e2;color:#991b1b;" title="{% trans 'الإيميل أو الواتساب ماوصلش — راجع إعدادات SMTP/WhatsApp' %}">⚠️ {% trans "الإشعار ماوصلش" %}</span>{% endif %}
+            {# 🐛 [FIX]: التحذير ماكانش بيقول أنهي قناة اللي وقعت (واتساب ولا إيميل) #}
+            {% if r.notified_email is False or r.notified_whatsapp is False %}<span class="pill" style="background:#fee2e2;color:#991b1b;" title="{% trans 'الإيميل أو الواتساب ماوصلش — راجع إعدادات SMTP/WhatsApp' %}">⚠️ {% trans "الإشعار ماوصلش" %} ({% if r.notified_whatsapp is False %}{% trans "واتساب" %}{% endif %}{% if r.notified_email is False and r.notified_whatsapp is False %} + {% endif %}{% if r.notified_email is False %}{% trans "إيميل" %}{% endif %})</span>{% endif %}
             <span class="muted">{{ r.store_name }} · {% if r.sector == 'automotive' %}{% trans "قطع غيار" %}{% else %}{% trans "طباعة" %}{% endif %} · <span dir="ltr">{{ r.created_at|date:"Y-m-d H:i" }}</span></span>
         </div>
         <div class="row" style="margin-top:6px;">
@@ -86,16 +90,26 @@
         {# 🎨 اختيارات العميل (مقاس/لون/شكل/تشطيب) #}
         <div class="row" style="margin-top:6px;">
             {% if r.options.size %}<span class="pill">{% trans "المقاس" %}: {{ r.options.size }}</span>{% endif %}
+            {% if r.options.dimensions %}<span class="pill">{% trans "المقاس بالسنتي" %}: {{ r.options.dimensions }}</span>{% endif %}
             {% if r.options.color %}<span class="pill"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;border:1px solid #D9D2C5;background:{{ r.options.color_hex }};"></span> {{ r.options.color }}</span>{% endif %}
             {% if r.options.shape %}<span class="pill">{% trans "الشكل" %}: {{ r.options.shape }}</span>{% endif %}
             {% if r.options.finish %}<span class="pill">{% trans "التشطيب" %}: {{ r.options.finish }}</span>{% endif %}
         </div>
         {% endif %}
-        {% if r.attachment %}<div class="row" style="margin-top:6px;"><a href="{{ r.attachment.url }}" target="_blank" rel="noopener" style="color:#1E2A57; font-weight:700;"><i class="fas fa-paperclip"></i> {% trans "لوجو/تصميم العميل" %}</a></div>{% endif %}
+        {% if r.attachment_url %}<div class="row" style="margin-top:6px;"><a href="{{ r.attachment_url }}" target="_blank" rel="noopener" style="color:#1E2A57; font-weight:700;"><i class="fas fa-paperclip"></i> {% trans "لوجو/تصميم العميل" %}</a></div>{% endif %}
+        {% if r.needs_dims or r.needs_design %}
+        {# 🖨️ ناقص حاجة قبل ما الطلب يروح المطبعة ⇒ قول إيه الناقص واطلبه من العميل بضغطة #}
+        <div class="row" style="margin-top:6px;">
+            {% if r.needs_dims %}<span class="pill warn">📏 {% trans "المقاس بالسنتي مش متحدد" %}</span>{% endif %}
+            {% if r.needs_design %}<span class="pill warn">📎 {% trans "العميل ما رفعش ملف التصميم" %}</span>{% endif %}
+        </div>
+        {% endif %}
         {% if r.details %}<div class="details">{{ r.details }}</div>{% endif %}
         <div class="row contact" style="margin-top:8px;">
             <a class="call" href="tel:{{ r.phone }}"><i class="fas fa-phone"></i> {% trans "اتصل" %}</a>
             <a class="wa" target="_blank" rel="noopener" href="https://wa.me/{{ r.wa_number }}?text={% filter urlencode %}{% blocktrans with n=r.name t=r.item_title %}أهلاً {{ n }}، معاك Mouss Tec بخصوص طلب السعر بتاع «{{ t }}».{% endblocktrans %}{% endfilter %}"><i class="fab fa-whatsapp"></i> {% trans "واتساب" %}</a>
+            {% if r.ask_text %}<a class="ask" target="_blank" rel="noopener" href="https://wa.me/{{ r.wa_number }}?text={{ r.ask_text|urlencode:'' }}"><i class="fab fa-whatsapp"></i> {% trans "اطلب المقاس والتصميم" %}</a>{% endif %}
+            {% if r.printer_text %}<a class="printer" target="_blank" rel="noopener" href="https://wa.me/?text={{ r.printer_text|urlencode:'' }}"><i class="fas fa-print"></i> {% trans "ابعت للمطبعة" %}</a>{% endif %}
             {% if r.item %}<a href="/marketplace/catalog/item/{{ r.item.item_code }}/" target="_blank" rel="noopener" style="color:#1E2A57;"><i class="fas fa-up-right-from-square"></i> {% trans "المنتج" %}</a>{% endif %}
         </div>
         {% if r.review_url %}
