@@ -1090,3 +1090,15 @@ conversation, a cough, or `[robot] teach = no`: as before, no minutes on it.
   paid, refused when the till can't cover it); the transfer is the treasuries screen's two linked
   movements; «احسب» only calculates (`PayrollService.generate_payroll`), «اصرف» approves and pays a
   calculated month — a manager's (`payroll_pay`), refused whole when no treasury covers a salary.
+
+### A cash sale and an expense, said with the net down (brain-0.9.16)
+
+Offline the books were the counter page's only. Now «يا موس، بعت 2 فلتر زيت كاش» and «سجل مصروف ميتين
+جنيه بنزين» are taken by voice too (`robot/brain/voicedesk.py`), by the counter's own rules
+(`counter.Counter`: cash only, a part that's out isn't sold, the role decides): the PIN is asked (said
+digit by digit, remembered 10 minutes, three wrong ones lock it, never logged), what was understood is
+read back with its amount — «بيع حتتين فلتر زيت بإجمالي تسعمية جنيه، أسجله؟» — and only «أيوه» writes it
+to the outbox, for the ERP's own posting when the net is back (`robot/offline_ledger.py`). The amount is
+said from clips (`saynumber.py`: «ألف وميتين وخمسين», fetched into the voice bank while online). Credit,
+collections, returns and the rest still wait for the net — and say so. Online none of this runs: the
+server's wizard does.

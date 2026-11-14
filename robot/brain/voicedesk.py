@@ -70,8 +70,9 @@ class VoiceDesk:
     """One robot's offline desk. `counter`: robot/brain/counter.Counter — its staff, its stock
     rule, its outbox. `log`: the brain's (never given a PIN)."""
 
-    def __init__(self, counter, lookup, *, log=print, clock=time.time):
+    def __init__(self, counter, lookup, *, offline=lambda: True, log=print, clock=time.time):
         self.counter, self.lookup, self.log, self.clock = counter, lookup, log, clock
+        self.offline = offline             # with the net up the server's wizard does all this
         self._step = None                  # {"step": "pin"|"confirm", "want": {...}, "at": t}
         self._staff = None                 # (who, until)
         self._wrong, self._locked_until = 0, 0.0
@@ -85,6 +86,9 @@ class VoiceDesk:
     def hear(self, text: str):
         """The reply to `text` when it's the desk's — a request it takes, or the answer to its
         own question — else None (someone else's sentence)."""
+        if not self.offline():
+            self._step = None
+            return None
         said = _said(text)
         step = self._open()
         if step is not None:

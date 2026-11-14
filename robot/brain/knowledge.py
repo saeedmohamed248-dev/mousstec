@@ -295,7 +295,7 @@ AND_BRANCH = "وفرع"
 IN_SHELF = "موجود في الرف"
 NEEDS_NET = "الأمر ده محتاج النت علشان أتأكد مين بيكلمني. أول ما يرجع هعمله."
 WEB_NEEDS_NET = "النت فاصل دلوقتي، فمقدرش أدوّر. أول ما يرجع اسألني تاني."
-ENTRY_NEEDS_NET = "النت فاصل، فمقدرش أسجل بالصوت دلوقتي. سجّلها من صفحة الكاشير على الموبايل."
+ENTRY_NEEDS_NET = "النت فاصل، ومن غيره بسجل بالصوت البيع الكاش والمصروف بس. الباقي من صفحة الكاشير أو لما النت يرجع."
 SEVERAL = "عندي أكتر من صنف:"
 WHICH = "تقصد أنهي؟"
 MEAN = "تقصد"
@@ -335,6 +335,7 @@ def priced_after(price: float) -> str:
 class Knowledge:
     def __init__(self, catalog: Optional[dict] = None):
         self.update(catalog or {})
+        self.desk = None                    # voicedesk.VoiceDesk: a cash sale, an expense, said offline
         self._heard_at = 0.0                # the follow-up window, like the server's
         # robot/memory.py: the part the conversation is on, the parts just offered.
         self._on: Optional[Part] = None
@@ -550,6 +551,10 @@ class Knowledge:
 
     def _respond(self, text: str, now: float) -> Reply:
         """robot/views._answer_voice, on the catalog."""
+        if self.desk is not None:                   # «سجل مصروف …», «بعت … كاش» — and its own questions
+            took = self.desk.hear(text)
+            if took is not None:
+                return took
         heard = self._restock_hear(text, now)       # robot/restock.hear
         if heard is not None:
             return heard
@@ -811,7 +816,10 @@ class Knowledge:
         """Every clip an offline answer can need — what's in stock first."""
         from . import talk
 
+        from . import voicedesk
+
         texts = list(FIXED) + list(talk.PHRASES) + [f"أنا {self.wake_name}،", OTHER_BRANCH, AND_BRANCH]
+        texts += voicedesk.clips()                  # the offline desk's sentences, and numbers said
         texts += [talk.branch_said(b.get("name")) for b in self.catalog.get("branches") or [] if isinstance(b, dict)]
         texts += [str(r.get("answer") or "").strip() for r in self.replies]    # «الردود الجاهزة»
         texts += [available(n) for n in range(1, COUNTED_UP_TO + 1)]

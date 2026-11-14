@@ -39,13 +39,14 @@ def words(n: int) -> list:
         raise ValueError(f"{n}: only 0…{MOST} is said from clips")
     if n == 0:
         return [ZERO]
-    parts, thousands, rest = [], n // 1000, n % 1000
+    thousands, rest = n // 1000, n % 1000
+    said = []                                   # (the clip, joined to what's before it with «و»?)
     if 1 <= thousands <= 10:
-        parts.append(THOUSANDS[thousands])
+        said.append((THOUSANDS[thousands], True))
     elif thousands:
-        parts += _below_thousand(thousands) + [THOUSAND]
-    parts += _below_thousand(rest)
-    return [parts[0]] + ["و" + p for p in parts[1:]]
+        said += [(w, True) for w in _below_thousand(thousands)] + [(THOUSAND, False)]   # «حداشر ألف»
+    said += [(w, True) for w in _below_thousand(rest)]
+    return [said[0][0]] + [("و" + w) if joined else w for w, joined in said[1:]]
 
 
 def text(n: int) -> str:
