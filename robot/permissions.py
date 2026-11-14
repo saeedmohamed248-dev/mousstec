@@ -40,6 +40,7 @@ _MATRIX = {
     # whoever keeps them; paid only by a manager).
     "return":            {"manager", "supervisor", "accountant"},
     "transfer":          {"manager", "accountant"},
+    "purchase_return":   {"manager", "accountant", "purchasing"},
     "payroll":           {"manager", "accountant", "hr"},
     "payroll_pay":       {"manager"},
     # Quran / music in the shop, by voice (robot/assistant.py).
@@ -77,6 +78,7 @@ _ACTION_LABEL = {
     "vendor_pay": "الدفع لمورد",
     "advance": "تسجيل سلفة",
     "return": "عمل مرتجع",
+    "purchase_return": "عمل مرتجع مشتريات",
     "transfer": "التحويل بين الخزن",
     "payroll": "حساب المرتبات",
     "payroll_pay": "صرف المرتبات",

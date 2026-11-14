@@ -810,6 +810,7 @@ class RobotEntry(models.Model):
         ("transfer", _("تحويل بين خزن")),
         ("payroll", _("صرف مرتبات")),
         ("quote", _("عرض سعر")),
+        ("pur_return", _("مرتجع مشتريات")),
     ]
     STATUS = [
         ("pending", _("مستني الفرع")),

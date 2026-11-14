@@ -60,7 +60,9 @@ _NAME_LEAD = re.compile(r"^(?:من|ل|لل|الي|علي|عند|باسم|الع�
 _NAME_TAIL = re.compile(r"\s+(?:كاش|نقدي|نقدا|من حسابه|من الحساب|علي الحساب|تحت الحساب|لو سمحت)$")
 
 _RETURN = re.compile(_LEAD + r"(?:مرتجع|رجع|رجعلي|ارجع|استرجع|استرجاع)(?:\s+(.+))?$")
-_INVOICE_NO = re.compile(r"(?:ال)?فاتوره\s+(?:رقم\s+|نمره\s+)?(\d+)")
+_INVOICE_NO = re.compile(r"(?:ال)?فاتوره\s+(?:(?:ال)?(?:مشتريات|شراء|شرا|مبيعات|بيع)\s+)?(?:رقم\s+|نمره\s+)?(\d+)")
+# «رجّع فاتورة مشتريات رقم 12», «رجّع للمورد …»: back to the vendor, not from a customer.
+_TO_VENDOR = re.compile(r"(?:^|\s)(?:(?:ال)?مشتريات|شراء|شرا|لل?مورد|(?:ال)?مورد)(?:\s|$)")
 _TRANSFER = re.compile(_LEAD + r"(?:حول|حولي|انقل|تحويل)\s+(.+)$")
 _FROM_TO = re.compile(r"من\s+(?P<src>.+?)\s+(?:الي\s+|علي\s+|لل|ل(?=خز|در|حساب|ال|بنك|فيزا|محفظ|كاش))(?P<dst>.+)$")
 _PAYROLL = re.compile(r"^(?P<do>احسب|احسبلي|جهز|جهزلي|طلع|طلعلي|اعمل|اصرف|ادفع|نزل|صرف)\s+(?:كشف\s+)?"
@@ -70,14 +72,15 @@ _SAFE_WORDS = re.compile(r"^(?:ال)?(?:خزنه|خزينه|درج|حساب)\s+"
 _SAFE_TYPES = {"كاش": "cash", "الكاش": "cash", "نقدي": "cash", "النقديه": "cash", "بنك": "bank", "البنك": "bank",
                "البنكي": "bank", "فيزا": "visa", "الفيزا": "visa", "محفظه": "wallet", "المحفظه": "wallet"}
 
-KINDS = ("collection", "vendor_pay", "advance", "return", "transfer", "payroll")
-CONFIRMED = ("return", "transfer", "payroll")        # «أيوه» — their place is known, no branch asked
+KINDS = ("collection", "vendor_pay", "advance", "return", "transfer", "payroll", "pur_return")
+CONFIRMED = ("return", "transfer", "payroll", "pur_return")        # «أيوه» — their place is known, no branch asked
 EXAMPLES = {
     "collection": "«حصّل 500 جنيه من أحمد محمود»",
     "vendor_pay": "«ادفع 1000 جنيه للمورد الأمل»",
     "advance": "«سجل سلفة 500 جنيه للموظف محمد علي»",
     "return": "«رجّع فاتورة رقم 125» أو «رجّع 1 فلتر زيت من فاتورة رقم 125»",
     "transfer": "«حوّل 500 جنيه من خزنة الكاش لخزنة البنك»",
+    "pur_return": "«رجّع فاتورة مشتريات رقم 12» أو «رجّع 2 فلتر زيت من فاتورة مشتريات رقم 12»",
 }
 
 
@@ -114,8 +117,11 @@ def parse(text: str):
               or re.match(_LEAD + r"مرتجع(?:\s|$)", t)):       # «رجع الصوت» isn't one
         number = _INVOICE_NO.search(t)
         what = _INVOICE_NO.sub(" ", m.group(1) or "")
-        what = " ".join(w for w in what.split() if w not in ("من", "في", "بتاع", "بتاعه", "كلها", "كله", "كامله", "بيع"))
-        return {"kind": "return", "invoice": int(number.group(1)) if number else None, "what": what,
+        to_vendor = bool(_TO_VENDOR.search(t))
+        what = _TO_VENDOR.sub(" ", what) if to_vendor else what
+        what = " ".join(w for w in what.split() if w not in ("من", "في", "بتاع", "بتاعه", "كلها", "كله", "كامله",
+                                                             "بيع", "مبيعات", "فاتوره", "الفاتوره"))
+        return {"kind": "pur_return" if to_vendor else "return", "invoice": int(number.group(1)) if number else None, "what": what,
                 "amount": None, "name": ""}
     m = _TRANSFER.match(t)
     if m:
@@ -245,7 +251,7 @@ def _money(value) -> str:
 # ---------------------------------------------------------------------------
 
 _ACTION = {"collection": "collect", "vendor_pay": "vendor_pay", "advance": "advance", "return": "return",
-           "transfer": "transfer", "payroll": "payroll"}
+           "transfer": "transfer", "payroll": "payroll", "pur_return": "purchase_return"}
 _WHO = {"collection": "العميل", "vendor_pay": "المورد", "advance": "الموظف"}
 
 
@@ -262,6 +268,8 @@ def voice_request(text: str, device, employee):
         return permissions.denial_message(action), {"action": "denied"}
     if kind == "return":
         return _ask_return(asked, device, employee)
+    if kind == "pur_return":
+        return _ask_purchase_return(asked, device, employee)
     if kind == "transfer":
         return _ask_transfer(asked, device, employee)
     if kind == "payroll":
@@ -350,6 +358,46 @@ def _ask_return(asked, device, employee):
     return reply, {"action": "entry_confirm", "kind": "return"}
 
 
+def _ask_purchase_return(asked, device, employee):
+    from inventory.models import PurchaseInvoice
+
+    from . import entries
+
+    kind = "pur_return"
+    if not asked["invoice"]:
+        return _incomplete(kind, f"قول رقم فاتورة المشتريات، مثلاً: {EXAMPLES[kind]}.")
+    invoice = PurchaseInvoice.objects.filter(pk=asked["invoice"]).select_related("vendor", "branch").first()
+    if invoice is None:
+        return _incomplete(kind, f"مش لاقي فاتورة مشتريات رقم {asked['invoice']}.")
+    if invoice.status != "posted" or not invoice.is_applied:
+        return _incomplete(kind, f"فاتورة المشتريات {invoice.pk} لسه مش مستلمة، فمينفعش يتعمل لها مرتجع.")
+    left = [(item, item.quantity - item.returned_quantity)
+            for item in invoice.items.select_related("product").all() if item.quantity - item.returned_quantity > 0]
+    if not left:
+        return _incomplete(kind, f"فاتورة المشتريات {invoice.pk} اترجعت كلها قبل كده.")
+    chosen = left
+    if asked["what"]:
+        num = re.match(r"^(\d+)\s+(.+)$", asked["what"])
+        qty, name = (int(num.group(1)), num.group(2)) if num else (None, asked["what"])
+        words = [w for w in wakename.normalize(name).split() if w not in ("ال", "حته", "قطعه", "حتت")]
+        match = [(item, n) for item, n in left
+                 if words and all(w in wakename.normalize(item.product.name) for w in words)]
+        if len(match) != 1:
+            names = "، ".join(item.product.name for item, _n in left[:5])
+            return _incomplete(kind, f"مش لاقي «{name}» في فاتورة المشتريات {invoice.pk}. اللي فيها: {names}.")
+        item, remaining = match[0]
+        qty = remaining if qty is None else qty
+        if qty < 1 or qty > remaining:
+            return _incomplete(kind, f"اللي ينفع يترجع من {item.product.name} في الفاتورة دي {remaining} بس.")
+        chosen = [(item, qty)]
+    said = " و".join(f"{n} {item.product.name}" for item, n in chosen[:6])
+    summary = f"مرتجع مشتريات للمورد {invoice.vendor.name} من فاتورة {invoice.pk}: {said}"
+    reply = entries.ask(device, kind=kind, summary=summary, amount=0, employee=employee, confirm=True,
+                        data={"invoice_id": invoice.pk, "amount": "0", "branch_id": invoice.branch_id,
+                              "items": [[item.pk, n] for item, n in chosen]})
+    return reply, {"action": "entry_confirm", "kind": kind}
+
+
 def _ask_transfer(asked, device, employee):
     from . import entries
 
@@ -419,7 +467,8 @@ def record(entry, branch):
     if entry.kind in CONFIRMED:
         try:
             with transaction.atomic():
-                return {"return": _return, "transfer": _transfer, "payroll": _pay_salaries}[entry.kind](entry)
+                return {"return": _return, "transfer": _transfer, "payroll": _pay_salaries,
+                        "pur_return": _purchase_return}[entry.kind](entry)
         except ValidationError as exc:
             raise entries.EntryError(f"{_why(exc)} فمسجلتش حاجة.") from exc
     with transaction.atomic():
@@ -552,3 +601,23 @@ def _pay_salaries(entry) -> str:
         PayrollService.approve_payroll(run.pk, approved_by=getattr(entry.employee, "user", None))
     run = PayrollService.disburse_payroll(run.pk)
     return (f"تمام، صرفت مرتبات شهر {run.period_month}: {run.total_employees} موظف بصافي {_money(run.total_net)}.")
+
+
+def _purchase_return(entry) -> str:
+    """The ERP's own return to a vendor (stock out, the average cost, the vendor's account) — on
+    account only: cash a vendor hands back is taken from the purchases screen."""
+    from inventory.models import PurchaseInvoice
+    from inventory.services.purchase_return_service import return_to_vendor
+
+    from . import entries
+
+    invoice = PurchaseInvoice.objects.filter(pk=entry.data["invoice_id"]).first()
+    if invoice is None:
+        raise entries.EntryError("فاتورة المشتريات دي مبقتش موجودة، فمسجلتش حاجة.")
+    done = return_to_vendor(invoice, [(item_id, qty) for item_id, qty in entry.data.get("items") or []],
+                            note="🤖 مرتجع بالصوت من الروبوت", user=getattr(entry.employee, "user", None))
+    entry.purchase_invoice = invoice
+    entry.amount = done["vendor_value"]
+    entry.save(update_fields=["purchase_invoice", "amount"])
+    return (f"تمام، سجلت {entry.summary}، بقيمة {_money(done['vendor_value'])} اتخصمت من حساب المورد. "
+            "لو المورد رجّع كاش، سجله من شاشة المشتريات.")

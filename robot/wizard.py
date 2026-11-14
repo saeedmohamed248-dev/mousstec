@@ -282,6 +282,10 @@ def _not_a_name(name: str) -> bool:
 def _kind_of(text: str, expense: bool = True):
     """'sale', 'purchase', 'expense', '' (an invoice, which one not said) or None."""
     said = wakename.normalize(text or "")
+    # «رجّع فاتورة مشتريات رقم 12» names an invoice to return (robot/money.py), not a new one.
+    from . import money
+    if (money.parse(text) or {}).get("kind") in ("return", "pur_return"):
+        return None
     if _QUOTE.search(said):
         return "quote"
     if _PURCHASE.search(said):

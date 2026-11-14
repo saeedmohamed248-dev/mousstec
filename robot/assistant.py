@@ -128,8 +128,16 @@ _VENDOR_OWED = re.compile(rf"^(?:كشف\s+)?حساب\s+(?:ال)?مورد\s+(?P<a
                           rf"|^(?:ال)?مورد\s+(?P<b>.+?)\s+(?:ليه|له|ليها|لها|حسابه)\s+{_HOW_MUCH}(?:\s+عندنا)?$"
                           rf"|^(?:علينا|عليا)\s+{_HOW_MUCH}\s+(?:لل?مورد|ل)\s*(?P<c>.+)$"
                           rf"|^{_HOW_MUCH}\s+(?:علينا|عليا)\s+(?:لل?مورد|ل)\s*(?P<d>.+)$")
+_DAY = re.compile(r"^(?:قفل|قفلي|اقفل|تقفيل)\s+(?:ال)?(?:يوم|يوميه|ورديه)(?:\s|$)"
+                  rf"|^(?:ملخص|حساب|تقرير)\s+(?:ال)?(?:يوم|يوميه|ورديه|{_TODAY})(?:\s|$)")
+# «سجل حضوري», «سجل انصرافي» — one's own, whoever they are. Said as a command only: «ماشي» and
+# «أنا جيت» are what customers say too.
+_CLOCK_IN = re.compile(r"^(?:سجل|سجلي|اعمل|اعملي)\s+(?:لي\s+)?(?:حضوري|حضور|الحضور)(?:\s|$)")
+_CLOCK_OUT = re.compile(r"^(?:سجل|سجلي|اعمل|اعملي)\s+(?:لي\s+)?(?:انصرافي|انصراف|الانصراف|خروجي)(?:\s|$)")
+HEADS_UP_AFTER = frozenset({"sales_today", "day_summary", "treasury"})   # the manager's own look at the day
+OVERDUE_DAYS = 30
 # What each question needs (robot/permissions.py).
-_NEEDS = {"sales_today": "sales_report", "sales_month": "sales_report", "sales_yesterday": "sales_report",
+_NEEDS = {"day_summary": "sales_report", "sales_today": "sales_report", "sales_month": "sales_report", "sales_yesterday": "sales_report",
           "spent_today": "sales_report", "low_stock": "stock_report", "treasury": "treasury_report",
           "customer_balance": "accounts_report", "vendor_balance": "accounts_report",
           "present": "attendance_report", "absent": "attendance_report"}
@@ -148,6 +156,8 @@ def staff_question(text: str) -> Optional[str]:
         return "low_stock"
     if any(ch.isdigit() for ch in t):            # «مصاريف 200 بنزين النهارده» is an entry, not a question
         return None
+    if _DAY.search(t):
+        return "day_summary"
     if _SALES_MONTH.search(t):
         return "sales_month"
     if _SALES_YESTERDAY.search(t):
@@ -185,6 +195,8 @@ def staff_answer(kind: str, device, employee, text: str = "") -> tuple:
         return WHO_ARE_YOU, {"action": "denied", "needs": "face"}
     if not permissions.employee_can(employee, action):
         return permissions.denial_message(action), {"action": "denied"}
+    if kind == "day_summary":
+        return _day_summary(device, employee)
     if kind in ("sales_month", "sales_yesterday"):
         return _sales_of(kind, device)
     if kind == "treasury":
@@ -215,6 +227,115 @@ def staff_answer(kind: str, device, employee, text: str = "") -> tuple:
     reply = f"فيه {total} صنف قرّب يخلص: {listed}"
     reply += "، وغيرهم في الداشبورد." if total > len(rows) else "."
     return reply, {"action": "low_stock", "count": total}
+
+
+def _day_summary(device, employee) -> tuple:
+    """«قفّل اليوم»: what was sold, spent and collected today on the robot's branch, and what the
+    treasuries hold now — the dashboard's own numbers."""
+    from django.db.models import Sum
+    from django.utils import timezone
+    from inventory.models import FinancialTransaction
+    from inventory.services.reporting_service import ReportingService
+
+    from .services import spoken_price
+
+    user = getattr(employee, "user", None)
+    stats = ReportingService.get_today_dashboard_stats(user, device.branch)
+    start = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
+    collected = FinancialTransaction.objects.filter(transaction_type="in", date__gte=start, customer__isnull=False,
+                                                    sale_invoice__is_return=False)
+    if device.branch is not None:
+        collected = collected.filter(treasury__branch=device.branch)
+    collected = collected.aggregate(s=Sum("amount"))["s"] or 0
+    safe = ReportingService.get_treasury_summary(user, device.branch)["total_treasury_balance"]
+    count, sold, spent = stats["invoices_count"], stats["total_sales_today"] or 0, stats["total_expenses_today"] or 0
+    parts = [f"اتباع {count} فاتورة بـ {spoken_price(sold)}" if count else "مفيش مبيعات",
+             f"المصاريف {spoken_price(spent)}" if spent else "مفيش مصاريف"]
+    if collected:
+        parts.append(f"اتحصل من العملاء {spoken_price(collected)}")
+    parts.append(f"والخزنة فيها دلوقتي {spoken_price(safe)}")
+    return ("ملخص النهارده: " + "، ".join(parts) + ".",
+            {"action": "day_summary", "count": count, "sold": float(sold), "spent": float(spent),
+             "collected": float(collected), "safe": float(safe)})
+
+
+def heads_up(device, employee) -> str:
+    """Once a day, to whoever looks at the day's numbers: what needs them — parts running low,
+    customers owing for over a month. '' when nothing does, or they were told today."""
+    from django.core.cache import cache
+    from django.utils import timezone
+
+    if employee is None or getattr(employee, "pk", None) is None:
+        return ""
+    key = f"robot:headsup:{device.pk}:{employee.pk}:{timezone.localdate().isoformat()}"
+    try:
+        if not cache.add(key, 1, 20 * 3600):
+            return ""
+    except Exception:
+        return ""
+    said = []
+    if permissions.employee_can(employee, "stock_report"):
+        from inventory.services.reporting_service import ReportingService
+        low = ReportingService.get_today_dashboard_stats(getattr(employee, "user", None), device.branch)["low_stock_count"]
+        if low:
+            said.append(f"فيه {low} صنف قرّب يخلص")
+    if permissions.employee_can(employee, "accounts_report"):
+        late = _overdue_customers(device.branch)
+        if late:
+            said.append(f"فيه {late} عميل عليهم فلوس بقالها أكتر من شهر")
+    return ("على فكرة، " + "، و".join(said) + ".") if said else ""
+
+
+def _overdue_customers(branch) -> int:
+    """Customers with a posted sale left unpaid for over OVERDUE_DAYS."""
+    from datetime import timedelta
+
+    from django.db.models import F
+    from django.utils import timezone
+    from inventory.models import SaleInvoice
+
+    old = (SaleInvoice.objects.filter(status="posted", is_return=False, customer__balance__gt=0,
+                                      date_created__lt=timezone.now() - timedelta(days=OVERDUE_DAYS))
+           .exclude(paid_amount__gte=F("total_amount")))
+    if branch is not None:
+        old = old.filter(branch=branch)
+    return old.values("customer_id").distinct().count()
+
+
+def attendance_command(text: str) -> Optional[str]:
+    """'in' | 'out' | None."""
+    t = _said(text)
+    if _CLOCK_OUT.search(t):
+        return "out"
+    if _CLOCK_IN.search(t):
+        return "in"
+    return None
+
+
+def attendance_reply(do: str, employee) -> tuple:
+    """One's own clock-in / clock-out, by HR's own service (lateness, hours, its rules)."""
+    from django.core.exceptions import ValidationError
+    from django.utils import timezone
+    from hr.services.attendance_service import AttendanceService
+
+    if employee is None:
+        return WHO_ARE_YOU, {"action": "denied", "needs": "face"}
+    name = (employee.user.first_name or employee.user.get_full_name() or employee.user.username).strip()
+    try:
+        if do == "in":
+            record = AttendanceService.clock_in(employee, face_verified=bool(getattr(employee, "robot_saw_face", False)))
+            at = timezone.localtime(record.clock_in)
+            late = int(getattr(record, "late_minutes", 0) or 0)
+            reply = f"صباح الفل يا {name}، سجلت حضورك الساعة {at:%H:%M}."
+            if late > 0:
+                reply += f" متأخر {late} دقيقة."
+        else:
+            record = AttendanceService.clock_out(employee)
+            at = timezone.localtime(record.clock_out)
+            reply = f"مع السلامة يا {name}، سجلت انصرافك الساعة {at:%H:%M}."
+    except ValidationError as exc:
+        return " ".join(str(m) for m in exc.messages), {"action": "attendance_refused", "do": do}
+    return reply, {"action": f"clock_{do}", "employee_id": employee.pk}
 
 
 def _sales_of(kind: str, device) -> tuple:

@@ -569,3 +569,137 @@ class PayrollTests(_MoneyFixture):
         self.assertEqual(payload["action"], "entry_failed", reply)
         self.assertEqual(PayrollRun.objects.get().status, "calculated")   # not left approved-and-unpaid
         self.assertFalse(FinancialTransaction.objects.filter(description__startswith="راتب").exists())
+
+
+class PurchaseReturnTests(_MoneyFixture):
+
+    def test_back_to_the_vendor_stock_out_and_off_their_account(self):
+        from inventory.models import PurchaseInvoice
+        self.buy_on_credit()                                              # 3 filters at 150: 450 owed
+        invoice = PurchaseInvoice.objects.get()
+        self.assertEqual(self.stock(self.oil), 8)
+        reply, payload = self.say(f"رجّع 1 فلتر زيت من فاتورة مشتريات رقم {invoice.pk}")
+        self.assertEqual((payload["action"], payload["kind"]), ("entry_confirm", "pur_return"), reply)
+        self.assertIn(f"مرتجع مشتريات للمورد الأمل من فاتورة {invoice.pk}: 1 فلتر زيت", reply)
+        self.assertEqual(self.stock(self.oil), 8)                          # nothing before «أيوه»
+        reply, payload = self.say("أيوه")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertIn("150 جنيه اتخصمت من حساب المورد", reply)
+        self.assertEqual((self.stock(self.oil), Vendor.objects.get(pk=self.vendor.pk).balance),
+                         (7, Decimal("300.00")))
+        self.assertEqual(self.till_balance(), Decimal("1000.00"))          # on account: no cash moves
+        # the rest of it, then nothing's left
+        self.say(f"رجع فاتورة مشتريات رقم {invoice.pk}")
+        reply, payload = self.say("أيوه")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertEqual((self.stock(self.oil), Vendor.objects.get(pk=self.vendor.pk).balance),
+                         (5, Decimal("0.00")))
+        reply, payload = self.say(f"رجع فاتورة مشتريات رقم {invoice.pk}")
+        self.assertIn("اترجعت كلها", reply)
+
+    def test_a_sale_return_is_not_a_purchase_return(self):
+        self.assertEqual(money.parse("رجع فاتورة رقم 5")["kind"], "return")
+        self.assertEqual(money.parse("رجع فاتورة مشتريات رقم 5")["kind"], "pur_return")
+        self.assertEqual(money.parse("رجع 2 فلتر زيت للمورد من فاتورة رقم 5")["kind"], "pur_return")
+        self.assertEqual(money.parse("رجع فاتورة مبيعات رقم 5")["invoice"], 5)
+
+    def test_more_than_the_shelf_has_is_the_erps_refusal(self):
+        from inventory.models import Inventory, PurchaseInvoice
+        self.buy_on_credit()
+        invoice = PurchaseInvoice.objects.get()
+        Inventory.objects.filter(product=self.oil, branch=self.branch).update(quantity=1)   # sold meanwhile
+        self.say(f"رجع فاتورة مشتريات رقم {invoice.pk}")
+        reply, payload = self.say("أيوه")
+        self.assertEqual(payload["action"], "entry_failed", reply)
+        self.assertEqual((self.stock(self.oil), Vendor.objects.get(pk=self.vendor.pk).balance),
+                         (1, Decimal("450.00")))
+
+
+class AttendanceVoiceTests(_MoneyFixture):
+
+    def test_in_then_out_ones_own_by_pin(self):
+        from hr.models import AttendanceRecord, HRSettings
+        settings = HRSettings.get_settings()
+        settings.require_face_verification = settings.require_location = False
+        settings.save()
+        reply, payload = self.say("سجل حضوري", employee=None)
+        self.assertEqual(payload["action"], "wizard_pin", reply)           # who are you?
+        reply, payload = self.say("2468", employee=None)
+        self.assertEqual(payload["action"], "clock_in", reply)
+        self.assertIn("يا سعيد، سجلت حضورك الساعة", reply)
+        record = AttendanceRecord.objects.get(employee=self.manager)
+        self.assertIsNotNone(record.clock_in)
+        reply, payload = self.say("سجل حضوري")
+        self.assertEqual(payload["action"], "attendance_refused", reply)   # once a day: HR's rule, said
+        reply, payload = self.say("سجل انصرافي")
+        self.assertEqual(payload["action"], "clock_out", reply)
+        record.refresh_from_db()
+        self.assertIsNotNone(record.clock_out)
+
+    def test_hr_wants_the_face_a_pin_is_not_one(self):
+        from hr.models import AttendanceRecord, HRSettings
+        settings = HRSettings.get_settings()
+        settings.require_face_verification, settings.require_location = True, False
+        settings.save()
+        self.say("سجل حضوري", employee=None)
+        reply, payload = self.say("2468", employee=None)
+        self.assertEqual(payload["action"], "attendance_refused", reply)
+        self.assertFalse(AttendanceRecord.objects.filter(clock_in__isnull=False).exists())
+
+    def test_what_customers_say_is_not_a_clock(self):
+        for said in ("ماشي", "أنا ماشي", "أنا جيت", "الحضور بكام", "عندك فلتر زيت"):
+            self.assertIsNone(assistant.attendance_command(said), said)
+        self.assertEqual(assistant.attendance_command("سجل انصرافي"), "out")
+        self.assertEqual(assistant.attendance_command("يا ريت سجل لي حضوري"), "in")
+
+
+class DaySummaryTests(_MoneyFixture):
+
+    def test_the_day_in_one_sentence_and_what_needs_them_once(self):
+        self.sell_on_credit()
+        self.say("حصّل 150 جنيه من أحمد محمود")
+        self.say("هنا")
+        self.say("سجل مصروف 100 جنيه شاي")
+        self.say("هنا")
+        from inventory.models import Inventory
+        Inventory.objects.filter(product=self.plug, branch=self.branch).update(quantity=0)   # running low
+        reply, payload = self.say("قفّل اليوم")
+        self.assertEqual(payload["action"], "day_summary", reply)
+        for words in ("اتباع 1 فاتورة بـ 450 جنيه", "المصاريف 100 جنيه", "اتحصل من العملاء 150 جنيه",
+                      "الخزنة فيها دلوقتي 1050 جنيه"):
+            self.assertIn(words, reply)
+        self.assertTrue(payload.get("heads_up"), reply)
+        self.assertIn("على فكرة، فيه", reply)
+        self.assertIn("صنف قرّب يخلص", reply)
+        reply, payload = self.say("ملخص اليوم")                            # told today: not again
+        self.assertEqual(payload["action"], "day_summary")
+        self.assertNotIn("على فكرة", reply)
+
+    def test_customers_owing_for_over_a_month(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from inventory.models import SaleInvoice
+        self.sell_on_credit()
+        SaleInvoice.objects.update(date_created=timezone.now() - timedelta(days=45))
+        self.assertEqual(assistant._overdue_customers(self.branch), 1)
+        reply, payload = self.say("بعنا كام النهارده؟")
+        self.assertIn("فيه 1 عميل عليهم فلوس بقالها أكتر من شهر", reply)
+
+
+class FinetuneExportTests(_MoneyFixture):
+
+    def test_only_what_was_understood_for_sure_as_chat_examples(self):
+        import json
+        from robot import understand
+        from robot.models import RobotUnderstanding
+        common = dict(device=self.device, source="gemini", meant="عندك فلتر زيت", needs_context=False)
+        RobotUnderstanding.objects.create(heard="عندك فلترا الزي", teacher_text="عندك فلتر زيت", intent="part",
+                                          command="عندك فلتر زيت؟", confidence=0.95, **common)
+        RobotUnderstanding.objects.create(heard="هم هم", intent="unclear", command="", confidence=0.9, **common)
+        RobotUnderstanding.objects.create(heard="يمكن فلتر", intent="part", command="عندك فلتر؟", confidence=0.4,
+                                          **common)
+        (row,) = list(understand.finetune_rows())
+        roles = [m["role"] for m in row["messages"]]
+        self.assertEqual(roles, ["system", "user", "assistant"])
+        self.assertEqual(json.loads(row["messages"][1]["content"])["hearings"], ["عندك فلترا الزي", "عندك فلتر زيت"])
+        self.assertEqual(json.loads(row["messages"][2]["content"])["command"], "عندك فلتر زيت؟")

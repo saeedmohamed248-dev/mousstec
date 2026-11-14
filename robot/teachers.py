@@ -781,6 +781,9 @@ ds = load_dataset("audiofolder", data_dir="FOLDER")["train"].cast_column("audio"
 وبعدها تدريب Whisper (fine-tuning) على العربي المصري — ده اللي هيخلي الروبوت يسمع كل حرف
 صح وهو أوفلاين. التسجيلات فيها أصوات الزباين: متشاركهاش برا المحل.
 
+- `finetune_openai.jsonl` — نفس الجمل جاهزة لتدريب موديل خاص بالمحل على OpenAI (fine-tuning لـ gpt-4o-mini):
+  ارفع الملف من platform.openai.com ← Fine-tuning، وبعد ما يخلص حط اسم الموديل في `ROBOT_OPENAI_MODEL`.
+  يستاهل بعد كام مية سطر.
 - `understanding.jsonl` — «🧠 مخ الفهم»: كل جملة اتقالت للروبوت (`heard`، `teacher_text`)، والخطوة
   اللي كان مستنيها (`step`، `question`)، وكانت تقصد إيه (`intent`، `meant`) والجملة اللي الروبوت
   نفّذها (`command`) — بيانات لتدريب موديل فهم خاص بالمحل.
@@ -872,5 +875,8 @@ def training_zip(rows=None):
         lines = (json.dumps({**row, "created_at": row["created_at"].isoformat(timespec="seconds")},
                             ensure_ascii=False) for row in understand.dataset_rows().iterator())
         zf.writestr("understanding.jsonl", "\n".join(lines))
+        # The same, ready for OpenAI's fine-tuning (understand.finetune_rows): the shop's own model.
+        zf.writestr("finetune_openai.jsonl",
+                    "\n".join(json.dumps(row, ensure_ascii=False) for row in understand.finetune_rows()))
     yield pipe.take()
 
