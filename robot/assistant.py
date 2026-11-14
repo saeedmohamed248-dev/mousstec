@@ -265,7 +265,7 @@ def heads_up(device, employee) -> str:
     from django.core.cache import cache
     from django.utils import timezone
 
-    if employee is None:
+    if employee is None or getattr(employee, "pk", None) is None:
         return ""
     key = f"robot:headsup:{device.pk}:{employee.pk}:{timezone.localdate().isoformat()}"
     try:

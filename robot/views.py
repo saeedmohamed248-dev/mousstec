@@ -816,7 +816,12 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
         staff = wizard.known_staff(device)
         intent, reply, payload = _answer_voice_as(payload["replay"], device, staff, lang, caps, False, via)
     if staff is not None and payload.get("action") in assistant.HEADS_UP_AFTER:
-        more = assistant.heads_up(device, staff)  # once a day: what's running low, who owes for long
+        try:                                      # once a day: what's running low, who owes for long
+            more = assistant.heads_up(device, staff)
+        except Exception:                         # a heads-up never costs them the answer itself
+            import logging
+            logging.getLogger("mouss_tec_core").exception("robot heads-up failed")
+            more = ""
         if more:
             reply, payload = f"{reply} {more}", {**payload, "heads_up": True}
     if staff is None and payload.get("action") == "denied":
