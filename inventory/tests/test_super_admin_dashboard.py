@@ -230,6 +230,10 @@ class SuperAdminDashboardTests(ERPTenantTestCase):
             self.assertIn(s, html)
         # نشيل الداتا (أسماء الشركات) والسطر الوحيد اللي مقصود يفضل عربي (زرار «العربية»)
         body = html.replace(self.tenant.name, '').replace('العربية', '').replace('التحويل للعربي', '')
+        # 🐛 [FIX]: شركات اختبارات تانية (schemas مابتتمسحش بين الكلاسات) أسماؤها داتا برضه — الاختبار كان
+        # بيقع حسب ترتيب الموديولات في الـ shard (مثلاً «تاجر الجملة» من اختبارات طلبات الشراء B2B).
+        for name in sorted(Client.all_objects.values_list('name', flat=True), key=len, reverse=True):
+            body = body.replace(name, '') if name else body
         body = re.sub(r'<script.*?</script>', lambda m: m.group(0) if 'openCmdk' in m.group(0) else '', body,
                       flags=re.S)
         body = re.sub(r'<!--.*?-->|//[^\n]*|/\*.*?\*/', '', body, flags=re.S)
