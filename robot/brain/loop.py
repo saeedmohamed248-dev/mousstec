@@ -710,9 +710,10 @@ class Brain:
         from HOLD_ONS, the rest from STILL_HERE; each time another, among the ones the voice bank
         has. (None, None) when it has none yet."""
         pool = HOLD_ONS if first else STILL_HERE
-        self._filler_n = getattr(self, "_filler_n", -1) + 1
+        turns = self.__dict__.setdefault("_filler_turns", {})      # each list takes its own turns
+        turns[first] = n = turns.get(first, -1) + 1
         for i in range(len(pool)):
-            words = pool[(self._filler_n + i) % len(pool)]
+            words = pool[(n + i) % len(pool)]
             audio = self.bank.compose([words])
             if audio is not None:
                 return words, audio

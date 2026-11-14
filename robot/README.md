@@ -1147,3 +1147,12 @@ At its name the robot now says «أهلاً بحضرتك، أقدر أساعدك
 thinks or the line is slow, a longer sentence after `HOLD_ON_S` (2.5 s) — another of `HOLD_ONS` each
 time — and «لسه معاك…» (`STILL_HERE`) again after every `STILL_HERE_S` of quiet, up to `STILL_HERE_MOST`;
 each is cut the moment the answer arrives. Their clips are fetched with the day's.
+
+### The part that was nearly said (brain-0.9.20)
+
+Offline the robot hears with Vosk alone, which writes a word a letter off («طلمبه ميه», «تيل فرامن»):
+the shelf's own part came back «ملقتش القطعة دي». `robot/brain/nearby.py` scores every part's name
+against what was heard — the same word, a letter or two off once both are written as they sound, or
+the start of the word — and the nearest is *offered*: «تقصد طرمبة مياه؟». Its price is said only after
+«أيوه». Talk that names no part offers nothing, and `understands` doesn't count a near miss, so online
+the sentence still goes to a teacher.

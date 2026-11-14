@@ -21,7 +21,7 @@ _SOUNDS = str.maketrans({
     "ة": "ه", "ى": "ي", "أ": "ا", "إ": "ا", "آ": "ا", "ؤ": "و", "ئ": "ي", "ء": "",
 })
 SAME, NEAR, START = 1.0, 0.7, 0.5
-ENOUGH = 1.2                       # a part's score to be offered: a word and a bit, not one loose letter
+ENOUGH = 0.7                       # a part's score to be offered: one word nearly right, at the least
 SHOWN = 3
 
 
@@ -95,7 +95,7 @@ def nearest(keys: list, parts, forms=lambda w: {w}, shown: int = SHOWN) -> list:
         if got < ENOUGH:
             continue
         # most of what was said has to be in the name, and most of the name in what was said
-        if got < 0.6 * len(keys) or got < 0.5 * len(part.name_words):
+        if got < 0.6 * len(keys) or got < 0.34 * len(part.name_words):
             continue
         found.append((got - 0.05 * len(part.name_words), -(part.stock or 0), part))
     found.sort(key=lambda f: (-f[0], f[1]))
@@ -103,3 +103,14 @@ def nearest(keys: list, parts, forms=lambda w: {w}, shown: int = SHOWN) -> list:
         return []
     best = found[0][0]
     return [part for value, _stock, part in found if value >= best - 0.3][:shown]
+
+
+def best_of(keys: list, parts: list, forms=lambda w: {w}, lead: float = 0.4):
+    """Among parts the catalog's search couldn't choose between (each had a word of what was
+    said), the one whose name is clearly nearest the rest of it — or None when none stands out."""
+    keys = [k for k in dict.fromkeys(keys) if len(k) >= 2][:8]
+    scored = sorted(((score(keys, p.name_words, forms) - 0.05 * len(p.name_words), i, p)
+                     for i, p in enumerate(parts)), key=lambda s: (-s[0], s[1]))
+    if not scored or (len(scored) > 1 and scored[0][0] - scored[1][0] < lead):
+        return None
+    return scored[0][2]

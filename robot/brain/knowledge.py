@@ -593,6 +593,20 @@ class Knowledge:
         if not said_car and not [w for w in part_words(text) if len(w) >= 2 and w not in _QUESTION_WORDS]:
             return Reply(talk.ASK_PART, [talk.ASK_PART], intent="chat")   # «عندك؟»: robot/views too
         part, choices = self.lookup(text, self._car)
+        if not part and not choices:
+            # 🐛 [FIX]: أوفلاين Vosk بيكتب الكلمة غلط بحرف («طلمبه ميه»، «تيل فرامن») والقطعة اللي على
+            # الرف كانت بترجع «ملقتش القطعة دي». أقرب قطعة للي اتسمع بتتعرض — «تقصد طرمبة مياه؟» —
+            # وسعرها بيتقال بعد «أيوه» بس (robot/brain/nearby.py). `understands` مبتحسبهاش: أونلاين
+            # الجملة دي لسه بتروح لمدرّس يسمعها صح.
+            from . import nearby
+            keys = [w for w in part_words(text) if len(w) >= 2 and w not in _QUESTION_WORDS]
+            choices = nearby.nearest(keys, self.parts, _forms)
+        elif not part and len(choices) > 1:
+            # «المقس الامامي»: three parts have «أمامي» — the one the rest of it is nearest is asked about.
+            from . import nearby
+            keys = [w for w in part_words(text) if len(w) >= 2 and w not in _QUESTION_WORDS]
+            one = nearby.best_of(keys, choices, _forms)
+            choices = [one] if one is not None else choices
         if not part and choices:
             picked = choices[:3]
             self._remember(now, part=None, choices=picked)
