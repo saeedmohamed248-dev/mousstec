@@ -100,7 +100,7 @@ class VoiceAnswersInTheSpeakersLanguageTests(SimpleTestCase):
 
     def test_just_the_name_in_arabic(self):
         data, _, _ = self._ask("يا موس", gate=(True, "", True))
-        self.assertEqual(data["reply"], "أيوه، تحت أمرك.")
+        self.assertEqual(data["reply"], "أهلاً بحضرتك، أقدر أساعدك إزاي؟")
 
 
 class GeneralAnswerTests(unittest.TestCase):
@@ -161,7 +161,7 @@ class EgyptianVoiceTests(unittest.TestCase):
     def test_arabic_is_spoken_by_the_egyptian_voice(self):
         edge, spoken = self._edge([{"type": "audio", "data": b"ID3"},
                                    {"type": "WordBoundary"}, {"type": "audio", "data": b"mp3"}])
-        self.assertEqual(self._synthesize("أيوه، تحت أمرك.", edge), b"ID3mp3")
+        self.assertEqual(self._synthesize("أهلاً بحضرتك، أقدر أساعدك إزاي؟", edge), b"ID3mp3")
         self.assertEqual(spoken["voice"], "ar-EG-ShakirNeural")
 
     def test_english_gets_an_english_voice(self):

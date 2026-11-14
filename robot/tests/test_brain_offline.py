@@ -79,7 +79,7 @@ class AnswerTests(unittest.TestCase):
         self.assertEqual(self.say("يا موس قديم بنزين").text, knowledge.NOT_FOUND)
 
     def test_the_name_alone_and_people_talking(self):
-        self.assertEqual(self.say("يا موس").text, "أيوه، تحت أمرك.")
+        self.assertEqual(self.say("يا موس").text, "أهلاً بحضرتك، أقدر أساعدك إزاي؟")
         self.assertIsNone(self.say("هات الشاي يا محمد", now=500.0))
 
     def test_a_follow_up_needs_no_name_for_20_seconds(self):
@@ -192,6 +192,24 @@ class VoiceBankTests(unittest.TestCase):
         self.assertEqual(calls, ["a", "b", "c"])        # «a» was on disk; stopped at the failure
         self.assertEqual(self.bank.coverage(["a", "b", "c", "d"]), (2, 4))
 
+    def test_prefetch_waits_while_someone_is_talking(self):
+        # 🐛 From the shop's log: 1400 clips kept downloading on the 4G line while the robot's own
+        # reply (79 KB) took 9 s to arrive. `hold()`: the line is the conversation's.
+        stop, busy, order = threading.Event(), [True, True, False], []
+
+        def hold():
+            held = busy.pop(0) if busy else False
+            order.append("held" if held else "free")
+            return held
+
+        def fetch(text):
+            order.append(text)
+            return _clip(5)
+
+        with mock.patch.object(stop, "wait"):
+            self.assertEqual(self.bank.prefetch(["p"], fetch, stop=stop, hold=hold), 1)
+        self.assertEqual(order, ["held", "held", "free", "p"])
+
 
 class _Ears:
     model_name, ready, error = "small", True, ""
@@ -243,7 +261,7 @@ class OfflineBrainTests(unittest.TestCase):
         self._learn_catalog_and_voice(brain)
         self.server.voice.side_effect = server.ServerDown("no route")
         brain.handle(self._utt())
-        self.assertIn("[OFFLINE] 🔊 أيوه، تحت أمرك.", self.lines)
+        self.assertIn("[OFFLINE] 🔊 أهلاً بحضرتك، أقدر أساعدك إزاي؟", self.lines)
         self.assertGreater(brain._talking_until, loop.time.monotonic())
 
     def test_known_offline_doesnt_wait_on_the_server(self):

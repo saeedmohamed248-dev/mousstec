@@ -282,7 +282,13 @@ int captureAndPost(const String& endpoint, const String& fields) {
 // flags motion; the backend decides if it's after-hours and raises an alert.
 
 unsigned long lastFramePush = 0;
-unsigned long framePushMs = 1500;   // idle cadence; the backend sets it
+unsigned long framePushMs = 4000;   // idle cadence; the backend sets it
+// 🐛 [FIX]: the camera shares the shop's 4G line with the robot's voice. It
+// pushed at the server's cadence however long each upload took — on a weak
+// line that's the whole line, and the robot's answers took 10-30 s (from the
+// shop's log). An upload that takes `t` is now followed by 3×t of quiet (at
+// most 10 s): the camera never holds more than a quarter of the line.
+unsigned long linkRestMs = 0;
 bool enrollActive = false;          // a staff face-enrollment round is running
 // When the shop is closed (from the server, for offline use): minutes of the
 // local day, and the UTC offset the camera's UTC clock needs.
@@ -354,7 +360,9 @@ void pushLiveFrame(bool motion) {
   size_t len = fb->len;
   int code = postJpeg("/camera/frame/", fb, String("motion=") + (motion ? "1" : "0"), resp);
   esp_camera_fb_return(fb);
-  sumMs += millis() - t0; sumBytes += len; frames++;
+  unsigned long took = millis() - t0;
+  linkRestMs = took > 400 ? min(took * 3, 10000UL) : 0;   // a quick line: the server's cadence
+  sumMs += took; sumBytes += len; frames++;
   if (code != 200) failed++;
   // Each change of answer, at once: whether the server is reached (200),
   // refuses the token (401) or can't be reached (negative) shows on the
@@ -732,7 +740,7 @@ void loop() {
 
   // Live frame push (throttled by the server-driven cadence) — never closes.
   // Its reply also carries snapshot/scan commands and the enrollment state.
-  if (millis() - lastFramePush > framePushMs) {
+  if (millis() - lastFramePush > max(framePushMs, linkRestMs)) {
     pushLiveFrame(motion);
     lastFramePush = millis();
   }
@@ -754,7 +762,7 @@ void loop() {
 
   // Someone in front of the robot: passive face check (clock-in on first
   // sighting, authorizes the next few minutes of actions). Throttled.
-  if (motion && millis() - lastFaceCheck > 4000) {
+  if (motion && millis() - lastFaceCheck > max(4000UL, linkRestMs * 2)) {
     captureAndPost("/face/", "purpose=authorize");
     lastFaceCheck = millis();
   }

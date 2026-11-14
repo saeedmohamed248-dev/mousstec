@@ -109,7 +109,7 @@ class TeachTests(unittest.TestCase):
         ears = _Ears("يا موس", [0.3, 0.3])
         brain = self._brain(ears)
         self._say(brain)
-        self.assertIn("[HERE] 🔊 أيوه، تحت أمرك.", self.lines)
+        self.assertIn("[HERE] 🔊 أهلاً بحضرتك، أقدر أساعدك إزاي؟", self.lines)
         ears.text, ears.words, ears.confs = "عندك", [("عندك", 0.0, 0.3)], [0.9]
         self._say(brain)
         self.assertTrue(self._checked())                     # what makes no sense here: to the teacher
@@ -263,7 +263,7 @@ class RoundTwentyOneReviewTests(TeachTests):
         ears = _Ears("يا موس", [0.3, 0.3])
         brain = self._brain(ears)
         self._say(brain)
-        self.assertIn("[HERE] 🔊 أيوه، تحت أمرك.", self.lines)
+        self.assertIn("[HERE] 🔊 أهلاً بحضرتك، أقدر أساعدك إزاي؟", self.lines)
         ears.text, ears.words, ears.confs = "", [], []
         self.server.voice.reset_mock()
         brain.handle(vad.Utterance(samples=np.zeros(12800, np.int16), speech_ms=800,
