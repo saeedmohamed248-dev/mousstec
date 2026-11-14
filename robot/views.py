@@ -787,6 +787,7 @@ def _understood(text: str, device) -> bool:
         return True
     if (talk.small_talk(t) is not None or _TEACH_RE.match(t) or entries.is_answer(device, t)
             or assistant.media_command(t) is not None or assistant.staff_question(t) is not None
+            or assistant.attendance_command(t) is not None
             or assistant.web_question(t) or talk.mobile_in(t) or re.search(r"\b[pbcu][0-9]{4}\b", t.lower())):
         return True
     if replies.answer(t, device.branch) is not None or memory.follow_up(t, device)[0] is not None:
@@ -807,10 +808,17 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     الرقم السري كان بيتسأل في الفواتير خطوة بخطوة بس. دلوقتي أي طلب للموظفين من حد مش معروف
     بيتسأل عن الرقم السري، وبعد ما يتقال الطلب نفسه بيتنفذ."""
     staff = employee or wizard.known_staff(device)
+    if employee is not None:
+        employee.robot_saw_face = True            # the camera knows them (attendance's face rule)
     intent, reply, payload = _answer_voice_as(transcript, device, staff, lang, caps, unsure, via)
     if payload.get("action") == "wizard_replay":
         # The PIN just said was right: what was asked before it, as that employee.
-        return _answer_voice_as(payload["replay"], device, wizard.known_staff(device), lang, caps, False, via)
+        staff = wizard.known_staff(device)
+        intent, reply, payload = _answer_voice_as(payload["replay"], device, staff, lang, caps, False, via)
+    if staff is not None and payload.get("action") in assistant.HEADS_UP_AFTER:
+        more = assistant.heads_up(device, staff)  # once a day: what's running low, who owes for long
+        if more:
+            reply, payload = f"{reply} {more}", {**payload, "heads_up": True}
     if staff is None and payload.get("action") == "denied":
         held = wizard.hold(transcript, device, via=via)
         if held is not None:
@@ -907,6 +915,11 @@ def _answer_voice_as(transcript: str, device, employee, lang: str, caps, unsure,
     media = assistant.media_command(transcript)
     if media is not None:
         return ("command",) + assistant.media_reply(media, employee, caps)
+
+    # --- «سجل حضوري» / «سجل انصرافي»: one's own, by HR's service ----------------
+    clock = assistant.attendance_command(transcript)
+    if clock is not None:
+        return ("command",) + assistant.attendance_reply(clock, employee)
 
     # --- The staff's questions: «بعنا كام النهارده؟», «إيه اللي قرّب يخلص؟» --
     question = assistant.staff_question(transcript)

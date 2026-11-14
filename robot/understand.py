@@ -102,6 +102,7 @@ _PROMPT = """\
     سلفة: «سجل سلفة <المبلغ> جنيه للموظف <اسم الموظف>». المبلغ بالأرقام، والاسم زي ما اتقال بالظبط.
   • عرض سعر: «اعمل عرض سعر»؛ مرتجع: «رجع فاتورة رقم <الرقم>» أو «رجع <العدد> <القطعة> من فاتورة رقم <الرقم>»؛
     تحويل: «حول <المبلغ> جنيه من خزنة <الاسم> لخزنة <الاسم>»؛
+    مرتجع مشتريات: «رجع فاتورة مشتريات رقم <الرقم>»؛ حضور: «سجل حضوري» أو «سجل انصرافي»؛ ملخص: «قفل اليوم».
     مرتبات: «احسب مرتبات شهر <رقم الشهر>» أو «اصرف مرتبات شهر <رقم الشهر>» (من غير شهر: «احسب مرتبات الشهر ده»).
   • سؤال إداري (staff) بالشكل ده: «بعنا كام النهارده»، «مبيعات امبارح»، «مبيعات الشهر ده»،
     «صرفنا كام النهارده»، «رصيد الخزنة كام»، «حساب العميل <الاسم>»، «حساب المورد <الاسم>»،
@@ -372,6 +373,29 @@ def dataset_rows():
     return (RobotUnderstanding.objects.filter(source="gemini").order_by("created_at")
             .values("heard", "teacher_text", "step", "question", "intent", "meant", "command", "needs_context",
                     "confidence", "created_at"))
+
+
+FINETUNE_SYSTEM = ("إنت «مخ الفهم» لروبوت «موس» في محل قطع غيار BMW و MINI في مصر. هتاخد JSON فيه اللي اتسمع "
+                   "(hearings) والخطوة اللي الروبوت مستنيها (waiting_for). رجّع JSON بس: "
+                   '{"meant", "intent", "command", "needs_context", "confidence"}.')
+FINETUNE_SURE = 0.8
+
+
+def finetune_rows():
+    """The same sentences as chat examples, the way OpenAI's fine-tuning reads them (JSONL of
+    {"messages": [system, user, assistant]}) — only what Gemini was sure of. For a model of the
+    shop's own, trained once there's enough (a few hundred lines)."""
+    for row in dataset_rows().iterator():
+        if (row["confidence"] or 0) < FINETUNE_SURE or not row["command"] or row["intent"] == "unclear":
+            continue
+        hearings = [h for h in dict.fromkeys([row["heard"], row["teacher_text"]]) if h]
+        waiting = {"step": row["step"], "question": row["question"]} if row["step"] else None
+        answer = {"meant": row["meant"], "intent": row["intent"], "command": row["command"],
+                  "needs_context": bool(row["needs_context"]), "confidence": round(row["confidence"] or 0, 2)}
+        yield {"messages": [
+            {"role": "system", "content": FINETUNE_SYSTEM},
+            {"role": "user", "content": json.dumps({"hearings": hearings, "waiting_for": waiting}, ensure_ascii=False)},
+            {"role": "assistant", "content": json.dumps(answer, ensure_ascii=False)}]}
 
 
 def summary() -> dict:

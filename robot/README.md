@@ -1102,3 +1102,17 @@ to the outbox, for the ERP's own posting when the net is back (`robot/offline_le
 said from clips (`saynumber.py`: «ألف وميتين وخمسين», fetched into the voice bank while online). Credit,
 collections, returns and the rest still wait for the net — and say so. Online none of this runs: the
 server's wizard does.
+
+### The rest of the day, by voice (brain-0.9.17)
+
+- **A return to a vendor**: «رجّع فاتورة مشتريات رقم 12» / «رجّع 2 فلتر زيت من فاتورة مشتريات رقم 12» — the
+  ERP's `return_to_vendor` (stock out, the average cost, the vendor's account), confirmed with «أيوه»; on
+  account only (cash a vendor hands back is taken on the purchases screen). Role `purchase_return`.
+- **Attendance**: «سجل حضوري» / «سجل انصرافي» — one's own, by PIN or face, through HR's
+  `AttendanceService` (its lateness, its rules: when HR requires the face, a PIN isn't one).
+- **«قفّل اليوم» / «ملخص اليوم»**: sold, spent, collected today and what the treasuries hold (`sales_report`).
+- **What needs them, once a day** (`assistant.heads_up`): after the day's numbers the manager hears what's
+  running low and how many customers have owed for over a month.
+- **A model of the shop's own**: the training download now has `finetune_openai.jsonl`
+  (`understand.finetune_rows`) — the sentences Gemini was sure of, as OpenAI fine-tuning examples; the
+  tuned model's name goes in `ROBOT_OPENAI_MODEL`.
