@@ -318,12 +318,14 @@
     }
     window.mtCsrfToken = currentToken;
     function sameOrigin(form) {
-        try { return new URL(form.action || location.href, location.href).origin === location.origin; }
+        try { return new URL(form.getAttribute('action') || location.href, location.href).origin === location.origin; }
         catch (_) { return false; }
     }
     document.addEventListener('submit', function (ev) {
         const form = ev.target;
-        if (!form || (form.method || '').toLowerCase() !== 'post' || !sameOrigin(form)) return;
+        // 🐛 [FIX]: form.method / form.action بيرجعوا الخانة نفسها لو الفورم فيه input اسمه method/action
+        //    (فورم الدفع في سوق المطابع) ⇒ كان بيقع والتوكن مابيتحدّثش ⇒ 403 لو الجلسة اتجددت في تابة تانية.
+        if (!form || !form.getAttribute || (form.getAttribute('method') || '').toLowerCase() !== 'post' || !sameOrigin(form)) return;
         const tok = currentToken();
         if (!tok) return;
         form.querySelectorAll('input[name="csrfmiddlewaretoken"]').forEach(function (i) { i.value = tok; });

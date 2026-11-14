@@ -9,6 +9,8 @@ from django.db.models import F, Min, Sum
 from clients.models import Client
 import logging
 
+from django.conf import settings
+
 from erp_core.orchestrator import run_agent_safely, AgentEventBus, AgentHealthMonitor, dlq
 from clients.services.modules import skip_if_disabled
 
@@ -44,11 +46,17 @@ def async_welcome_bot_task(self, client_name, client_phone, business_type, full_
             msg += f"🔑 كلمة المرور المؤقتة: {secret_credential}\n"
             
         msg += "\nنتمنى لك أرباحاً هائلة والتفوق على منافسيك!"
-        
-        # 💡 [مكان دمج بوابة WhatsApp API (مثل Twilio/Ultramsg) أو البريد الإلكتروني]
-        # example: twilio_client.messages.create(body=msg, from_='+123', to=client_phone)
-        
-        logger.info(f"📨 [AI WELCOME BOT]: Secure onboarding message dispatched to {client_name} ({client_phone}).")
+
+        # 🐛 [FIX — دورة ناقصة]: البوت كان «stub» — بيكتب «dispatched» في اللوج ومابيبعتش حاجة.
+        #    دلوقتي واتساب من رقم المنصة (نفس تذكير التجديد) — قالب WHATSAPP_WELCOME_TEMPLATE لو
+        #    متظبط ({{1}} الشركة، {{2}} رابط الدخول)، وإلا رسالة نصية. الإيميل بيوصل من شاشة التسجيل.
+        from django.conf import settings as _s
+        from clients.services.whatsapp_notify import send_platform_whatsapp
+        tpl = getattr(_s, 'WHATSAPP_WELCOME_TEMPLATE', '')
+        sent = bool(client_phone) and send_platform_whatsapp(
+            client_phone, template=tpl, params=(client_name, full_login_url), text='' if tpl else msg)
+        logger.info("📨 [AI WELCOME BOT]: onboarding message for %s — whatsapp %s.",
+                    client_name, 'sent' if sent else 'not sent')
         # print(msg) # مفيد للعرض أثناء الـ Local Development
         
     except Exception as exc:
@@ -1012,4 +1020,88 @@ def send_trial_end_offers():
         except Exception:   # noqa: BLE001 — شركة واحدة مابتوقفش الباقي
             logger.exception('[TRIAL OFFER] failed for %s', tenant.schema_name)
     logger.info('[TRIAL OFFER] sent %s', sent)
+    return sent
+
+
+@shared_task(name='clients.tasks.purge_screen_recordings')
+def purge_screen_recordings():
+    """🎥 مسح تسجيلات الشاشة الأقدم من مدة الحفظ (يومياً)."""
+    from clients.views.screen_recording_views import purge_old_sessions
+    return purge_old_sessions()
+
+
+def _tenant_link(tenant, path):
+    dom = next((d.domain for d in tenant.domains.all() if d.is_primary), None) or \
+        next((d.domain for d in tenant.domains.all()), None)
+    return f'https://{dom}{path}' if dom else ''
+
+
+def _notify_tenant(tenant, subject, line, link, tpl_setting='MARKETPLACE_REQUEST_WHATSAPP_TEMPLATE'):
+    """إيميل + واتساب (من رقم المنصة) لشركة مشتركة — مابيوقّعش المهمة لو فشل."""
+    from django.core.mail import send_mail
+
+    from clients.services.whatsapp_notify import send_platform_whatsapp
+    if tenant.email:
+        try:
+            send_mail(subject, f'أهلاً {tenant.name}،\n\n{line}\n\n{link}\n\n— السوق المفتوح | Mouss Tec',
+                      settings.DEFAULT_FROM_EMAIL, [tenant.email], fail_silently=True)
+        except Exception:  # noqa: BLE001
+            logger.exception('[MARKETPLACE NOTIFY] email failed for %s', tenant.schema_name)
+    if tenant.phone and getattr(settings, 'WHATSAPP_ACCESS_TOKEN', '') and \
+            getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', ''):
+        tpl = getattr(settings, tpl_setting, '')
+        send_platform_whatsapp(tenant.phone, template=tpl, params=(tenant.name, line, link),
+                               text='' if tpl else f'🛒 Mouss Tec\n{tenant.name}، {line}\n{link}')
+
+
+@shared_task(ignore_result=True)
+def notify_merchant_offer_accepted(offer_id):
+    """✅ العميل قبل عرض الشركة ⇒ إيميل + واتساب فوراً عشان تكلّمه (العميل بيتقاله «التاجر هيتواصل معاك»)."""
+    from clients.models import TenderOffer
+    offer = (TenderOffer.objects.select_related('merchant', 'service_request', 'service_request__customer')
+             .prefetch_related('merchant__domains').filter(pk=offer_id, status='accepted').first())
+    if offer is None:
+        return False
+    req, cust = offer.service_request, offer.service_request.customer
+    who = cust.company_name or cust.full_name
+    line = (f'🎉 {who} قبل عرضك ({offer.price:g} ج.م) على «{req.title[:100]}» — '
+            f'كلّمه دلوقتي على {cust.phone} عشان تقفلوا الصفقة.')
+    link = _tenant_link(offer.merchant, '/marketplace/merchant/feed/')
+    _notify_tenant(offer.merchant, f'Mouss Tec — عرضك اتقبل: {req.title[:80]}', line, link)
+    return True
+
+
+@shared_task(ignore_result=True)
+def notify_merchants_new_request(request_code, tenant_ids):
+    """🔔 طلب عميل اتنشر في السوق المفتوح ⇒ إيميل + واتساب لكل شركة في القطاع، بلينك يفتح فورم العرض."""
+    from django.core.mail import send_mail
+
+    from clients.models import Client, ServiceRequest
+    from clients.services.whatsapp_notify import send_platform_whatsapp
+
+    req = ServiceRequest.objects.filter(request_code=request_code, status='open').first()
+    if req is None:
+        return 0
+    budget = f" — الميزانية حتى {req.max_budget:g} ج.م" if req.max_budget else ''
+    line = f'طلب جديد في السوق المفتوح: «{req.title[:120]}»{budget} — قدّم عرضك قبل غيرك.'
+    has_wa = bool(getattr(settings, 'WHATSAPP_ACCESS_TOKEN', '') and getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', ''))
+    tpl = getattr(settings, 'MARKETPLACE_REQUEST_WHATSAPP_TEMPLATE', '')
+    sent = 0
+    for tenant in Client.objects.filter(pk__in=tenant_ids, is_active=True).prefetch_related('domains'):
+        dom = next((d.domain for d in tenant.domains.all() if d.is_primary), None) or \
+            next((d.domain for d in tenant.domains.all()), None)
+        if not dom:
+            continue
+        link = f'https://{dom}/marketplace/merchant/feed/?req={req.request_code}'
+        if tenant.email:
+            try:
+                send_mail(f'Mouss Tec — طلب جديد: {req.title[:80]}',
+                          f'أهلاً {tenant.name}،\n\n{line}\n\nافتح الطلب وقدّم عرضك: {link}\n\n— السوق المفتوح | Mouss Tec',
+                          settings.DEFAULT_FROM_EMAIL, [tenant.email], fail_silently=True)
+            except Exception:  # noqa: BLE001
+                logger.exception('[MARKETPLACE NOTIFY] email failed for %s', tenant.schema_name)
+        if has_wa and tenant.phone:
+            send_platform_whatsapp(tenant.phone, template=tpl, params=(tenant.name, line, link),
+                                   text='' if tpl else f'🛒 Mouss Tec\n{tenant.name}، {line}\n{link}')
+        sent += 1
     return sent

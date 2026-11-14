@@ -1,0 +1,60 @@
+{% load i18n %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<html lang="{{ LANGUAGE_CODE|default:'ar' }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "اعرض منتجاتك في سوق Mouss Tec" %}</title>
+    <meta name="description" content="{% trans 'عندك مطبعة أو محل قطع غيار؟ اعرض منتجاتك قدام العملاء اللي بيدوّروا كل يوم.' %}">
+    {% include "clients/marketplace/_catalog_style.html" %}
+    <style>
+        .stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px; margin:16px 0; }
+        .stat { background:var(--mt-card); border:1px solid var(--mt-line); border-radius:14px; padding:14px; }
+        .stat .n { font-size:1.8rem; font-weight:800; color:var(--mt-brand); }
+        .stat .l { color:var(--mt-muted); font-size:.85rem; }
+        .steps { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; }
+        .step { background:var(--mt-card); border:1px solid var(--mt-line); border-radius:14px; padding:14px; }
+        .step b { display:block; margin-bottom:4px; }
+        .cta { display:flex; gap:10px; flex-wrap:wrap; margin:18px 0 30px; }
+        .cta a { text-decoration:none; border-radius:12px; padding:13px 22px; font-weight:800; }
+        .offer { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:14px; padding:14px 16px; font-weight:700; margin:12px 0; }
+    </style>
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="/marketplace/"><i class="fas fa-store"></i> {% trans "سوق Mouss Tec" %}</a><span class="sp"></span>
+    <a class="lnk" href="/marketplace/catalog/printing/">{% trans "الطباعة" %}</a><a class="lnk" href="/marketplace/catalog/automotive/">{% trans "قطع الغيار" %}</a><span class="lang">{% include "clients/_language_switcher.html" %}</span></div></header>
+<main class="wrap">
+    <section class="hero">
+        <h1>{% trans "اعرض منتجاتك قدام عملاء بيدوّروا فعلاً" %}</h1>
+        <p>{% trans "مطبعة، مكتب تصميم، أو محل قطع غيار؟ سوق Mouss Tec بيجيب لك العميل، وإنت تركّز في شغلك." %}</p>
+    </section>
+
+    {# 📊 أرقام حقيقية من السيستم (آخر ٣٠ يوم) #}
+    <div class="sec-title"><i class="fas fa-chart-line"></i> {% blocktrans with d=stats.days %}أرقام السوق في آخر {{ d }} يوم{% endblocktrans %}</div>
+    <div class="stats">
+        <div class="stat"><div class="n">{{ stats.visitors }}</div><div class="l">{% trans "زائر مختلف دخل السوق" %}</div></div>
+        <div class="stat"><div class="n">{{ stats.page_views }}</div><div class="l">{% trans "صفحة اتفتحت في السوق" %}</div></div>
+        <div class="stat"><div class="n">{{ stats.quotes }}</div><div class="l">{% trans "طلب سعر من عملاء" %}</div></div>
+        <div class="stat"><div class="n">{{ items_count }}</div><div class="l">{% blocktrans with s=stores_count %}منتج معروض في {{ s }} متجر{% endblocktrans %}</div></div>
+    </div>
+    <p style="color:var(--mt-muted); font-size:.8rem; margin-top:-4px;">{% trans "الأرقام دي بتتحسب أوتوماتيك من السيستم وبتتحدّث كل ما حد يفتح الصفحة." %}</p>
+    {% if stats.top_categories %}
+    <div class="sec-title"><i class="fas fa-fire"></i> {% trans "أكتر حاجات العملاء طلبوها" %}</div>
+    <div class="chips">{% for c in stats.top_categories %}<span class="chip">{{ c.label }} · {{ c.n }}</span>{% endfor %}</div>
+    {% endif %}
+
+    {% if offer %}<div class="offer">🎁 {{ offer }}</div>{% endif %}
+
+    <div class="sec-title"><i class="fas fa-list-ol"></i> {% trans "إزاي تبدأ" %}</div>
+    <div class="steps">
+        <div class="step"><b>١. {% trans "سجّل شركتك" %}</b>{% trans "حساب على Mouss Tec في دقيقتين — وبيبقى معاك برنامج إدارة كامل (فواتير، مخزون، حسابات)." %}</div>
+        <div class="step"><b>٢. {% trans "ابعتلنا منتجاتك" %}</b>{% trans "صور وأوصاف وأقل كمية، أو شيت إكسل — وفريق Mouss Tec بيرفعها في السوق." %}</div>
+        <div class="step"><b>٣. {% trans "استقبل طلبات العملاء" %}</b>{% trans "من «السوق المفتوح» جوه لوحتك بتشوف طلبات العملاء في قطاعك وتقدّم عرض سعرك." %}</div>
+    </div>
+
+    <div class="cta">
+        <a href="/connect/signup/" style="background:var(--mt-brand); color:#fff;"><i class="fas fa-user-plus"></i> {% trans "سجّل شركتك دلوقتي" %}</a>
+        {% if whatsapp %}<a href="https://wa.me/{{ whatsapp }}?text={% filter urlencode %}{% trans 'عندي مطبعة/محل وعاوز أعرض منتجاتي في سوق Mouss Tec' %}{% endfilter %}" target="_blank" rel="noopener" style="background:#16a34a; color:#fff;"><i class="fab fa-whatsapp"></i> {% trans "كلّمنا واتساب" %}</a>{% endif %}
+    </div>
+</main>
+</body>
+</html>

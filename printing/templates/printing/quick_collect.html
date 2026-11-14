@@ -14,6 +14,9 @@
 {% with cur=tenant_currency_symbol|default:'ج.م' %}
 <div class="qi" id="quickCollect">
     {% if errors %}<div class="alert alert-danger" style="border-radius:12px;">{% for e in errors %}<div>⚠️ {{ e }}</div>{% endfor %}</div>{% endif %}
+    {% if settled %}<div class="alert alert-success" style="border-radius:12px;" id="qcSettled">
+        {% if settled.count %}✅ {% blocktrans with a=settled.amount|amount n=settled.count %}اتسدّد {{ a }} من رصيده المقدّم على {{ n }} فاتورة.{% endblocktrans %}
+        {% else %}{% trans "مفيش رصيد مقدّم أو فواتير مفتوحة تتسدّد." %}{% endif %}</div>{% endif %}
 
     {% if done %}
     <div class="qi-card" id="qcDone" style="border-color:#A7F3D0;background:#F0FDF4;">
@@ -25,6 +28,14 @@
         <div class="qi-total big"><span>{% if done.balance > 0 %}{% trans "الباقي عليه" %}{% elif done.balance < 0 %}{% trans "ليه رصيد" %}{% else %}{% trans "حسابه خالص" %}{% endif %}</span>
             <b style="color:{% if done.balance > 0 %}#B42318{% else %}#047857{% endif %};">{% if done.balance < 0 %}{{ done.balance|amount|cut:'-' }}{% else %}{{ done.balance|amount }}{% endif %} {{ cur }}</b></div>
     </div>
+    {% if credit > 0 and can_settle %}
+    <form method="post" class="qi-card" id="qcCredit" style="border-color:#BFDBFE;background:#EFF6FF;">
+        {% csrf_token %}<input type="hidden" name="customer" value="{{ customer.pk }}"><input type="hidden" name="action" value="apply_credit">
+        <h6 style="color:#1E40AF;">💳 {% blocktrans with a=credit|amount %}ليه رصيد مقدّم {{ a }}{% endblocktrans %} {{ cur }}</h6>
+        <p class="qi-hint" style="margin:0 0 10px;">{% trans "فلوس دفعها قبل كده ومش متسدّدة على فاتورة — سدّد بيها فواتيره المفتوحة (الأقدم الأول) من غير ما تحصّل تاني." %}</p>
+        <button type="submit" class="qi-save" style="background:#1D4ED8;">{% blocktrans with a=credit_settles|amount %}سدّد {{ a }} من رصيده{% endblocktrans %}</button>
+    </form>
+    {% endif %}
     <div class="qi-row2">
         <a class="qi-save" style="display:flex;align-items:center;justify-content:center;text-decoration:none;" href="{% url 'printing:quick_collect' %}">{% trans "تحصيل تاني" %}</a>
         <a class="qi-add" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin:0;min-height:52px;" href="{% url 'printing:customer_statement' customer.pk %}">📒 {% trans "كشف حسابه" %}</a>
@@ -58,6 +69,14 @@
     </script>
 
     {% else %}
+    {% if credit > 0 and can_settle %}
+    <form method="post" class="qi-card" id="qcCredit" style="border-color:#BFDBFE;background:#EFF6FF;">
+        {% csrf_token %}<input type="hidden" name="customer" value="{{ customer.pk }}"><input type="hidden" name="action" value="apply_credit">
+        <h6 style="color:#1E40AF;">💳 {% blocktrans with a=credit|amount %}ليه رصيد مقدّم {{ a }}{% endblocktrans %} {{ cur }}</h6>
+        <p class="qi-hint" style="margin:0 0 10px;">{% trans "فلوس دفعها قبل كده ومش متسدّدة على فاتورة — سدّد بيها فواتيره المفتوحة (الأقدم الأول) من غير ما تحصّل تاني." %}</p>
+        <button type="submit" class="qi-save" style="background:#1D4ED8;">{% blocktrans with a=credit_settles|amount %}سدّد {{ a }} من رصيده{% endblocktrans %}</button>
+    </form>
+    {% endif %}
     <form method="post" id="qcForm" novalidate>
         {% csrf_token %}
         <input type="hidden" name="customer" value="{{ customer.pk }}">

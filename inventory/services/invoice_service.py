@@ -393,7 +393,7 @@ class InvoiceService:
                             days_to_add = 180
 
                     vehicle_updates['estimated_next_visit'] = (
-                        timezone.now().date() + timedelta(days=days_to_add)
+                        timezone.localdate() + timedelta(days=days_to_add)
                     )
 
                 if instance.invoice_type == 'maintenance':

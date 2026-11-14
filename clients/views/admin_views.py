@@ -26,6 +26,7 @@ from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _t
 from django.views.decorators.csrf import csrf_exempt
 from django_tenants.utils import schema_context
 
@@ -77,6 +78,10 @@ def _resolve_active_plan(value):
     return None
 
 
+# مشتريات باقات التصاميم اللي اتدفعت فعلاً (المستهلكة بالكامل اتدفعت برضه)
+PAID_PURCHASE_STATUSES = ('paid', 'exhausted')
+
+
 # =====================================================================
 # 👑 Super Admin — لوحة إدارة كل الشركات
 # =====================================================================
@@ -99,8 +104,8 @@ def super_admin_dashboard(request):
         if target is None:
             logger.warning("super_admin_dashboard: action=%r on missing tenant_id=%r by %s",
                            action, tenant_id, request.user.username)
-            messages.error(request, f'الشركة رقم «{str(tenant_id)[:20]}» مش موجودة — غالباً اتحذفت أو الصفحة قديمة. '
-                                    'حدّث الصفحة وجرّب تاني.')
+            messages.error(request, _t('الشركة رقم «%(id)s» مش موجودة — غالباً اتحذفت أو الصفحة قديمة. '
+                                       'حدّث الصفحة وجرّب تاني.') % {'id': str(tenant_id)[:20]})
             return redirect(reverse('super_admin_dashboard') + '#tenants')
         if action == 'suspend':
             target.status = 'suspended'
@@ -111,6 +116,8 @@ def super_admin_dashboard(request):
                 tenant_name=target.name, user_name=request.user.username,
                 description=f"تعليق حساب «{target.name}» بواسطة {request.user.username}",
             )
+            # 🐛 [FIX]: التعليق/التفعيل/المراقبة/تمديد التجربة ماكانوش بيظهروا أي رسالة — الصفحة بترجع ومش باين اتعمل ولا لأ
+            messages.success(request, _t('اتعلّق حساب «%(name)s».') % {'name': target.name})
         elif action == 'activate':
             # 🐛 [FIX]: «تفعيل» كان بيحط active من غير تاريخ انتهاء — والتحقق
             #    والـ cron بيعتبروا «مفيش تاريخ» = مش بينتهي، يعني مجاني للأبد.
@@ -129,6 +136,8 @@ def super_admin_dashboard(request):
                 tenant_name=target.name, user_name=request.user.username,
                 description=f"رفع تعليق «{target.name}» — ساري حتى {target.subscription_end_date}",
             )
+            messages.success(request, _t('اتفعّل حساب «%(name)s» — ساري حتى %(date)s.')
+                             % {'name': target.name, 'date': target.subscription_end_date})
         elif action == 'flag_fraud':
             target.is_fraud_flagged = True
             target.save(update_fields=['is_fraud_flagged'])
@@ -137,6 +146,7 @@ def super_admin_dashboard(request):
                 tenant_name=target.name, user_name=request.user.username,
                 description=f"تعليم احتيال على «{target.name}»",
             )
+            messages.success(request, _t('«%(name)s» بقت تحت المراقبة.') % {'name': target.name})
         elif action == 'unflag_fraud':
             target.is_fraud_flagged = False
             target.save(update_fields=['is_fraud_flagged'])
@@ -145,6 +155,7 @@ def super_admin_dashboard(request):
                 tenant_name=target.name, user_name=request.user.username,
                 description=f"إلغاء تعليم الاحتيال عن «{target.name}»",
             )
+            messages.success(request, _t('اتشالت المراقبة عن «%(name)s».') % {'name': target.name})
         elif action == 'extend_trial':
             # 🐛 [FIX]: كان بيزوّد 7 أيام على تاريخ قديم فات (فالتمديد مايبانش)
             #    ومابيرفعش التعليق اللي حصل بسبب انتهاء التجربة.
@@ -163,6 +174,8 @@ def super_admin_dashboard(request):
                 tenant_name=target.name, user_name=request.user.username,
                 description=f"تمديد تجربة «{target.name}» حتى {target.trial_ends_at}",
             )
+            messages.success(request, _t('اتمدّدت تجربة «%(name)s» حتى %(date)s.')
+                             % {'name': target.name, 'date': target.trial_ends_at})
         elif action == 'activate_subscription':
             # 💸 [FIX]: التفعيل اليدوي ماكانش بيعمل فاتورة منصة ولا بيمد فترة
             #    TenantSubscription — فالإيرادات (من الفواتير) ماكانتش بتطابق MRR.
@@ -172,6 +185,8 @@ def super_admin_dashboard(request):
             billing_period = request.POST.get('billing_period', 'monthly')
             period_labels = {'monthly': 'شهري', 'quarterly': 'ربع سنوي',
                              'semi_annual': 'نصف سنوي', 'annual': 'سنوي'}
+            period_ui = {'monthly': _t('شهري'), 'quarterly': _t('ربع سنوي'),
+                         'semi_annual': _t('نصف سنوي'), 'annual': _t('سنوي')}
             months = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}.get(billing_period, 1)
             gift = request.POST.get('payment_mode') == 'gift'
             # 🐛 [FIX]: المودال كان بيبعت silver/gold/empire (قيم Client.plan القديمة) والباقات في
@@ -179,7 +194,7 @@ def super_admin_dashboard(request):
             #    عمره ما اشتغل. دلوقتي المودال بيبعت الـ slug الحقيقي، والقديم بيتترجم برضه.
             plan_full = _resolve_active_plan(plan)
             if plan_full is None:
-                messages.error(request, 'الباقة غير موجودة أو موقوفة.')
+                messages.error(request, _t('الباقة غير موجودة أو موقوفة.'))
             else:
                 inv = issue_subscription_invoice(
                     target, plan_full, months, gift=gift, user=request.user,
@@ -193,11 +208,13 @@ def super_admin_dashboard(request):
                     metadata={'plan': plan, 'period': billing_period, 'total': str(inv.total),
                               'invoice': inv.invoice_number, 'gift': gift},
                 )
-                messages.success(request,
-                    f'تم تفعيل اشتراك «{target.name}» — باقة {target.get_plan_display()} '
-                    f'({period_labels.get(billing_period, billing_period)}) — '
-                    f'{"🎁 هدية" if gift else f"{inv.total} {_sym()}"} — فاتورة {inv.invoice_number} — '
-                    f'ينتهي {target.subscription_end_date}')
+                messages.success(request, _t(
+                    'تم تفعيل اشتراك «%(name)s» — باقة %(plan)s (%(period)s) — %(amount)s — فاتورة %(invoice)s — '
+                    'ينتهي %(end)s') % {
+                    'name': target.name, 'plan': target.get_plan_display(),
+                    'period': period_ui.get(billing_period, billing_period),
+                    'amount': _t('🎁 هدية') if gift else f'{inv.total} {_sym()}',
+                    'invoice': inv.invoice_number, 'end': target.subscription_end_date})
 
         elif action == 'renew_subscription':
             # تجديد الاشتراك الحالي بنفس الباقة لمدة شهر — بفاتورة منصة (زي Paymob)
@@ -206,7 +223,7 @@ def super_admin_dashboard(request):
             # 🐛 [FIX]: الـ fallback كان بيدوّر بـ Client.plan ('gold') على slug الباقة ('auto-gold') فمابيلاقيش
             plan_obj = sub.plan if sub and sub.plan_id else _resolve_active_plan(target.plan)
             if plan_obj is None:
-                messages.error(request, 'مفيش باقة مربوطة بالشركة — فعّل اشتراك الأول.')
+                messages.error(request, _t('مفيش باقة مربوطة بالشركة — فعّل اشتراك الأول.'))
             else:
                 gift = request.POST.get('payment_mode') == 'gift'
                 inv = issue_subscription_invoice(target, plan_obj, 1, gift=gift, user=request.user,
@@ -218,14 +235,15 @@ def super_admin_dashboard(request):
                     description=(f"تجديد اشتراك «{target.name}» — {plan_obj.slug} — حتى {target.subscription_end_date}"
                                  f" — فاتورة {inv.invoice_number} ({inv.total})"),
                 )
-                messages.success(request, f'تم تجديد اشتراك «{target.name}» حتى {target.subscription_end_date} — فاتورة {inv.invoice_number}')
+                messages.success(request, _t('تم تجديد اشتراك «%(name)s» حتى %(end)s — فاتورة %(invoice)s') % {
+                    'name': target.name, 'end': target.subscription_end_date, 'invoice': inv.invoice_number})
 
         elif action == 'activate_ai_addon':
             # تفعيل حزمة AI Studio للشركة
             addon_slug = request.POST.get('ai_addon_slug', 'ai-basic')
             addon = AIAddonPackage.objects.filter(slug=addon_slug, is_active=True).first()
             if not addon:
-                messages.error(request, 'حزمة AI غير موجودة.')
+                messages.error(request, _t('حزمة AI غير موجودة.'))
             else:
                 sub, _ = TenantSubscription.objects.get_or_create(tenant=target)
                 sub.ai_addon = addon
@@ -237,7 +255,7 @@ def super_admin_dashboard(request):
                     description=f"تفعيل حزمة AI «{addon.name}» لشركة «{target.name}»",
                     metadata={'ai_addon': addon_slug},
                 )
-                messages.success(request, f'تم تفعيل حزمة AI «{addon.name}» لشركة «{target.name}»')
+                messages.success(request, _t('تم تفعيل حزمة AI «%(addon)s» لشركة «%(name)s»') % {'addon': addon.name, 'name': target.name})
 
         elif action == 'deactivate_ai_addon':
             # إلغاء حزمة AI Studio
@@ -251,9 +269,9 @@ def super_admin_dashboard(request):
                     tenant_name=target.name, user_name=request.user.username,
                     description=f"إلغاء حزمة AI «{old_addon}» من شركة «{target.name}»",
                 )
-                messages.success(request, f'تم إلغاء حزمة AI من «{target.name}»')
+                messages.success(request, _t('تم إلغاء حزمة AI من «%(name)s»') % {'name': target.name})
             except TenantSubscription.DoesNotExist:
-                messages.error(request, 'لا يوجد اشتراك لهذه الشركة.')
+                messages.error(request, _t('لا يوجد اشتراك لهذه الشركة.'))
 
         elif action == 'grant_ai_bonus':
             # 🎁 هدية رصيد AI Studio من السوبر أدمن
@@ -274,7 +292,7 @@ def super_admin_dashboard(request):
                     pass
 
             if designs + whatsapp_n + watermarks_n <= 0:
-                messages.error(request, '❌ يجب تحديد رصيد واحد على الأقل (تصاميم / واتساب / علامات مائية).')
+                messages.error(request, _t('❌ يجب تحديد رصيد واحد على الأقل (تصاميم / واتساب / علامات مائية).'))
             else:
                 grant = AIBonusGrant.objects.create(
                     tenant=target,
@@ -290,11 +308,11 @@ def super_admin_dashboard(request):
                     tenant_name=target.name, user_name=request.user.username,
                     description=f"🎁 منح هدية لشركة «{target.name}» — {designs} تصميم، {whatsapp_n} واتساب، {watermarks_n} علامة مائية",
                 )
-                messages.success(
-                    request,
-                    f'🎁 تم منح «{target.name}» هدية: {designs} تصميم + {whatsapp_n} واتساب + {watermarks_n} علامة مائية' +
-                    (f' (تنتهي خلال {expires_days} يوم)' if expires_at else '')
-                )
+                msg = _t('🎁 تم منح «%(name)s» هدية: %(d)s تصميم + %(w)s واتساب + %(m)s علامة مائية') % {
+                    'name': target.name, 'd': designs, 'w': whatsapp_n, 'm': watermarks_n}
+                if expires_at:
+                    msg += ' ' + _t('(تنتهي خلال %(n)s يوم)') % {'n': expires_days}
+                messages.success(request, msg)
 
         elif action == 'revoke_bonus':
             grant_id = request.POST.get('grant_id')
@@ -302,15 +320,15 @@ def super_admin_dashboard(request):
                 grant = AIBonusGrant.objects.get(pk=grant_id, tenant=target)
                 grant.is_active = False
                 grant.save(update_fields=['is_active'])
-                messages.success(request, f'تم إلغاء الهدية #{grant.pk} من «{target.name}»')
+                messages.success(request, _t('تم إلغاء الهدية #%(id)s من «%(name)s»') % {'id': grant.pk, 'name': target.name})
             except AIBonusGrant.DoesNotExist:
-                messages.error(request, 'الهدية غير موجودة.')
+                messages.error(request, _t('الهدية غير موجودة.'))
 
         elif action == 'delete_tenant':
             # ⚠️ حذف نهائي للشركة — يحذف الـ schema بالكامل
             confirm_name = request.POST.get('confirm_name', '').strip()
             if confirm_name != target.schema_name:
-                messages.error(request, 'فشل الحذف: اسم التأكيد لا يتطابق مع اسم الـ Schema.')
+                messages.error(request, _t('فشل الحذف: اسم التأكيد لا يتطابق مع اسم الـ Schema.'))
             else:
                 tenant_name = target.name
                 schema = target.schema_name
@@ -335,17 +353,21 @@ def super_admin_dashboard(request):
                             description=f"🗑️ حذف نهائي لشركة «{tenant_name}» (schema: {schema})",
                         )
                     cache.delete(f"tenant_guard_plan_{schema}")
-                    messages.success(request, f'تم حذف شركة «{tenant_name}» نهائياً.')
+                    messages.success(request, _t('تم حذف شركة «%(name)s» نهائياً.') % {'name': tenant_name})
                 except (ProtectedError, RestrictedError) as e:
                     objs = getattr(e, 'protected_objects', None) or getattr(e, 'restricted_objects', None) or []
                     what = '، '.join(sorted({str(o._meta.verbose_name_plural) for o in objs})) or '—'
                     messages.error(
                         request,
-                        f'مش هينفع تتمسح «{tenant_name}»: عليها سجلات مالية لازم تفضل ({what}). '
-                        f'مااتمسحش أي حاجة — استخدم «تعليق» بدل الحذف.')
+                        _t('مش هينفع تتمسح «%(name)s»: عليها سجلات مالية لازم تفضل (%(what)s). '
+                           'مااتمسحش أي حاجة — استخدم «تعليق» بدل الحذف.') % {'name': tenant_name, 'what': what})
                 except Exception as e:
                     logger.error("[SUPER ADMIN] Failed to delete tenant %s: %s", schema, e)
-                    messages.error(request, f'فشل حذف الشركة: {e}')
+                    messages.error(request, _t('فشل حذف الشركة: %(err)s') % {'err': e})
+
+        else:
+            # 🐛 [FIX]: إجراء مش معروف كان بيرجع بصمت كأنه اتعمل
+            messages.error(request, _t('الإجراء ده مش معروف — حدّث الصفحة وجرّب تاني.'))
 
         # 🐛 [FIX]: بعد أي إجراء على شركة (تعليق/تجديد/هدية…) كانت الصفحة بترجع على
         #    «نظرة عامة» والرسالة تبان والكارت مش قدامك — نرجع على تاب الشركات نفسه.
@@ -390,18 +412,28 @@ def super_admin_dashboard(request):
     # --- Visitor Analytics ---
     visitor_stats = {}
     try:
-        visitors_today = VisitorLog.objects.filter(timestamp__gte=today_start).count()
-        unique_ips_today = VisitorLog.objects.filter(
+        # 🐛 [FIX]: الأرقام كانت بتحسب صاحب المنصة نفسه (السوبر أدمن + تنبيه الدعم اللي بيسأل كل ٢٠ ثانية)
+        #    فـ«زوار فريدون اليوم» و«أكثر الصفحات زيارة» كانوا مليانين /superadmin/… — مش زوار حقيقيين.
+        from clients.services.live_market import _BACKGROUND, _OWNER_PREFIXES
+        owner_q = Q()
+        for _p in _OWNER_PREFIXES:
+            owner_q |= Q(path__startswith=_p)
+        logs = VisitorLog.objects.exclude(Q(tenant_schema__in=('public', '')) & owner_q)
+        visitors_today = logs.filter(timestamp__gte=today_start).count()
+        unique_ips_today = logs.filter(
             timestamp__gte=today_start
         ).values('ip_address').distinct().count()
-        visitors_week = VisitorLog.objects.filter(timestamp__gte=week_ago).count()
-        unique_ips_week = VisitorLog.objects.filter(
+        visitors_week = logs.filter(timestamp__gte=week_ago).count()
+        unique_ips_week = logs.filter(
             timestamp__gte=week_ago
         ).values('ip_address').distinct().count()
 
-        # أكثر الصفحات زيارة
+        # أكثر الصفحات زيارة — صفحات بس (من غير طلبات الخلفية زي الإشعارات والعدّادات)
+        bg_q = Q()
+        for _p in _BACKGROUND:
+            bg_q |= Q(path__contains=_p)
         top_pages = list(
-            VisitorLog.objects.filter(timestamp__gte=week_ago)
+            logs.filter(timestamp__gte=week_ago, method='GET').exclude(bg_q)
             .values('path')
             .annotate(hits=Count('id'))
             .order_by('-hits')[:10]
@@ -409,30 +441,35 @@ def super_admin_dashboard(request):
 
         # أكثر الشركات نشاطاً
         top_tenants = list(
-            VisitorLog.objects.filter(timestamp__gte=week_ago)
+            logs.filter(timestamp__gte=week_ago)
             .exclude(tenant_schema='public')
             .exclude(tenant_schema='')
             .values('tenant_schema')
             .annotate(hits=Count('id'))
             .order_by('-hits')[:10]
         )
+        # 🐛 [FIX]: «أنشط الشركات» كانت بتعرض اسم الـ schema بدل اسم الشركة
+        _names = dict(Client.objects.filter(schema_name__in=[r['tenant_schema'] for r in top_tenants])
+                      .values_list('schema_name', 'name'))
+        for r in top_tenants:
+            r['name'] = _names.get(r['tenant_schema'], r['tenant_schema'])
 
         # Device breakdown
         device_breakdown = list(
-            VisitorLog.objects.filter(timestamp__gte=week_ago)
+            logs.filter(timestamp__gte=week_ago)
             .values('device_type')
             .annotate(count=Count('id'))
             .order_by('-count')
         )
 
         # Average response time
-        avg_response = VisitorLog.objects.filter(
+        avg_response = logs.filter(
             timestamp__gte=today_start, response_time_ms__isnull=False,
         ).aggregate(avg=Avg('response_time_ms'))['avg'] or 0
 
         # آخر 50 زائر (Live Feed)
         recent_visitors = list(
-            VisitorLog.objects.filter(timestamp__gte=today_start)
+            logs.filter(timestamp__gte=today_start)
             .order_by('-timestamp')[:50]
             .values(
                 'timestamp', 'ip_address', 'path', 'method',
@@ -561,13 +598,21 @@ def super_admin_dashboard(request):
     print_needs_action = sum(1 for p in pending_print_requests if p.status in ('pending', 'accepted'))
 
     # --- 🛍️ عملاء السوق + إحصائيات نشاطهم ---
+    # 🐛 [FIX]: «المصروف» كان Sum جوه نفس الـ join مع الطلبات والتصاميم ⇒ المبلغ بيتضرب في عددهم
+    #    (عميل دفع 100 وعنده 3 طلبات × 4 تصاميم كان بيظهر 1200)، وكان بيحسب كمان المشتريات
+    #    اللي ماتدفعتش أو اترفضت. دلوقتي subquery للمدفوع فعلاً بس.
+    from django.db.models import DecimalField, OuterRef, Subquery
+    from django.db.models.functions import Coalesce
+    paid_sum = (DesignPurchase.objects.filter(customer=OuterRef('pk'), status__in=PAID_PURCHASE_STATUSES)
+                .order_by().values('customer').annotate(t=Sum('price_paid')).values('t'))
     marketplace_customers = (
         MarketplaceCustomer.objects.all()
         .annotate(
             requests_count=Count('requests', distinct=True),
             designs_count=Count('designs', distinct=True),
             purchases_count=Count('design_purchases', distinct=True),
-            spent_total=Sum('design_purchases__price_paid'),
+            spent_total=Coalesce(Subquery(paid_sum, output_field=DecimalField(max_digits=12, decimal_places=2)),
+                                 Decimal('0'), output_field=DecimalField(max_digits=12, decimal_places=2)),
         )
         .order_by('-last_active')[:100]
     )
@@ -672,9 +717,13 @@ def super_admin_dashboard(request):
     #    + العرض الشغّال) + الإضافات. يعني «الإجمالي المطلوب» اللي قدامك ≠ اللي اتسجّل، وشركات
     #    الطباعة مالهاش باقة أصلاً. دلوقتي كل الباقات النشطة من الـ DB بنفس دالة الفاتورة.
     sub_plans = []
+    from django.utils.translation import get_language
+    _en = (get_language() or 'ar').startswith('en')
     for p in Plan.objects.filter(is_active=True).order_by('industry', 'monthly_price'):
         sub_plans.append({
-            'slug': p.slug, 'name': p.name, 'industry': p.industry,
+            # 🌐 الصفحة بالإنجليزي ⇒ الاسم الإنجليزي للباقة لو متسجّل
+            'slug': p.slug, 'name': ((p.name_en or p.slug.split('-', 1)[-1].replace('-', ' ').title()) if _en else p.name),
+            'industry': p.industry,
             'prices': {str(m): float(p.price_for_period(m)) for m in (1, 3, 6, 12)},
         })
 
@@ -684,7 +733,17 @@ def super_admin_dashboard(request):
     from clients.models import SupportTicket
     support_unseen = SupportTicket.objects.filter(
         is_deleted=False, seen_at__isnull=True).exclude(status='closed').count()
+    # 🛍️ طلبات أسعار جديدة من كتالوج السوق (متاجر Mouss Tec)
+    from clients.models import CatalogQuoteRequest
+    catalog_new = CatalogQuoteRequest.objects.filter(status='new').count()
+    # 🖨️ سوق المطابع: إيصالات/مشاكل/تحويلات للمطابع — كانت بتوصل إيميل بس (notify_owner)
+    #    ومش ظاهرة هنا، فلو الإيميل مش متظبط العميل يدفع والمطبعة ماتبدأش أبداً.
+    from print_market.models import MarketOrder, MarketPayment
+    pm_payments_pending = MarketPayment.objects.filter(status='pending').count()
+    pm_disputes = MarketOrder.objects.filter(status='disputed').count()
+    pm_payouts_due = MarketOrder.objects.filter(status='completed', payout_done_at__isnull=True).count()
     attention_total = (
+        catalog_new + pm_payments_pending + pm_disputes + pm_payouts_due +
         uploaded_receipts_count + support_unseen + len(pending_refund_orders)
         + len(pending_design_purchases) + len(pending_marketplace_requests)
         + len(pending_parts_listings) + print_needs_action
@@ -707,6 +766,10 @@ def super_admin_dashboard(request):
         'ai_addons': ai_addons,
         'support_unseen': support_unseen,
         'attention_total': attention_total,
+        'pm_payments_pending': pm_payments_pending,
+        'pm_disputes': pm_disputes,
+        'pm_payouts_due': pm_payouts_due,
+        'catalog_new': catalog_new,
         'pending_design_purchases': pending_design_purchases,
         'pending_manual_receipts': pending_manual_receipts,
         'unsubmitted_receipts': unsubmitted_receipts,
@@ -741,11 +804,17 @@ def super_admin_customer_detail(request, customer_id):
     requests_list = list(customer.requests.order_by('-created_at')[:20])
 
     # إجماليات
-    total_spent = sum((p.price_paid for p in purchases if p.status == 'paid'), Decimal('0'))
+    # 🐛 [FIX]: الباقة اللي اتدفعت واتصرفت كلها (exhausted) ماكانتش بتتحسب في «إجمالي المدفوع»
+    total_spent = sum((p.price_paid for p in purchases if p.status in PAID_PURCHASE_STATUSES), Decimal('0'))
     total_designs = len(designs)
     total_purchases = len(purchases)
 
+    # 🧭 رحلة العميل على الموقع (الصفحات اللي فتحها وآخر صفحة وقف عندها)
+    from clients.services.customer_journey import build_customer_journey
+    journey = build_customer_journey(customer)
+
     return render(request, 'clients/super_admin_customer_detail.html', {
+        'journey': journey,
         'customer': customer,
         'designs': designs,
         'purchases': purchases,
@@ -929,6 +998,8 @@ def impersonate_login(request):
 
     # Login
     auth_login(request, admin_user, backend='clients.backends.CaseInsensitiveEmailBackend')
+    # 🎥 صاحب المنصة داخل على الشركة ⇒ مايتسجّلش في «تسجيل الشاشة» كأنه موظف عندهم
+    request.session['platform_owner_entered'] = True
 
     admin_url = os.getenv('ADMIN_URL', 'secure-portal')
     return redirect(f'/{admin_url}/')

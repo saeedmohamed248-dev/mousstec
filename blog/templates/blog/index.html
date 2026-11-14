@@ -1,0 +1,29 @@
+{% extends "blog/base.html" %}{% load i18n %}
+{% block title %}{% trans "مقالات الطباعة والتصميم" %}{% endblock %}
+{% block extra_head %}<style>
+.grid { display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); }
+.post { padding:1.2rem; text-decoration:none; color:inherit; display:block; }
+.post h2 { font-size:1.15rem; margin:.2rem 0 .4rem; line-height:1.5; }
+.post p { margin:0; color:var(--muted); font-size:.95rem; }
+.post .meta { font-size:.8rem; color:var(--muted); margin-top:.6rem; }
+.pager { display:flex; gap:.5rem; justify-content:center; margin-top:1.2rem; }
+</style>{% endblock %}
+{% block content %}
+<div class="card" style="padding:1.4rem;margin-bottom:1.2rem">
+  <h1 style="margin:0 0 .3rem">{% trans "مقالات الطباعة والتصميم" %}</h1>
+  <p class="muted" style="margin:0">{% trans "دليلك قبل ما تطبع: الخامات، المقاسات، الأسعار، وإزاي تختار المطبعة الصح." %}</p>
+</div>
+<div class="grid">
+  {% for a in page %}
+  <a class="card post" href="{{ a.get_absolute_url }}">
+    <h2>{{ a.title }}</h2>
+    <p>{{ a.description }}</p>
+    <div class="meta"><span dir="ltr">{{ a.published_at|date:"Y-m-d" }}</span> · {% blocktrans count m=a.reading_minutes %}دقيقة قراءة{% plural %}{{ m }} دقايق قراءة{% endblocktrans %}</div>
+  </a>
+  {% empty %}<p class="muted">{% trans "مفيش مقالات لسه." %}</p>{% endfor %}
+</div>
+{% if page.has_other_pages %}<div class="pager">
+  {% if page.has_previous %}<a class="btn light" href="?page={{ page.previous_page_number }}">{% trans "السابق" %}</a>{% endif %}
+  {% if page.has_next %}<a class="btn light" href="?page={{ page.next_page_number }}">{% trans "التالي" %}</a>{% endif %}
+</div>{% endif %}
+{% endblock %}

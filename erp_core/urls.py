@@ -12,6 +12,8 @@ from django.db import connection
 
 from erp_core import private_media
 from erp_core.admin_guard import lock_shared_models_to_platform
+from django.contrib.sitemaps import views as sitemap_views
+from erp_core import seo
 
 # 🔒 جداول المنصة المشتركة مابتظهرش في أدمن الشركات (كانت بتعرض بيانات كل الشركات)
 lock_shared_models_to_platform()
@@ -22,6 +24,8 @@ import logging
 
 from clients import views as client_views
 from clients.views import saas_admin_views as saas_admin_views
+from clients.views import screen_recording_views as screen_rec_views
+from clients.views import catalog_views as catalog_views
 from omnichannel import saas_admin_views as omnichannel_saas_views
 from clients.views import support_views as support_views
 from clients.views import marketplace_password_reset_views as mp_pw_views
@@ -300,7 +304,14 @@ def custom_404_handler(request, exception=None):
         if industry == 'printing':
             return redirect(f'/{ADMIN_URL}/')
         return redirect('/system/dashboard/')
-    return redirect('smart_root')
+    # 🐛 [FIX — SEO]: الدومين الرئيسي كان بيحوّل أي رابط مش موجود للرئيسية (302) ⇒ جوجل بيعتبره
+    #    «soft 404» وبيقلّل ثقته في الموقع، والزائر مايعرفش إن اللينك غلط. صفحة 404 حقيقية بروابط مفيدة.
+    #    الـ host المجهول (IP مباشر / دومين مش متسجّل — مفيش tenant) بيفضل يتحوّل للرئيسية زي الأول:
+    #    فحص الصحة في النشر وCI بيضرب 127.0.0.1 ومستني رد مش 4xx.
+    if getattr(request, 'tenant', None) is None:
+        return redirect('smart_root')
+    from django.shortcuts import render
+    return render(request, 'errors/404_public.html', status=404)
 
 def custom_400_handler(request, exception=None):
     """🛡️ بديل صفحة Django الخام "Bad Request (400)".
@@ -375,6 +386,16 @@ urlpatterns = [
 
     # 👑 دخول مباشر للسوبر أدمن بتوكن (بدون باسورد) — يتولّد من أمر owner_login_link
     path('account/owner-login/', client_views.owner_auto_login, name='owner_auto_login'),
+
+    # 🔎 SEO: تعليمات الزحف + خريطة الموقع (قبل أي include بيمسك الجذر)
+    path('robots.txt', seo.robots_txt, name='robots_txt'),
+    path('sitemap.xml', sitemap_views.index, {'sitemaps': seo.SITEMAPS, 'sitemap_url_name': 'sitemap_section'},
+         name='sitemap_index'),
+    path('sitemap-<section>.xml', sitemap_views.sitemap, {'sitemaps': seo.SITEMAPS}, name='sitemap_section'),
+    # 🗺️ صفحات الطباعة حسب الخدمة والمحافظة (SEO)
+    path('print/', include('print_market.seo_urls')),
+    # 📝 المقالات (SEO)
+    path('blog/', include('blog.urls')),
 
     # 0. 🌐 الموجه التكيفي الذكي (بوابة الإمبراطورية السحابية)
     path('', smart_root_router, name='smart_root'),
@@ -541,6 +562,8 @@ urlpatterns = [
     path('superadmin/tenant/<int:tenant_id>/diag-topup-grant/', client_views.super_admin_diag_topup_grant, name='super_admin_diag_topup_grant'),
 
     # 🔔 Marketplace customer notifications (customer-facing)
+    # 🖨️ سوق المطابع (حسابات مطابع مجانية + عروض + بروفات + دفع لـ Mouss Tec بس)
+    path('marketplace/print-market/', include('print_market.urls')),
     path('marketplace/notifications/',                       client_views.customer_notifications_list, name='customer_notifications_list'),
     path('marketplace/notifications/<int:notification_id>/read/', client_views.customer_notification_read, name='customer_notification_read'),
 
@@ -610,6 +633,8 @@ urlpatterns = [
 
     # ⚙️ System Status (DB / Redis / Celery / disk / memory)
     path('superadmin/system/', saas_admin_views.system_status, name='saas_system_status'),
+    path('superadmin/live/', saas_admin_views.live_market, name='saas_live_market'),
+    path('superadmin/live/v/<str:token>/', saas_admin_views.live_visitor, name='saas_live_visitor'),
 
     # 🩺 Tenant Health / Churn Risk
     path('superadmin/churn-risk/', saas_admin_views.churn_risk, name='saas_churn_risk'),
@@ -631,6 +656,11 @@ urlpatterns = [
 
     # 🧭 Tenant 360 — single page with everything about one tenant
     path('superadmin/tenant/<int:tenant_id>/360/', saas_admin_views.tenant_360, name='saas_tenant_360'),
+    # 🎥 تسجيل شاشة جلسات الشركات (rrweb)
+    path('superadmin/tenant/<int:tenant_id>/screen-rec/toggle/', screen_rec_views.screen_rec_toggle, name='screen_rec_toggle'),
+    path('superadmin/screen/<int:session_id>/', screen_rec_views.screen_session_player, name='screen_session_player'),
+    path('superadmin/screen/<int:session_id>/events/', screen_rec_views.screen_session_events, name='screen_session_events'),
+    path('screen-rec/ingest/', screen_rec_views.screen_rec_ingest, name='screen_rec_ingest'),
     path('superadmin/tenant/<int:tenant_id>/control/', saas_admin_views.tenant_control, name='superadmin_tenant_control'),
 
     # 🛡️ Parts marketplace — moderation queue (admin approves listings before they go live)
@@ -797,6 +827,14 @@ urlpatterns = [
     path('marketplace/', client_views.marketplace_home, name='marketplace_home'),
     path('marketplace/automotive/', client_views.marketplace_automotive, name='marketplace_automotive'),
     path('marketplace/printing/', client_views.marketplace_printing, name='marketplace_printing'),
+    # 🛍️ كتالوج السوق (متاجر Mouss Tec) — «اطلب سعر» بيوصل لصاحب المنصة
+    path('marketplace/catalog/<str:sector>/', catalog_views.catalog_home, name='catalog_home'),
+    path('marketplace/catalog/store/<slug:slug>/', catalog_views.catalog_store, name='catalog_store'),
+    path('marketplace/catalog/item/<uuid:item_code>/', catalog_views.catalog_item, name='catalog_item'),
+    path('marketplace/catalog/review/<uuid:token>/', catalog_views.catalog_review, name='catalog_review'),
+    path('marketplace/sell/', catalog_views.catalog_sell, name='catalog_sell'),
+    path('superadmin/catalog/requests/', catalog_views.catalog_requests_admin, name='catalog_requests_admin'),
+    path('superadmin/catalog/requests/<int:request_id>/update/', catalog_views.catalog_request_update, name='catalog_request_update'),
     path('marketplace/register/', client_views.marketplace_register, name='marketplace_register'),
     path('marketplace/verify-otp/', client_views.marketplace_verify_otp, name='marketplace_verify_otp'),
     path('marketplace/login/', client_views.marketplace_login, name='marketplace_login_api'),
@@ -811,6 +849,7 @@ urlpatterns = [
     path('marketplace/offer/<uuid:offer_code>/accept/', client_views.marketplace_accept_offer, name='marketplace_accept_offer'),
     path('marketplace/offer/<uuid:offer_code>/rate/', client_views.marketplace_rate_offer, name='marketplace_rate_offer'),
     path('marketplace/request/<uuid:request_code>/edit/', client_views.marketplace_edit_request, name='marketplace_edit_request'),
+    path('marketplace/request/<uuid:request_code>/cancel/', client_views.marketplace_cancel_request, name='marketplace_cancel_request'),
 
     # ✅ Super Admin: approve/reject marketplace requests
     path('marketplace/admin/approve/<int:request_id>/', client_views.marketplace_admin_approve, name='marketplace_admin_approve'),

@@ -136,8 +136,8 @@
                         </div>
                         <p class="text-xs text-slate-400 mb-2 leading-relaxed">{{ r.description|truncatechars:160 }}</p>
                         <div class="flex flex-wrap items-center gap-3 text-[10px] text-slate-500">
-                            <span><i class="fas fa-user ml-1"></i>{{ r.customer.full_name }}</span>
-                            <span><i class="fas fa-phone ml-1"></i>{{ r.customer.phone }}</span>
+                            <span><i class="fas fa-user ml-1"></i>{{ r.customer.full_name }}{% if r.customer.company_name %} — <b>{{ r.customer.company_name }}</b>{% endif %}</span>
+                            <span><i class="fas fa-phone ml-1"></i><span dir="ltr">{{ r.customer.phone }}</span></span>
                             <span><i class="fas fa-bolt ml-1"></i>{{ r.get_urgency_display }}</span>
                             <span><i class="fas fa-clock ml-1"></i>{% blocktrans with t=r.created_at|timesince %}{{ t }} مضت{% endblocktrans %}</span>
                             {% if r.max_budget %}<span class="text-amber-400"><i class="fas fa-coins ml-1"></i>{{ r.max_budget }} {% trans "ج" %}</span>{% endif %}

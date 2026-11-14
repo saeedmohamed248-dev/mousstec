@@ -1,0 +1,121 @@
+You are a professional product photographer. Create photorealistic product photos for an online print-shop catalog.
+
+RULES FOR EVERY IMAGE:
+- One separate image per item, landscape 4:3 (1024x768 or larger).
+- Photorealistic e-commerce product photography: studio lighting, soft natural shadow, sharp focus, high detail.
+- Clean light warm-grey seamless background (unless the description puts the product in a real place like a cafe table or a wall).
+- NO readable text, NO letters, NO brand names, NO logos, NO watermarks anywhere. Printed designs must be abstract shapes/colors only.
+- Save each image with EXACTLY the file name given below.
+- Work through the list in order. After every 10 images, put them in a ZIP (batch-01.zip, batch-02.zip, ...) and give me the download link, then continue with the next 10 until the list is finished.
+- Never skip an item. At the end, tell me if any file name is missing.
+
+THE LIST (file name — what to show):
+p080-kraft-paper-business-cards.png — Natural brown kraft paper business cards with a minimal abstract stamp-like emblem, twine and dried leaves beside them
+p081-thick-600gsm-cards-with-painted-edges.png — A stack of thick luxury business cards showing brightly painted colored edges, close-up side view
+p082-laser-die-cut-shaped-cards.png — Die-cut business cards in unusual shapes (circle, leaf, rounded) scattered on a light surface
+p083-smart-nfc-tap-cards.png — A matte black smart NFC card being tapped against a smartphone, soft glow between them
+p084-thank-you-cards-for-online-orders.png — Small thank-you cards tucked into an open kraft shipping box with tissue paper
+p085-gift-cards-vouchers.png — Elegant gift voucher cards with abstract patterns, inside small envelopes tied with ribbon
+p086-clothing-hang-tags.png — Clothing hang tags with cotton string attached to neatly folded clothes
+p087-salon-appointment-cards.png — Pastel appointment cards next to a pen and a small plant on a salon counter
+p088-budget-handout-flyers.png — A thick stack of thin colorful handout flyers with abstract color blocks, slightly fanned
+p089-bi-fold-brochure.png — An open bi-fold brochure standing on a desk showing abstract photo blocks and color panels
+p090-company-profile-booklet.png — A premium perfect-bound company profile booklet, one closed and one open showing abstract layouts
+p091-door-hangers.png — A colorful door hanger with abstract pattern hanging on a hotel room door handle
+p092-large-promo-posters.png — A large bold abstract poster pasted on a city wall with a second poster rolled beside it
+p093-shelf-price-offer-tags.png — Bright shelf talker price tags clipped to supermarket shelves with colorful products (no text)
+p094-numbered-discount-coupons.png — A stack of perforated discount coupons with dashed tear lines and abstract color stripes
+p095-dated-annual-planner-with-your-brand.png — A thick dated annual planner with a ribbon bookmark and a hard cover with a subtle emblem, on an office desk
+p096-notepads-sticky-notes.png — Branded notepads and colorful sticky note pads arranged on a clean desk
+p097-numbered-job-delivery-books.png — Numbered carbonless delivery note books in white and yellow sheets, with a pen
+p098-desk-calendar-on-a-wooden-base.png — A small desk calendar on a wooden base with abstract colorful monthly pages, beside a coffee cup
+p099-engraved-leather-cover-notebook.png — An A5 notebook with a brown faux leather cover and a debossed abstract emblem, pen on top
+p100-tall-printed-latte-mug.png — A tall white ceramic latte mug with a colorful abstract wraparound print, latte art inside
+p101-mug-with-bamboo-lid-spoon.png — A matte ceramic mug with a bamboo wooden lid and a small spoon, minimal abstract print
+p102-printed-sports-water-bottle.png — Colorful aluminium sports water bottles with abstract printed bands, water droplets
+p103-travel-mug-with-lid.png — A sleek stainless travel mug with a sealed lid in a car cup holder, subtle engraved emblem
+p104-family-name-mugs.png — A row of four pastel ceramic mugs in different colors on a kitchen shelf, simple abstract prints
+p105-eco-bamboo-pens.png — Natural bamboo ballpoint pens with laser-engraved minimal emblem, on recycled paper
+p106-luxury-pens-in-a-gift-box.png — A luxury metal pen resting in an open velvet-lined gift box, dramatic soft light
+p107-kids-name-pencils-colors.png — A set of colorful wooden pencils and crayons in a pencil cup, bright and cheerful
+p108-stylus-pen-with-mini-torch.png — A metallic multi-function pen with a stylus tip and a small glowing LED light
+p109-printed-fridge-magnets.png — Colorful printed fridge magnets with abstract shapes stuck on a white refrigerator door
+p110-branded-wall-clocks.png — A modern round wall clock with a minimal abstract printed face on a light wall
+p111-printed-umbrellas.png — An open colorful umbrella with abstract printed panels, light rain in the background
+p112-branded-phone-laptop-stands.png — A wooden phone stand and a clear acrylic stand holding smartphones on a desk
+p113-printed-photo-cushions.png — A soft velvet square cushion with a colorful abstract print on a sofa
+p114-custom-photo-puzzle.png — A partially assembled jigsaw puzzle with a colorful abstract landscape picture, loose pieces around
+p115-printed-acrylic-photo-keychains.png — Clear acrylic keychains in various shapes with colorful abstract prints, on a key ring
+p116-button-pin-badges.png — A pile of round colorful button pin badges with abstract patterns
+p117-branded-laptop-backpacks.png — A modern dark grey laptop backpack with a small embroidered abstract emblem, studio shot
+p118-sports-trophies-medals.png — Shiny gold sports trophies and medals with colorful ribbons on a podium
+p119-embroidered-polo-shirts.png — Folded navy cotton polo shirts with a small embroidered abstract emblem on the chest
+p120-printed-aprons-chef-jackets.png — A black canvas kitchen apron with a small emblem hanging next to a white chef jacket
+p121-matching-family-trip-t-shirts.png — A row of matching colorful T-shirts in different sizes laid flat, playful abstract print
+p122-embroidered-winter-jackets-blazers.png — A dark padded winter jacket with a small embroidered emblem on a mannequin
+p123-dri-fit-sports-t-shirts.png — A vibrant sublimation-printed sports jersey with dynamic abstract shapes on a hanger
+p124-winter-beanies.png — Knitted winter beanies in several colors with small embroidered patches
+p125-x-banner-stand.png — An X-banner stand with a vibrant abstract graphic in a bright exhibition hall
+p126-feather-beach-flag.png — Two tall feather beach flags with colorful abstract graphics waving outside a shop
+p127-acrylic-metal-3d-letters.png — Glowing backlit 3D abstract shapes made of brushed metal on a dark facade at night (no letters)
+p128-custom-led-neon-sign.png — A glowing pink and blue LED neon abstract heart and wave shape on a brick wall
+p129-floor-stair-graphics.png — Colorful anti-slip floor graphic arrows on a shiny mall floor
+p130-cardboard-display-stand.png — A printed cardboard point-of-sale display stand with shelves holding small boxes, abstract graphics
+p131-acrylic-door-plates.png — A frosted acrylic door sign with metal standoffs on a modern office door (no readable text)
+p132-clear-jar-container-labels.png — Glass jars of honey and jam with clear printed labels showing abstract shapes
+p133-laptop-phone-stickers.png — A laptop lid covered with colorful die-cut vinyl stickers of abstract shapes
+p134-sticker-sheets.png — A colorful kiss-cut sticker sheet with many small abstract cute shapes, beside a planner
+p135-packaging-seal-stickers.png — A kraft paper bag sealed with a round glossy sticker with an abstract emblem
+p136-barcode-price-labels.png — A roll of white barcode price labels next to a handheld label printer
+p137-frosted-glass-window-film.png — A glass office partition with frosted film stripes and a subtle abstract pattern
+p138-printed-mailer-boxes.png — An open printed corrugated mailer box with a colorful abstract interior print and tissue paper
+p139-sweets-chocolate-boxes.png — An elegant pastry box with a clear window showing assorted chocolates and macarons
+p140-perfume-cosmetics-boxes.png — Small luxury perfume and cosmetic boxes with gold foil abstract lines, a perfume bottle beside them
+p141-printed-wrapping-tissue-paper.png — Printed tissue paper with a repeating abstract pattern wrapped around a product in a box
+p142-non-woven-bags.png — A stack of colorful non-woven shopping bags with a simple printed abstract emblem
+p143-printed-packing-tape.png — Rolls of printed packing tape with a repeating abstract pattern on a sealed cardboard box
+p144-stand-up-zipper-pouches.png — Matte stand-up zipper pouches with abstract prints, coffee beans spilling in front
+p145-rigid-gift-boxes-with-foam-insert.png — A rigid black gift box with lid off showing a custom foam insert holding a pen and a small gadget
+p146-business-card-design.png — Several elegant business card design mockups laid out on a designer desk with color swatches
+p147-company-profile-design.png — A designer laptop showing an abstract multi-page layout, printed spreads beside it
+p148-product-label-design.png — Product bottles and jars with fresh abstract label designs, color swatches on the table
+p149-shop-sign-facade-design.png — A tablet showing an abstract storefront sign design mockup in front of a real shop facade
+p150-ramadan-holiday-posts.png — A smartphone showing a festive abstract crescent and lantern style post design, warm lights around
+p151-motion-graphics-short-reels.png — A smartphone in vertical video mode showing dynamic abstract motion shapes, colorful light trails
+p152-instagram-highlight-covers.png — A smartphone showing a row of minimal round highlight cover icons in pastel colors
+p153-baby-shower-newborn-invitations.png — Pastel baby invitation cards with tiny cute abstract shapes, ribbons and small favor boxes
+p154-kids-birthday-invitations.png — Colorful kids birthday party invitations with balloons and confetti abstract shapes, cake topper beside
+p155-thank-you-greeting-cards.png — Folded greeting cards with soft watercolor abstract florals and envelopes
+p156-wedding-engagement-backdrops.png — An elegant floral wedding photo backdrop with soft lights and a few chairs (no text)
+p157-graduation-honour-certificates.png — Elegant certificates with guilloche borders and a gold seal on premium cream paper
+p158-wax-branding-iron-stamps.png — A brass wax seal stamp with red wax seals on envelopes and a small branding iron
+p159-pvc-employee-id-cards.png — Blank-design plastic employee ID cards with lanyards and clear holders on a desk
+p160-printed-envelopes-in-all-sizes.png — A fanned set of envelopes in different sizes with a minimal abstract emblem
+p161-receipt-payment-voucher-books.png — Numbered voucher books with carbon copies, a calculator and a pen on an accountant desk
+p162-patient-files-medical-report-forms.png — Colored patient file folders and medical report forms on a clinic desk with a stethoscope
+p163-stretched-canvas-prints.png — A large stretched canvas print with a colorful abstract landscape hanging above a sofa
+p164-framed-photo-prints.png — A gallery wall of black and natural wood frames with abstract photo prints
+p165-acrylic-photo-prints.png — A glossy acrylic photo panel with a vivid abstract seascape print, reflections on its surface
+p166-multi-panel-wall-art-3-pieces.png — A three-panel canvas wall art triptych with a flowing abstract design above a console table
+p167-photo-prints-in-all-sizes.png — A scattered stack of glossy photo prints with colorful abstract scenes, some instant-style
+p168-printed-photo-book.png — An open hardcover photo book with glossy pages showing abstract photo layouts
+p169-polaroid-style-prints-with-string-lights.png — Polaroid-style photo prints clipped with wooden pegs on a warm LED fairy light string
+p170-photo-prints-on-wood.png — A photo printed on a natural wooden plank showing visible wood grain, on a shelf
+p171-school-exercise-books-with-school-logo.png — A stack of school exercise books with colorful abstract covers and pencils on a classroom desk
+p172-report-cards-school-certificates.png — School report cards and certificates with decorative borders and a gold seal on a desk
+p173-student-id-cards-with-photo.png — Student plastic ID cards with lanyards in bright school colors
+p174-name-labels-for-school-bags-lunch-boxes.png — Small colorful waterproof name stickers on a kids lunch box and water bottle
+p175-printed-bound-study-notes.png — A stack of spiral-bound printed study booklets with highlighters and sticky tabs
+p176-classroom-educational-charts.png — Bright laminated educational wall charts with abstract shapes and colors in a cheerful classroom
+p177-graduation-projects-theses.png — A hardbound thesis with a dark leather cover and gold foil lines, next to a graduation cap
+p178-school-event-backdrops.png — A colorful graduation party backdrop with balloons and confetti abstract shapes on a school stage
+p179-printed-paper-coffee-cups.png — Printed double-wall paper coffee cups with lids and abstract pattern sleeves on a cafe counter
+p180-printed-clear-plastic-cups.png — Clear plastic cups of iced coffee and colorful juice with dome lids and a printed abstract emblem
+p181-paper-tray-mats.png — A fast food tray with a printed paper tray mat with abstract food illustrations, burger and fries on it
+p182-printed-paper-napkins.png — A neat stack of white paper napkins with a small printed abstract emblem in a corner, beside a cup
+p183-cup-sleeves-carriers.png — Kraft cup sleeves on coffee cups and a cardboard four-cup carrier
+p184-table-tents-with-offers.png — A folded table tent card with abstract graphics and a QR-like pattern on a cafe table
+p185-printed-burger-sandwich-wrap.png — A burger half-wrapped in printed greaseproof paper with a repeating abstract pattern
+p186-acrylic-qr-menu-stands.png — A small clear acrylic table stand with a QR-code-like pattern on a wooden cafe table
+p187-take-away-paper-bags-with-handles.png — Kraft take-away paper bags with twisted handles and a printed abstract emblem on a counter
+p188-printed-paper-food-containers.png — Kraft paper food containers with clear lids holding colorful salads, abstract printed band

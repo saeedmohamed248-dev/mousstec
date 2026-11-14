@@ -20,7 +20,9 @@
 <body onload="window.print()">
 
     <div class="center">
-        <h1>{{ invoice.branch.name|default:"Mouss Tec" }}</h1>
+        {# 🐛 [FIX]: الفاتورة كان عنوانها اسم الفرع بس («الفرع الرئيسي») — اسم المحل نفسه مكانش ظاهر للعميل #}
+        <h1>{% firstof request.tenant.name invoice.branch.name "Mouss Tec" %}</h1>
+        {% if request.tenant.name and invoice.branch.name %}<p style="font-size:10px;color:#444;">{{ invoice.branch.name }}{% if invoice.branch.location %} — {{ invoice.branch.location }}{% endif %}{% if invoice.branch.phone %} · <span dir="ltr">{{ invoice.branch.phone }}</span>{% endif %}</p>{% endif %}
         <p style="font-size:9px;color:#666;">{{ print_date|date:"Y/m/d H:i" }}</p>
         {% if invoice.is_return %}
         <p class="bold" style="font-size:13px;margin-top:4px;">↩ {% trans "إشعار مرتجع" %} #{{ invoice.id }}</p>

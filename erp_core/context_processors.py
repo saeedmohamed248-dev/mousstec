@@ -167,11 +167,19 @@ def tenant_context(request):
             if u.is_superuser:
                 from inventory.models import EmployeeProfile
                 ctx['visible_modules'] = EmployeeProfile.all_module_keys()
+                ctx['nav_role'] = 'admin'
             else:
                 prof = getattr(u, 'employee_profile', None)
                 ctx['visible_modules'] = prof.allowed_modules() if prof else set()
+                # 🐛 [FIX]: الدور بعد التوحيد (زي role_required) — القائمة بتخفي اللينكات اللي
+                # هتطلع للموظف 403 (الجرد/الاستيراد/التحويلات للكاشير والفني) بدل دورة مقفولة.
+                role = getattr(prof, 'role', None)
+                ctx['nav_role'] = {'owner': 'admin', 'supervisor': 'manager'}.get(role, role) or ''
     except Exception:
         pass
+
+    if 'nav_role' in ctx:
+        ctx['nav_can'] = _nav_permissions(ctx['nav_role'])
 
     try:
         ctx['email_verify_banner'] = _email_verify_banner(request)
@@ -202,6 +210,25 @@ def _email_verify_banner(request):
     # 🐛 [FIX]: الشريط كان بيختفي بعد ٤٨ ساعة (ساعتها كان الدخول بيتقفل). القفل اتشال،
     #    فالشريط بيفضل ظاهر لحد ما يأكّد.
     return {'email': tenant.email}
+
+
+def _nav_permissions(role):
+    """أي شاشات المخزون يقدر الدور يفتحها — نفس الأدوار اللي على الـ views نفسها."""
+    try:
+        from inventory.views_serials import VIEW_ROLES as serial_roles
+        from inventory.views_stock_count import COUNT_ROLES
+        from inventory.views_transfers import TRANSFER_ROLES
+        from inventory.views_lightning.services_catalog import SERVICE_ROLES
+    except Exception:
+        return {}
+    stock_roles = ('admin', 'manager', 'stock')  # الاستيراد/التصوير/استوديو الصور
+    return {
+        'transfers': role in TRANSFER_ROLES,
+        'stock_count': role in COUNT_ROLES,
+        'serials': role in serial_roles,
+        'stock_tools': role in stock_roles,
+        'services': role in SERVICE_ROLES,      # 🛠️ كتالوج الخدمات والمصنعيات
+    }
 
 
 def platform_modules(request):

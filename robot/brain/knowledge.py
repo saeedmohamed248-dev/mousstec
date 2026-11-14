@@ -95,9 +95,33 @@ _LOW = re.compile(r"^(?:(?:ايه|ايش|اي|انهي)\s+(?:اللي|الحاج
 
 
 
-# robot/entries.py: an expense, a purchase or a sale said to be written down.
+# robot/entries.py: an expense, a purchase or a sale said to be written down — and robot/money.py:
+# a collection from a customer, a payment to a vendor, an employee's advance.
 _ENTRY = re.compile(r"^(?:(?:سجل|سجلي|اعمل|اكتب|ضيف|اضف)\s+)?(?:مصروف|مصاريف|صرف|صرفنا|صرفت|دفعنا|دفعت"
-                    r"|فاتوره شراء|فاتوره بيع|شراء|مشتريات|اشترينا|اشتريت|بيع|بعت|بعنا|بعتله|بعتلها)\s")
+                    r"|فاتوره شراء|فاتوره بيع|شراء|مشتريات|اشترينا|اشتريت|بيع|بعت|بعنا|بعتله|بعتلها"
+                    r"|تحصيل|حصل|حصلي|حصلت|حصلنا|ادفع|سدد|سددنا|سلفه|مرتجع|حول|تحويل|عرض سعر"
+                    r"|(?:احسب|اصرف)\s+(?:ال)?(?:مرتبات|رواتب))(?:\s|$)")
+# robot/assistant.py: the staff's other questions about the books (the safe, who owes what,
+# what was spent, who's in) — the server's to answer, each behind its role.
+_HOW_MUCH = r"(?:كام|قد ايه|اد ايه|قد اي)"
+_SAFE = r"(?:ال)?(?:خزنه|خزينه|خزن|درج)"
+_BOOKS = (
+    ("sales_month", re.compile(r"^(?:(?:احنا|هو)\s+)?(?:بعنا|بيعنا|اتباع|(?:ال)?مبيعات).*(?:الشهر ده|الشهر دا|الشهر)")),
+    ("sales_yesterday", re.compile(r"^(?:(?:احنا|هو)\s+)?(?:بعنا|بيعنا|اتباع|(?:ال)?مبيعات).*(?:امبارح|البارحه)")),
+    ("spent_today", re.compile(rf"^(?:احنا\s+)?(?:صرفنا|(?:ال)?مصاريف|(?:ال)?مصروفات)\s+(?:{_HOW_MUCH}\s+)?{_TODAY}"
+                               rf"(?:\s+{_HOW_MUCH})?$")),
+    ("treasury", re.compile(rf"(?:رصيد|فلوس)\s+{_SAFE}|{_SAFE}\s+(?:فيها|فيه|بها)\s+{_HOW_MUCH}"
+                            rf"|(?:في|ف|جوه)\s+{_SAFE}\s+{_HOW_MUCH}|{_HOW_MUCH}\s+(?:في|ف|جوه)\s+{_SAFE}")),
+    ("vendor_balance", re.compile(rf"^(?:كشف\s+)?حساب\s+(?:ال)?مورد\s+\S|^(?:علينا|عليا)\s+{_HOW_MUCH}\s+لل?مورد"
+                                  rf"|^(?:ال)?مورد\s+.+\s+(?:ليه|له)\s+{_HOW_MUCH}")),
+    ("customer_balance", re.compile(rf"^(?:كشف\s+)?حساب\s+(?:ال)?عميل\s+\S|^(?:ال)?عميل\s+.+\s+عليه\s+{_HOW_MUCH}$"
+                                    rf"|^{_HOW_MUCH}\s+علي\s+(?:ال)?عميل\s+\S")),
+    ("absent", re.compile(r"^(?:مين|من)\s+(?:اللي\s+)?(?:غايب|غاب|مجاش|ماجاش)(?:\s|$)|^(?:ال)?غياب(?:\s|$)")),
+    ("day_summary", re.compile(r"^(?:قفل|قفلي|اقفل|تقفيل)\s+(?:ال)?(?:يوم|يوميه|ورديه)(?:\s|$)"
+                               r"|^(?:ملخص|حساب|تقرير)\s+(?:ال)?(?:يوم|يوميه|ورديه)(?:\s|$)")),
+    ("attendance", re.compile(r"^(?:سجل|سجلي|اعمل|اعملي)\s+(?:لي\s+)?(?:حضوري|حضور|الحضور|انصرافي|انصراف|الانصراف)(?:\s|$)")),
+    ("present", re.compile(r"^(?:مين|من)\s+(?:اللي\s+)?(?:حاضر|حضر|جه)(?:\s|$)|^(?:ال)?حضور(?:\s|$)")),
+)
 
 
 def _said(text: str) -> str:
@@ -132,7 +156,9 @@ def staff_question(text: str):
         return "sales_today"
     if _LOW.search(t):
         return "low_stock"
-    return None
+    if any(ch.isdigit() for ch in t):
+        return None
+    return next((kind for kind, said in _BOOKS if said.search(t)), None)
 
 
 # ---- robot/services.py
@@ -272,7 +298,7 @@ AND_BRANCH = "وفرع"
 IN_SHELF = "موجود في الرف"
 NEEDS_NET = "الأمر ده محتاج النت علشان أتأكد مين بيكلمني. أول ما يرجع هعمله."
 WEB_NEEDS_NET = "النت فاصل دلوقتي، فمقدرش أدوّر. أول ما يرجع اسألني تاني."
-ENTRY_NEEDS_NET = "النت فاصل، فمقدرش أسجل بالصوت دلوقتي. سجّلها من صفحة الكاشير على الموبايل."
+ENTRY_NEEDS_NET = "النت فاصل، ومن غيره بسجل بالصوت البيع الكاش والمصروف بس. الباقي من صفحة الكاشير أو لما النت يرجع."
 SEVERAL = "عندي أكتر من صنف:"
 WHICH = "تقصد أنهي؟"
 MEAN = "تقصد"
@@ -312,6 +338,7 @@ def priced_after(price: float) -> str:
 class Knowledge:
     def __init__(self, catalog: Optional[dict] = None):
         self.update(catalog or {})
+        self.desk = None                    # voicedesk.VoiceDesk: a cash sale, an expense, said offline
         self._heard_at = 0.0                # the follow-up window, like the server's
         # robot/memory.py: the part the conversation is on, the parts just offered.
         self._on: Optional[Part] = None
@@ -527,6 +554,10 @@ class Knowledge:
 
     def _respond(self, text: str, now: float) -> Reply:
         """robot/views._answer_voice, on the catalog."""
+        if self.desk is not None:                   # «سجل مصروف …», «بعت … كاش» — and its own questions
+            took = self.desk.hear(text)
+            if took is not None:
+                return took
         heard = self._restock_hear(text, now)       # robot/restock.hear
         if heard is not None:
             return heard
@@ -788,7 +819,10 @@ class Knowledge:
         """Every clip an offline answer can need — what's in stock first."""
         from . import talk
 
+        from . import voicedesk
+
         texts = list(FIXED) + list(talk.PHRASES) + [f"أنا {self.wake_name}،", OTHER_BRANCH, AND_BRANCH]
+        texts += voicedesk.clips()                  # the offline desk's sentences, and numbers said
         texts += [talk.branch_said(b.get("name")) for b in self.catalog.get("branches") or [] if isinstance(b, dict)]
         texts += [str(r.get("answer") or "").strip() for r in self.replies]    # «الردود الجاهزة»
         texts += [available(n) for n in range(1, COUNTED_UP_TO + 1)]

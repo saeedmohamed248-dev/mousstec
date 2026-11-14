@@ -1,0 +1,94 @@
+{% extends "print_market/base.html" %}{% load i18n %}
+{% block title %}{{ title }}{% endblock %}
+{% block meta_description %}{% if sv and gov %}{% blocktrans with s=sv.h1 g=gov.1 %}{{ s }} في {{ g }}: قارن مطابع {{ g }} بالتقييمات والأسعار، شوف البروفة قبل الطباعة واطلب عروض أسعار من أكتر من مطبعة.{% endblocktrans %}{% elif sv %}{% blocktrans with s=sv.h1 %}{{ s }} في مصر: قارن المطابع بالتقييمات والأسعار، شوف البروفة قبل الطباعة واطلب عروض أسعار من أكتر من مطبعة.{% endblocktrans %}{% else %}{% blocktrans with g=gov.1 %}مطابع في {{ g }}: كروت وفلايرات وبنرات وعلب وهدايا — قارن المطابع بالتقييمات واطلب عروض أسعار.{% endblocktrans %}{% endif %}{% endblock %}
+{% block seo_head %}{% if not indexable %}<meta name="robots" content="noindex, follow">{% endif %}{{ seo_jsonld }}
+<style>
+.pm-crumbs { font-size:.85rem; margin-bottom:.8rem; } .pm-crumbs a { color:var(--pm); text-decoration:none; }
+.pm-chip { display:inline-block; background:#fef9c3; color:#854d0e; border-radius:999px; padding:.25rem .9rem; font-weight:800; }
+.pm-links a { display:inline-block; background:#fff; border:1px solid #e9e3ff; border-radius:999px; padding:.3rem .9rem; margin:.2rem; color:var(--ink); text-decoration:none; font-size:.85rem; }
+.pm-faq details { background:#fff; border-radius:12px; padding:.8rem 1rem; margin-bottom:.5rem; }
+.pm-faq summary { font-weight:800; cursor:pointer; }
+</style>{% endblock %}
+{% block content %}
+<nav class="pm-crumbs" aria-label="breadcrumb">{% for name, url in crumbs %}{% if not forloop.last %}<a href="{{ url }}">{{ name }}</a> › {% else %}<span>{{ name }}</span>{% endif %}{% endfor %}</nav>
+
+<div class="pm-card p-4 mb-4">
+  <h1 class="fw-bold fs-3 mb-2">{{ title }}</h1>
+  {% if sv %}<p class="mb-2">{{ sv.intro }}</p>{% endif %}
+  {% if gov %}<p class="pm-muted mb-2">{% if gov.3 %}{% blocktrans with g=gov.1 %}المطابع والمتاجر في {{ g }} — سواء إنت في{% endblocktrans %} {{ gov.3|slice:":6"|join:"، " }}.{% else %}{% blocktrans with g=gov.1 %}المطابع والمتاجر في محافظة {{ g }}.{% endblocktrans %}{% endif %}
+    {% if shops or stores %}{% blocktrans count n=total %}فيه مطبعة واحدة ظاهرة هنا بتقييمها.{% plural %}فيه {{ n }} مطابع ومتاجر ظاهرين هنا بتقييماتهم.{% endblocktrans %}{% else %}{% trans "لسه بنضيف مطابع في المحافظة دي — اكتب طلبك والمطابع اللي بتوصل لمحافظتك تبعتلك عروضها." %}{% endif %}</p>{% endif %}
+  {% if min_price %}<div class="mb-3"><span class="pm-chip">{% trans "الأسعار تبدأ من" %} {{ min_price|num:"-2" }} {% trans "ج.م" %}</span></div>{% endif %}
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ request_url }}" class="pm-btn text-decoration-none"><i class="fas fa-bullhorn me-1"></i>{% trans "اكتب طلبك والمطابع تبعتلك عروض" %}</a>
+    <a href="{% url 'print_market:home' %}" class="pm-btn-light text-decoration-none">{% trans "تصفّح سوق المطابع" %}</a>
+  </div>
+</div>
+
+{% if shops %}
+<h2 class="fs-5 fw-bold mb-2">{% if gov %}{% blocktrans with g=gov.1 %}مطابع في {{ g }}{% endblocktrans %}{% else %}{% trans "مطابع بتقدّم الخدمة دي" %}{% endif %}</h2>
+<div class="row g-3 mb-4">
+  {% for s in shops %}
+  <div class="col-6 col-md-4 col-lg-3"><a href="{% url 'print_market:shop' s.pk %}" class="pm-card p-3 h-100 d-block text-decoration-none text-reset">
+    <div class="fw-bold">{{ s.name }}</div>
+    <div class="small pm-muted">{{ s.city }}</div>
+    <div class="small">{% include "print_market/_stars.html" with avg=s.rating_avg n=s.rating_n %}</div>
+  </a></div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if stores %}
+<h2 class="fs-5 fw-bold mb-2">{% if gov %}{% blocktrans with g=gov.1 %}متاجر طباعة في {{ g }}{% endblocktrans %}{% else %}{% trans "متاجر طباعة على Mouss Tec" %}{% endif %}</h2>
+<div class="row g-3 mb-4">
+  {% for st in stores %}
+  <div class="col-6 col-md-4 col-lg-3"><a href="{% url 'catalog_store' st.slug %}" class="pm-card p-3 h-100 d-block text-decoration-none text-reset">
+    <div class="fw-bold">{{ st.name }}</div>
+    <div class="small pm-muted">{{ st.city }}</div>
+  </a></div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if products %}
+<h2 class="fs-5 fw-bold mb-2">{% trans "منتجات بأسعار" %}</h2>
+<div class="row g-3 mb-4">{% for p in products %}{% include "print_market/_product_card.html" %}{% endfor %}</div>
+{% endif %}
+
+{% if items %}
+<h2 class="fs-5 fw-bold mb-2">{% trans "أفكار ومنتجات تقدر تطلب سعرها" %}</h2>
+<div class="row g-3 mb-4">
+  {% for i in items %}
+  <div class="col-6 col-md-4 col-lg-3"><a href="{% url 'catalog_item' i.item_code %}" class="pm-card p-2 h-100 d-block text-decoration-none text-reset">
+    {% if i.image %}<img src="{{ i.image.url }}" class="pm-thumb" alt="{{ i.title }}" loading="lazy">{% else %}<div class="pm-thumb d-flex align-items-center justify-content-center"><i class="fas fa-print fa-2x pm-muted"></i></div>{% endif %}
+    <div class="fw-bold mt-2 small">{{ i.title }}</div>
+    <div class="small pm-muted">{{ i.store.name }}{% if i.min_qty %} · {% trans "من" %} {{ i.min_qty }}{% endif %}</div>
+  </a></div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if sv %}
+<div class="pm-card p-4 mb-4">
+  <h2 class="fs-5 fw-bold">{% blocktrans with s=sv.name %}مواصفات {{ s }} الشائعة{% endblocktrans %}</h2>
+  <ul class="mb-0">{% for x in sv.specs %}<li>{{ x }}</li>{% endfor %}</ul>
+</div>
+<div class="pm-faq mb-4">
+  <h2 class="fs-5 fw-bold">{% trans "أسئلة شائعة" %}</h2>
+  {% for q, a in faqs|default:sv.faq %}<details{% if forloop.first %} open{% endif %}><summary>{{ q }}</summary><p class="mb-0 mt-2">{{ a }}</p></details>{% endfor %}
+</div>
+{% endif %}
+
+<div class="pm-card p-4 mb-4 pm-links">
+  {% if sv %}
+    <h2 class="fs-6 fw-bold">{% blocktrans with s=sv.h1 %}{{ s }} في محافظات تانية{% endblocktrans %}</h2>
+    {% for g in governorates %}{% if not gov or g.0 != gov.0 %}<a href="{% url 'print_seo:service_gov' sv.slug g.0 %}">{{ g.1 }}</a>{% endif %}{% endfor %}
+  {% endif %}
+  {% if gov %}
+    <h2 class="fs-6 fw-bold mt-3">{% blocktrans with g=gov.1 %}خدمات الطباعة في {{ g }}{% endblocktrans %}</h2>
+    {% for s in services %}{% if not sv or s.slug != sv.slug %}<a href="{% url 'print_seo:service_gov' s.slug gov.0 %}">{{ s.h1 }}</a>{% endif %}{% endfor %}
+  {% else %}
+    <h2 class="fs-6 fw-bold mt-3">{% trans "خدمات طباعة تانية" %}</h2>
+    {% for s in services %}{% if s.slug != sv.slug %}<a href="{% url 'print_seo:service' s.slug %}">{{ s.h1 }}</a>{% endif %}{% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

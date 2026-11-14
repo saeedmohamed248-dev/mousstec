@@ -164,6 +164,13 @@ def tenant_required(view_func):
     return _wrapped
 
 
+def role_labels(codes):
+    """أكواد الأدوار ⇒ أسماءها المعروضة (كاشير / استقبال …) لصفحة «ليس لديك صلاحية»."""
+    from inventory.models import EmployeeProfile
+    names = dict(EmployeeProfile.ROLE_CHOICES)
+    return [str(names.get(c, c)) for c in codes if c]
+
+
 def role_required(*allowed_roles):
     """
     🛡️ RBAC Decorator — يمنع الوصول لغير الأدوار المسموح لها.
@@ -201,11 +208,12 @@ def role_required(*allowed_roles):
                 # Browser nav → render an HTML page that keeps the user signed in
                 # and offers a way back to the dashboard (NOT a login screen).
                 from django.shortcuts import render
+                # 🐛 [FIX]: الصفحة كانت بتعرض أكواد إنجليزي («دورك الحالي: cashier») بدل أسماء الأدوار
                 return render(
                     request, 'inventory/forbidden.html',
                     {
-                        'allowed_roles': allowed_roles,
-                        'current_role': role or '—',
+                        'allowed_roles': role_labels(allowed_roles),
+                        'current_role': (role_labels([role]) or ['—'])[0],
                     },
                     status=403,
                 )
@@ -241,7 +249,7 @@ def module_required(module_key):
                     )
                 return render(
                     request, 'inventory/forbidden.html',
-                    {'allowed_roles': [], 'current_role': getattr(prof, 'role', '—')},
+                    {'allowed_roles': [], 'current_role': (role_labels([getattr(prof, 'role', None)]) or ['—'])[0]},
                     status=403,
                 )
             return view_func(request, *args, **kwargs)

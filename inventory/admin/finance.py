@@ -125,7 +125,7 @@ class ExpenseCategoryAdmin(FinanceRoleMixin, SecureImportExportAdmin):
         return super().changelist_view(request, extra_context)
 
     def get_month_expenses(self, obj):
-        first_day = timezone.now().date().replace(day=1)
+        first_day = timezone.localdate().replace(day=1)
         total = obj.financialtransaction_set.filter(
             transaction_type='out', date__date__gte=first_day
         ).aggregate(Sum('amount'))['amount__sum'] or 0

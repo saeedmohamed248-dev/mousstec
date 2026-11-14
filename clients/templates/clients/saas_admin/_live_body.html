@@ -1,0 +1,85 @@
+{% load i18n %}
+{% if pending_requests %}
+<div class="alert"><i class="fas fa-bell"></i> {% blocktrans count n=pending_requests %}فيه {{ n }} طلب عميل مستني موافقتك — المطابع مش هتشوفه غير بعد ما توافق.{% plural %}فيه {{ n }} طلب عميل مستنيين موافقتك — المطابع مش هتشوفهم غير بعد ما توافق.{% endblocktrans %}
+  <a href="/superadmin/marketplace/requests/">{% trans "راجعهم" %}</a></div>
+{% endif %}
+
+{% with t=owner_todo %}{% if t.pm_payments or t.pm_disputes or t.pm_payouts %}
+<div class="alert"><i class="fas fa-print"></i> {% trans "سوق المطابع مستنيك:" %}
+  {% if t.pm_payments %}<a href="/{{ admin_url }}/print_market/marketpayment/?status__exact=pending">{% blocktrans count n=t.pm_payments %}{{ n }} إيصال دفع يتأكّد{% plural %}{{ n }} إيصالات دفع تتأكّد{% endblocktrans %}</a> · {% endif %}
+  {% if t.pm_disputes %}<a href="/{{ admin_url }}/print_market/marketorder/?status__exact=disputed">{% blocktrans count n=t.pm_disputes %}{{ n }} مشكلة مفتوحة{% plural %}{{ n }} مشاكل مفتوحة{% endblocktrans %}</a> · {% endif %}
+  {% if t.pm_payouts %}<a href="/{{ admin_url }}/print_market/marketorder/?status__exact=completed">{% blocktrans count n=t.pm_payouts %}{{ n }} تحويل للمطابع{% plural %}{{ n }} تحويلات للمطابع{% endblocktrans %}</a>{% endif %}
+</div>
+{% endif %}{% endwith %}
+
+{# ① الأرقام اللحظية — كل كارت بيفلتر على سوقه #}
+<div class="kpis">
+  <a class="kpi big" href="?tab={{ tab }}"><div class="n">{{ online_total }}</div><div class="l">{% trans "أونلاين دلوقتي" %}</div></a>
+  {% for a in online_areas %}
+    <a class="kpi{% if area == a.key %} on{% endif %}{% if not a.n %} zero{% endif %}" href="?tab={{ tab }}{% if area != a.key %}&area={{ a.key }}{% endif %}">
+      <div class="n">{{ a.n }}</div><div class="l">{{ a.label }}</div></a>
+  {% endfor %}
+</div>
+
+{# ② التابات #}
+<nav class="tabs">
+  <a href="?tab=online{% if area %}&area={{ area }}{% endif %}" class="{% if tab == 'online' %}on{% endif %}"><i class="fas fa-signal"></i> {% trans "أونلاين دلوقتي" %}<span class="cnt">{{ online_total }}</span></a>
+  <a href="?tab=today{% if area %}&area={{ area }}{% endif %}" class="{% if tab == 'today' %}on{% endif %}"><i class="fas fa-route"></i> {% trans "زوار النهارده ورحلاتهم" %}{% if tab == 'today' %}<span class="cnt">{{ visitors_today_total }}</span>{% endif %}</a>
+  <a href="?tab=stats" class="{% if tab == 'stats' %}on{% endif %}"><i class="fas fa-chart-column"></i> {% trans "أرقام النهارده والمصادر" %}</a>
+</nav>
+
+{% if tab != 'stats' %}
+<form class="toolbar" method="get">
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <input type="search" name="q" value="{{ q }}" placeholder="{% trans 'دوّر باسم العميل/الشركة أو الموبايل أو الصفحة…' %}">
+  <select name="area" onchange="this.form.submit()">
+    <option value="">{% trans "كل الأسواق" %}</option>
+    {% for k, label in areas_list %}<option value="{{ k }}"{% if area == k %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit"><i class="fas fa-magnifying-glass"></i> {% trans "بحث" %}</button>
+  {% if q or area %}<a class="btn ghost" href="?tab={{ tab }}">{% trans "مسح الفلتر" %}</a>{% endif %}
+</form>
+{% endif %}
+
+{% if tab == 'online' %}
+  <div class="vlist">
+  {% for r in online %}{% include "clients/saas_admin/_live_vrow.html" %}
+  {% empty %}<div class="empty"><i class="fas fa-moon"></i> {% trans "مفيش حد أونلاين دلوقتي." %}</div>{% endfor %}
+  </div>
+
+{% elif tab == 'today' %}
+  <div class="sub" style="margin:0 0 10px">{% trans "كل اللي دخل الموقع النهارده من نص الليل — الأحدث فوق. دوس على أي حد تشوف رحلته: دخل منين وإمتى، شاف إيه، عمل إيه، ووقف فين." %}</div>
+  <div class="vlist">
+  {% for r in visitors_today %}{% include "clients/saas_admin/_live_vrow.html" %}
+  {% empty %}<div class="empty">{% trans "مفيش زوار بالفلتر ده النهارده." %}</div>{% endfor %}
+  </div>
+
+{% else %}
+  <h2><i class="fas fa-calendar-day"></i> {% trans "النهارده" %}</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>{% trans "السوق" %}</th><th>{% trans "زوار" %}</th><th>{% trans "صفحات" %}</th>
+      <th>{% trans "تسجيلات جديدة" %}</th><th>{% trans "طلبات" %}</th><th>{% trans "عروض" %}</th></tr></thead>
+    <tbody>
+    {% for key, a in today.areas.items %}
+      <tr><td><b>{{ a.label }}</b></td><td>{{ a.visitors }}</td><td>{{ a.views }}</td>
+        <td>{% if a.signups is not None %}{{ a.signups }}{% if a.signups_shops %} <span class="muted">({% blocktrans count n=a.signups_shops %}{{ n }} مطبعة{% plural %}{{ n }} مطابع{% endblocktrans %})</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td>{% if a.requests is not None %}{{ a.requests }}{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td>{% if a.offers is not None %}{{ a.offers }}{% else %}<span class="muted">—</span>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+
+  <h2><i class="fas fa-bullhorn"></i> {% trans "الزوار جايين منين النهارده" %}</h2>
+  <div class="card">
+    {% for s in today.sources %}{% if s.n %}
+    <div style="display:flex;align-items:center;gap:10px;margin:6px 0">
+      <span class="pill src-{{ s.key }}" style="min-width:80px;justify-content:center">{{ s.label }}</span>
+      <div class="bar" style="flex:1"><i style="width:{{ s.pct }}%"></i></div>
+      <b style="min-width:80px">{{ s.n }} <span class="muted">({{ s.pct }}%)</span></b>
+    </div>
+    {% endif %}{% endfor %}
+    <div class="muted" style="font-size:12px;margin-top:6px">{% trans "عشان الإعلانات تتعرف صح، حط ?utm_source=facebook في آخر رابط الإعلان." %}</div>
+  </div>
+{% endif %}
+
+<div class="sub" style="margin-top:14px">{% trans "آخر تحديث" %}: <span dir="ltr">{{ now|date:"Y-m-d H:i:s" }}</span></div>

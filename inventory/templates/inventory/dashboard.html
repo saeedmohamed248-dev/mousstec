@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Mouss Tec">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
-<script src="/static/js/pwa-init.js" defer></script>
+<script src="/static/js/pwa-init.js?v=2" defer></script>
 <style>
   @keyframes pulse-ring {
       0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
@@ -23,7 +23,7 @@
 {% block content %}
 {% with role=current_role|default:"" is_super=is_super_user|default:False %}
 
-<main class="container mx-auto px-4 py-6 flex-1 space-y-6">
+<div class="container mx-auto px-4 py-6 flex-1 space-y-6">
     {% load plan_usage %}{% onboarding_checklist %}
 
     {# 👑 Superuser-only banner: full-control Django Admin (Pillar 5) #}
@@ -489,7 +489,7 @@
     {% endif %} {# /low_stock_items #}
     {% endif %} {# /role gate: stock/admin/manager #}
 
-</main>
+</div>
 
 {# PWA Install Banner #}
 <div id="pwa-install-banner" class="fixed bottom-0 inset-x-0 z-50 hidden">

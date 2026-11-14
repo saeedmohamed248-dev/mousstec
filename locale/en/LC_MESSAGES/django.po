@@ -25146,3 +25146,3153 @@ msgstr "Stuck — the background worker is probably not running. “Retry” wil
 
 msgid "اعرضها كبانر للشركات"
 msgstr "Show as a banner to companies"
+
+msgid "سبب الرفض:"
+msgstr "Rejection reason:"
+
+msgid "متأكد إنك عاوز تلغي الطلب ده؟ العروض اللي عليه هتتقفل."
+msgstr "Are you sure you want to cancel this request? Its offers will be closed."
+
+msgid "حالة الطلب:"
+msgstr "Request status:"
+
+msgid "طلبك بيتراجع من الإدارة وهيتنشر للتجار بعد الموافقة."
+msgstr "Your request is under review and will be published to merchants once approved."
+
+msgid "عدّل الطلب من لوحتك وابعته تاني."
+msgstr "Edit the request from your dashboard and resubmit it."
+
+msgid "إلغاء الطلب"
+msgstr "Cancel request"
+
+msgid "اتصل"
+msgstr "Call"
+
+msgid "عميل قبل عرضك! بياناته في «عروضي» — كلّمه عشان تقفل الصفقة."
+msgid_plural "%(n)s عملاء قبلوا عروضك! بياناتهم في «عروضي» — كلّمهم عشان تقفل الصفقات."
+msgstr[0] "A customer accepted your offer! Their details are in “My offers” — contact them to close the deal."
+msgstr[1] "%(n)s customers accepted your offers! Their details are in “My offers” — contact them to close the deals."
+
+msgid "افتح عروضي"
+msgstr "Open my offers"
+
+msgid "رحلة الشركة على السيستم"
+msgstr "Company journey"
+
+msgid "أونلاين دلوقتي"
+msgstr "Online now"
+
+msgid "النهاردة"
+msgstr "Today"
+
+msgid "٧ أيام"
+msgstr "7 days"
+
+msgid "٣٠ يوم"
+msgstr "30 days"
+
+msgid "آخر صفحة وقفت عندها:"
+msgstr "Last page they stopped at:"
+
+msgid "مين عمل إيه (سجل العمليات)"
+msgstr "Who did what (actions log)"
+
+msgid "العملية"
+msgstr "Action"
+
+msgid "الزيارات والصفحات بالترتيب"
+msgstr "Visits and pages in order"
+
+msgid "زيارة"
+msgstr "Visit"
+
+msgid "صفحة"
+msgstr "page"
+
+msgid "عملية"
+msgstr "action"
+
+msgid "دقيقة"
+msgstr "min"
+
+msgid "ثانية"
+msgstr "sec"
+
+msgid "ث"
+msgstr "s"
+
+msgid "مفيش زيارات متسجّلة للشركة في الفترة دي."
+msgstr "No visits recorded for this company in this period."
+
+msgid "مفيش أحداث متسجّلة في الجلسة دي."
+msgstr "No events recorded in this session."
+
+msgid "تسجيل"
+msgstr "Recording"
+
+msgid "التقدّم"
+msgstr "Progress"
+
+msgid "السرعة"
+msgstr "Speed"
+
+msgid "مفيش تسجيلات لسه."
+msgstr "No recordings yet."
+
+msgid "شاهد لايف"
+msgstr "Watch live"
+
+msgid "آخر صفحة"
+msgstr "Last page"
+
+msgid "تسجيلات الشاشة"
+msgstr "Screen recordings"
+
+msgid "لايف دلوقتي"
+msgstr "Live now"
+
+msgid "الموظف:"
+msgstr "Employee:"
+
+msgid "الموظفين بيشوفوا تنبيه إن الجلسة بتتسجّل، وكلمات السر مابتتسجّلش. التسجيلات بتتمسح بعد %(days)s أيام."
+msgstr "Employees see a notice that the session is recorded; passwords are never recorded. Recordings are deleted after %(days)s days."
+
+msgid "الجلسة خلصت"
+msgstr "Session ended"
+
+msgid "جاري التحميل…"
+msgstr "Loading…"
+
+msgid "تشغيل التسجيل"
+msgstr "Start recording"
+
+msgid "ارجع للايف"
+msgstr "Back to live"
+
+msgid "إيقاف التسجيل"
+msgstr "Stop recording"
+
+msgid "تسجيل الشاشة"
+msgstr "Screen recording"
+
+msgid "شاهد"
+msgstr "Watch"
+
+msgid "ماقدرناش نحمّل التسجيل — جرّب تاني."
+msgstr "Couldn't load the recording — try again."
+
+msgid "رحلة وتسجيلات"
+msgstr "Journey & recordings"
+
+msgid "الطباعة"
+msgstr "Printing"
+
+msgid "بيتنفّذ عن طريق Mouss Tec"
+msgstr "Fulfilled by Mouss Tec"
+
+msgid "المنتجات"
+msgstr "Products"
+
+msgid "كل الماركات"
+msgstr "All makes"
+
+msgid "دوّر"
+msgstr "Search"
+
+msgid "المتاجر"
+msgstr "Stores"
+
+msgid "منتج"
+msgstr "products"
+
+msgid "المعروضات"
+msgstr "Listings"
+
+msgid "اطلب سعر"
+msgstr "Request a quote"
+
+msgid "مالقيناش حاجة بالبحث ده — جرّب كلمة تانية، أو اطلب اللي محتاجه من لوحتك وإحنا ندوّرلك عليه."
+msgstr "Nothing matched — try another word, or post a request from your dashboard and we will find it for you."
+
+msgid "كل المتاجر دي بتنفّذ طلباتها عن طريق Mouss Tec — بتطلب سعر، وإحنا بنكلمك ونتابع معاك لحد ما تستلم."
+msgstr "All these stores are fulfilled by Mouss Tec — request a quote and we will call you and follow up until delivery."
+
+msgid "دوّر على قطعة: بوجيهات، تيل فرامل، مساعدين…"
+msgstr "Search a part: spark plugs, brake pads, shocks…"
+
+msgid "دوّر: كوبايات، أقلام، يونيفورم، كروت…"
+msgstr "Search: mugs, pens, uniforms, cards…"
+
+msgid "الأقسام"
+msgstr "Categories"
+
+msgid "أقل كمية:"
+msgstr "Minimum quantity:"
+
+msgid "مناسب لـ:"
+msgstr "Fits:"
+
+msgid "اكتب بياناتك وهنكلمك بالسعر والمعاد — ببلاش ومن غير أي التزام."
+msgstr "Leave your details and we will call you with the price and timing — free, no commitment."
+
+msgid "تمام! طلبك وصل وهنكلمك على الموبايل بالسعر في أقرب وقت."
+msgstr "Done! Your request arrived and we will call you with the price soon."
+
+msgid "العربية (الماركة، الموديل، السنة)"
+msgstr "Car (make, model, year)"
+
+msgid "تفاصيل زيادة"
+msgstr "More details"
+
+msgid "ابعت طلب السعر"
+msgstr "Send quote request"
+
+msgid "حاجات تانية من"
+msgstr "More from"
+
+msgid "مثلاً: هيونداي إلنترا ٢٠١٨"
+msgstr "e.g. Hyundai Elantra 2018"
+
+msgid "رقم الشاسيه أو رقم القطعة لو معاك، أصلي ولا بديل…"
+msgstr "VIN or part number if you have it, original or aftermarket…"
+
+msgid "المقاس، الألوان، اللوجو، المعاد اللي محتاجه فيه…"
+msgstr "Size, colours, logo, when you need it…"
+
+msgid "طلبات أسعار الكتالوج"
+msgstr "Catalog quote requests"
+
+msgid "كتالوج الطباعة"
+msgstr "Printing catalog"
+
+msgid "كتالوج قطع الغيار"
+msgstr "Parts catalog"
+
+msgid "تعديل المنتجات والصور"
+msgstr "Edit products and photos"
+
+msgid "المفتوحة"
+msgstr "Open"
+
+msgid "كل الأقسام"
+msgstr "All sectors"
+
+msgid "عميل مسجّل"
+msgstr "registered customer"
+
+msgid "مفيش طلبات هنا."
+msgstr "No requests here."
+
+msgid "ملاحظاتك (السعر اللي اتقال، المورد…)"
+msgstr "Your notes (quoted price, supplier…)"
+
+msgid "العملاء اللي طلبوا سعر من متاجر الكتالوج (%(s)s متجر · %(i)s منتج). كلّم العميل، وغيّر الحالة عشان تفتكر وصلت لفين."
+msgstr "Customers who requested a quote from the catalog stores (%(s)s stores · %(i)s products). Call the customer and update the status to keep track."
+
+msgid "أهلاً %(n)s، معاك Mouss Tec بخصوص طلب السعر بتاع «%(t)s»."
+msgstr "Hi %(n)s, this is Mouss Tec about your quote request for “%(t)s”."
+
+msgid "طلبات أسعار جديدة من الكتالوج"
+msgstr "New catalog quote requests"
+
+msgid "عملاء طلبوا سعر من متاجر Mouss Tec"
+msgstr "Customers asking for quotes from Mouss Tec stores"
+
+msgid "معروضات المطابع (كوبايات، أقلام، يونيفورم…)"
+msgstr "Printing listings (mugs, pens, uniforms…)"
+
+msgid "معروضات قطع الغيار لكل العربيات"
+msgstr "Spare parts for all cars"
+
+msgid "تصفّح معروضات المطابع"
+msgstr "Browse printing listings"
+
+msgid "تصفّح قطع الغيار"
+msgstr "Browse spare parts"
+
+msgid "تصفّح المعروضات"
+msgstr "Browse listings"
+
+msgid "سوق الطباعة والتصميم"
+msgstr "Printing & design market"
+
+msgid "كروت، كوبايات، أقلام، هدايا، يونيفورم، بنرات، تغليف وتصميم — اطلب سعر وإحنا نرد عليك"
+msgstr "Cards, mugs, pens, gifts, uniforms, banners, packaging and design — request a quote and we will get back to you"
+
+msgid "سوق قطع الغيار"
+msgstr "Spare parts market"
+
+msgid "قطع لكل العربيات — صيني وكوري وياباني وألماني وفرنساوي. قول لنا عربيتك وإحنا نرد بالسعر"
+msgstr "Parts for every car — Chinese, Korean, Japanese, German and French. Tell us your car and we will reply with a price"
+
+msgid "اكتب اسمك عشان نعرف نكلمك."
+msgstr "Write your name so we can call you."
+
+msgid "رقم الموبايل مش مظبوط — اكتبه زي 01012345678."
+msgstr "The mobile number is not valid — write it like 01012345678."
+
+msgid "بعتّ طلبات كتير في وقت قصير — استنى شوية وجرّب تاني."
+msgstr "You sent too many requests in a short time — wait a bit and try again."
+
+msgid "الإيميل أو الواتساب ماوصلش — راجع إعدادات SMTP/WhatsApp"
+msgstr "Email or WhatsApp was not delivered — check the SMTP/WhatsApp settings"
+
+msgid "الإشعار ماوصلش"
+msgstr "Notification failed"
+
+msgid "آراء العملاء"
+msgstr "Customer reviews"
+
+msgid "بيحصل دلوقتي"
+msgstr "Happening now"
+
+msgid "الأكتر طلباً الأسبوع ده"
+msgstr "Most requested this week"
+
+msgid "عندك محل قطع غيار؟"
+msgstr "Own a spare parts shop?"
+
+msgid "عندك مطبعة أو مكتب تصميم؟"
+msgstr "Own a print shop or design studio?"
+
+msgid "اعرض منتجاتك قدام العملاء اللي بيدوّروا كل يوم."
+msgstr "Show your products to customers who search every day."
+
+msgid "اعرض منتجاتك هنا"
+msgstr "List your products here"
+
+msgid "متوسط التقييم بيظهر بعد %(min_reviews)s تقييمات."
+msgstr "The average rating appears after %(min_reviews)s reviews."
+
+msgid "حد طلب سعر «%(t)s» من %(ago)s"
+msgstr "Someone requested a quote for “%(t)s” %(ago)s ago"
+
+msgid "آراء العملاء عن المتجر"
+msgstr "Customer reviews of this store"
+
+msgid "آخر طلب من %(ago)s"
+msgstr "last request %(ago)s ago"
+
+msgid "اختيار Mouss Tec"
+msgstr "Mouss Tec's pick"
+
+msgid "تقييم"
+msgstr "reviews"
+
+msgid "جديد على السوق"
+msgstr "New on the market"
+
+msgid "تقييم Mouss Tec"
+msgstr "Mouss Tec rating"
+
+msgid "ترشيح من فريق Mouss Tec"
+msgstr "Recommended by the Mouss Tec team"
+
+msgid "متوسط تقييمات العملاء الحقيقية بعد تنفيذ طلباتهم"
+msgstr "Average of real customer reviews after their orders were fulfilled"
+
+msgid "لسه مفيش تقييمات عملاء كفاية"
+msgstr "Not enough customer reviews yet"
+
+msgid "رأي فريق Mouss Tec في المتجر — مش تقييم عملاء"
+msgstr "The Mouss Tec team's assessment — not a customer rating"
+
+msgid "قيّم طلبك"
+msgstr "Rate your order"
+
+msgid "قيّم تجربتك"
+msgstr "Rate your experience"
+
+msgid "شكراً! تقييمك اتسجّل وبيساعد عملاء تانيين يختاروا صح."
+msgstr "Thank you! Your review was saved and helps other customers choose well."
+
+msgid "ارجع للمتجر"
+msgstr "Back to the store"
+
+msgid "اكتب رأيك (اختياري)"
+msgstr "Your comment (optional)"
+
+msgid "اسمك زي ما هيظهر"
+msgstr "Your name as it will appear"
+
+msgid "هيظهر اسمك الأول وأول حرف من التاني بس."
+msgstr "Only your first name and last initial will be shown."
+
+msgid "ابعت التقييم"
+msgstr "Submit review"
+
+msgid "النجوم"
+msgstr "Stars"
+
+msgid "الجودة، المعاد، التعامل…"
+msgstr "Quality, timing, service…"
+
+msgid "اعرض منتجاتك في سوق Mouss Tec"
+msgstr "List your products on the Mouss Tec market"
+
+msgid "سوق Mouss Tec"
+msgstr "Mouss Tec market"
+
+msgid "اعرض منتجاتك قدام عملاء بيدوّروا فعلاً"
+msgstr "Show your products to customers who are actually searching"
+
+msgid "مطبعة، مكتب تصميم، أو محل قطع غيار؟ سوق Mouss Tec بيجيب لك العميل، وإنت تركّز في شغلك."
+msgstr "Print shop, design studio or spare parts shop? The Mouss Tec market brings you customers while you focus on your work."
+
+msgid "زائر مختلف دخل السوق"
+msgstr "unique visitors to the market"
+
+msgid "صفحة اتفتحت في السوق"
+msgstr "market pages opened"
+
+msgid "طلب سعر من عملاء"
+msgstr "customer quote requests"
+
+msgid "الأرقام دي بتتحسب أوتوماتيك من السيستم وبتتحدّث كل ما حد يفتح الصفحة."
+msgstr "These numbers are calculated automatically by the system and update every time the page is opened."
+
+msgid "أكتر حاجات العملاء طلبوها"
+msgstr "What customers asked for most"
+
+msgid "إزاي تبدأ"
+msgstr "How to start"
+
+msgid "سجّل شركتك"
+msgstr "Register your company"
+
+msgid "حساب على Mouss Tec في دقيقتين — وبيبقى معاك برنامج إدارة كامل (فواتير، مخزون، حسابات)."
+msgstr "A Mouss Tec account in two minutes — with a full management system (invoices, stock, accounts)."
+
+msgid "ابعتلنا منتجاتك"
+msgstr "Send us your products"
+
+msgid "صور وأوصاف وأقل كمية، أو شيت إكسل — وفريق Mouss Tec بيرفعها في السوق."
+msgstr "Photos, descriptions and minimum quantities, or an Excel sheet — the Mouss Tec team lists them on the market."
+
+msgid "استقبل طلبات العملاء"
+msgstr "Receive customer requests"
+
+msgid "من «السوق المفتوح» جوه لوحتك بتشوف طلبات العملاء في قطاعك وتقدّم عرض سعرك."
+msgstr "From the “Open market” in your dashboard you see customer requests in your sector and send your price offer."
+
+msgid "سجّل شركتك دلوقتي"
+msgstr "Register your company now"
+
+msgid "كلّمنا واتساب"
+msgstr "Message us on WhatsApp"
+
+msgid "عندك مطبعة أو محل قطع غيار؟ اعرض منتجاتك قدام العملاء اللي بيدوّروا كل يوم."
+msgstr "Own a print shop or spare parts shop? Show your products to customers who search every day."
+
+msgid "عندي مطبعة/محل وعاوز أعرض منتجاتي في سوق Mouss Tec"
+msgstr "I have a print shop/store and want to list my products on the Mouss Tec market"
+
+msgid "أرقام السوق في آخر %(d)s يوم"
+msgstr "Market numbers for the last %(d)s days"
+
+msgid "منتج معروض في %(s)s متجر"
+msgstr "products listed in %(s)s stores"
+
+msgid "المتاجر: اختيار Mouss Tec وتقييم Mouss Tec"
+msgstr "Stores: Mouss Tec's pick and Mouss Tec rating"
+
+msgid "صفحة التجار"
+msgstr "Merchants page"
+
+msgid "مخفي"
+msgstr "hidden"
+
+msgid "ابعت لينك التقييم"
+msgstr "Send the review link"
+
+msgid "تقييمات العملاء (%(n)s، مخفي %(h)s)"
+msgstr "Customer reviews (%(n)s, %(h)s hidden)"
+
+msgid "العميل قيّم %(n)s/5"
+msgstr "Customer rated %(n)s/5"
+
+msgid "أهلاً %(n)s، شكراً إنك اتعاملت مع Mouss Tec 🙏 ياريت تقيّم تجربتك في دقيقة: %(u)s"
+msgstr "Hi %(n)s, thank you for ordering with Mouss Tec 🙏 Please rate your experience in a minute: %(u)s"
+
+msgid "اختار عدد النجوم من ١ لـ ٥."
+msgstr "Pick 1 to 5 stars."
+
+msgid "اتطلب سعره مرة الأسبوع ده"
+msgid_plural "اتطلب سعره %(n)s مرات الأسبوع ده"
+msgstr[0] "Quote requested once this week"
+msgstr[1] "Quote requested %(n)s times this week"
+
+msgid "أول ٥٠ مطبعة أو محل قطع غيار: العرض في السوق ببلاش ٣ شهور."
+msgstr "First 50 print shops or spare parts shops: listing on the market free for 3 months."
+
+msgid "تقييم Mouss Tec ظاهر للعميل"
+msgstr "Mouss Tec rating visible to customers"
+
+msgid "رأي المنصة في المتجر — بيرتّب المتاجر دايماً"
+msgstr "The platform's assessment of the store — always used for ordering"
+
+msgid "%(i)s منتج من %(s)s متجر — اطلب سعر في دقيقة"
+msgstr "%(i)s products from %(s)s stores — request a quote in a minute"
+
+msgid "تصفّح المعروضات واطلب سعر في دقيقة"
+msgstr "Browse the listings and request a quote in a minute"
+
+msgid "ادخل السوق"
+msgstr "Enter the market"
+
+msgid "وكمان: سوق قطع الغيار"
+msgstr "Also: spare parts market"
+
+msgid "وكمان: سوق الطباعة والتصميم"
+msgstr "Also: printing & design market"
+
+msgid "اللون"
+msgstr "Colour"
+
+msgid "اختيارات المنتج"
+msgstr "Product options"
+
+msgid "ارفع اللوجو أو التصميم بتاعك (اختياري)"
+msgstr "Upload your logo or design (optional)"
+
+msgid "صورة أو PDF أو ملف تصميم — لحد ١٥ ميجا."
+msgstr "Image, PDF or design file — up to 15 MB."
+
+msgid "لوجو/تصميم العميل"
+msgstr "Customer's logo/design"
+
+msgid "نوع الملف ده مش مدعوم — ابعت صورة أو PDF أو ملف تصميم (AI / PSD / EPS / SVG)."
+msgstr "This file type is not supported — send an image, PDF or design file (AI / PSD / EPS / SVG)."
+
+msgid "الملف أكبر من ١٥ ميجا — صغّره أو ابعته على الواتساب بعد ما نكلمك."
+msgstr "The file is larger than 15 MB — shrink it or send it on WhatsApp after we call you."
+
+msgid "التحويل محتاج فرعين على الأقل — عندك فرع واحد دلوقتي. ضيف فرع تاني وهيظهر هنا فورم التحويل."
+msgstr "Transfers need at least two branches — you have only one right now. Add a second branch and the transfer form will appear here."
+
+msgid "أقسام السوق"
+msgstr "Market sections"
+
+msgid "معروضات الشركات"
+msgstr "Company listings"
+
+msgid "طلبات العملاء"
+msgstr "Customer requests"
+
+msgid "محتاج حاجة معيّنة؟"
+msgstr "Need something specific?"
+
+msgid "مش لاقي اللي محتاجه؟"
+msgstr "Can't find what you need?"
+
+msgid "اكتب طلبك والشركات تبعتلك عروض أسعارها — من غير ما اسمك أو رقمك يظهر لحد."
+msgstr "Post your request and companies will send you their quotes — your name and number stay hidden."
+
+msgid "اكتب طلبك"
+msgstr "Post your request"
+
+msgid "عاجل"
+msgstr "Urgent"
+
+msgid "قريب"
+msgstr "Soon"
+
+#, python-format
+msgid "من %(ago)s"
+msgstr "%(ago)s ago"
+
+#, python-format
+msgid "عرض واحد اتقدّم"
+msgid_plural "%(n)s عروض اتقدّمت"
+msgstr[0] "%(n)s offer submitted"
+msgstr[1] "%(n)s offers submitted"
+
+msgid "مفيش طلبات مفتوحة دلوقتي — كن أول واحد يكتب طلبه."
+msgstr "No open requests right now — be the first to post one."
+
+msgid "شركة وعايزة تقدّم عرض؟"
+msgstr "A company that wants to send an offer?"
+
+msgid "ادخل لوحة شركتك وافتح «السوق المفتوح» — هتلاقي الطلبات دي وتبعت سعرك للعميل مباشرة."
+msgstr "Sign in to your company dashboard and open “Open Market” — you'll find these requests there and can send your price straight to the customer."
+
+msgid "دخول الشركات"
+msgstr "Company sign-in"
+
+msgid "لسه مفيش عروض"
+msgstr "No offers yet"
+
+msgid "البائع (صاحب العمولة)"
+msgstr "Salesperson (earns the commission)"
+
+msgid "— بدون بائع —"
+msgstr "— No salesperson —"
+
+msgid "— بدون فني —"
+msgstr "— No technician —"
+
+msgid "قدّم عرض"
+msgstr "Send an offer"
+
+msgid "للشركات"
+msgstr "for companies"
+
+# 🖨️ print_market
+
+msgid "اطلب طباعتك من أحسن المطابع — وادفع بأمان"
+msgstr "Order your printing from the best print shops — and pay safely"
+
+msgid "اختار منتج، المطبعة تبعتلك عرض، توافق على البروفة، وتستلم."
+msgstr ""
+"Pick a product, the print shop sends an offer, approve the proof, and "
+"receive."
+
+msgid "كل المحافظات"
+msgstr "All governorates"
+
+msgid "مفيش منتجات لسه — لو عندك مطبعة سجّل ونزّل منتجاتك مجاناً."
+msgstr ""
+"No products yet — if you own a print shop, sign up and list your products "
+"for free."
+
+msgid "دوّر على منتج أو مطبعة…"
+msgstr "Search for a product or print shop…"
+
+msgid "نسيت كلمة السر"
+msgstr "Forgot password"
+
+msgid "ابعتلي لينك"
+msgstr "Send me a link"
+
+msgid "اطلب طلب خاص"
+msgstr "Request a custom order"
+
+msgid "المطبعة لسه مانزّلتش منتجات — تقدر تبعتلها طلب خاص."
+msgstr ""
+"This print shop hasn't listed products yet — you can send them a custom "
+"request."
+
+msgid "طلباتي"
+msgstr "My orders"
+
+msgid "اطلب حاجة جديدة"
+msgstr "Order something new"
+
+msgid "مفيش طلبات لسه — اختار منتج من السوق واطلب عرض سعر."
+msgstr "No orders yet — pick a product from the market and request a quote."
+
+msgid "يبدأ من"
+msgstr "Starting from"
+
+msgid "اطلب عرض سعر"
+msgstr "Request a quote"
+
+msgid "مفيش دفع دلوقتي — هتدفع بعد ما توافق على العرض."
+msgstr "No payment now — you pay after you accept the offer."
+
+msgid "ادخل على سوق المطابع"
+msgstr "Sign in to the Print Market"
+
+msgid "مالكش حساب؟"
+msgstr "Don't have an account?"
+
+msgid "مطبعتي"
+msgstr "My print shop"
+
+msgid "حط طريقة استلام فلوسك من"
+msgstr "Add your payout method in"
+
+msgid "عشان Mouss Tec تحوّلك بعد التسليم."
+msgstr "so Mouss Tec can pay you after delivery."
+
+msgid "شوف صفحتك زي العميل"
+msgstr "View your page as a customer"
+
+msgid "الطلبات الشغالة"
+msgstr "Active orders"
+
+msgid "مفيش طلبات لسه — نزّل منتجاتك والعملاء هيبعتولك."
+msgstr "No orders yet — list your products and customers will reach you."
+
+msgid "طلبات خلصت"
+msgstr "Finished orders"
+
+msgid "منتجاتي"
+msgstr "My products"
+
+msgid "ظاهر"
+msgstr "Visible"
+
+msgid "نزّل أول منتج — بياخد دقيقة."
+msgstr "List your first product — it takes a minute."
+
+msgid "طلب جديد"
+msgstr "New order"
+
+msgid "طلب عرض سعر من"
+msgstr "Request a quote from"
+
+msgid "ممنوع تكتب موبايل أو لينك أو واتساب — المطبعة هتردّ عليك هنا."
+msgstr ""
+"Phone numbers, links and WhatsApp are not allowed — the print shop will "
+"reply here."
+
+msgid "عاوز إيه؟"
+msgstr "What do you need?"
+
+msgid "التفاصيل (المقاس، الورق، الألوان، الميعاد…)"
+msgstr "Details (size, paper, colors, deadline…)"
+
+msgid "ملف التصميم أو صورة (اختياري)"
+msgstr "Design file or image (optional)"
+
+msgid "ابعت الطلب"
+msgstr "Send request"
+
+msgid "حساب جديد"
+msgstr "New account"
+
+msgid "أنا عميل"
+msgstr "I'm a customer"
+
+msgid "عندي مطبعة"
+msgstr "I own a print shop"
+
+msgid "سجّل مطبعتك مجاناً"
+msgstr "Register your print shop for free"
+
+msgid "اعمل حسابك في ثانية"
+msgstr "Create your account in seconds"
+
+msgid "الحساب مجاني — نزّل منتجاتك، قدّم عروض، وابعت بروفات للعملاء."
+msgstr ""
+"Free account — list products, send offers, and send proofs to customers."
+
+msgid "اسم المطبعة"
+msgstr "Print shop name"
+
+msgid "عندك حساب؟"
+msgstr "Have an account?"
+
+msgid "ادخل"
+msgstr "Sign in"
+
+msgid "المطبعة"
+msgstr "Print shop"
+
+msgid "الملف المرفق"
+msgstr "Attached file"
+
+msgid "عرض السعر"
+msgstr "Price offer"
+
+msgid "التنفيذ في"
+msgstr "Delivery in"
+
+msgid "رافض"
+msgstr "Reject"
+
+msgid "مستني رد العميل…"
+msgstr "Waiting for the customer's reply…"
+
+msgid "قدّم عرضك للعميل:"
+msgstr "Send your offer to the customer:"
+
+msgid "مستني المطبعة تبعت العرض…"
+msgstr "Waiting for the print shop's offer…"
+
+msgid "ابعت عرض جديد بدل القديم"
+msgstr "Send a new offer replacing the old one"
+
+msgid "ابعت العرض"
+msgstr "Send offer"
+
+msgid ""
+"حوّل لـ Mouss Tec بس — المطبعة بتاخد فلوسها مننا بعد ما تستلم. مفيش عمولة، "
+"بتدفع رسوم التحويل بس."
+msgstr ""
+"Pay Mouss Tec only — the print shop gets paid by us after you receive. No "
+"commission, you only pay the transfer fee."
+
+msgid "رسوم التحويل"
+msgstr "Transfer fee"
+
+msgid "حوّل على"
+msgstr "Transfer to"
+
+msgid "افتح إنستاباي"
+msgstr "Open InstaPay"
+
+msgid "حوّل على محفظة"
+msgstr "Transfer to wallet"
+
+msgid "حوّلت بإيه؟"
+msgstr "How did you pay?"
+
+msgid "صورة الإيصال"
+msgstr "Receipt image"
+
+msgid "ابعت الإيصال"
+msgstr "Send receipt"
+
+msgid "مستني العميل يدفع لـ Mouss Tec…"
+msgstr "Waiting for the customer to pay Mouss Tec…"
+
+msgid "الإيصال"
+msgstr "Receipt"
+
+msgid "الفلوس عند Mouss Tec في أمان — المطبعة شغالة."
+msgstr "Your money is safe with Mouss Tec — the print shop is working."
+
+msgid "صورة أو PDF أو فيديو (لحد ٥٠ ميجا)"
+msgstr "Image, PDF or video (up to 50 MB)"
+
+msgid "ابعت البروفة للعميل"
+msgstr "Send proof to customer"
+
+msgid "افتح الـ PDF"
+msgstr "Open PDF"
+
+msgid "موافق"
+msgstr "Approve"
+
+msgid "عاوز تعديل"
+msgstr "Request changes"
+
+msgid "مفيش بروفات لسه."
+msgstr "No proofs yet."
+
+msgid "سلّمت الطلب"
+msgstr "I delivered the order"
+
+msgid "استلمت الطلب"
+msgstr "I received the order"
+
+msgid "متأكد إنك عاوز تلغي الطلب؟"
+msgstr "Are you sure you want to cancel the order?"
+
+msgid "الرسائل"
+msgstr "Messages"
+
+msgid ""
+"ممنوع أرقام موبايل أو لينكات أو واتساب — أي اتفاق برّه المنصة مش مضمون."
+msgstr ""
+"No phone numbers, links or WhatsApp — any deal outside the platform isn't "
+"guaranteed."
+
+msgid "مفيش رسائل لسه."
+msgstr "No messages yet."
+
+msgid "مدة التنفيذ (أيام)"
+msgstr "Delivery time (days)"
+
+msgid "رقم العملية أو اسم اللي حوّل"
+msgstr "Transaction number or sender name"
+
+msgid "ملاحظات للعميل (اختياري)"
+msgstr "Notes for the customer (optional)"
+
+msgid "لو عاوز تعديل اكتبه هنا"
+msgstr "If you need changes, write them here"
+
+msgid "اكتب رسالتك…"
+msgstr "Write your message…"
+
+msgid "سوق المطابع"
+msgstr "Print Market"
+
+msgid ""
+"الدفع لـ Mouss Tec بس، والتواصل من جوه المنصة بس — عشان فلوسك وطلبك يبقوا في"
+" أمان."
+msgstr ""
+"Payment to Mouss Tec only, and communication inside the platform only — to "
+"keep your money and order safe."
+
+msgid "نبذة عن المطبعة"
+msgstr "About the print shop"
+
+msgid "استلام فلوسك"
+msgstr "Receiving your money"
+
+msgid "بيشوفها Mouss Tec بس — مابتظهرش للعملاء."
+msgstr "Only Mouss Tec sees this — never shown to customers."
+
+msgid "رقم المحفظة أو عنوان إنستاباي"
+msgstr "Wallet number or InstaPay address"
+
+msgid "تعديل منتج"
+msgstr "Edit product"
+
+msgid "ممنوع تكتب موبايل أو لينك أو واتساب — العميل بيكلّمك من جوه المنصة."
+msgstr ""
+"Phone numbers, links and WhatsApp are not allowed — customers contact you "
+"inside the platform."
+
+msgid "اسم المنتج"
+msgstr "Product name"
+
+msgid "السعر يبدأ من (اختياري)"
+msgstr "Starting price (optional)"
+
+msgid "الوحدة"
+msgstr "Unit"
+
+msgid "ظاهر في السوق"
+msgstr "Visible in the market"
+
+msgid "شيل المنتج"
+msgstr "Remove product"
+
+msgid "مثال: ١٠٠٠ كارت"
+msgstr "e.g. 1000 cards"
+
+msgid "أرقام الموبايل ممنوعة — كل التواصل من جوه المنصة."
+msgstr ""
+"Phone numbers are not allowed — all communication stays inside the platform."
+
+msgid "الإيميلات ممنوعة — كل التواصل من جوه المنصة."
+msgstr "Emails are not allowed — all communication stays inside the platform."
+
+msgid "اللينكات والحسابات الخارجية ممنوعة — كل التواصل من جوه المنصة."
+msgstr ""
+"Links and external accounts are not allowed — all communication stays inside"
+" the platform."
+
+msgid "ممنوع طلب التواصل أو الدفع برّه المنصة — الدفع لـ Mouss Tec بس."
+msgstr ""
+"Contact or payment outside the platform is not allowed — payment goes to "
+"Mouss Tec only."
+
+msgid "طريقة دفع غير صالحة."
+msgstr "Invalid payment method."
+
+msgid "مطبعة"
+msgstr "Print shop"
+
+msgid "طريقة استلام الفلوس"
+msgstr "Payout method"
+
+msgid "رقم/عنوان الاستلام"
+msgstr "Payout number/address"
+
+msgid "اقفله لو الحساب خالف القواعد."
+msgstr "Disable it if the account broke the rules."
+
+msgid "محاولات بعت وسيلة تواصل"
+msgstr "Attempts to send contact info"
+
+msgid "تاريخ التسجيل"
+msgstr "Signup date"
+
+msgid "حساب في سوق المطابع"
+msgstr "Print Market account"
+
+msgid "حسابات سوق المطابع"
+msgstr "Print Market accounts"
+
+msgid "كروت شخصية"
+msgstr "Business cards"
+
+msgid "فلايرز وبروشورات"
+msgstr "Flyers & brochures"
+
+msgid "بنرات ورول أب"
+msgstr "Banners & roll-ups"
+
+msgid "ستيكرز وليبل"
+msgstr "Stickers & labels"
+
+msgid "علب وتغليف"
+msgstr "Boxes & packaging"
+
+msgid "هدايا ومطبوعات دعائية"
+msgstr "Gifts & promotional prints"
+
+msgid "طباعة على الملابس"
+msgstr "Apparel printing"
+
+msgid "مطبوعات مكتبية"
+msgstr "Office stationery"
+
+msgid "السعر يبدأ من"
+msgstr "Starting price"
+
+msgid "منتج في سوق المطابع"
+msgstr "Print Market product"
+
+msgid "منتجات سوق المطابع"
+msgstr "Print Market products"
+
+msgid "مستني عرض المطبعة"
+msgstr "Waiting for the print shop's offer"
+
+msgid "وصل عرض — مستني ردّك"
+msgstr "Offer received — awaiting your reply"
+
+msgid "مستني الدفع"
+msgstr "Awaiting payment"
+
+msgid "بنراجع التحويل"
+msgstr "Reviewing the transfer"
+
+msgid "اتدفع — جاري التنفيذ"
+msgstr "Paid — in progress"
+
+msgid "اتسلّم — مستني تأكيد العميل"
+msgstr "Delivered — awaiting customer confirmation"
+
+msgid "ملف مرفق"
+msgstr "Attached file"
+
+msgid "اتحوّل للمطبعة في"
+msgstr "Paid out to print shop at"
+
+msgid "طلب في سوق المطابع"
+msgstr "Print Market order"
+
+msgid "طلبات سوق المطابع"
+msgstr "Print Market orders"
+
+msgid "مش مسموح."
+msgstr "Not allowed."
+
+msgid "الطلب ماينفعش يتلغي بعد الدفع — كلّم الدعم من المنصة."
+msgstr ""
+"The order can't be cancelled after payment — contact support from the "
+"platform."
+
+msgid "التسليم بيتسجّل بعد ما الدفع يتأكّد."
+msgstr "Delivery can be recorded only after payment is confirmed."
+
+msgid "آخر بروفة لسه العميل ماوافقش عليها."
+msgstr "The customer hasn't approved the latest proof yet."
+
+msgid "المطبعة لسه ماسجّلتش التسليم."
+msgstr "The print shop hasn't recorded delivery yet."
+
+msgid "مستني رد العميل"
+msgstr "Awaiting customer reply"
+
+msgid "السعر لازم يكون أكبر من صفر."
+msgstr "Price must be greater than zero."
+
+msgid "مدة التنفيذ لازم تكون من يوم لـ ٣٦٥ يوم."
+msgstr "Delivery time must be between 1 and 365 days."
+
+msgid "الطلب ده مابقاش مستني عروض."
+msgstr "This order is no longer accepting offers."
+
+msgid "العرض ده اترد عليه قبل كده."
+msgstr "This offer was already answered."
+
+msgid "بنراجعه"
+msgstr "Under review"
+
+msgid "اتأكّد"
+msgstr "Confirmed"
+
+msgid "رقم العملية / اسم المحوِّل"
+msgstr "Transaction number / sender name"
+
+msgid "ملاحظة المراجعة"
+msgstr "Review note"
+
+msgid "تاريخ الرفع"
+msgstr "Upload date"
+
+msgid "دفعة في سوق المطابع"
+msgstr "Print Market payment"
+
+msgid "مدفوعات سوق المطابع"
+msgstr "Print Market payments"
+
+msgid "الطلب ده مش مستني دفع."
+msgstr "This order isn't awaiting payment."
+
+msgid "مفيش عرض مقبول على الطلب."
+msgstr "No accepted offer on this order."
+
+msgid "الدفعة دي اتراجعت قبل كده."
+msgstr "This payment was already reviewed."
+
+msgid "تاريخ الرد"
+msgstr "Reply date"
+
+msgid "بروفة في سوق المطابع"
+msgstr "Print Market proof"
+
+msgid "بروفات سوق المطابع"
+msgstr "Print Market proofs"
+
+msgid "البروفة بتتبعت بعد ما العميل يقبل العرض ولحد التسليم."
+msgstr ""
+"Proofs can be sent after the customer accepts the offer and until delivery."
+
+msgid "اكتب التعديل اللي محتاجه عشان المطبعة تفهمك."
+msgstr "Write the change you need so the print shop understands you."
+
+msgid "رسالة في سوق المطابع"
+msgstr "Print Market message"
+
+msgid "رسائل سوق المطابع"
+msgstr "Print Market messages"
+
+msgid "نوع الملف ده مش مسموح."
+msgstr "This file type is not allowed."
+
+#, python-format
+msgid "الملف أكبر من المسموح (%(mb)s ميجا)."
+msgstr "The file is larger than allowed (%(mb)s MB)."
+
+msgid "محاولات كتير — جرّب كمان شوية."
+msgstr "Too many attempts — try again later."
+
+msgid "اكتب إيميل صحيح."
+msgstr "Enter a valid email."
+
+msgid "اكتب الاسم."
+msgstr "Enter the name."
+
+msgid "اختار محافظة المطبعة."
+msgstr "Choose the print shop's governorate."
+
+msgid "الإيميل ده متسجّل قبل كده — ادخل بيه."
+msgstr "This email is already registered — sign in with it."
+
+msgid "أهلاً بيك! حسابك اتعمل."
+msgstr "Welcome! Your account was created."
+
+msgid "محاولات كتير — جرّب كمان ربع ساعة."
+msgstr "Too many attempts — try again in 15 minutes."
+
+msgid "الحساب ده موقوف — كلّم دعم Mouss Tec."
+msgstr "This account is suspended — contact Mouss Tec support."
+
+msgid "الإيميل أو كلمة السر غلط."
+msgstr "Wrong email or password."
+
+msgid "اكتب اسم المنتج."
+msgstr "Enter the product name."
+
+msgid "السعر لازم يكون رقم."
+msgstr "Price must be a number."
+
+msgid "المنتج اتحفظ."
+msgstr "Product saved."
+
+msgid "المنتج اتشال من السوق."
+msgstr "Product removed from the market."
+
+msgid "كلمة السر الحالية غلط."
+msgstr "Current password is wrong."
+
+msgid "البيانات اتحفظت."
+msgstr "Saved."
+
+msgid "اكتب عنوان الطلب وتفاصيله."
+msgstr "Enter the order title and details."
+
+msgid "اكتب كمية صحيحة."
+msgstr "Enter a valid quantity."
+
+#, python-format
+msgid "وصلك طلب جديد: %(t)s — قدّم عرضك."
+msgstr "You got a new order: %(t)s — send your offer."
+
+msgid "طلبك اتبعت للمطبعة — هيوصلك العرض هنا."
+msgstr "Your request was sent to the print shop — the offer will arrive here."
+
+msgid "اكتب السعر والمدة أرقام."
+msgstr "Enter the price and duration as numbers."
+
+msgid "وصلك عرض سعر"
+msgstr "You got a price offer"
+
+#, python-format
+msgid "المطبعة بعتت عرض على طلبك «%(t)s»."
+msgstr "The print shop sent an offer on your order “%(t)s”."
+
+msgid "العرض اتبعت للعميل."
+msgstr "Offer sent to the customer."
+
+#, python-format
+msgid "العميل قبل عرضك على «%(t)s» — هيدفع لـ Mouss Tec."
+msgstr "The customer accepted your offer on “%(t)s” — they'll pay Mouss Tec."
+
+msgid "قبلت العرض — ادفع دلوقتي عشان المطبعة تبدأ."
+msgstr "You accepted the offer — pay now so the print shop can start."
+
+msgid "العميل رفض العرض"
+msgstr "The customer rejected the offer"
+
+#, python-format
+msgid "العميل رفض عرضك على «%(t)s» — ممكن تبعت عرض تاني."
+msgstr "The customer rejected your offer on “%(t)s” — you can send another."
+
+msgid "رفضت العرض — المطبعة تقدر تبعتلك عرض جديد."
+msgstr "You rejected the offer — the print shop can send a new one."
+
+msgid "اختار طريقة الدفع."
+msgstr "Choose the payment method."
+
+msgid "اكتب رقم العملية وارفع صورة الإيصال."
+msgstr "Enter the transaction number and upload the receipt image."
+
+msgid "استلمنا الإيصال — هنأكّده في أقرب وقت."
+msgstr "We received the receipt — we'll confirm it shortly."
+
+msgid "ارفع ملف البروفة (صورة أو PDF أو فيديو)."
+msgstr "Upload the proof file (image, PDF or video)."
+
+msgid "وصلتك بروفة"
+msgstr "You got a proof"
+
+#, python-format
+msgid "المطبعة بعتت بروفة على «%(t)s» — وافق أو اطلب تعديل."
+msgstr "The print shop sent a proof on “%(t)s” — approve or request changes."
+
+msgid "البروفة اتبعتت للعميل."
+msgstr "Proof sent to the customer."
+
+msgid "العميل وافق على البروفة"
+msgstr "The customer approved the proof"
+
+#, python-format
+msgid "العميل وافق على بروفة %(v)s في «%(t)s»."
+msgstr "The customer approved proof %(v)s on “%(t)s”."
+
+msgid "وافقت على البروفة."
+msgstr "You approved the proof."
+
+#, python-format
+msgid "العميل طلب تعديل على بروفة %(v)s في «%(t)s»."
+msgstr "The customer requested changes on proof %(v)s on “%(t)s”."
+
+msgid "طلب التعديل اتبعت للمطبعة."
+msgstr "Change request sent to the print shop."
+
+msgid "الطلب مقفول."
+msgstr "The order is closed."
+
+msgid "رسالة جديدة"
+msgstr "New message"
+
+#, python-format
+msgid "وصلتك رسالة على «%(t)s»."
+msgstr "You got a message on “%(t)s”."
+
+msgid "الطلب اتلغى"
+msgstr "Order cancelled"
+
+#, python-format
+msgid "الطلب «%(t)s» اتلغى."
+msgstr "The order “%(t)s” was cancelled."
+
+msgid "الطلب اتلغى."
+msgstr "Order cancelled."
+
+msgid "طلبك اتسلّم"
+msgstr "Your order was delivered"
+
+#, python-format
+msgid "المطبعة سجّلت تسليم «%(t)s» — أكّد إنك استلمت."
+msgstr ""
+"The print shop recorded delivery of “%(t)s” — confirm you received it."
+
+msgid "اتسجّل التسليم — مستنيين تأكيد العميل."
+msgstr "Delivery recorded — awaiting customer confirmation."
+
+msgid "العميل أكّد الاستلام"
+msgstr "The customer confirmed receipt"
+
+#, python-format
+msgid "العميل أكّد استلام «%(t)s» — Mouss Tec هتحوّلك المبلغ."
+msgstr "The customer confirmed receipt of “%(t)s” — Mouss Tec will pay you."
+
+msgid "شكراً! الطلب اكتمل."
+msgstr "Thanks! The order is complete."
+
+msgid "سوق المطابع — تغيير كلمة السر"
+msgstr "Print Market — change password"
+
+msgid "افتح اللينك ده عشان تغيّر كلمة السر (صالح ساعتين):"
+msgstr "Open this link to change your password (valid for two hours):"
+
+msgid "لو الإيميل متسجّل هيوصلك لينك تغيير كلمة السر."
+msgstr "If the email is registered, you'll receive a password reset link."
+
+msgid "اللينك ده انتهى أو مش صحيح — اطلب لينك جديد."
+msgstr "This link expired or is invalid — request a new one."
+
+msgid "كلمة السر اتغيّرت."
+msgstr "Password changed."
+
+msgid "المطابع في السوق"
+msgstr "Print shops on the market"
+
+msgid "إشعار في سوق المطابع"
+msgstr "Print market notification"
+
+msgid "إشعارات سوق المطابع"
+msgstr "Print market notifications"
+
+msgid "إيه المشكلة؟ (ماوصلش، مختلف عن البروفة، فيه عيب…)"
+msgstr "What's wrong? (not delivered, differs from the proof, defective…)"
+
+msgid "ابعت المشكلة لـ Mouss Tec"
+msgstr "Send the issue to Mouss Tec"
+
+msgid "اتأكّد تلقائي"
+msgstr "Auto-confirmed"
+
+msgid "اتسلّم في"
+msgstr "Delivered at"
+
+msgid "اختار تقييم من 1 لـ 5 نجوم."
+msgstr "Pick a rating from 1 to 5 stars."
+
+msgid "اقفله لو التقييم فيه إساءة."
+msgstr "Turn off if the review is abusive."
+
+msgid "اكتب المشكلة بالتفصيل عشان نقدر نساعدك."
+msgstr "Describe the issue in detail so we can help."
+
+msgid "الإشعارات"
+msgstr "Notifications"
+
+msgid "التعليق"
+msgstr "Comment"
+
+msgid "التقييم بيتعمل بعد ما الطلب يكتمل."
+msgstr "You can review once the order is completed."
+
+msgid "التقييم:"
+msgstr "Rating:"
+
+msgid "الطلب ده مافيهوش مشكلة مفتوحة."
+msgstr "This order has no open issue."
+
+msgid "الطلب هيتأكّد تلقائي يوم"
+msgstr "The order will be auto-confirmed on"
+
+msgid "العميل عنده مشكلة في الطلب"
+msgstr "The customer reported an issue"
+
+#, python-format
+msgid "العميل فتح مشكلة على «%(t)s» — Mouss Tec هتراجع وتكلّمكم من المنصة."
+msgstr "The customer reported an issue on “%(t)s” — Mouss Tec will review and contact you on the platform."
+
+#, python-format
+msgid "العميل قيّمك %(r)s من 5 على «%(t)s»."
+msgstr "The customer rated you %(r)s/5 on “%(t)s”."
+
+msgid "المشكلة بتتفتح بعد ما المطبعة تسجّل التسليم وقبل التأكيد."
+msgstr "Issues can be reported after delivery and before confirmation."
+
+msgid "انت قيّمت الطلب ده قبل كده."
+msgstr "You already reviewed this order."
+
+msgid "بياناتك عشان يوصلك العرض"
+msgstr "Your details to receive the quote"
+
+msgid "تاريخ فتح المشكلة"
+msgstr "Issue opened at"
+
+msgid "تقييم في سوق المطابع"
+msgstr "Print market review"
+
+msgid "تقييمات سوق المطابع"
+msgstr "Print market reviews"
+
+msgid "حط رقم واتساب من"
+msgstr "Add a WhatsApp number in"
+
+msgid "رأيك في الجودة والالتزام بالميعاد (اختياري)"
+msgstr "Your opinion on quality and timeliness (optional)"
+
+msgid "رقم الواتساب مش صحيح."
+msgstr "Invalid WhatsApp number."
+
+msgid "سبب المشكلة"
+msgstr "Issue reason"
+
+msgid "شكراً على تقييمك!"
+msgstr "Thanks for your review!"
+
+msgid "عشان يوصلك أي طلب جديد فوراً وماتفوّتش عملاء."
+msgstr "to get every new order instantly and never miss a customer."
+
+msgid "عندي مشكلة في الطلب"
+msgstr "I have a problem with this order"
+
+msgid "فلوسك هتفضل معانا ومش هتتحوّل للمطبعة لحد ما نراجع."
+msgstr "Your money stays with us and won't go to the print shop until we review."
+
+msgid "فيه مشكلة مفتوحة — Mouss Tec بتراجع."
+msgstr "An issue is open — Mouss Tec is reviewing."
+
+msgid "فيه مشكلة — Mouss Tec بتراجع"
+msgstr "Issue — under review by Mouss Tec"
+
+msgid "قيّم المطبعة"
+msgstr "Rate the print shop"
+
+msgid "كلمة سر (٨ حروف على الأقل)"
+msgstr "Password (at least 8 characters)"
+
+msgid "لو مفيش مشكلة."
+msgstr "if there's no issue."
+
+msgid "هنعملك حساب مع الطلب — تتابع منه العروض والبروفات."
+msgstr "We'll create your account with the order — track quotes and proofs from it."
+
+msgid "هيوصلك عليه أي طلب جديد فوراً — مابيظهرش للعملاء."
+msgstr "New orders reach you on it instantly — never shown to customers."
+
+msgid "واتساب الإشعارات"
+msgstr "Notification WhatsApp"
+
+msgid "واتساب لإشعارات الطلبات"
+msgstr "WhatsApp for order notifications"
+
+msgid "واتساب لإشعارات الطلبات (اختياري)"
+msgstr "WhatsApp for order notifications (optional)"
+
+msgid "وصلتنا المشكلة — التحويل للمطبعة واقف لحد ما نراجع ونرد عليك."
+msgstr "We got your issue — the print shop payout is on hold until we review and reply."
+
+msgid "وصلك تقييم جديد"
+msgstr "You got a new review"
+
+#, python-format
+msgid "«%(t)s» اكتمل — Mouss Tec هتحوّلك المبلغ."
+msgstr "“%(t)s” is completed — Mouss Tec will transfer your payout."
+
+msgid "الطلب اتأكّد تلقائي"
+msgstr "Order auto-confirmed"
+
+msgid "الطلب اكتمل"
+msgstr "Order completed"
+
+msgid "جديدة"
+msgstr "New"
+
+#, python-format
+msgid "عدّت المدة على تسليم «%(t)s» من غير اعتراض فاتأكّد — قيّم المطبعة."
+msgstr "The delivery period for “%(t)s” passed without objection, so it was confirmed — rate the print shop."
+
+msgid "مفيش إشعارات لسه."
+msgstr "No notifications yet."
+
+msgid "أرخص عرض"
+msgstr "Lowest offer"
+
+msgid "تقييم الشركة"
+msgstr "Company rating"
+
+msgid "إنستجرام"
+msgstr "Instagram"
+
+msgid "الزوار جايين منين النهارده"
+msgstr "Where today's visitors came from"
+
+msgid "الموجودين دلوقتي"
+msgstr "Online right now"
+
+msgid "بقاله"
+msgstr "For"
+
+msgid "بيتحدّث لوحده كل ١٥ ثانية · «أونلاين» = عمل حاجة في آخر ٥ دقايق"
+msgstr "Auto-refreshes every 15 seconds · “online” = active in the last 5 minutes"
+
+msgid "تيك توك"
+msgstr "TikTok"
+
+msgid "جاي منين"
+msgstr "Source"
+
+msgid "جوجل"
+msgstr "Google"
+
+msgid "راجعهم"
+msgstr "Review them"
+
+msgid "زوار"
+msgstr "Visitors"
+
+msgid "شركة مشتركة"
+msgstr "Subscribed company"
+
+msgid "صفحات"
+msgstr "Pages"
+
+msgid "عروض"
+msgstr "Offers"
+
+msgid "عشان الإعلانات تتعرف صح، حط ?utm_source=facebook في آخر رابط الإعلان."
+msgstr "To track ads correctly, add ?utm_source=facebook to the end of the ad link."
+
+msgid "عميل شركة"
+msgstr "Business customer"
+
+msgid "في صفحة"
+msgstr "Current page"
+
+msgid "فيسبوك"
+msgstr "Facebook"
+
+msgid "فين"
+msgstr "Where"
+
+msgid "لايف السوق"
+msgstr "Live market"
+
+msgid "مباشر"
+msgstr "Direct"
+
+msgid "مفيش حد أونلاين دلوقتي."
+msgstr "Nobody is online right now."
+
+msgid "مواقع تانية"
+msgstr "Other sites"
+
+msgid "مين"
+msgstr "Who"
+
+msgid "🌐 باقي الموقع"
+msgstr "🌐 Rest of site"
+
+msgid "🎨 سوق الطباعة والتصميم"
+msgstr "🎨 Printing & design market"
+
+msgid "🏢 الشركات (السيستم)"
+msgstr "🏢 Companies (system)"
+
+msgid "🖨️ سوق المطابع"
+msgstr "🖨️ Print shops market"
+
+msgid "🚗 سوق السيارات"
+msgstr "🚗 Automotive market"
+
+msgid "🛒 السوق (صفحات عامة)"
+msgstr "🛒 Marketplace (general pages)"
+
+msgid "مين أونلاين دلوقتي • أرقام النهارده"
+msgstr "Who's online now • today's numbers"
+
+#, python-format
+msgid "فيه %(n)s طلب عميل مستني موافقتك — المطابع مش هتشوفه غير بعد ما توافق."
+msgid_plural "فيه %(n)s طلب عميل مستنيين موافقتك — المطابع مش هتشوفهم غير بعد ما توافق."
+msgstr[0] "%(n)s customer request is waiting for your approval — print shops won't see it until you approve."
+msgstr[1] "%(n)s customer requests are waiting for your approval — print shops won't see them until you approve."
+
+#, python-format
+msgid "%(m)s دقيقة"
+msgid_plural "%(m)s دقايق"
+msgstr[0] "%(m)s minute"
+msgstr[1] "%(m)s minutes"
+
+#, python-format
+msgid "%(n)s مطبعة"
+msgid_plural "%(n)s مطابع"
+msgstr[0] "%(n)s print shop"
+msgstr[1] "%(n)s print shops"
+
+msgid "جديدة — مالهاش تقييمات"
+msgstr "New — no reviews yet"
+
+msgid "سوق المطابع مستنيك:"
+msgstr "Print shops market needs you:"
+
+msgid "المشكلة بتتفتح بعد ما الدفع يتأكّد وقبل تأكيد الاستلام."
+msgstr "An issue can be opened after payment is confirmed and before receipt is confirmed."
+
+#, python-format
+msgid "%(n)s إيصال دفع يتأكّد"
+msgid_plural "%(n)s إيصالات دفع تتأكّد"
+msgstr[0] "%(n)s payment receipt to confirm"
+msgstr[1] "%(n)s payment receipts to confirm"
+
+#, python-format
+msgid "%(n)s مشكلة مفتوحة"
+msgid_plural "%(n)s مشاكل مفتوحة"
+msgstr[0] "%(n)s open issue"
+msgstr[1] "%(n)s open issues"
+
+#, python-format
+msgid "%(n)s تحويل للمطابع"
+msgid_plural "%(n)s تحويلات للمطابع"
+msgstr[0] "%(n)s payout to print shops"
+msgstr[1] "%(n)s payouts to print shops"
+# 🟢 لايف السوق — رحلة الزائر
+msgid "زوار النهارده ورحلاتهم"
+msgstr "Today's visitors & journeys"
+
+msgid "أرقام النهارده والمصادر"
+msgstr "Today's numbers & sources"
+
+msgid "دوّر باسم العميل/الشركة أو الموبايل أو الصفحة…"
+msgstr "Search by customer/company name, phone or page…"
+
+msgid "كل الأسواق"
+msgstr "All markets"
+
+msgid "كل اللي دخل الموقع النهارده من نص الليل — الأحدث فوق. دوس على أي حد تشوف رحلته: دخل منين وإمتى، شاف إيه، عمل إيه، ووقف فين."
+msgstr "Everyone who visited the site today since midnight — newest first. Tap anyone to see their journey: where and when they came in, what they viewed, what they did, and where they stopped."
+
+msgid "مفيش زوار بالفلتر ده النهارده."
+msgstr "No visitors match this filter today."
+
+msgid "آخر تحديث"
+msgstr "Last updated"
+
+msgid "عميل سوق المطابع"
+msgstr "Print-market customer"
+
+msgid "بيتفرج على"
+msgstr "Viewing"
+
+msgid "وقف عند"
+msgstr "Stopped at"
+
+msgid "آخر عملية"
+msgstr "Last action"
+
+msgid "دخل من"
+msgstr "Entered from"
+
+msgid "رحلته بالتفصيل"
+msgstr "Full journey"
+
+msgid "زائر مجهول"
+msgstr "Anonymous visitor"
+
+msgid "آخر ظهور"
+msgstr "Last seen"
+
+msgid "افتح ملفه"
+msgstr "Open profile"
+
+msgid "اعرض طلبات الخلفية"
+msgstr "Show background requests"
+
+msgid "مفيش نشاط للزائر ده في الفترة دي. جرّب فترة أطول."
+msgstr "No activity for this visitor in this period. Try a longer range."
+
+msgid "أول ظهور في الفترة"
+msgstr "First seen in period"
+
+msgid "الصفحات اللي شافها"
+msgstr "Pages viewed"
+
+msgid "العمليات اللي عملها"
+msgstr "Actions taken"
+
+msgid "إجمالي الوقت"
+msgstr "Total time"
+
+msgid "جاي منين (أول مرة)"
+msgstr "Source (first visit)"
+
+msgid "موبايل"
+msgstr "Mobile"
+
+msgid "كمبيوتر"
+msgstr "Desktop"
+
+msgid "الـ IP"
+msgstr "IP"
+
+msgid "أخطاء قابلته"
+msgstr "Errors hit"
+
+msgid "أكتر صفحات شافها"
+msgstr "Most viewed pages"
+
+msgid "مرات"
+msgstr "Times"
+
+msgid "الرحلة خطوة بخطوة"
+msgstr "Journey step by step"
+
+msgid "النشاط كتير جداً — بنعرض أول ٣٠٠٠ طلب بس في الفترة دي. صغّر الفترة."
+msgstr "Too much activity — showing only the first 3,000 requests in this period. Narrow the range."
+
+msgid "الرابط اللي جه منه"
+msgstr "Referrer"
+
+msgid "شاف"
+msgstr "Viewed"
+
+msgid "فتح صفحة"
+msgstr "Opened a page"
+
+msgid "طلب خلفية"
+msgstr "Background request"
+
+msgid "أول صفحة"
+msgstr "Entry page"
+
+msgid "وقف هنا"
+msgstr "Stopped here"
+
+msgid "قعد حوالي"
+msgstr "Stayed about"
+
+msgid "من %(t)s"
+msgstr "%(t)s ago"
+
+msgid "%(s)s ث"
+msgstr "%(s)s s"
+
+msgid "زيارة %(n)s"
+msgstr "Visit %(n)s"
+
+msgid "خطأ %(c)s"
+msgstr "Error %(c)s"
+
+msgid "قعد %(sec)s ثانية"
+msgstr "Stayed %(sec)s seconds"
+
+msgid "رحلة الزائر"
+msgstr "Visitor journey"
+
+msgid "الرابط ده انتهى (بيفضل شغّال ٣ أيام). ارجع للايف السوق وافتح الزائر من جديد."
+msgstr "This link has expired (links last 3 days). Go back to Live market and open the visitor again."
+
+msgid "زوار النهارده"
+msgstr "Today's visitors"
+
+msgid "بيتحدّث لوحده كل ١٥ ثانية · «أونلاين» = عمل حاجة في آخر ٥ دقايق · دوس على أي زائر تشوف رحلته كاملة"
+msgstr "Auto-refreshes every 15 seconds · “online” = active in the last 5 minutes · tap any visitor to see their full journey"
+
+msgid "سوق المطابع — الإشعارات"
+msgstr "Print market — notifications"
+
+msgid "سوق المطابع — لوحة الحساب"
+msgstr "Print market — account dashboard"
+
+msgid "كتالوج السيارات"
+msgstr "Automotive catalog"
+
+msgid "الكتالوج"
+msgstr "Catalog"
+
+msgid "تأكيد كود الموبايل"
+msgstr "Phone code verification"
+
+msgid "لوحة العميل"
+msgstr "Customer dashboard"
+
+msgid "طلب عميل"
+msgstr "Customer request"
+
+msgid "قسم الطباعة"
+msgstr "Printing section"
+
+msgid "قسم السيارات"
+msgstr "Automotive section"
+
+msgid "متجر التصاميم"
+msgstr "Design store"
+
+msgid "الصفحة الرئيسية للسوق"
+msgstr "Marketplace home"
+
+msgid "لوحة الشركة"
+msgstr "Company dashboard"
+
+msgid "تسجيل دخول السيستم"
+msgstr "System login"
+
+msgid "استوديو الذكاء الاصطناعي"
+msgstr "AI studio"
+
+msgid "تحميل التطبيق (PWA)"
+msgstr "App load (PWA)"
+
+msgid "سجّل دخول في سوق المطابع"
+msgstr "Logged in to the print market"
+
+msgid "سجّل حساب في سوق المطابع"
+msgstr "Signed up to the print market"
+
+msgid "سجّل دخول"
+msgstr "Logged in"
+
+msgid "عمل حساب جديد"
+msgstr "Created a new account"
+
+msgid "أكّد كود الموبايل"
+msgstr "Verified phone code"
+
+msgid "طلب استرجاع كلمة السر"
+msgstr "Requested password reset"
+
+msgid "سجّل خروج"
+msgstr "Logged out"
+
+msgid "عمل طلب جديد"
+msgstr "Created a new request"
+
+msgid "سجّل دخول السيستم"
+msgstr "Logged in to the system"
+
+msgid "طلب عرض سعر"
+msgstr "Requested a quote"
+
+msgid "عمل/عدّل أوردر"
+msgstr "Created/updated an order"
+
+msgid "بعت بيانات (فورم/عملية)"
+msgstr "Submitted data (form/action)"
+
+msgid "%(n)s صفحة"
+msgid_plural "%(n)s صفحات"
+msgstr[0] "%(n)s page"
+msgstr[1] "%(n)s pages"
+
+msgid "%(n)s عملية"
+msgid_plural "%(n)s عمليات"
+msgstr[0] "%(n)s action"
+msgstr[1] "%(n)s actions"
+
+msgid "%(n)s خطأ"
+msgid_plural "%(n)s أخطاء"
+msgstr[0] "%(n)s error"
+msgstr[1] "%(n)s errors"
+
+msgid "آخر %(n)s يوم"
+msgid_plural "آخر %(n)s يوم"
+msgstr[0] "Last %(n)s day"
+msgstr[1] "Last %(n)s days"
+
+msgid "صفحة التسجيل"
+msgstr "Sign-up page"
+
+# 👑 لوحة السوبر أدمن
+msgid "تسجيل الخروج"
+msgstr "Sign out"
+
+msgid "الباقات والاشتراكات"
+msgstr "Plans & subscriptions"
+
+msgid "تسعير"
+msgstr "Pricing"
+
+msgid "مزايا"
+msgstr "Features"
+
+msgid "تحرير"
+msgstr "Edit"
+
+msgid "العروض والكوبونات"
+msgstr "Offers & coupons"
+
+msgid "خصم مؤقت"
+msgstr "Temporary discount"
+
+msgid "أكواد خصم"
+msgstr "Discount codes"
+
+msgid "إحالات"
+msgstr "Referrals"
+
+msgid "قفل وفتح"
+msgstr "Lock & unlock"
+
+msgid "الاستخدام آخر 30 يوم"
+msgstr "Usage, last 30 days"
+
+msgid "هدية تشخيص"
+msgstr "Diagnostics gift"
+
+msgid "منح"
+msgstr "Grant"
+
+msgid "نمو"
+msgstr "Growth"
+
+msgid "تذاكر"
+msgstr "Tickets"
+
+msgid "ع.م"
+msgstr "Cairo time"
+
+msgid "جمعة مغلق"
+msgstr "Closed Fridays"
+
+msgid "إعلانات"
+msgstr "Announcements"
+
+msgid "أتمتة القنوات (واتساب)"
+msgstr "Channel automation (WhatsApp)"
+
+msgid "تفعيل واتساب/ماسنجر لأي شركة"
+msgstr "Enable WhatsApp/Messenger for any company"
+
+msgid "موظفين"
+msgstr "Staff"
+
+msgid "أدوار"
+msgstr "Roles"
+
+msgid "ربط"
+msgstr "Connect"
+
+msgid "مزامنة المنتجات والمبيعات مع متجر"
+msgstr "Sync products and sales with the store on"
+
+msgid "رصد لحظي لكل"
+msgstr "Live tracking of every"
+
+msgid "كل أحداث المنصة"
+msgstr "All platform events"
+
+msgid "نظرة عامة"
+msgstr "Overview"
+
+msgid "الشركات"
+msgstr "Companies"
+
+msgid "طلبات شراء التصاميم"
+msgstr "Design purchase requests"
+
+msgid "موافقات السوق"
+msgstr "Market approvals"
+
+msgid "نشاط الشركات"
+msgstr "Company activity"
+
+msgid "الزوار"
+msgstr "Visitors"
+
+msgid "سجل الأحداث"
+msgstr "Event log"
+
+msgid "طلبات الأسبوع"
+msgstr "Requests this week"
+
+msgid "متوسط سرعة الاستجابة"
+msgstr "Average response time"
+
+msgid "اشتراكات تنتهي قريباً"
+msgstr "Subscriptions ending soon"
+
+msgid "أكثر الصفحات زيارة (7 أيام)"
+msgstr "Most visited pages (7 days)"
+
+msgid "لا توجد بيانات بعد"
+msgstr "No data yet"
+
+msgid "مضت"
+msgstr "ago"
+
+msgid "لا توجد أحداث بعد"
+msgstr "No events yet"
+
+msgid "أنشط الشركات (7 أيام)"
+msgstr "Most active companies (7 days)"
+
+msgid "توزيع الأجهزة (7 أيام)"
+msgstr "Devices (7 days)"
+
+msgid "ديسكتوب"
+msgstr "Desktop"
+
+msgid "كل الحالات"
+msgstr "All statuses"
+
+msgid "كل القطاعات"
+msgstr "All sectors"
+
+msgid "مشتبه"
+msgstr "Suspected"
+
+msgid "ينتهي اليوم"
+msgstr "Ends today"
+
+msgid "اشتراك"
+msgstr "Subscription"
+
+msgid "تجديد +30 يوم"
+msgstr "Renew +30 days"
+
+msgid "إلغاء تفعيل"
+msgstr "Deactivate"
+
+msgid "لهذه الشركة؟"
+msgstr "for this company?"
+
+msgid "منح رصيد مجاني"
+msgstr "Grant free credit"
+
+msgid "وضع هذه الشركة تحت المراقبة؟"
+msgstr "Put this company under watch?"
+
+msgid "مراقبة"
+msgstr "Watch"
+
+msgid "لا توجد شركات مسجلة بعد"
+msgstr "No companies registered yet"
+
+msgid "فريدة اليوم"
+msgstr "Unique today"
+
+msgid "فريدة (أسبوع)"
+msgstr "Unique (week)"
+
+msgid "بث مباشر — آخر 50 طلب اليوم"
+msgstr "Live — last 50 requests today"
+
+msgid "يتحدث تلقائياً عند التحديث"
+msgstr "Updates when you refresh"
+
+msgid "الطريقة"
+msgstr "Method"
+
+msgid "لا توجد زيارات مسجلة اليوم بعد"
+msgstr "No visits recorded today yet"
+
+msgid "سجل أحداث المنصة — آخر 30 حدث"
+msgstr "Platform event log — last 30 events"
+
+msgid "لا توجد أحداث مسجلة بعد. ستظهر هنا عند تفعيل/تعليق/تسجيل شركات"
+msgstr "No events yet. They appear here when companies sign up, get activated or suspended"
+
+msgid "طلبات شراء باقات التصاميم — في انتظار التأكيد"
+msgstr "Design package purchases — awaiting confirmation"
+
+msgid "تفعيل يدوي — للحالات اللي العميل دفع لكن الـ"
+msgstr "Manual activation — for cases where the customer paid but the"
+
+msgid "ما اشتغلش"
+msgstr "didn't work"
+
+msgid "تأكيد الدفع وتفعيل الباقة"
+msgstr "Confirm payment and activate the package"
+
+msgid "تفعيل يدوي"
+msgstr "Manual activation"
+
+msgid "تأكيد"
+msgstr "Confirm"
+
+msgid "لا توجد طلبات شراء معلّقة حالياً. كل الطلبات مؤكدة"
+msgstr "No pending purchases. All requests are confirmed"
+
+msgid "إيصالات دفع فودافون كاش / إنستاباي — انتظار المراجعة"
+msgstr "Vodafone Cash / InstaPay receipts — awaiting review"
+
+msgid "إيصال جديد"
+msgstr "New receipt"
+
+msgid "فتح الصورة بحجم كامل"
+msgstr "Open full-size image"
+
+msgid "من رقم"
+msgstr "From number"
+
+msgid "اتصال"
+msgstr "Call"
+
+msgid "ملاحظة العميل"
+msgstr "Customer note"
+
+msgid "تأكيد الدفع وتفعيل الخدمة"
+msgstr "Confirm payment and activate the service"
+
+msgid "تأكيد وتفعيل"
+msgstr "Confirm & activate"
+
+msgid "لا توجد إيصالات دفع يدوي في الانتظار"
+msgstr "No manual payment receipts waiting"
+
+msgid "الإيصالات بتظهر هنا لما العملاء يرفعوا سكرين شوت تحويل فودافون كاش أو إنستاباي"
+msgstr "Receipts appear here when customers upload a Vodafone Cash or InstaPay transfer screenshot"
+
+msgid "طلبات طباعة تصاميم — عميل صمم وعاوز يطبع"
+msgstr "Design print requests — customer designed and wants it printed"
+
+msgid "سم"
+msgstr "cm"
+
+msgid "بكل المواصفات للمطبعة"
+msgstr "with all specs for the print shop"
+
+msgid "للمطبعة"
+msgstr "to the print shop"
+
+msgid "لا توجد طلبات طباعة حالياً"
+msgstr "No print requests right now"
+
+msgid "إدارة كل طلبات السوق (كل الحالات)"
+msgstr "Manage all market requests (all statuses)"
+
+msgid "طلبات السوق في انتظار الموافقة — راجع وقرر"
+msgstr "Market requests awaiting approval — review and decide"
+
+msgid "ميزانية"
+msgstr "Budget"
+
+msgid "مرفق"
+msgstr "Attachment"
+
+msgid "لا توجد طلبات في انتظار الموافقة حالياً"
+msgstr "No requests awaiting approval right now"
+
+msgid "عرض كل طلبات السوق (مفتوحة، مقبولة، مكتملة...)"
+msgstr "View all market requests (open, accepted, completed…)"
+
+msgid "نشطون اليوم"
+msgstr "Active today"
+
+msgid "عملوا تصاميم"
+msgstr "Made designs"
+
+msgid "أفراد"
+msgstr "Individuals"
+
+msgid "محظورين"
+msgstr "Blocked"
+
+msgid "آخر ١٠٠ عميل نشاطاً"
+msgstr "Last 100 active customers"
+
+msgid "اضغط الصف لتفاصيل العميل"
+msgstr "Tap a row for customer details"
+
+msgid "الاسم / الشركة"
+msgstr "Name / company"
+
+msgid "تصاميم"
+msgstr "Designs"
+
+msgid "مشتريات"
+msgstr "Purchases"
+
+msgid "غير موثق"
+msgstr "Unverified"
+
+msgid "عرض التفاصيل"
+msgstr "View details"
+
+msgid "منح هدية تصاميم مجانية"
+msgstr "Gift free designs"
+
+msgid "إرسال إشعار للعميل"
+msgstr "Send the customer a notification"
+
+msgid "حذف العميل نهائياً"
+msgstr "Delete customer permanently"
+
+msgid "لا يوجد عملاء بعد"
+msgstr "No customers yet"
+
+msgid "معتمدة"
+msgstr "Approved"
+
+msgid "صفحة المراجعة الكاملة (كل الحالات)"
+msgstr "Full review page (all statuses)"
+
+msgid "قطع الغيار الجديدة — تنتظر موافقتك قبل النشر"
+msgstr "New spare parts — waiting for your approval before publishing"
+
+msgid "عرض الصور"
+msgstr "View photos"
+
+msgid "لا توجد قطع غيار تنتظر المراجعة حالياً"
+msgstr "No spare parts waiting for review"
+
+msgid "عرض كل القطع (معتمدة، مرفوضة...)"
+msgstr "View all parts (approved, rejected…)"
+
+msgid "في الـ"
+msgstr "in"
+
+msgid "طلبات إرجاع"
+msgstr "Return requests"
+
+msgid "تم تحريرها"
+msgstr "Released"
+
+msgid "طلبات إرجاع تنتظر قرار الإدارة"
+msgstr "Return requests awaiting a decision"
+
+msgid "ضمان"
+msgstr "Warranty"
+
+msgid "سبب الإرجاع"
+msgstr "Return reason"
+
+msgid "طُلب الإرجاع"
+msgstr "Return requested"
+
+msgid "عرض القطعة"
+msgstr "View part"
+
+msgid "قبول الإرجاع"
+msgstr "Accept return"
+
+msgid "رفض وتحرير للبائع"
+msgstr "Reject and release to seller"
+
+msgid "لا توجد طلبات إرجاع قيد الانتظار"
+msgstr "No pending return requests"
+
+msgid "نشاط الشركات — ترتيب حسب آخر نشاط"
+msgstr "Company activity — sorted by last activity"
+
+msgid "لم يدخل النظام بعد"
+msgstr "Hasn't logged in yet"
+
+msgid "طلب اليوم"
+msgstr "requests today"
+
+msgid "آخر أحداث"
+msgstr "Latest events"
+
+msgid "لا يوجد شركات بعد"
+msgstr "No companies yet"
+
+msgid "تفاصيل العميل"
+msgstr "Customer details"
+
+msgid "جاري التحميل"
+msgstr "Loading"
+
+msgid "تفعيل اشتراك يدوي"
+msgstr "Manual subscription activation"
+
+msgid "فترة الاشتراك"
+msgstr "Subscription period"
+
+msgid "بدون خصم"
+msgstr "No discount"
+
+msgid "مدفوع (يتسجّل فاتورة)"
+msgstr "Paid (an invoice is recorded)"
+
+msgid "هدية مجانية"
+msgstr "Free gift"
+
+msgid "ملاحظة (اختياري): رقم التحويل / سبب الهدية"
+msgstr "Note (optional): transfer number / gift reason"
+
+msgid "الإجمالي المطلوب"
+msgstr "Total due"
+
+msgid "تفعيل الاشتراك الآن"
+msgstr "Activate subscription now"
+
+msgid "حذف نهائي"
+msgstr "Permanent delete"
+
+msgid "هذا الإجراء لا يمكن التراجع عنه"
+msgstr "This action cannot be undone"
+
+msgid "سيتم حذف الشركة وجميع بياناتها نهائياً"
+msgstr "The company and all its data will be deleted permanently"
+
+msgid "للتأكيد: اكتب اسم الـ"
+msgstr "To confirm, type the"
+
+msgid "اكتب"
+msgstr "Type"
+
+msgid "اكتب اسم الـ"
+msgstr "Type the"
+
+msgid "للتأكيد"
+msgstr "to confirm"
+
+msgid "حذف الشركة نهائياً"
+msgstr "Delete company permanently"
+
+msgid "اختر حزمة"
+msgstr "Choose a package"
+
+msgid "ج/شهر"
+msgstr "EGP/mo"
+
+msgid "لا توجد حزم"
+msgstr "No packages"
+
+msgid "متاحة. أضف حزم من لوحة الإدارة أولاً"
+msgstr "available. Add packages from the admin panel first"
+
+msgid "تفعيل الحزمة"
+msgstr "Activate package"
+
+msgid "هدية بدون سبب"
+msgstr "Gift (no reason)"
+
+msgid "ترحيب تلقائي"
+msgstr "automatic welcome"
+
+msgid "إلغاء الهدية"
+msgstr "Cancel the gift"
+
+msgid "؟ الرصيد المتبقي منها هيتشال فوراً"
+msgstr "? Its remaining credit will be removed immediately."
+
+msgid "فشل الإلغاء"
+msgstr "Cancel failed"
+
+msgid "معرف العميل غير صالح"
+msgstr "Invalid customer ID"
+
+msgid "تعذر تحميل بيانات العميل"
+msgstr "Couldn't load customer details"
+
+msgid "هدية رصيد"
+msgstr "Credit gift"
+
+msgid "تصاميم متبقية"
+msgstr "Designs left"
+
+msgid "واتساب متبقي"
+msgstr "WhatsApp left"
+
+msgid "علامات مائية"
+msgstr "Watermarks"
+
+msgid "الهدايا النشطة حالياً (يمكن إلغاء كل واحدة على حدة)"
+msgstr "Active gifts (each can be cancelled separately)"
+
+msgid "ملاحظة: أي شركة جديدة بتاخد"
+msgstr "Note: every new company gets an"
+
+msgid "هدية ترحيب تلقائية (10 تصاميم + 5 واتساب + 5 علامة مائية)"
+msgstr "automatic welcome gift (10 designs + 5 WhatsApp + 5 watermarks)"
+
+msgid "لو ضفت هدية تانية، الرصيد المعروض"
+msgstr "If you add another gift, the balance shown"
+
+msgid "مجموع الهدايا كلها"
+msgstr "the total of all gifts"
+
+msgid "قوالب سريعة"
+msgstr "Quick templates"
+
+msgid "ترحيب"
+msgstr "Welcome"
+
+msgid "سبب الهدية (يظهر للعميل)"
+msgstr "Gift reason (shown to the customer)"
+
+msgid "مثال: هدية الترحيب الذهبية، تعويض، عيد ميلاد المنصة"
+msgstr "e.g. golden welcome gift, compensation, platform anniversary"
+
+msgid "تنتهي بعد كم يوم؟ (اختياري — اتركه فاضي للمدى المفتوح)"
+msgstr "Expires after how many days? (optional — leave empty for no expiry)"
+
+msgid "مثال"
+msgstr "e.g."
+
+msgid "إرسال الهدية"
+msgstr "Send gift"
+
+msgid "هل أنت متأكد من تأكيد الإيصال وتفعيل الخدمة؟"
+msgstr "Are you sure you want to confirm the receipt and activate the service?"
+
+msgid "اترفض"
+msgstr "Rejected"
+
+msgid "تم بنجاح"
+msgstr "Done"
+
+msgid "رفض الطلب"
+msgstr "reject the request"
+
+msgid "هل أنت متأكد من"
+msgstr "Are you sure you want to"
+
+msgid "؟"
+msgstr "?"
+
+msgid "تم تأكيد الدفع وتفعيل الباقة"
+msgstr "Payment confirmed and package activated"
+
+msgid "تم رفض الطلب"
+msgstr "Request rejected"
+
+msgid "سبب الإلغاء (هيوصل للعميل)"
+msgstr "Cancellation reason (sent to the customer)"
+
+msgid "؟ العميل هيتبلّغ"
+msgstr "? The customer will be notified."
+
+msgid "موافقة ونشر القطعة في السوق؟"
+msgstr "Approve and publish this part in the market?"
+
+msgid "تم النشر"
+msgstr "Published"
+
+msgid "تم الرفض"
+msgstr "Rejected"
+
+msgid "هدية تصاميم مجانية"
+msgstr "Free designs gift"
+
+msgid "إرسال هدية إلى"
+msgstr "Send a gift to"
+
+msgid "عدد التصاميم"
+msgstr "Number of designs"
+
+msgid "السبب / الرسالة (اختياري)"
+msgstr "Reason / message (optional)"
+
+msgid "هدية ترحيب من إدارة المنصة"
+msgstr "Welcome gift from the platform team"
+
+msgid "إرسال إشعار"
+msgstr "Send notification"
+
+msgid "المرسل إليه"
+msgstr "Recipient"
+
+msgid "مثال: عرض خاص لك"
+msgstr "e.g. A special offer for you"
+
+msgid "اكتب رسالتك للعميل"
+msgstr "Write your message to the customer"
+
+msgid "أيقونة"
+msgstr "Icon"
+
+msgid "رابط زر (اختياري)"
+msgstr "Button link (optional)"
+
+msgid "نص الزر (مثال: تصفّح الآن)"
+msgstr "Button text (e.g. Browse now)"
+
+msgid "إرسال الإشعار"
+msgstr "Send notification"
+
+msgid "حذف عميل نهائياً"
+msgstr "Delete customer permanently"
+
+msgid "هذا الإجراء لا يمكن التراجع عنه. سيتم حذف"
+msgstr "This cannot be undone. It will delete"
+
+msgid "بيانات العميل + جميع الطلبات + التصاميم + المشتريات + الإشعارات"
+msgstr "customer data + all requests + designs + purchases + notifications"
+
+msgid "للتأكيد، اكتب رقم موبايل العميل"
+msgstr "To confirm, type the customer's mobile number"
+
+msgid "رقم الموبايل للتأكيد"
+msgstr "Mobile number to confirm"
+
+msgid "فشل إرسال الهدية"
+msgstr "Sending the gift failed"
+
+msgid "فشل إرسال الإشعار"
+msgstr "Sending the notification failed"
+
+msgid "فك حظر"
+msgstr "Unblock"
+
+msgid "؟ مش هيقدر يدخل السوق لحد ما تفك الحظر"
+msgstr "? They won't be able to use the market until you unblock them."
+
+msgid "ملاحظة الإدارة (اختياري)"
+msgstr "Admin note (optional)"
+
+msgid "سيتم استرداد المبلغ كاملاً للمشتري والشحن على المنصة. متابعة؟"
+msgstr "The buyer gets a full refund and the platform pays shipping. Continue?"
+
+msgid "فشل العملية"
+msgstr "Action failed"
+
+msgid "اكتب سبب رفض الإرجاع (10 حروف على الأقل)"
+msgstr "Write the reason for rejecting the return (at least 10 characters)"
+
+msgid "السبب قصير جداً"
+msgstr "Reason is too short"
+
+msgid "سيتم تحرير المبلغ للبائع. متابعة؟"
+msgstr "The amount will be released to the seller. Continue?"
+
+msgid "تأكيد نهائي: حذف العميل لا يمكن التراجع عنه. متابعة؟"
+msgstr "Final confirmation: deleting the customer cannot be undone. Continue?"
+
+msgid "فشل الحذف"
+msgstr "Delete failed"
+
+msgid "تم الحذف"
+msgstr "Deleted"
+
+msgid "ابحث عن صفحة، شركة، مستخدم"
+msgstr "Search for a page, company, user"
+
+msgid "تسعير · مزايا · تحرير"
+msgstr "Pricing · features · edit"
+
+msgid "نمو · تحصيل"
+msgstr "Growth · collection"
+
+msgid "كل أحداث المنصة + فلاتر"
+msgstr "All platform events + filters"
+
+msgid "مين أونلاين دلوقتي"
+msgstr "Who's online now"
+
+msgid "الشركات التجريبية · مين محتاج مكالمة"
+msgstr "Trial companies · who needs a call"
+
+msgid "كل حملة جابت كام تسجيل وكام مشترك وكام فلوس"
+msgstr "Signups, subscribers and revenue per campaign"
+
+msgid "كام كلّفت كل شركة قصاد اشتراكها"
+msgstr "Each company's cost vs. its subscription"
+
+msgid "قفل/فتح موديول + مين بيستخدمه"
+msgstr "Lock/unlock a module + who uses it"
+
+msgid "موظفين دعم/مبيعات/محاسبة وصلاحياتهم"
+msgstr "Support/sales/accounting staff and permissions"
+
+msgid "كوبونات للإعلانات والمسوّقين + برنامج الإحالة"
+msgstr "Coupons for ads and marketers + referral program"
+
+msgid "وصول"
+msgstr "Access"
+
+msgid "أتمتة القنوات"
+msgstr "Channel automation"
+
+msgid "اشتراك واتساب/ماسنجر لكل مستأجر"
+msgstr "WhatsApp/Messenger subscription per tenant"
+
+msgid "طلبات نشر الشركات"
+msgstr "Company listing requests"
+
+msgid "القطع النشطة"
+msgstr "Active parts"
+
+msgid "لا توجد نتائج. جرّب كلمة تانية"
+msgstr "No results. Try another word"
+
+msgid "شركات / مستخدمون"
+msgstr "Companies / users"
+
+# 👑 السوبر أدمن — رسائل الإجراءات
+msgid "الشركة رقم «%(id)s» مش موجودة — غالباً اتحذفت أو الصفحة قديمة. حدّث الصفحة وجرّب تاني."
+msgstr "Company #%(id)s doesn’t exist — it was probably deleted or the page is outdated. Refresh and try again."
+
+msgid "اتعلّق حساب «%(name)s»."
+msgstr "“%(name)s” has been suspended."
+
+msgid "اتفعّل حساب «%(name)s» — ساري حتى %(date)s."
+msgstr "“%(name)s” has been activated — valid until %(date)s."
+
+msgid "«%(name)s» بقت تحت المراقبة."
+msgstr "“%(name)s” is now under watch."
+
+msgid "اتشالت المراقبة عن «%(name)s»."
+msgstr "Watch removed from “%(name)s”."
+
+msgid "اتمدّدت تجربة «%(name)s» حتى %(date)s."
+msgstr "Trial for “%(name)s” extended until %(date)s."
+
+msgid "الباقة غير موجودة أو موقوفة."
+msgstr "The plan doesn’t exist or is disabled."
+
+msgid "تم تفعيل اشتراك «%(name)s» — باقة %(plan)s (%(period)s) — %(amount)s — فاتورة %(invoice)s — ينتهي %(end)s"
+msgstr "Subscription activated for “%(name)s” — %(plan)s plan (%(period)s) — %(amount)s — invoice %(invoice)s — ends %(end)s"
+
+msgid "🎁 هدية"
+msgstr "🎁 Gift"
+
+msgid "مفيش باقة مربوطة بالشركة — فعّل اشتراك الأول."
+msgstr "This company has no plan — activate a subscription first."
+
+msgid "تم تجديد اشتراك «%(name)s» حتى %(end)s — فاتورة %(invoice)s"
+msgstr "Subscription for “%(name)s” renewed until %(end)s — invoice %(invoice)s"
+
+msgid "حزمة AI غير موجودة."
+msgstr "AI package not found."
+
+msgid "تم تفعيل حزمة AI «%(addon)s» لشركة «%(name)s»"
+msgstr "AI package “%(addon)s” activated for “%(name)s”"
+
+msgid "تم إلغاء حزمة AI من «%(name)s»"
+msgstr "AI package removed from “%(name)s”"
+
+msgid "لا يوجد اشتراك لهذه الشركة."
+msgstr "This company has no subscription."
+
+msgid "❌ يجب تحديد رصيد واحد على الأقل (تصاميم / واتساب / علامات مائية)."
+msgstr "❌ Choose at least one credit (designs / WhatsApp / watermarks)."
+
+msgid "🎁 تم منح «%(name)s» هدية: %(d)s تصميم + %(w)s واتساب + %(m)s علامة مائية"
+msgstr "🎁 Gift granted to “%(name)s”: %(d)s designs + %(w)s WhatsApp + %(m)s watermarks"
+
+msgid "(تنتهي خلال %(n)s يوم)"
+msgstr "(expires in %(n)s days)"
+
+msgid "تم إلغاء الهدية #%(id)s من «%(name)s»"
+msgstr "Gift #%(id)s cancelled for “%(name)s”"
+
+msgid "الهدية غير موجودة."
+msgstr "Gift not found."
+
+msgid "فشل الحذف: اسم التأكيد لا يتطابق مع اسم الـ Schema."
+msgstr "Delete failed: the confirmation doesn’t match the schema name."
+
+msgid "تم حذف شركة «%(name)s» نهائياً."
+msgstr "“%(name)s” was deleted permanently."
+
+msgid "مش هينفع تتمسح «%(name)s»: عليها سجلات مالية لازم تفضل (%(what)s). مااتمسحش أي حاجة — استخدم «تعليق» بدل الحذف."
+msgstr "“%(name)s” can’t be deleted: it has financial records that must be kept (%(what)s). Nothing was deleted — use “Suspend” instead."
+
+msgid "فشل حذف الشركة: %(err)s"
+msgstr "Deleting the company failed: %(err)s"
+
+msgid "الإجراء ده مش معروف — حدّث الصفحة وجرّب تاني."
+msgstr "Unknown action — refresh the page and try again."
+
+# 👑 السوبر أدمن
+msgid "طلبات للسيرفر اليوم"
+msgstr "Server requests today"
+
+msgid "طلبات للسيرفر الأسبوع ده"
+msgstr "Server requests this week"
+
+# 👑 السوبر أدمن
+msgid "أجهزة (IP) مختلفة اليوم"
+msgstr "Distinct IPs today"
+
+msgid "أجهزة (IP) مختلفة الأسبوع ده"
+msgstr "Distinct IPs this week"
+
+msgid "دفع فعلاً"
+msgstr "Actually paid"
+
+
+msgid "%(n)s<span class=\"text-xs text-emerald-400/60\"> يوم متبقي</span>"
+msgid_plural "%(n)s<span class=\"text-xs text-emerald-400/60\"> يوم متبقي</span>"
+msgstr[0] "%(n)s<span class=\"text-xs text-emerald-400/60\"> day left</span>"
+msgstr[1] "%(n)s<span class=\"text-xs text-emerald-400/60\"> days left</span>"
+
+msgid "%(n)s<span class=\"text-xs text-amber-400/60\"> يوم متبقي</span>"
+msgid_plural "%(n)s<span class=\"text-xs text-amber-400/60\"> يوم متبقي</span>"
+msgstr[0] "%(n)s<span class=\"text-xs text-amber-400/60\"> day left</span>"
+msgstr[1] "%(n)s<span class=\"text-xs text-amber-400/60\"> days left</span>"
+
+# 👑 السوبر أدمن
+msgid "اتسجّلت"
+msgstr "Joined"
+
+msgid "اطلب صيانة أو قطعة غيار لعربيتك واستلم عروض أسعار من مراكز صيانة وتجار موثّقين. قارن السعر والتقييم واختار الأنسب."
+msgstr "Request car maintenance or a spare part and get quotes from verified service centers and dealers. Compare price and rating and pick the best."
+
+msgid "اكتب طلب الطباعة أو التصميم مرة واحدة والمطابع تبعتلك عروض أسعارها — كروت، بروشورات، علب، يونيفورم وبنرات. قارن السعر والتقييم واختار."
+msgstr "Post your printing or design request once and print shops send you their quotes — cards, brochures, boxes, uniforms and banners. Compare price and rating and choose."
+
+msgid "الصفحة دي مش موجودة"
+msgstr "This page doesn't exist"
+
+msgid "الصفحة مش موجودة"
+msgstr "Page not found"
+
+msgid "باقات Mouss Tec لبرنامج الحسابات أونلاين: مراكز الصيانة وتجار قطع الغيار والمطابع واستوديوهات التصميم — فواتير ومخزون وخزينة وتقارير. جرّب مجاناً."
+msgstr "Mouss Tec online accounting plans for service centers, spare-parts dealers, print shops and design studios — invoices, inventory, cash and reports. Try it free."
+
+msgid "سوق Mouss Tec: اطلب طباعة وتصميم أو قطع غيار وصيانة سيارات، واستلم عروض أسعار من مطابع ومراكز موثّقة في كل محافظات مصر."
+msgstr "Mouss Tec marketplace: request printing and design or car parts and maintenance, and get quotes from verified print shops and centers across Egypt."
+
+msgid "سوق المطابع في مصر: اطلب طباعة كروت وفلايرز وبنرات وعلب من مطابع بتقييمات حقيقية، شوف البروفة قبل الطباعة وادفع بأمان."
+msgstr "Egypt's print shops market: order business cards, flyers, banners and boxes from print shops with real reviews, see the proof before printing and pay safely."
+
+msgid "سياسة الخصوصية والشروط والأحكام لمنصة Mouss Tec — إزاي بنحمي بياناتك وحقوقك وإنت بتستخدم البرنامج والأسواق."
+msgstr "Mouss Tec privacy policy and terms — how we protect your data and rights while you use the software and marketplaces."
+
+msgid "قطع غيار سيارات جديدة ومستعملة من تجار ومراكز موثّقة — دوّر بالماركة والموديل، قارن الأسعار، واشتري بأمان على Mouss Tec."
+msgstr "New and used car parts from verified dealers and centers — search by make and model, compare prices and buy safely on Mouss Tec."
+
+msgid "يمكن اللينك اتغيّر أو المنتج اتشال. جرّب واحدة من دول:"
+msgstr "The link may have changed or the item was removed. Try one of these:"
+
+#, python-format
+msgid "%(n)s — مطبعة في %(c)s على سوق المطابع: اطلب عرض سعر، شوف البروفة قبل الطباعة وادفع بأمان."
+msgstr "%(n)s — a print shop in %(c)s on the print shops market: request a quote, see the proof before printing and pay safely."
+
+#, python-format
+msgid "%(t)s من %(n)s على سوق المطابع — اطلب عرض سعر وشوف البروفة قبل الطباعة."
+msgstr "%(t)s from %(n)s on the print shops market — request a quote and see the proof before printing."
+
+msgid "أسئلة شائعة"
+msgstr "FAQ"
+
+msgid "أفكار ومنتجات تقدر تطلب سعرها"
+msgstr "Ideas and products you can request a quote for"
+
+msgid "اختار الخدمة أو المحافظة — وشوف المطابع بتقييماتها وأسعارها، أو اكتب طلبك مرة واحدة والمطابع تبعتلك عروضها."
+msgstr "Pick a service or governorate — see print shops with their ratings and prices, or post your request once and print shops send you quotes."
+
+msgid "اكتب طلبك والمطابع تبعتلك عروض"
+msgstr "Post your request and get quotes"
+
+msgid "الأسعار تبدأ من"
+msgstr "Prices start from"
+
+msgid "الخدمات"
+msgstr "Services"
+
+msgid "المحافظات"
+msgstr "Governorates"
+
+msgid "تصفّح سوق المطابع"
+msgstr "Browse the print shops market"
+
+msgid "خدمات الطباعة حسب المحافظة"
+msgstr "Printing services by governorate"
+
+msgid "خدمات الطباعة في مصر"
+msgstr "Printing services in Egypt"
+
+msgid "خدمات الطباعة في مصر حسب المحافظة"
+msgstr "Printing services in Egypt by governorate"
+
+msgid "خدمات طباعة تانية"
+msgstr "Other printing services"
+
+msgid "دليل خدمات الطباعة في مصر: كروت شخصية، فلايرات، بنرات، ستيكرات، علب، هدايا وتيشيرتات — في كل المحافظات. قارن المطابع بالتقييمات واطلب عروض أسعار."
+msgstr "Guide to printing services in Egypt: business cards, flyers, banners, stickers, boxes, gifts and t-shirts — in every governorate. Compare print shops by rating and request quotes."
+
+msgid "طباعة بنرات"
+msgstr "Banner printing"
+
+msgid "طباعة فلايرات"
+msgstr "Flyer printing"
+
+msgid "طباعة كروت شخصية"
+msgstr "Business card printing"
+
+msgid "لسه بنضيف مطابع في المحافظة دي — اكتب طلبك والمطابع اللي بتوصل لمحافظتك تبعتلك عروضها."
+msgstr "We're still adding print shops in this governorate — post your request and shops that deliver to you will send quotes."
+
+msgid "متاجر طباعة على Mouss Tec"
+msgstr "Print stores on Mouss Tec"
+
+msgid "مطابع بتقدّم الخدمة دي"
+msgstr "Print shops offering this service"
+
+msgid "منتجات بأسعار"
+msgstr "Products with prices"
+
+#, python-format
+msgid "%(s)s في %(g)s: قارن مطابع %(g)s بالتقييمات والأسعار، شوف البروفة قبل الطباعة واطلب عروض أسعار من أكتر من مطبعة."
+msgstr "%(s)s in %(g)s: compare %(g)s print shops by rating and price, see the proof before printing and get quotes from several shops."
+
+#, python-format
+msgid "%(s)s في محافظات تانية"
+msgstr "%(s)s in other governorates"
+
+#, python-format
+msgid "%(s)s في مصر: قارن المطابع بالتقييمات والأسعار، شوف البروفة قبل الطباعة واطلب عروض أسعار من أكتر من مطبعة."
+msgstr "%(s)s in Egypt: compare print shops by rating and price, see the proof before printing and get quotes from several shops."
+
+#, python-format
+msgid "المطابع والمتاجر في %(g)s — سواء إنت في"
+msgstr "Print shops and stores in %(g)s — whether you're in"
+
+#, python-format
+msgid "المطابع والمتاجر في محافظة %(g)s."
+msgstr "Print shops and stores in %(g)s governorate."
+
+#, python-format
+msgid "خدمات الطباعة في %(g)s"
+msgstr "Printing services in %(g)s"
+
+#, python-format
+msgid "متاجر طباعة في %(g)s"
+msgstr "Print stores in %(g)s"
+
+#, python-format
+msgid "مطابع في %(g)s"
+msgstr "Print shops in %(g)s"
+
+#, python-format
+msgid "مطابع في %(g)s: كروت وفلايرات وبنرات وعلب وهدايا — قارن المطابع بالتقييمات واطلب عروض أسعار."
+msgstr "Print shops in %(g)s: cards, flyers, banners, boxes and gifts — compare shops by rating and request quotes."
+
+#, python-format
+msgid "مواصفات %(s)s الشائعة"
+msgstr "Common %(s)s specs"
+
+#, python-format
+msgid "فيه مطبعة واحدة ظاهرة هنا بتقييمها."
+msgid_plural "فيه %(n)s مطابع ومتاجر ظاهرين هنا بتقييماتهم."
+msgstr[0] "One print shop is listed here with its rating."
+msgstr[1] "%(n)s print shops and stores are listed here with their ratings."
+
+msgid ""
+"## عنوان — ### عنوان فرعي — - بند في قايمة — **كلام عريض** — [نص "
+"اللينك](/print/business-cards/) — والجداول بـ | عمود | عمود |"
+msgstr ""
+"## heading — ### sub-heading — - list item — **bold text** — [link "
+"text](/print/business-cards/) — and tables with | column | column |"
+
+msgid ""
+"slug خدمة من /print/ (مثال business-cards) — بيظهر لينكها في آخر المقال."
+msgstr ""
+"Service slug from /print/ (e.g. business-cards) — its link shows at the end "
+"of the article."
+
+msgid "آخر تعديل"
+msgstr "Last updated"
+
+msgid "اكتب طلبك دلوقتي"
+msgstr "Post your request now"
+
+msgid ""
+"اكتب طلبك مرة واحدة والمطابع تبعتلك عروضها — قارن بالسعر والتقييم واختار."
+msgstr ""
+"Post your request once and print shops send you their quotes — compare price"
+" and rating and choose."
+
+msgid "الرابط"
+msgstr "Link"
+
+msgid "المقال"
+msgstr "Article"
+
+msgid "المقالات"
+msgstr "Articles"
+
+msgid "الوصف (بيظهر في جوجل)"
+msgstr "Description (shown on Google)"
+
+msgid "بالإنجليزي وبشَرطة — مثال: business-card-prices"
+msgstr "English with dashes — e.g. business-card-prices"
+
+msgid "جملة أو اتنين — ١٢٠ لـ ١٦٠ حرف أحسن حاجة."
+msgstr "One or two sentences — 120 to 160 characters is best."
+
+msgid "خدمات الطباعة"
+msgstr "Printing services"
+
+msgid "خدمة مرتبطة"
+msgstr "Related service"
+
+msgid ""
+"دليلك قبل ما تطبع: الخامات، المقاسات، الأسعار، وإزاي تختار المطبعة الصح."
+msgstr ""
+"Your guide before printing: materials, sizes, prices and how to pick the "
+"right print shop."
+
+msgid "صورة الغلاف"
+msgstr "Cover image"
+
+msgid "عايز تطبع؟ خلّي المطابع تتنافس على طلبك"
+msgstr "Want to print? Let print shops compete for your order"
+
+msgid "في المقال ده"
+msgstr "In this article"
+
+msgid "مفيش مقالات لسه."
+msgstr "No articles yet."
+
+msgid "مقال"
+msgstr "Article"
+
+msgid "مقالات الطباعة والتصميم"
+msgstr "Printing & design articles"
+
+msgid "مقالات تانية"
+msgstr "More articles"
+
+msgid ""
+"مقالات عملية عن الطباعة والتصميم: أسعار، خامات، مقاسات، وإزاي تختار المطبعة "
+"الصح — من Mouss Tec."
+msgstr ""
+"Practical articles on printing and design: prices, materials, sizes and how "
+"to choose the right print shop — from Mouss Tec."
+
+#, python-format
+msgid "دقيقة قراءة"
+msgid_plural "%(m)s دقايق قراءة"
+msgstr[0] "1 min read"
+msgstr[1] "%(m)s min read"
+
+# 🧭 جولة «جرّب الموقع كأنك عميل» (نوفمبر)
+msgid "مثال: تويوتا / هيونداي / BMW"
+msgstr "e.g. Toyota / Hyundai / BMW"
+
+msgid "الشاشة دي مش ظاهرة لحسابك."
+msgstr "This screen isn't available for your account."
+
+msgid "ارفع البروفة وابعتها للعميل"
+msgstr "Upload the proof and send it to the customer"
+
+msgid "العميل وافق؟ علّم «مش محتاجة بروفة»"
+msgstr "Customer approved? Mark «no proof needed»"
+
+msgid "إلغاء طلب التسعير ده؟ مش هيظهر في الانتظار تاني."
+msgstr "Cancel this quotation request? It will no longer show as waiting."
+
+msgid "اتلغى طلب التسعير."
+msgstr "Quotation request cancelled."
+
+msgid "الطلب ده اتحوّل لأمر شراء أو اتلغى قبل كده."
+msgstr "This request was already ordered or cancelled."
+
+msgid "أمر شراء لأصناف أختارها"
+msgstr "Purchase order for items I choose"
+
+msgid "الأمر فاضي — ضيف أصناف من تحت."
+msgstr "The order is empty — add items below."
+
+msgid "آخر سعر"
+msgstr "Last price"
+
+msgid "مفيش صنف بالرقم أو الباركود ده."
+msgstr "No item with this number or barcode."
+
+msgid "الكمية لازم تبقى أكبر من صفر والسعر مش بالسالب."
+msgstr "Quantity must be above zero and price not negative."
+
+msgid "ضيف صنف واحد على الأقل قبل ما تبعت الأمر للمورد."
+msgstr "Add at least one item before sending the order to the vendor."
+
+msgid "الخدمات والمصنعيات"
+msgstr "Services & labor"
+
+msgid "الخدمات دي بتظهر في «أمر الشغل» بسعرها، ونسبة عمولة الفني بتتحسب له لما الفاتورة تتقفل."
+msgstr "These services appear in the job card with their price, and the technician's commission is calculated when the invoice is closed."
+
+msgid "اتضافت الخدمة."
+msgstr "Service added."
+
+msgid "اتعدّلت الخدمة."
+msgstr "Service updated."
+
+msgid "اتمسحت الخدمة."
+msgstr "Service deleted."
+
+msgid "اكتب اسم الخدمة."
+msgstr "Enter the service name."
+
+msgid "الخدمة دي اتباعت في فواتير قبل كده — مش هتتمسح عشان التقارير والعمولات. عدّل اسمها أو سعرها بدل المسح."
+msgstr "This service was already sold on invoices — it won't be deleted to keep reports and commissions. Edit its name or price instead."
+
+msgid "الخدمة مش موجودة."
+msgstr "Service not found."
+
+msgid "السعر والساعات والعمولة لازم يكونوا أرقام صحيحة (العمولة من ٠ لـ ١٠٠)."
+msgstr "Price, hours and commission must be valid numbers (commission 0–100)."
+
+msgid "اسم الخدمة"
+msgstr "Service name"
+
+msgid "مثال: تغيير زيت + فلتر"
+msgstr "e.g. Oil + filter change"
+
+msgid "سعر المصنعية"
+msgstr "Labor price"
+
+msgid "الوقت (ساعات)"
+msgstr "Time (hours)"
+
+#, python-format
+msgid "عمولة الفني %%"
+msgstr "Technician commission %%"
+
+msgid "إضافة خدمة"
+msgstr "Add service"
+
+msgid "اتباعت"
+msgstr "Times sold"
+
+msgid "تمسح الخدمة؟"
+msgstr "Delete this service?"
+
+msgid "لسه مفيش خدمات — ضيف أول خدمة من فوق."
+msgstr "No services yet — add the first one above."
+
+msgid "إدارة الخدمات"
+msgstr "Manage services"
+
+msgid "حوّل المبلغ وارفع سكرين شوت التحويل — الفلوس بتفضل محجوزة عند المنصة لحد ما تستلم القطعة وتتأكد منها."
+msgstr "Transfer the amount and upload a screenshot — the money stays held by the platform until you receive and check the part."
+
+msgid "بعد إرسال الإيصال، فريقنا بيراجعه خلال دقائق ويبلّغ البائع يشحن."
+msgstr "After you send the receipt, our team reviews it within minutes and tells the seller to ship."
+
+msgid "هنأكد الدفع خلال دقائق ونبلّغ البائع يشحن."
+msgstr "We'll confirm the payment within minutes and tell the seller to ship."
+
+msgid "✅ تم استلام الإيصال — هنأكد الدفع خلال دقائق ونبلّغ البائع يشحن."
+msgstr "✅ Receipt received — we'll confirm the payment within minutes and tell the seller to ship."
+
+msgid "سوق المطابع: إيصالات مستنية تأكيد"
+msgstr "Print market: receipts awaiting confirmation"
+
+msgid "سوق المطابع: مشاكل مستنية حكمك"
+msgstr "Print market: disputes awaiting your decision"
+
+msgid "سوق المطابع: طلبات اكتملت — حوّل للمطبعة"
+msgstr "Print market: completed orders — pay the print shop"
+
+msgid "تأكيد الدفع — الفلوس تتحجز في الـ Escrow والبائع يشحن"
+msgstr "Confirm payment — money is held in escrow and the seller ships"
+
+msgid "تأكيد الإيصال؟ الفلوس هتتحجز في الـ Escrow والبائع هيتبلّغ يشحن."
+msgstr "Confirm this receipt? The money will be held in escrow and the seller will be told to ship."
+
+# 🔢 الترقيم المتسلسل + 🛒 طلبات B2B + 💳 تسديد الرصيد المقدّم
+msgid "الشركة الطالبة"
+msgstr "Requesting company"
+
+msgid "الصنف المنشور"
+msgstr "Published item"
+
+msgid "ملاحظة المشتري"
+msgstr "Buyer note"
+
+msgid "رد التاجر"
+msgstr "Seller reply"
+
+msgid "طلب شراء B2B"
+msgstr "B2B purchase request"
+
+msgid "🛒 طلبات الشراء المباشر B2B"
+msgstr "🛒 B2B direct purchase requests"
+
+msgid "مستني رد التاجر"
+msgstr "Awaiting seller reply"
+
+msgid "التاجر وافق"
+msgstr "Seller accepted"
+
+msgid "التاجر اعتذر"
+msgstr "Seller declined"
+
+msgid "عدّاد أرقام"
+msgstr "Number counter"
+
+msgid "عدّادات الأرقام"
+msgstr "Number counters"
+
+msgid "للتاجر"
+msgstr "To seller"
+
+msgid "بيانات التواصل"
+msgstr "Contact details"
+
+msgid "اعتذر"
+msgstr "Decline"
+
+msgid "رد للمشتري (اختياري): ميعاد التسليم، السعر النهائي…"
+msgstr "Reply to buyer (optional): delivery time, final price…"
+
+msgid "حصلت مشكلة — جرّب تاني."
+msgstr "Something went wrong — try again."
+
+msgid "تلغي الطلب؟"
+msgstr "Cancel this request?"
+
+msgid "مفيش طلبات شراء جاتلك لسه — أصنافك المنشورة في السوق هي اللي بيطلبوها."
+msgstr "No purchase requests yet — buyers request your published market items."
+
+msgid "لسه ماطلبتش حاجة — دوّر على الصنف في سوق B2B ودوس «اطلب من التاجر»."
+msgstr "You haven't requested anything yet — find the item in the B2B market and press “Order from seller”."
+
+msgid "تسلسل أرقام الفواتير"
+msgstr "Invoice number sequence"
+
+msgid "طلبات الشراء"
+msgstr "Purchase requests"
+
+msgid "طلب شراء من التاجر"
+msgstr "Purchase request to seller"
+
+msgid "الطلب بيوصل للتاجر بسعره المنشور. لما يوافق، هتشوفوا تليفون وإيميل بعض وتكمّلوا البيع والتسليم بينكم."
+msgstr "The request reaches the seller at the published price. Once accepted, you both see each other's phone and email and complete the sale and delivery between you."
+
+msgid "الإجمالي التقريبي"
+msgstr "Approximate total"
+
+msgid "ابعت الطلب للتاجر"
+msgstr "Send request to seller"
+
+msgid "ملاحظة للتاجر (اختياري): ميعاد التسليم، طريقة الدفع…"
+msgstr "Note to seller (optional): delivery time, payment method…"
+
+msgid "صنفك"
+msgstr "Your item"
+
+msgid "اطلب من التاجر"
+msgstr "Order from seller"
+
+msgid "الكمية لازم من 1 لحد"
+msgstr "Quantity must be from 1 up to"
+
+msgid "اتبعت الطلب للتاجر."
+msgstr "Request sent to the seller."
+
+msgid "طلبات الشراء B2B"
+msgstr "B2B purchase requests"
+
+msgid "طلبات الشراء المباشر بين الشركات في السوق. بعد ما التاجر يوافق، كل طرف بيشوف بيانات تواصل التاني ويكملوا البيع والتسليم بينهم (البائع يعمل فاتورة عادية)."
+msgstr "Direct purchase requests between companies in the market. After the seller accepts, each side sees the other's contact details and they complete the sale and delivery (the seller issues a normal invoice)."
+
+msgid "طلبات جاتلي"
+msgstr "Received"
+
+msgid "كل رقم فاتورة (بيع، مرتجع، أمر شغل، عرض سعر) بيتاخد بالترتيب ومابيضيعش لو الحفظ وقع. الصفحة دي بتوريك أي رقم ناقص وسببه — عشان المراجع أو الضرايب."
+msgstr "Every invoice number (sale, return, job card, quotation) is taken in order and isn't lost if a save fails. This page shows any missing number and why — for your auditor or the tax authority."
+
+msgid "آخر رقم"
+msgstr "Last number"
+
+msgid "مستندات موجودة"
+msgstr "Existing documents"
+
+msgid "أرقام ناقصة"
+msgstr "Missing numbers"
+
+msgid "التسلسل كامل — مفيش ولا رقم ناقص."
+msgstr "The sequence is complete — no missing numbers."
+
+msgid "فيه أرقام ناقصة من غير سبب مسجّل — كلّم الدعم."
+msgstr "Some numbers are missing with no recorded reason — contact support."
+
+msgid "اتمسحت"
+msgstr "Deleted"
+
+msgid "فجوة قديمة (قبل تفعيل الترقيم المتسلسل)"
+msgstr "Old gap (before sequential numbering was enabled)"
+
+msgid "مفيش سبب مسجّل"
+msgstr "No recorded reason"
+
+msgid "مفيش رصيد مقدّم أو فواتير مفتوحة تتسدّد."
+msgstr "No advance credit or open invoices to settle."
+
+msgid "فلوس دفعها قبل كده ومش متسدّدة على فاتورة — سدّد بيها فواتيره المفتوحة (الأقدم الأول) من غير ما تحصّل تاني."
+msgstr "Money paid earlier that isn't settled on an invoice — use it to settle open invoices (oldest first) instead of collecting again."
+
+msgid "لا تملك صلاحية التسديد من الرصيد المقدّم."
+msgstr "You don't have permission to settle from advance credit."
+
+#, python-format
+msgid "معروض آخر %(n)s رقم ناقص بس."
+msgstr "Showing only the last %(n)s missing numbers."
+
+#, python-format
+msgid "اتسدّد %(a)s من رصيده المقدّم على %(n)s فاتورة."
+msgstr "Settled %(a)s from advance credit on %(n)s invoice(s)."
+
+#, python-format
+msgid "ليه رصيد مقدّم %(a)s"
+msgstr "Has advance credit %(a)s"
+
+#, python-format
+msgid "سدّد %(a)s من رصيده"
+msgstr "Settle %(a)s from credit"

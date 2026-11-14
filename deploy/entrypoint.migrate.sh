@@ -39,4 +39,8 @@ python manage.py check_templates --all || echo "⚠️⚠️ فيه قالب/ق�
 echo "🎨 تجميع الملفات الثابتة..."
 python manage.py collectstatic --noinput
 
+# 🖼️ صور منتجات كتالوج السوق اللي جوه المشروع (clients/catalog_photos) — المنتجات اللي ليها صورة بتتعدّى
+echo "🖼️ صور منتجات الكتالوج..."
+python manage.py import_catalog_images --bundled || echo "⚠️ رفع صور الكتالوج فشل — الموقع شغال عادي، والمنتجات هتفضل بالأيقونة."
+
 echo "✅ خطوة النشر خلصت."

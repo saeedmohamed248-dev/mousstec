@@ -30,11 +30,14 @@
  */
 
 #include "esp_camera.h"
+#include "img_converters.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include "SD_MMC.h"
 #include <time.h>
+#include <Preferences.h>
+#include <esp_system.h>
 
 // A request body held in RAM, handed to HTTPClient as a stream. POST(buffer,
 // size) writes the whole body in one call and fails with -3 (SEND_PAYLOAD_
@@ -116,24 +119,72 @@ const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";
 #define HREF_GPIO_NUM 23
 #define PCLK_GPIO_NUM 22
 
+// A weak 5 V browns the board out the moment the radio transmits at full
+// power: it restarted over and over and never reached the server (the shop's
+// first boot: "Brownout detector was triggered"). After one brownout the
+// radio stays at a lower power for good — as the bridge does.
+// 🐛 [FIX]: a supply that sags further doesn't even report a brownout — the
+// chip just powers on again ("rst:0x1 POWERON_RESET", from the shop's log),
+// so the reset reason never said "brownout" and the radio came up at full
+// power every time, for ever. Now every boot is counted until the camera has
+// run 20 s (bootSurvived): two boots in a row that died before that are a
+// weak supply too.
+bool wifiLowPower() {
+  Preferences prefs;
+  prefs.begin("cam", false);
+  bool low = prefs.getBool("txlow", false);
+  uint8_t died = prefs.getUChar("died", 0);        // boots that never reached 20 s
+  if (!low && (esp_reset_reason() == ESP_RST_BROWNOUT || died >= 2)) {
+    low = true;
+    prefs.putBool("txlow", true);
+  }
+  if (died < 250) prefs.putUChar("died", died + 1);
+  prefs.end();
+  return low;
+}
+
+// The camera has run long enough to call this boot a good one.
+void bootSurvived() {
+  static bool done = false;
+  if (done || millis() < 20000) return;
+  done = true;
+  Preferences prefs;
+  prefs.begin("cam", false);
+  prefs.putUChar("died", 0);
+  prefs.end();
+}
+
 void connectWifi() {
   // Clock (UTC) to date photos taken offline; once set it keeps running.
   configTime(0, 0, "pool.ntp.org", "time.google.com");
-  Serial.printf("[CAM] WiFi \"%s\"", WIFI_SSID);
+  bool low = wifiLowPower();
+  // Printed before the radio starts: if the log ends here, the board died
+  // (brownout) switching the radio on — the 5 V supply, not the Wi-Fi.
+  Serial.printf("[CAM] WiFi \"%s\" (TX %s)", WIFI_SSID,
+                low ? "8.5 dBm: low, a brownout happened before" : "13 dBm");
   WiFi.mode(WIFI_STA);
   // Power save makes the radio doze between beacons, adding up to a few
   // hundred ms to every upload: the live view crawled. The camera is on
   // mains power, so it stays awake.
   WiFi.setSleep(false);
+  WiFi.setTxPower(low ? WIFI_POWER_8_5dBm : WIFI_POWER_13dBm);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED) {
     delay(400);
     Serial.print(".");
-    // Wrong password or no router: say so and start over instead of hanging.
-    if (millis() - t0 > 30000) { Serial.println(" no WiFi, restarting"); ESP.restart(); }
+    // 🐛 [FIX]: with no router (a power cut it's slower to come back from, or
+    // one unplugged at night) the camera restarted every 30 s for ever: no
+    // camera, no photos on the card — exactly when they matter. It goes on
+    // without Wi-Fi now; the loop keeps reconnecting and keeps watching.
+    if (millis() - t0 > 30000) {
+      Serial.println(" no WiFi yet (wrong name/password, or the router is off): watching offline, still trying");
+      return;
+    }
   }
-  Serial.printf(" %s (signal %d dBm)\n", WiFi.localIP().toString().c_str(), (int) WiFi.RSSI());
+  // Some cores put the power back to full on connect: set once more.
+  WiFi.setTxPower(low ? WIFI_POWER_8_5dBm : WIFI_POWER_13dBm);
+  Serial.printf(" connected, IP %s (signal %d dBm)\n", WiFi.localIP().toString().c_str(), (int) WiFi.RSSI());
 }
 
 bool initCamera() {
@@ -162,6 +213,7 @@ bool initCamera() {
 }
 
 void noteServer(int code);
+bool cameraOk = false;
 
 // POST a JPEG as multipart/form-data with extra text fields ("k=v&k2=v2").
 // Returns the HTTP code; the response body is written to `out`.
@@ -304,6 +356,16 @@ void pushLiveFrame(bool motion) {
   esp_camera_fb_return(fb);
   sumMs += millis() - t0; sumBytes += len; frames++;
   if (code != 200) failed++;
+  // Each change of answer, at once: whether the server is reached (200),
+  // refuses the token (401) or can't be reached (negative) shows on the
+  // first frame, not twenty frames later.
+  static int lastCode = 0;
+  if (code != lastCode) {
+    Serial.printf("[CAM] /camera/frame/ → %d%s\n", code,
+                  code == 200 ? " (live)" : code == 401 ? " (bad token or domain)" :
+                  code < 0 ? " (can't reach the server)" : "");
+    lastCode = code;
+  }
   if (frames == 20) {
     Serial.printf("[CAM] 20 frames: %lu ms each, %lu KB each, %d failed (last %d)\n",
                   sumMs / 20, sumBytes / 20 / 1024, failed, code);
@@ -312,17 +374,85 @@ void pushLiveFrame(bool motion) {
   if (code == 200) handleFrameReply(resp);
 }
 
-// Very cheap motion detector: average-luma difference between frames.
-// Replace with a real motion/vision routine or rely on the PIR on GPIO13.
+// Motion: the frame decoded small (1/8: 80x60) and cut into an 8x6 grid; a
+// cell whose brightness left the background's by more than MOTION_STEP —
+// after taking out what the whole picture moved by (the sensor's exposure) —
+// has something new in it, and two such cells are motion. The background
+// follows slowly, so a box left on the counter stops being motion.
+// 🐛 [FIX]: the old detector averaged every 64th BYTE OF THE JPEG — compressed
+// data, not brightness: random numbers. Measured on a still scene it said
+// "motion" on 30% of frames, so the camera sent a face check every 4 s day
+// and night, flagged motion on live frames, and offline filled the card with
+// 2000 photos of an empty shop in about an hour.
+#define MOTION_GRID_W 8
+#define MOTION_GRID_H 6
+#define MOTION_STEP 3            // of ~125: about 8 grey levels of 255
+#define MOTION_CELLS 2
+#define MOTION_EVERY_MS 250      // decoding costs ~40 ms: not on every pass
+
+bool frameMoved(camera_fb_t* fb) {
+  static float bg[MOTION_GRID_W * MOTION_GRID_H];
+  static bool haveBg = false;
+  static int8_t hiFirst = -1;                    // which byte of a pixel is RRRRRGGG
+  static uint8_t* small = NULL;
+  static size_t smallSize = 0;
+  int w = fb->width / 8, h = fb->height / 8;
+  if (w < MOTION_GRID_W || h < MOTION_GRID_H) return false;
+  size_t need = (size_t) w * h * 2;
+  if (need > smallSize) {
+    free(small);
+    small = (uint8_t*) (psramFound() ? ps_malloc(need) : malloc(need));
+    smallSize = small ? need : 0;
+    haveBg = false;                              // another frame size: start over
+  }
+  if (!small || !jpg2rgb565(fb->buf, fb->len, small, JPG_SCALE_8X)) return false;
+  if (hiFirst < 0) {
+    // Neighbouring pixels differ little in their high byte (red + top of
+    // green) and wildly in the low one: that tells the byte order, whichever
+    // this core's decoder writes.
+    unsigned long d0 = 0, d1 = 0;
+    for (size_t i = 0; i + 3 < need; i += 2) {
+      d0 += abs((int) small[i] - (int) small[i + 2]);
+      d1 += abs((int) small[i + 1] - (int) small[i + 3]);
+    }
+    hiFirst = d0 < d1 ? 1 : 0;
+  }
+  int bw = w / MOTION_GRID_W, bh = h / MOTION_GRID_H;
+  unsigned long sum[MOTION_GRID_W * MOTION_GRID_H] = {0};
+  for (int y = 0; y < bh * MOTION_GRID_H; y++) {
+    const uint8_t* row = small + (size_t) y * w * 2;
+    for (int x = 0; x < bw * MOTION_GRID_W; x++) {
+      uint8_t hi = hiFirst ? row[x * 2] : row[x * 2 + 1];
+      uint8_t lo = hiFirst ? row[x * 2 + 1] : row[x * 2];
+      sum[(y / bh) * MOTION_GRID_W + x / bw] += (hi >> 3) + (((hi & 7) << 3) | (lo >> 5)) + (lo & 31);
+    }
+  }
+  const int cells = MOTION_GRID_W * MOTION_GRID_H;
+  float now[MOTION_GRID_W * MOTION_GRID_H], meanNow = 0, meanBg = 0;
+  for (int i = 0; i < cells; i++) { now[i] = (float) sum[i] / (bw * bh); meanNow += now[i]; meanBg += bg[i]; }
+  if (!haveBg) {
+    for (int i = 0; i < cells; i++) bg[i] = now[i];
+    haveBg = true;
+    return false;
+  }
+  float shift = (meanNow - meanBg) / cells;      // the whole picture brighter or darker
+  int moved = 0;
+  for (int i = 0; i < cells; i++) {
+    if (fabsf(now[i] - bg[i] - shift) > MOTION_STEP) moved++;
+    bg[i] += (now[i] - bg[i]) / 4;
+  }
+  return moved >= MOTION_CELLS;
+}
+
 bool detectMotion() {
-  static long prevAvg = -1;
-  camera_fb_t* fb = esp_camera_fb_get();
-  if (!fb) return false;
-  long sum = 0; for (size_t i = 0; i < fb->len; i += 64) sum += fb->buf[i];
-  long avg = sum / (fb->len / 64 + 1);
-  bool moved = (prevAvg >= 0) && (labs(avg - prevAvg) > 6);
-  prevAvg = avg;
-  esp_camera_fb_return(fb);
+  static unsigned long last = 0;
+  static bool moved = false;
+  if (!last || millis() - last >= MOTION_EVERY_MS) {
+    last = millis();
+    camera_fb_t* fb = esp_camera_fb_get();
+    moved = fb ? frameMoved(fb) : false;
+    if (fb) esp_camera_fb_return(fb);
+  }
 #if HAS_PRESENCE_SENSOR
   if (digitalRead(PRESENCE_PIN) == HIGH) return true;
 #endif
@@ -404,18 +534,36 @@ void netProbeTask(void*) {
   }
 }
 
+// A file's own name: older cores give the whole path ("/cam/12-170….jpg"),
+// whose number then read as 0 — the photos were never counted nor sent.
+String photoName(const char* name) {
+  String n = name;
+  int slash = n.lastIndexOf('/');
+  return slash >= 0 ? n.substring(slash + 1) : n;
+}
+
 void setupCard() {
 #if HAS_SD_CARD
   // 1-bit mode: GPIO 2/14/15 only. 4-bit would also use GPIO4 — the flash
   // LED — and light it on every write.
+#if HAS_PRESENCE_SENSOR
+  // GPIO13 is the card's DAT3 line: a card that sees it LOW while it starts
+  // goes into SPI mode and never answers SD_MMC — and an idle PIR holds it
+  // LOW. Held HIGH while the card starts, then handed back to the sensor.
+  pinMode(PRESENCE_PIN, OUTPUT);
+  digitalWrite(PRESENCE_PIN, HIGH);
+#endif
   sdOk = SD_MMC.begin("/sdcard", true);
+#if HAS_PRESENCE_SENSOR
+  pinMode(PRESENCE_PIN, INPUT);
+#endif
   pinMode(4, OUTPUT);
   digitalWrite(4, LOW);
   if (!sdOk) { Serial.println("[SD] no card in the camera's slot (offline photos off)"); return; }
   if (!SD_MMC.exists("/cam")) SD_MMC.mkdir("/cam");
   File dir = SD_MMC.open("/cam");
   for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
-    uint32_t seq = String(f.name()).toInt();
+    uint32_t seq = photoName(f.name()).toInt();
     if (seq) { keptPhotos++; photoSeq = max(photoSeq, seq); }
     f.close();
   }
@@ -463,7 +611,7 @@ String oldestPhoto() {
   String best;
   uint32_t bestSeq = 0;
   for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
-    String name = f.name();
+    String name = photoName(f.name());
     f.close();
     uint32_t seq = name.toInt();
     if (seq && (!bestSeq || seq < bestSeq)) { bestSeq = seq; best = name; }
@@ -537,8 +685,9 @@ void setup() {
 #endif
   Serial.println("\n[CAM] Mouss Tec camera");
   connectWifi();
-  if (!initCamera()) { Serial.println("[CAM] init failed: check the ribbon cable and the 5V supply"); }
-  else               { Serial.printf("[CAM] ready — 24/7 (PSRAM %s)\n", psramFound() ? "yes" : "NO: enable it in Tools"); }
+  cameraOk = initCamera();
+  if (!cameraOk) { Serial.println("[CAM] init failed: check the ribbon cable and the 5V supply (trying again every 10 s)"); }
+  else           { Serial.printf("[CAM] ready — 24/7 (PSRAM %s)\n", psramFound() ? "yes" : "NO: enable it in Tools"); }
   setupCard();
   parseApiHost();
   xTaskCreatePinnedToCore(netProbeTask, "netprobe", 6144, NULL, 1, NULL, 0);
@@ -548,6 +697,19 @@ unsigned long lastFaceCheck = 0;
 unsigned long lastEnrollShot = 0;
 
 void loop() {
+  bootSurvived();
+  // 🐛 [FIX]: a camera that didn't start (a ribbon not seated, the supply
+  // dipping at power-on) stayed dead until someone pressed reset. Tried again.
+  if (!cameraOk) {
+    static unsigned long lastInit = 0;
+    if (millis() - lastInit > 10000) {
+      lastInit = millis();
+      esp_camera_deinit();
+      cameraOk = initCamera();
+      Serial.println(cameraOk ? "[CAM] camera started" : "[CAM] camera still not answering: ribbon cable / 5V");
+    }
+    if (!cameraOk) { delay(200); return; }
+  }
   // If Wi-Fi dropped, keep trying to reconnect but DON'T stop watching: an
   // unplugged router is exactly when motion photos matter (kept on the card).
   // Reconnect every 5 s: restarting the attempt every 0.5 s never let it finish.

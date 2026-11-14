@@ -293,8 +293,10 @@ def _expense_share_per_unit(product_ids):
     return out
 
 
-def _stock_purchase_expenses(stock_rows, branch):
+def _stock_purchase_expenses(stock_rows, branch, by_product=None):
     """(مصاريف شراء محمّلة على اللي في المخزن, مصاريف «على الفترة» لبضاعة لسه موجودة).
+
+    ``by_product`` (dict اختياري) بيتملي بنصيب كل صنف من المصاريف المحمّلة على رصيده.
 
     🐛 [FIX]: كان نصيب القطعة من آخر استلام بيتضرب في كل الرصيد (حتى القطع اللي
     جت قبل كده من غير مصاريف)، و«على الفترة» كانت بتعدّ مصاريف أي فاتورة ليها صنف
@@ -326,6 +328,8 @@ def _stock_purchase_expenses(stock_rows, branch):
         per = Decimal(str(unit or 0)) - Decimal(str(cost or 0))
         if unit and per > 0:
             landed += Decimal(take) * per
+            if by_product is not None:
+                by_product[pid] = by_product.get(pid, Decimal("0")) + Decimal(take) * per
     period = Decimal("0")
     if taken:
         expense_kinds = [k for k, b in PurchaseInvoiceExtraCost._DEFAULT_BEHAVIOR.items() if b == 'expense']
@@ -350,13 +354,18 @@ def product_list(request):
     # بحث/حالة المخزون/المؤرشفة — نفس الفلتر اللي بيستخدمه التصدير والحذف الجماعي
     qs, q, stock_filter = _product_list_qs(request, branch)
 
-    page = Paginator(qs, 30).get_page(request.GET.get("page"))
+    page = Paginator(qs.prefetch_related("inventory_set__branch"), 30).get_page(request.GET.get("page"))
     shares = _expense_share_per_unit([p.pk for p in page.object_list])
+    page_landed = {}
+    _stock_purchase_expenses(
+        [(p.pk, sum(r.quantity for r in p.inventory_set.all()
+                    if branch is None or r.branch_id == branch.id)) for p in page.object_list],
+        branch, by_product=page_landed)
 
     # توزيع القطعة على الفروع (اسم الفرع : الكمية) — يظهر خصوصاً في وضع «كل الفروع»
     products_view = []
     for p in page.object_list:
-        inv_rows = list(p.inventory_set.select_related("branch").all())
+        inv_rows = list(p.inventory_set.all())   # prefetched مع الفرع
         if branch is not None:
             inv_rows = [r for r in inv_rows if r.branch_id == branch.id]
         stock = sum(r.quantity for r in inv_rows)
@@ -366,7 +375,15 @@ def product_list(request):
         is_low = stock <= (p.min_stock_level or 0)
         unit_cost = _effective_unit_cost(p)
         line_value = Decimal(str(stock)) * unit_cost
-        share = min(shares.get(p.pk, Decimal("0")), unit_cost)
+        # 🐛 [FIX]: «شراء X · مصاريف Y» كان بياخد نصيب الوحدة من آخر استلام بس ويطرحه من
+        #    متوسط التكلفة لكل الرصيد — فلتر ٢٠ قطعة قديمة بـ150 + ١٠ جديدة بـ140 ومصاريف
+        #    ٥٦٫٩١ كان بيبان «شراء 142.87 · مصاريف 5.69» (ولا سعر منهم حقيقي). دلوقتي نصيب
+        #    الوحدة = مصاريف الاستلامات اللي لسه في الرصيد ÷ الرصيد (146.66 + 1.90).
+        if stock > 0:
+            share = page_landed.get(p.pk, Decimal("0")) / Decimal(stock)
+        else:
+            share = shares.get(p.pk, Decimal("0"))
+        share = min(share.quantize(Decimal("0.01")), unit_cost)
         # 💹 ربح القطعة وهامش الربح % (من سعر البيع) — زي أي ERP عالمي
         retail = Decimal(str(p.retail_price or 0))
         profit = retail - unit_cost

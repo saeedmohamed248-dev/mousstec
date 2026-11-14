@@ -65,6 +65,7 @@
     {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
     {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
     {% include 'clients/_meta_pixel.html' %}
+    {{ seo_jsonld }}
 </head>
 <body class="min-h-screen flex flex-col justify-between">
     {% coupon_banner %}
@@ -196,8 +197,10 @@
             </p>
         </div>
 
+        {% comment %}🐛 [FIX]: الكارتين كانوا بيودّوا الزائر على صفحة تسجيل/دخول — دلوقتي بيفتحوا السوق نفسه
+           (المعروضات مفتوحة لأي حد من غير تسجيل، و«اطلب سعر» مابيحتاجش حساب).{% endcomment %}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5" style="max-width:900px; margin:0 auto;">
-            <a href="/marketplace/automotive/" class="mt-card" style="padding:24px; border-top:3px solid var(--blue);">
+            <a href="/marketplace/catalog/automotive/" class="mt-card" style="padding:24px; border-top:3px solid var(--blue);">
                 <div class="flex items-center justify-between" style="margin-bottom:14px;">
                     <div style="font-size:34px;">🚗</div>
                     <span style="background:var(--blue-soft); color:var(--blue); font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px;">{% trans "سيارات" %}</span>
@@ -212,7 +215,7 @@
                 <div style="background:var(--brand); color:#fff; font-weight:700; padding:12px; border-radius:12px; text-align:center; font-size:13.5px;">{% trans "اطلب الآن مجاناً" %} <i class="fas fa-arrow-left"></i></div>
             </a>
 
-            <a href="/marketplace/printing/" class="mt-card" style="padding:24px; border-top:3px solid var(--copper);">
+            <a href="/marketplace/catalog/printing/" class="mt-card" style="padding:24px; border-top:3px solid var(--copper);">
                 <div class="flex items-center justify-between" style="margin-bottom:14px;">
                     <div style="font-size:34px;">🎨</div>
                     <span style="background:var(--copper-soft); color:var(--copper); font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px;">{% trans "طباعة وتصميم" %}</span>

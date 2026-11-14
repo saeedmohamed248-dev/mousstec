@@ -1,0 +1,40 @@
+{% load i18n %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}{% trans "المقالات" %}{% endblock %} | Mouss Tec</title>
+<meta name="description" content="{% block meta_description %}{% trans "مقالات عملية عن الطباعة والتصميم: أسعار، خامات، مقاسات، وإزاي تختار المطبعة الصح — من Mouss Tec." %}{% endblock %}">
+{% block seo_head %}{% endblock %}
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+<style>
+:root { --pm:#7c3aed; --pm2:#ec4899; --bg:#f6f5fb; --ink:#1f1534; --muted:#6b6385; }
+* { box-sizing:border-box; }
+body { margin:0; font-family:'Cairo',sans-serif; background:var(--bg); color:var(--ink); line-height:1.9; }
+a { color:var(--pm); }
+.nav { background:linear-gradient(90deg,var(--pm),var(--pm2)); padding:.7rem 1rem; }
+.nav .in { max-width:1100px; margin:0 auto; display:flex; gap:1rem; align-items:center; flex-wrap:wrap; }
+.nav a { color:#fff; text-decoration:none; font-weight:700; }
+.nav .brand { font-size:1.15rem; margin-inline-end:auto; }
+.wrap { max-width:1100px; margin:0 auto; padding:1.2rem 1rem 3rem; }
+.card { background:#fff; border-radius:16px; box-shadow:0 2px 12px rgba(40,20,80,.06); }
+.muted { color:var(--muted); }
+.btn { display:inline-block; background:var(--pm); color:#fff; text-decoration:none; font-weight:800; padding:.6rem 1.2rem; border-radius:12px; }
+.btn.light { background:#efe9ff; color:var(--pm); }
+.foot { text-align:center; color:var(--muted); font-size:.85rem; padding:1rem 1rem 2rem; }
+.foot a { color:var(--muted); }
+</style>
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+<nav class="nav"><div class="in">
+  <a class="brand" href="/"><i class="fas fa-print"></i> Mouss Tec</a>
+  <a href="{% url 'blog:index' %}">{% trans "المقالات" %}</a>
+  <a href="/print/">{% trans "خدمات الطباعة" %}</a>
+  <a href="/marketplace/print-market/">{% trans "سوق المطابع" %}</a>
+</div></nav>
+<main class="wrap">{% block content %}{% endblock %}</main>
+<footer class="foot"><a href="/print/">{% trans "خدمات الطباعة حسب المحافظة" %}</a> · <a href="/marketplace/catalog/printing/">{% trans "سوق الطباعة والتصميم" %}</a> · <a href="/pricing/">{% trans "الأسعار" %}</a></footer>
+</body>
+</html>

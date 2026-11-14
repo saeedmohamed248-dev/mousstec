@@ -299,7 +299,7 @@ class PWAInjectorMiddleware:
     Idempotent: مش بيحقن لو الـ tag موجود فعلاً.
     Skips: غير HTML, status != 200, الصفحات المخصّصة للـ admin/honeypot.
     """
-    SCRIPT_TAG = b'<script src="/static/js/pwa-init.js" defer data-pwa-injector="1"></script>'
+    SCRIPT_TAG = b'<script src="/static/js/pwa-init.js?v=2" defer data-pwa-injector="1"></script>'
     MANIFEST_TAG = b'<link rel="manifest" href="/manifest.json">'
     THEME_TAG = b'<meta name="theme-color" content="#7c3aed">'
 
@@ -611,6 +611,34 @@ def audit_user_for_current_schema():
     return user
 
 
+def _marketplace_customer_id(request, response):
+    """🧭 رقم عميل السوق من كوكي mp_session (أو الكوكي الجديدة لو الطلب ده هو الدخول نفسه).
+    متكاش ٥ دقايق عشان مانضربش الداتابيز في كل طلب."""
+    token = None
+    morsel = response.cookies.get('mp_session') if hasattr(response, 'cookies') else None
+    if morsel is not None and morsel.value:
+        token = morsel.value
+    else:
+        token = request.COOKIES.get('mp_session')
+    if not token:
+        return None
+    import uuid
+    from django.core.cache import cache
+    try:
+        token = str(uuid.UUID(str(token)))
+    except (ValueError, TypeError):
+        return None
+    key = f'mp_visit_cust:{token}'
+    cached = cache.get(key)
+    if cached is not None:
+        return cached or None
+    from clients.models import MarketplaceCustomer
+    cid = (MarketplaceCustomer.objects.filter(session_token=token)
+           .values_list('id', flat=True).first())
+    cache.set(key, cid or 0, 300)
+    return cid
+
+
 class VisitorTrackingMiddleware:
     """
     تسجيل كل طلب HTTP في VisitorLog — يُستخدم في لوحة السوبر أدمن.
@@ -666,16 +694,26 @@ class VisitorTrackingMiddleware:
 
             from clients.models import VisitorLog
             from django_tenants.utils import schema_context
+            mp_customer_id = _marketplace_customer_id(request, response) if schema == 'public' else None
             # 🛡️ VisitorLog موجود في public schema فقط (clients app في SHARED_APPS).
             # لازم نكتب فيه عبر schema_context عشان طلبات الـ tenants تنجح.
             with schema_context('public'):
+                # 📣 علامة الإعلان (fbclid/gclid/utm_source) بتتحفظ مع الصفحة — عشان «جاي منين» في لايف السوق
+                src = ''
+                if request.GET.get('utm_source'):
+                    src = '?utm_source=' + request.GET['utm_source'][:40]
+                elif 'fbclid' in request.GET:
+                    src = '?fbclid'
+                elif 'gclid' in request.GET:
+                    src = '?gclid'
                 VisitorLog.objects.create(
                     ip_address=ip,
-                    path=path[:500],
+                    path=(path[:500 - len(src)] + src),
                     method=request.method,
                     status_code=response.status_code,
                     user=user,
                     tenant_schema=schema,
+                    marketplace_customer_id=mp_customer_id,
                     user_agent=ua[:1000],
                     referer=(request.META.get('HTTP_REFERER', '') or '')[:1000],
                     device_type=device,
@@ -812,3 +850,42 @@ class ModuleSwitchMiddleware:
                 '<p>لو محتاجها كلّمنا من زرار «مشكلة؟ كلّمنا».</p>'
                 '<p><a href="/" style="color:#1e2a57;font-weight:700">رجوع للرئيسية</a></p></body></html>')
         return self.get_response(request)
+
+
+class ScreenRecordingMiddleware:
+    """🎥 بيحقن سكريبت تسجيل الشاشة (rrweb) في صفحات HTML بتاعة الشركات.
+
+    بس لما: دومين شركة + موظف داخل + الشركة مفعّل لها التسجيل (Client.screen_recording_enabled).
+    الدومين الرئيسي وعملاء السوق مابيتسجّلوش. الصفحة تقدر تمنعه بهيدر X-No-Screen-Rec.
+    """
+
+    SKIP_PREFIXES = ('/screen-rec/', '/static/', '/media/', '/healthz/')
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        try:
+            if (response.status_code != 200 or getattr(response, 'streaming', False)
+                    or 'text/html' not in response.get('Content-Type', '')
+                    or response.has_header('X-No-Screen-Rec')
+                    or request.path.startswith(self.SKIP_PREFIXES)
+                    or request.headers.get('x-requested-with') == 'XMLHttpRequest'):
+                return response
+            from clients.views.screen_recording_views import recording_enabled_for
+            if not recording_enabled_for(request):
+                return response
+            content = response.content
+            idx = content.rfind(b'</body>')
+            if idx == -1 or b'rrweb-record' in content:
+                return response
+            from django.templatetags.static import static
+            tag = ('<script src="%s" defer></script><script src="%s" defer></script>'
+                   % (static('vendor/rrweb/rrweb-record-1.1.3.min.js'), static('js/screen-rec.js'))).encode()
+            response.content = content[:idx] + tag + content[idx:]
+            if response.has_header('Content-Length'):
+                response['Content-Length'] = str(len(response.content))
+        except Exception:
+            _session_logger.exception("[SCREEN-REC] inject failed")
+        return response

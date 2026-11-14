@@ -2294,6 +2294,40 @@ def trials_watch(request):
 
 
 @saas_admin_required
+@widget_required('visitors')
+def live_market(request):
+    """🟢 /superadmin/live/ — مين أونلاين دلوقتي في كل سوق (بالاسم لو معروف) + زوار النهارده + الأرقام.
+    ?tab=online|today|stats  ·  ?area=printing  ·  ?q=بحث
+    ?partial=1 بيرجّع جزء الصفحة بس (التحديث التلقائي كل ١٥ ثانية)."""
+    from clients.services.live_market import TABS, snapshot
+    from django.conf import settings as dj_settings
+    tab = request.GET.get('tab') if request.GET.get('tab') in TABS else 'online'
+    ctx = snapshot(tab=tab, area=request.GET.get('area', ''), q=request.GET.get('q', '')[:60])
+    ctx['admin_url'] = dj_settings.ADMIN_URL
+    tpl = 'clients/saas_admin/_live_body.html' if request.GET.get('partial') else 'clients/saas_admin/live_market.html'
+    return render(request, tpl, ctx)
+
+
+@saas_admin_required
+@widget_required('visitors')
+def live_visitor(request, token):
+    """🧭 /superadmin/live/v/<token>/ — رحلة زائر واحد بالتفصيل: كل زيارة، كل صفحة والساعة كام وقعد قد إيه،
+    كل عملية عملها، ووقف فين. ?days=1|7|30  ·  ?bg=1 يظهر طلبات الخلفية كمان."""
+    from clients.services.live_market import visitor_journey
+    try:
+        days = max(1, min(int(request.GET.get('days', 1)), 30))
+    except (TypeError, ValueError):
+        days = 1
+    journey = visitor_journey(token, days=days, show_background=request.GET.get('bg') == '1')
+    if journey is None:
+        return render(request, 'clients/saas_admin/live_visitor.html', {'expired': True}, status=404)
+    tpl = 'clients/saas_admin/_live_visitor_body.html' if request.GET.get('partial') else \
+        'clients/saas_admin/live_visitor.html'
+    return render(request, tpl, {**journey, 'bg': request.GET.get('bg') == '1',
+                                 'day_options': (1, 7, 30)})
+
+
+@saas_admin_required
 @widget_required('errors')
 def system_status(request):
     """
@@ -2523,8 +2557,21 @@ def tenant_360(request, tenant_id):
         events = []
 
     from clients.models import Plan as _Plan
+    # 🧭 رحلة الشركة: الزيارات بالترتيب، آخر صفحة، وكل عملية (ومين عملها من سجل الأدمن)
+    from clients.services.tenant_journey import build_tenant_journey
+    try:
+        journey_days = max(1, min(int(request.GET.get('journey_days', 7)), 30))
+    except (TypeError, ValueError):
+        journey_days = 7
+    journey = build_tenant_journey(tenant, days=journey_days)
+    from clients.views.screen_recording_views import retention_days, sessions_for_tenant
+    screen_sessions = sessions_for_tenant(tenant.schema_name)
+
     return render(request, 'clients/saas_admin/tenant_360.html', {
         'tenant': tenant,
+        'journey': journey,
+        'screen_sessions': screen_sessions,
+        'screen_retention_days': retention_days(),
         'control_plans': _Plan.objects.filter(is_active=True).order_by('monthly_price'),
         'is_owner': __import__('clients.permissions', fromlist=['is_platform_owner']).is_platform_owner(request.user),
         'today': today,

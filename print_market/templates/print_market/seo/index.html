@@ -1,0 +1,25 @@
+{% extends "print_market/base.html" %}{% load i18n %}
+{% block title %}{% trans "خدمات الطباعة في مصر حسب المحافظة" %}{% endblock %}
+{% block meta_description %}{% trans "دليل خدمات الطباعة في مصر: كروت شخصية، فلايرات، بنرات، ستيكرات، علب، هدايا وتيشيرتات — في كل المحافظات. قارن المطابع بالتقييمات واطلب عروض أسعار." %}{% endblock %}
+{% block seo_head %}{{ seo_jsonld }}
+<style>.pm-links a { display:inline-block; background:#fff; border:1px solid #e9e3ff; border-radius:999px; padding:.35rem .95rem; margin:.25rem; color:var(--ink); text-decoration:none; }
+.pm-links a small { color:var(--muted); }</style>{% endblock %}
+{% block content %}
+<div class="pm-card p-4 mb-4">
+  <h1 class="fw-bold fs-3">{% trans "خدمات الطباعة في مصر" %}</h1>
+  <p class="pm-muted mb-3">{% trans "اختار الخدمة أو المحافظة — وشوف المطابع بتقييماتها وأسعارها، أو اكتب طلبك مرة واحدة والمطابع تبعتلك عروضها." %}</p>
+  <a href="{{ request_url }}" class="pm-btn text-decoration-none"><i class="fas fa-bullhorn me-1"></i>{% trans "اكتب طلبك والمطابع تبعتلك عروض" %}</a>
+</div>
+<h2 class="fs-5 fw-bold mb-2">{% trans "الخدمات" %}</h2>
+<div class="row g-3 mb-4">
+  {% for s in services %}
+  <div class="col-6 col-md-3"><a href="{% url 'print_seo:service' s.slug %}" class="pm-card p-3 h-100 d-block text-decoration-none text-reset">
+    <div class="fw-bold">{{ s.h1 }}</div><div class="small pm-muted mt-1">{{ s.intro|truncatechars:90 }}</div>
+  </a></div>
+  {% endfor %}
+</div>
+<h2 class="fs-5 fw-bold mb-2">{% trans "المحافظات" %}</h2>
+<div class="pm-card p-3 pm-links">
+  {% for g, n in gov_counts %}<a href="{% url 'print_seo:gov' g.0 %}">{{ g.1 }}{% if n %} <small>({{ n }})</small>{% endif %}</a>{% endfor %}
+</div>
+{% endblock %}

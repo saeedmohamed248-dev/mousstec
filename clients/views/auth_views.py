@@ -349,7 +349,9 @@ def register_new_tenant_saas(request):
                         daemon=True,
                     ).start()
 
-                display_url = f"https://{url_safe_final}.{base_domain}/{ADMIN_URL}/"
+                # 🐛 [FIX]: «احفظ رابط حسابك — هتدخل منه كل مرة» كان رابط لوحة Django الفنية
+                #    (/secure-portal/) — لمراكز الصيانة دي مش السيستم أصلاً. /login/ بيودّي كل قطاع للوحته.
+                display_url = f"https://{url_safe_final}.{base_domain}/login/"
 
                 # 🐛 [FIX]: بعد التأسيس العميل كان بيقف على صفحة «تم التأسيس» بس.
                 #    من غير قفل الإيميل ⇒ توكن دخول مباشر لشركته (auto-login بيوديه
@@ -659,6 +661,12 @@ def _client_login_finder_impl(request):
       ويعرضله رابط دخولها).
     """
     error = None
+    # 🐛 [FIX]: صفحة «احفظ رابط حسابك» بقت /login/ — اللي داخل بالفعل ويفتحها كان بيلاقي فورم
+    #    الدخول تاني. على دومين الشركة بيروح على طول للوحة قطاعه.
+    if (request.method == 'GET' and getattr(request.user, 'is_authenticated', False)
+            and getattr(getattr(request, 'tenant', None), 'schema_name', get_public_schema_name())
+            != get_public_schema_name()):
+        return redirect('smart_post_login_redirect')
     if request.method == 'POST':
         identifier = request.POST.get('email', '').strip().lower()
         # 🐛 [FIX]: ما نـ strip() الـ password — لو فيه مسافة في الآخر مقصودة
@@ -930,7 +938,8 @@ def owner_auto_login(request):
 # 📰 Landing pages
 # =====================================================================
 def mousstec_landing_page(request):
-    return render(request, 'clients/landing.html')
+    from erp_core.seo import jsonld, organization_ld
+    return render(request, 'clients/landing.html', {'seo_jsonld': jsonld(organization_ld())})
 
 
 def set_region(request):

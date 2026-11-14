@@ -78,7 +78,7 @@ class SaleInvoiceItemInline(admin.TabularInline):
 
     def warranty_tracker(self, obj):
         if not obj.pk or not obj.warranty_end_date: return "-"
-        if obj.warranty_end_date >= timezone.now().date():
+        if obj.warranty_end_date >= timezone.localdate():
             return format_html('<span style="color: #28a745; font-weight: bold; font-size:11px;">✅ ساري (حتى {})</span>', obj.warranty_end_date.strftime("%Y-%m-%d"))
         return format_html('<span style="color: #dc3545; font-weight: bold; font-size:11px;">❌ منتهي</span>')
     warranty_tracker.short_description = "حالة الضمان"

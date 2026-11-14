@@ -121,10 +121,12 @@ def quick_product_create(request):
                 if token and token != sku and token not in extra_pns:
                     extra_pns.append(token)
 
+            # 🐛 [FIX]: الماركة كانت «BMW» افتراضياً (في الفورم وفي الحفظ) — أي صنف لعربية تانية
+            #    التاجر مكتبش ماركته كان بيتسجّل BMW. فاضي ⇒ «—» زي الموديل.
             product = Product.objects.create(
                 part_number=sku,
                 name=name,
-                brand=(request.POST.get("brand") or "BMW").strip(),
+                brand=(request.POST.get("brand") or "").strip() or "—",
                 condition=condition,
                 part_category=part_category,
                 additional_part_numbers=extra_pns,
@@ -262,7 +264,7 @@ def bulk_product_create(request):
             return _json_response_safe({"error": f"الصف {i}: كمية البداية لا يمكن أن تكون سالبة."}, status=400)
         cleaned.append({
             "sku": sku, "name": name,
-            "brand": (raw.get("brand") or "BMW").strip(),
+            "brand": (raw.get("brand") or "").strip() or "—",
             "car_model": (raw.get("car_model") or "").strip() or "—",
             "car_year": (raw.get("car_year") or "").strip() or "—",
             "cost": _dec(raw.get("purchase_price")),
@@ -464,7 +466,7 @@ def product_edit(request, pk):
         with transaction.atomic():
             product.part_number = sku
             product.name = name
-            product.brand = (request.POST.get("brand") or "").strip() or "BMW"
+            product.brand = (request.POST.get("brand") or "").strip() or "—"
             product.condition = condition
             product.part_category = part_category
             product.car_model = (request.POST.get("car_model") or "").strip() or "—"

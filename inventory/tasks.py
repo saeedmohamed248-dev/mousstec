@@ -105,75 +105,133 @@ def process_ai_vision_invoice(self, schema_name: str, purchase_invoice_id: int, 
 # 2. Financial Reconciliation Agent
 # ─────────────────────────────────────────────────────────────────────
 
+def _reconcile_treasuries(schema_name, target_date):
+    """يقارن رصيد كل خزنة شغّالة بمجموع حركاتها لحد ``target_date`` (جوه الـ schema).
+    بيرجّع الحالة {'date', 'discrepancies', 'clean'} وبيسجّلها في AgentEventBus."""
+    from inventory.models import Treasury, FinancialTransaction
+
+    with schema_context(schema_name):
+        discrepancies = []
+
+        for treasury in Treasury.objects.filter(is_active=True):
+            total_in = FinancialTransaction.objects.filter(
+                treasury=treasury,
+                transaction_type='in',
+                date__date__lte=target_date,
+            ).aggregate(s=Sum('amount'))['s'] or 0
+
+            total_out = FinancialTransaction.objects.filter(
+                treasury=treasury,
+                transaction_type='out',
+                date__date__lte=target_date,
+            ).aggregate(s=Sum('amount'))['s'] or 0
+
+            expected_balance = total_in - total_out
+            actual_balance   = float(treasury.balance)
+            diff             = abs(actual_balance - float(expected_balance))
+
+            if diff > 0.01:
+                discrepancies.append({
+                    'treasury_id':   treasury.pk,
+                    'treasury_name': treasury.name,
+                    'expected':      float(expected_balance),
+                    'actual':        actual_balance,
+                    'diff':          diff,
+                })
+                logger.warning(
+                    f"⚠️ [FINANCIAL RECONCILIATION] Treasury '{treasury.name}' "
+                    f"discrepancy: expected={expected_balance:.2f}, actual={actual_balance:.2f}"
+                )
+
+        state = {
+            'date':          str(target_date),
+            'discrepancies': discrepancies,
+            'clean':         len(discrepancies) == 0,
+        }
+        AgentEventBus.set_agent_state(
+            'inventory_tasks_financial', schema=schema_name, state=state
+        )
+
+        if discrepancies:
+            AgentEventBus.push_pipeline_event(
+                'financial_discrepancy_detected',
+                data={'schema': schema_name, 'discrepancies': discrepancies},
+                schema=schema_name,
+            )
+
+        logger.info(
+            f"💰 [FINANCIAL RECONCILIATION] Schema '{schema_name}': "
+            f"{len(discrepancies)} discrepanc(ies) on {target_date}."
+        )
+        return state
+
+
+RECON_LAST_KEY = 'fin_recon:last:{}'   # {treasury_id: الفرق} من آخر ليلة — التنبيه للجديد بس
+
+
+def _reconcile_all_tenants(target_date):
+    """🐛 [FIX — دورة ناقصة]: Beat بيشغّل المهمة بـ schema_name='public' والتعليق كان بيقول
+    «الوكيل يتولى الـ tenants» — بس مفيش fan-out: الكود كان بيدوّر على الخزائن في public
+    (مافيهوش جدول inventory_treasury) فيقع ProgrammingError كل ليلة، فمطابقة الخزائن الليلية
+    ماشتغلتش لأي شركة أبداً، والفشل بيتكرر في الـ DLQ. دلوقتي بتلف على الشركات الشغّالة
+    (شركة بايظة ماتوقفش الباقي)، ولو ظهر فرق جديد أو اتغيّر بيوصل إيميل لصاحب المنصة."""
+    from django.core.cache import cache
+
+    TenantModel = get_tenant_model()
+    tenants = (TenantModel.objects.exclude(schema_name='public')
+               .filter(is_active=True, status__in=('trial', 'active')).order_by('schema_name'))
+    checked, failed, new_rows = 0, [], []
+    for tenant in tenants:
+        try:
+            state = _reconcile_treasuries(tenant.schema_name, target_date)
+        except Exception as exc:  # noqa: BLE001 — شركة واحدة لا توقف الباقي
+            logger.error("[FINANCIAL RECONCILIATION] tenant %s failed: %s", tenant.schema_name, exc)
+            failed.append(tenant.schema_name)
+            continue
+        checked += 1
+        now = {str(d['treasury_id']): round(d['diff'], 2) for d in state['discrepancies']}
+        key = RECON_LAST_KEY.format(tenant.schema_name)
+        try:
+            before = cache.get(key) or {}
+            cache.set(key, now, 60 * 60 * 24 * 30)
+        except Exception:  # noqa: BLE001 — الكاش واقع ⇒ نعتبر كل فرق جديد
+            before = {}
+        for d in state['discrepancies']:
+            if before.get(str(d['treasury_id'])) != now[str(d['treasury_id'])]:
+                new_rows.append((tenant, d))
+
+    if new_rows:
+        from clients.services.ops_alerts import send_ops_alert
+        lines = [f"• {t.name} ({t.schema_name}) — خزنة «{d['treasury_name']}»: الرصيد {d['actual']:,.2f} "
+                 f"بس حركاتها بتقول {d['expected']:,.2f} (فرق {d['diff']:,.2f})" for t, d in new_rows]
+        send_ops_alert(
+            f'⚠️ فرق في أرصدة الخزائن ({len(new_rows)})',
+            'المطابقة الليلية لقت خزائن رصيدها مش مساوي لحركاتها:\n\n' + '\n'.join(lines)
+            + '\n\nالتصحيح بعد المراجعة: python manage.py recompute_treasury --schema=<الشركة> --dry-run')
+
+    AgentHealthMonitor.heartbeat('inventory_tasks_financial')
+    return {'date': str(target_date), 'tenants': checked, 'failed': failed,
+            'new_discrepancies': len(new_rows)}
+
+
 @shared_task(bind=True, max_retries=2, default_retry_delay=60, name='inventory.tasks.process_financial_reconciliation')
-def process_financial_reconciliation(self, schema_name: str, date_str: str = None):
+def process_financial_reconciliation(self, schema_name: str = 'public', date_str: str = None):
     """
     Nightly reconciliation pass: audits treasury balances against transaction
     ledger totals and emits a pipeline event if a discrepancy is found.
 
-    Triggered by Celery Beat (see CELERY_BEAT_SCHEDULE in settings.py).
+    Triggered by Celery Beat (see CELERY_BEAT_SCHEDULE in settings.py) with
+    schema_name='public' ⇒ fans out over every live tenant.
     """
+    # 🐛 [FIX]: كانت timezone.now().date() — المهمة بتشتغل ١ بالليل بتوقيت المحل = تاريخ UTC
+    #    بتاع امبارح، فحركات أول ساعة من اليوم كانت بتطلع برا المطابقة.
+    target_date = (datetime.strptime(date_str, "%Y-%m-%d").date()
+                   if date_str else timezone.localdate())
+    if not schema_name or schema_name == 'public':
+        return _reconcile_all_tenants(target_date)
+
     def _execute():
-        from inventory.models import Treasury, FinancialTransaction
-
-        with schema_context(schema_name):
-            target_date = (
-                datetime.strptime(date_str, "%Y-%m-%d").date()
-                if date_str else timezone.now().date()
-            )
-            discrepancies = []
-
-            for treasury in Treasury.objects.filter(is_active=True):
-                total_in = FinancialTransaction.objects.filter(
-                    treasury=treasury,
-                    transaction_type='in',
-                    date__date__lte=target_date,
-                ).aggregate(s=Sum('amount'))['s'] or 0
-
-                total_out = FinancialTransaction.objects.filter(
-                    treasury=treasury,
-                    transaction_type='out',
-                    date__date__lte=target_date,
-                ).aggregate(s=Sum('amount'))['s'] or 0
-
-                expected_balance = total_in - total_out
-                actual_balance   = float(treasury.balance)
-                diff             = abs(actual_balance - float(expected_balance))
-
-                if diff > 0.01:
-                    discrepancies.append({
-                        'treasury_id':   treasury.pk,
-                        'treasury_name': treasury.name,
-                        'expected':      float(expected_balance),
-                        'actual':        actual_balance,
-                        'diff':          diff,
-                    })
-                    logger.warning(
-                        f"⚠️ [FINANCIAL RECONCILIATION] Treasury '{treasury.name}' "
-                        f"discrepancy: expected={expected_balance:.2f}, actual={actual_balance:.2f}"
-                    )
-
-            state = {
-                'date':          str(target_date),
-                'discrepancies': discrepancies,
-                'clean':         len(discrepancies) == 0,
-            }
-            AgentEventBus.set_agent_state(
-                'inventory_tasks_financial', schema=schema_name, state=state
-            )
-
-            if discrepancies:
-                AgentEventBus.push_pipeline_event(
-                    'financial_discrepancy_detected',
-                    data={'schema': schema_name, 'discrepancies': discrepancies},
-                    schema=schema_name,
-                )
-
-            logger.info(
-                f"💰 [FINANCIAL RECONCILIATION] Schema '{schema_name}': "
-                f"{len(discrepancies)} discrepanc(ies) on {target_date}."
-            )
-            return state
+        return _reconcile_treasuries(schema_name, target_date)
 
     try:
         return run_agent_safely(
@@ -192,67 +250,86 @@ def process_financial_reconciliation(self, schema_name: str, date_str: str = Non
 # 3. Proactive Maintenance Reminder Bot
 # ─────────────────────────────────────────────────────────────────────
 
+def due_maintenance_customers(today, window_days=3):
+    """جوه schema الشركة: العملاء اللي عربياتهم صيانتها مستحقة — تذكيرات «العملاء المتوقع رجوعهم»
+    (متأخر/مستحق ولسه مااتبعتلهمش) + العربيات اللي «الزيارة الجاية» بتاعتها خلال ``window_days``.
+    بيرجّع [(اسم العميل, العربية)] من غير تكرار، والمتأخر الأول."""
+    from inventory.models import ServiceNudge, Vehicle
+
+    rows, seen = [], set()
+    nudges = (ServiceNudge.objects
+              .filter(status=ServiceNudge.STATUS_PENDING,
+                      urgency__in=(ServiceNudge.URGENCY_OVERDUE, ServiceNudge.URGENCY_DUE))
+              .select_related('vehicle__customer').order_by('urgency', 'due_at'))
+    visits = (Vehicle.objects
+              .filter(estimated_next_visit__gte=today,
+                      estimated_next_visit__lte=today + timedelta(days=window_days))
+              .select_related('customer').order_by('estimated_next_visit'))
+    for vehicle in [n.vehicle for n in nudges] + list(visits):
+        customer = vehicle.customer
+        if vehicle.pk in seen or customer is None or not customer.phone or customer.is_walk_in:
+            continue
+        seen.add(vehicle.pk)
+        rows.append((customer.name, f"{vehicle.brand} {vehicle.model_name}".strip()))
+    return rows
+
+
 @shared_task(name='inventory.tasks.dispatch_maintenance_reminders')
 def dispatch_maintenance_reminders():
-    """
-    Scans all tenant schemas for vehicles whose `estimated_next_visit` falls
-    within the next 3 days and dispatches WhatsApp/SMS reminders.
+    """🔧 كل يوم ٩ الصبح: صاحب الورشة بيعرف مين من عملائه صيانة عربيته مستحقة.
 
-    Triggered by Celery Beat daily at 09:00.
-    Pipeline: Outbound Orchestrator sets `estimated_next_visit` → this bot reads it.
+    🐛 [FIX — دورة ناقصة]: البوت كان «stub» — بيكتب «Would send» في اللوج بس، ولا عميل ولا صاحب
+    ورشة وصله حاجة، وكمان كان بيستثني الشركات اللي في التجربة. رسالة من رقم الورشة لعميلها برّه
+    نافذة الـ ٢٤ ساعة محتاجة قالب Meta متوافَق عليه لكل رقم، فالتذكير بيروح لصاحب الورشة (إيميل +
+    واتساب من رقم المنصة) برابط شاشة «العملاء المتوقع رجوعهم» — فيها زرار واتساب لكل عميل بالرسالة
+    جاهزة من رقم الورشة نفسها. مرة واحدة في اليوم لكل شركة.
     """
+    from django.conf import settings
+    from django.core.cache import cache
+    from django.core.mail import send_mail
+
+    from clients.services.whatsapp_notify import send_platform_whatsapp
+    from clients.tasks import _tenant_link
+
     TenantModel = get_tenant_model()
-    today = timezone.now().date()
-    reminder_window = today + timedelta(days=3)
-    total_sent = 0
+    today = timezone.localdate()
+    notified = 0
+    tenants = (TenantModel.objects.exclude(schema_name='public')
+               .filter(is_active=True, status__in=('trial', 'active'))
+               .exclude(industry='printing').prefetch_related('domains'))
+    for tenant in tenants:
+        key = f'maint_reminder_owner:{tenant.schema_name}:{today}'
+        try:
+            if cache.get(key):
+                continue
+            with schema_context(tenant.schema_name):
+                rows = due_maintenance_customers(today)
+            if not rows:
+                continue
+            names = '، '.join(f'{n} ({car})' if car else n for n, car in rows[:5])
+            more = f' و{len(rows) - 5} غيرهم' if len(rows) > 5 else ''
+            line = (f'🔧 {len(rows)} عميل صيانة عربيته مستحقة: {names}{more}. '
+                    f'ابعتلهم تذكير بضغطة من «العملاء المتوقع رجوعهم».')
+            link = _tenant_link(tenant, '/system/crm/retention/')
+            # المالك اللي قفل «ملخص اليوم» على قناة ما مابيوصلوش عليها برضه
+            if tenant.daily_summary_email and tenant.email and '@' in tenant.email:
+                send_mail(f'🔧 {len(rows)} عميل صيانته مستحقة — {tenant.name}',
+                          f'أهلاً {tenant.owner_name or tenant.name}،\n\n{line}\n\n{link}\n\n— Mouss Tec',
+                          settings.DEFAULT_FROM_EMAIL, [tenant.email], fail_silently=True)
+            if tenant.daily_summary_whatsapp and tenant.phone:
+                tpl = getattr(settings, 'WHATSAPP_MAINTENANCE_DIGEST_TEMPLATE', '')
+                send_platform_whatsapp(tenant.phone, country=getattr(tenant, 'country', 'EG') or 'EG',
+                                       template=tpl, params=(tenant.name, len(rows), link),
+                                       text='' if tpl else f'{tenant.name}، {line}\n{link}\n— Mouss Tec')
+            cache.set(key, 1, 60 * 60 * 26)
+            notified += 1
+            AgentHealthMonitor.heartbeat('maintenance_reminder_bot', schema=tenant.schema_name,
+                                         metadata={'due': len(rows), 'date': str(today)})
+        except Exception:  # noqa: BLE001 — شركة واحدة مابتوقفش الباقي
+            logger.exception('[MAINTENANCE REMINDER BOT] tenant %s failed', tenant.schema_name)
 
-    for tenant in TenantModel.objects.exclude(schema_name='public').filter(status='active'):
-        def _execute(t=tenant):
-            from inventory.models import Vehicle
-
-            with schema_context(t.schema_name):
-                due_vehicles = Vehicle.objects.filter(
-                    estimated_next_visit__lte=reminder_window,
-                    estimated_next_visit__gte=today,
-                ).select_related('customer')
-
-                sent = 0
-                for vehicle in due_vehicles:
-                    customer = vehicle.customer
-                    if not customer or not customer.phone:
-                        continue
-
-                    msg = (
-                        f"تذكير صيانة 🔧\n"
-                        f"عزيزنا {customer.name}، موعد صيانة سيارتك "
-                        f"{vehicle.brand} {vehicle.model_name} "
-                        f"اقترب ({vehicle.estimated_next_visit}).\n"
-                        f"احجز موعدك الآن مع {t.name}!"
-                    )
-                    # 💡 [هنا يتم ربط WhatsApp API / Twilio / UltraMsg]
-                    logger.info(
-                        f"📲 [MAINTENANCE REMINDER BOT] Would send to "
-                        f"{customer.phone}: {msg[:60]}…"
-                    )
-                    sent += 1
-
-                AgentHealthMonitor.heartbeat(
-                    'maintenance_reminder_bot', schema=t.schema_name,
-                    metadata={'sent': sent, 'date': str(today)}
-                )
-                return sent
-
-        result = run_agent_safely(
-            agent_name='maintenance_reminder_bot',
-            func=_execute,
-            payload={'schema': tenant.schema_name, 'window': str(reminder_window)},
-            schema=tenant.schema_name,
-            failure_threshold=5,
-        )
-        total_sent += (result or 0)
-
-    logger.info(f"📲 [MAINTENANCE REMINDER BOT] Dispatched {total_sent} reminders across all tenants.")
-    return f"Reminders dispatched: {total_sent}"
+    logger.info(f"📲 [MAINTENANCE REMINDER BOT] notified {notified} workshop owner(s).")
+    return f"Workshops notified: {notified}"
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -321,6 +398,38 @@ def sync_elastic_pricing(schema_name: str):
 # 5. DLQ Retry Worker — يعيد تشغيل المهام الفاشلة
 # ─────────────────────────────────────────────────────────────────────
 
+# اسم الوكيل ← مسار مهمة Celery اللي بتتعاد
+DLQ_TASK_MAP = {
+    'b2b_marketplace_sync_task':   'clients.tasks.async_sync_b2b_marketplace_product',
+    'b2b_marketplace_remove_task': 'clients.tasks.async_remove_b2b_marketplace_product',
+    'inventory_tasks_ai_vision':   'inventory.tasks.process_ai_vision_invoice',
+    'inventory_tasks_financial':   'inventory.tasks.process_financial_reconciliation',
+    'welcome_bot':                 'clients.tasks.async_welcome_bot_task',
+    'ai_bidding_award_agent':      'clients.tasks.process_ai_bidding_award',
+}
+
+
+def dlq_task_kwargs(agent_name, payload):
+    """payload الـ DLQ ⇒ kwargs المهمة (أو None لو مايتعادش أوتوماتيك).
+
+    🐛 [FIX]: الـ payload بيتسجّل بمفاتيح مختصرة ({'schema', 'date', 'invoice_id'}) والـ worker
+    كان بيبعتها زي ما هي كـ kwargs ⇒ كل إعادة كانت بتقع فوراً بـ
+    «unexpected keyword argument 'schema'» — يعني ولا مزامنة سوق B2B فاشلة اتعادت أبداً.
+    """
+    p = dict(payload or {})
+    schema = p.pop('schema', None) or p.pop('schema_name', None)
+    if agent_name == 'b2b_marketplace_sync_task':
+        return {'schema_name': schema, 'product_id': p['product_id']} if schema and 'product_id' in p else None
+    if agent_name == 'b2b_marketplace_remove_task':
+        if not schema or 'part_number' not in p:
+            return None
+        return {'schema_name': schema, 'part_number': p['part_number'], 'condition': p.get('condition', '')}
+    if agent_name == 'inventory_tasks_financial':
+        return {'schema_name': schema or 'public', 'date_str': p.get('date') or p.get('date_str')}
+    if agent_name == 'inventory_tasks_ai_vision':
+        return None   # صورة الفاتورة مش محفوظة في الـ payload — مالهاش إعادة
+    return dict(payload or {}) or None
+
 @shared_task(name='inventory.tasks.drain_dlq_and_retry')
 def drain_dlq_and_retry(max_entries: int = 20):
     """
@@ -357,29 +466,23 @@ def drain_dlq_and_retry(max_entries: int = 20):
         # Increment retry count and push back if re-dispatch fails
         entry['retry_count'] = retry_count + 1
 
-        # Map agent names to their Celery task paths
-        TASK_MAP = {
-            'b2b_marketplace_sync_task':   'clients.tasks.async_sync_b2b_marketplace_product',
-            'b2b_marketplace_remove_task': 'clients.tasks.async_remove_b2b_marketplace_product',
-            'inventory_tasks_ai_vision':   'inventory.tasks.process_ai_vision_invoice',
-            'inventory_tasks_financial':   'inventory.tasks.process_financial_reconciliation',
-            'welcome_bot':                 'clients.tasks.async_welcome_bot_task',
-            'ai_bidding_award_agent':      'clients.tasks.process_ai_bidding_award',
-        }
-
-        task_path = TASK_MAP.get(agent_name)
-        if task_path and payload:
+        task_path = DLQ_TASK_MAP.get(agent_name)
+        kwargs = dlq_task_kwargs(agent_name, payload) if task_path and payload else None
+        if task_path and kwargs:
+            # 🐛 [FIX]: عدد المحاولات كان بيرجع صفر مع كل فشل جديد (push بيعمل entry جديد)،
+            #    فحد الـ ٣ محاولات عمره ما اشتغل والمهمة الفاشلة دايماً بتلف للأبد.
+            dlq.mark_redispatched(agent_name, payload, entry['retry_count'])
             try:
-                current_app.send_task(task_path, kwargs=payload)
+                current_app.send_task(task_path, kwargs=kwargs)
                 requeued += 1
                 logger.info(f"♻️ [DLQ WORKER] Re-queued '{agent_name}' task (attempt {entry['retry_count']}).")
             except Exception as exc:
                 logger.error(f"🔴 [DLQ WORKER] Re-dispatch failed for '{agent_name}': {exc}")
                 dlq.push(agent_name, payload, error=str(exc), schema=schema)
         else:
-            logger.warning(
-                f"⚠️ [DLQ WORKER] No task mapping for agent '{agent_name}'. "
-                f"Entry preserved for manual review."
+            logger.error(
+                f"💀 [DLQ WORKER] '{agent_name}' can't be replayed automatically "
+                f"(no task mapping / incomplete payload). Payload: {payload}"
             )
 
     AgentHealthMonitor.heartbeat('dlq_retry_worker')

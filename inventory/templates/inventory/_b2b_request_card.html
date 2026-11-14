@@ -1,0 +1,39 @@
+{% load i18n numfmt %}
+<div class="bg-slate-800/60 rounded-2xl border {% if r.status == 'pending' %}border-pink-500/40{% else %}border-slate-700/50{% endif %} p-4">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+      <p class="text-white font-black">{{ r.product_name|default:r.part_number }} <span class="text-xs text-slate-400 font-bold" dir="ltr">{{ r.part_number }}</span></p>
+      <p class="text-sm text-slate-300 mt-1">{{ r.quantity }} × {{ r.unit_price|amount }} = <b class="text-emerald-400">{{ r.total|amount }}</b> {{ tenant_currency_symbol|default:'ج.م' }}</p>
+      <p class="text-xs text-slate-400 mt-1">
+        {% if side == "seller" %}{% trans "من" %}{% else %}{% trans "للتاجر" %}{% endif %}: <b class="text-slate-200">{{ other.name }}</b>
+        · <span dir="ltr">{{ r.created_at|date:"d/m/Y H:i" }}</span>
+      </p>
+      {% if r.note %}<p class="text-xs text-slate-300 mt-2 bg-slate-900/50 rounded-lg px-3 py-2"><i class="fas fa-comment text-slate-500"></i> {{ r.note }}</p>{% endif %}
+      {% if r.seller_reply %}<p class="text-xs text-amber-200 mt-2 bg-amber-500/10 rounded-lg px-3 py-2"><i class="fas fa-reply"></i> {{ r.seller_reply }}</p>{% endif %}
+    </div>
+    <span class="text-xs font-black px-3 py-1 rounded-full whitespace-nowrap
+      {% if r.status == 'pending' %}bg-pink-500/15 text-pink-300{% elif r.status == 'accepted' %}bg-emerald-500/15 text-emerald-300{% elif r.status == 'rejected' %}bg-red-500/15 text-red-300{% else %}bg-slate-700 text-slate-300{% endif %}">{{ r.get_status_display }}</span>
+  </div>
+
+  {% if r.status == 'accepted' %}
+  <div class="mt-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-sm">
+    <p class="font-black text-emerald-200 mb-1"><i class="fas fa-address-card"></i> {% trans "بيانات التواصل" %}</p>
+    <p class="text-slate-200">{{ other.name }}{% if other.owner_name %} — {{ other.owner_name }}{% endif %}</p>
+    {% if other.phone %}<p class="text-slate-200"><i class="fas fa-phone text-slate-400"></i> <span dir="ltr">{{ other.phone }}</span>
+      {% if r.other_wa %}· <a href="https://wa.me/{{ r.other_wa }}" target="_blank" rel="noopener" class="text-emerald-300 underline"><i class="fab fa-whatsapp"></i> {% trans "واتساب" %}</a>{% endif %}</p>{% endif %}
+    {% if other.email %}<p class="text-slate-200"><i class="fas fa-envelope text-slate-400"></i> <span dir="ltr">{{ other.email }}</span></p>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if r.status == 'pending' %}{% with rid=r.pk|stringformat:'d' %}
+  <div class="mt-3 flex flex-wrap items-center gap-2">
+    {% if side == "seller" %}
+      <input id="reply-{{ rid }}" maxlength="500" placeholder="{% trans 'رد للمشتري (اختياري): ميعاد التسليم، السعر النهائي…' %}" class="flex-1 min-w-[12rem] bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 text-sm">
+      <button type="button" onclick="b2bRespond(this.dataset.pk, 'accept', this)" data-pk="{{ rid }}" data-url="{% url 'inventory:b2b_request_respond' r.pk %}" data-err="{% trans 'حصلت مشكلة — جرّب تاني.' %}" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black"><i class="fas fa-check"></i> {% trans "موافق" %}</button>
+      <button type="button" onclick="b2bRespond(this.dataset.pk, 'reject', this)" data-pk="{{ rid }}" data-url="{% url 'inventory:b2b_request_respond' r.pk %}" data-err="{% trans 'حصلت مشكلة — جرّب تاني.' %}" class="px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-600 hover:text-white text-sm font-bold"><i class="fas fa-xmark"></i> {% trans "اعتذر" %}</button>
+    {% else %}
+      <button type="button" onclick="b2bRespond(this.dataset.pk, 'cancel', this)" data-pk="{{ rid }}" data-url="{% url 'inventory:b2b_request_respond' r.pk %}" data-confirm="{% trans 'تلغي الطلب؟' %}" data-err="{% trans 'حصلت مشكلة — جرّب تاني.' %}" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold"><i class="fas fa-ban"></i> {% trans "إلغاء الطلب" %}</button>
+    {% endif %}
+  </div>
+  {% endwith %}{% endif %}
+</div>

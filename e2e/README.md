@@ -14,6 +14,7 @@
 |---|---|
 | `tests/screens.spec.js` | ١٧ شاشة أساسية (لوحة التحكم، نقطة البيع، الأصناف، الفواتير، العملاء، الموردين، المشتريات، الخزائن، المصروفات، كارت الصيانة، التقارير، الموظفين، الحضور…) |
 | `tests/pos-sale.spec.js` | بيع كاش حقيقي من نقطة البيع لصنف بـ ١٬٢٥٠ (يثبت إن «دفع الباقي» صح) والفاتورة تظهر في القائمة |
+| `tests/job-card.spec.js` | أمر شغل بـ ١٬٢٥٠ + «دفع كامل الإجمالي» ⇒ مدفوع بالكامل (كان بيتحفظ آجل) |
 | `tests/roles.spec.js` | الكاشير بيبيع، بس الخزائن/الأرباح/الموظفين مقفولين عليه |
 | `tests/public.spec.js` | الصفحات العامة (الرئيسية، الأسعار، المميزات، الدخول، التسجيل) |
 | `tests/fixtures.js` | الأساس: تجميع أخطاء المتصفح + `expectHealthyPage()` |
@@ -32,6 +33,7 @@ npm ci
 npx playwright install chromium        # مرة واحدة
 E2E_PASSWORD=Secret123 npx playwright test
 npx playwright test --project=en       # الإنجليزي بس
+npx playwright test --project='mobile-*'  # على شاشة موبايل بس (Pixel 7)
 npx playwright test --headed           # تشوف المتصفح
 npx playwright show-report             # تقرير HTML (فيديو + trace لأي اختبار فشل)
 ```
@@ -39,6 +41,9 @@ npx playwright show-report             # تقرير HTML (فيديو + trace ل�
 الشركة التجريبية على `http://e2e.localhost:8000` — Chromium بيحوّل أي `*.localhost`
 لجهازك لوحده. الحسابات: `admin` / `cashier` / `tech` / `accountant` بنفس `E2E_PASSWORD`
 (اتعملوا بـ `python manage.py seed_demo --sub e2e`).
+
+كل اختبار بيتشغّل ٤ مرات: كمبيوتر وموبايل × عربي وإنجليزي. `expectHealthyPage()` كمان بيفشل
+لو الصفحة أعرض من الشاشة (سكرول بالعرض).
 
 ## إضافة اختبار
 

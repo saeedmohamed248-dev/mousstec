@@ -19,6 +19,18 @@
   .dd-item { display:flex; align-items:center; gap:.55rem; padding:.5rem .9rem; font-size:.8rem; color:#cbd5e1; white-space:nowrap; transition:background .15s, color .15s; }
   .dd-item:hover { background:#334155; color:#fff; }
   .dd-item i { width:1rem; text-align:center; }
+  /* 🐛 [FIX]: الحقول بـ flex-1 ليها min-width تلقائي (عرض الـ placeholder) فبتزق الزرار اللي جنبها
+     برّا شاشة الموبايل وتعمل سكرول بالعرض — نخليها تنكمش زي أي عنصر flex. */
+  input.flex-1, select.flex-1, textarea.flex-1 { min-width:0; }
+  /* شبكات الكروت ماتعديش عرض الشاشة على الموبايل — والجداول مستثناة: بتتسحب جوه حاويتها والأرقام ماتتكسرش */
+  @media (max-width: 640px) { main { overflow-wrap:anywhere; } main table { overflow-wrap:normal; }
+    /* 🐛 [FIX]: الجداول اللي بتتسحب بالعرض كانت بتتعصر الأول — عمود البيان/الأزرار ينزل على سطور كتير والصف يبقى بطول الشاشة.
+       دلوقتي الجدول ياخد عرضه المريح (والخلية الطويلة تلف عند 18rem) ويتسحب جوه إطاره. */
+    main .overflow-x-auto > table { width:max-content; min-width:100%; }
+    main .overflow-x-auto > table td { max-width:18rem; }
+    main .overflow-x-auto > table td:last-child { max-width:none; }
+    /* زرار الدعم 🆘 الثابت تحت كان بيغطي آخر صف/زرار في آخر الصفحة — نسيب له مكان */
+    main { padding-bottom:5rem !important; } main img, main video { max-width:100%; height:auto; } }
 </style>
 <script>
   // 🔢 عرض الفلوس زي الأنظمة العالمية: 1,848,400.00 — للعرض بس (قيم الحقول تفضل رقم عادي)
@@ -61,13 +73,14 @@
           <div class="absolute right-0 top-full pt-2 hidden group-hover:block z-50">
             <div class="min-w-[200px] bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden py-1">
               <a href="{% url 'inventory:product_list' %}" class="dd-item"><i class="fas fa-boxes-stacked text-amber-400"></i>{% trans "القطع والمخزون" %}</a>
-              <a href="{% url 'inventory:stock_transfer_list' %}" class="dd-item"><i class="fas fa-truck-ramp-box text-sky-400"></i>{% trans "تحويلات بين الفروع" %}</a>
-              <a href="{% url 'inventory:stock_count' %}" class="dd-item"><i class="fas fa-clipboard-check text-emerald-400"></i>{% trans "الجرد الفعلي" %}</a>
-              <a href="{% url 'inventory:serials' %}" class="dd-item"><i class="fas fa-barcode text-amber-400"></i>{% trans "أرقام السيريال والضمان" %}</a>
+              {% if not nav_can or nav_can.services %}{% if not visible_modules or 'jobcard' in visible_modules %}<a href="{% url 'inventory:services_catalog' %}" class="dd-item"><i class="fas fa-tools text-amber-400"></i>{% trans "الخدمات والمصنعيات" %}</a>{% endif %}{% endif %}
+              {% if not nav_can or nav_can.transfers %}<a href="{% url 'inventory:stock_transfer_list' %}" class="dd-item"><i class="fas fa-truck-ramp-box text-sky-400"></i>{% trans "تحويلات بين الفروع" %}</a>{% endif %}
+              {% if not nav_can or nav_can.stock_count %}<a href="{% url 'inventory:stock_count' %}" class="dd-item"><i class="fas fa-clipboard-check text-emerald-400"></i>{% trans "الجرد الفعلي" %}</a>{% endif %}
+              {% if not nav_can or nav_can.serials %}<a href="{% url 'inventory:serials' %}" class="dd-item"><i class="fas fa-barcode text-amber-400"></i>{% trans "أرقام السيريال والضمان" %}</a>{% endif %}
               <a href="{% url 'inventory:bulk_product' %}" class="dd-item"><i class="fas fa-layer-group text-amber-400"></i>{% trans "إضافة أصناف بالجملة" %}</a>
-              <a href="{% url 'inventory:inventory_import' %}" class="dd-item"><i class="fas fa-camera-retro text-sky-400"></i>{% trans "تحميل مخزون بالتصوير" %}</a>
-              <a href="{% url 'inventory:product_import' %}" class="dd-item"><i class="fas fa-file-import text-amber-400"></i>{% trans "استيراد أصناف (Excel)" %}</a>
-              <a href="{% url 'inventory:image_studio' %}" class="dd-item"><i class="fas fa-wand-magic-sparkles text-purple-400"></i>{% trans "استوديو الصور" %}</a>
+              {% if not nav_can or nav_can.stock_tools %}<a href="{% url 'inventory:inventory_import' %}" class="dd-item"><i class="fas fa-camera-retro text-sky-400"></i>{% trans "تحميل مخزون بالتصوير" %}</a>{% endif %}
+              {% if not nav_can or nav_can.stock_tools %}<a href="{% url 'inventory:product_import' %}" class="dd-item"><i class="fas fa-file-import text-amber-400"></i>{% trans "استيراد أصناف (Excel)" %}</a>{% endif %}
+              {% if not nav_can or nav_can.stock_tools %}<a href="{% url 'inventory:image_studio' %}" class="dd-item"><i class="fas fa-wand-magic-sparkles text-purple-400"></i>{% trans "استوديو الصور" %}</a>{% endif %}
               <a href="{% url 'inventory:disassembly_workspace' %}" class="dd-item"><i class="fas fa-screwdriver-wrench text-orange-400"></i>{% trans "الفك والتقطيع" %}</a>
               {% if module_on.omnichannel %}<a href="{% url 'omnichannel_overview' %}" class="dd-item"><i class="fas fa-comment-dots text-green-400"></i>{% trans "الرد الآلي" %}</a>{% endif %}
               {% if module_on.social_ads %}<a href="{% url 'social_ads_overview' %}" class="dd-item"><i class="fas fa-bullhorn text-pink-400"></i>{% trans "استوديو التسويق" %}</a>{% endif %}
@@ -120,6 +133,7 @@
               <a href="{% url 'inventory:customers_report' %}" class="dd-item"><i class="fas fa-users text-sky-400"></i>{% trans "تقرير العملاء" %}</a>
               <a href="{% url 'inventory:products_report' %}" class="dd-item"><i class="fas fa-gears text-amber-400"></i>{% trans "تقرير قطع الغيار" %}</a>
               <a href="{% url 'inventory:services_report' %}" class="dd-item"><i class="fas fa-screwdriver-wrench text-purple-400"></i>{% trans "تقرير الخدمات / البنود" %}</a>
+              <a href="{% url 'inventory:invoice_sequence_report' %}" class="dd-item"><i class="fas fa-list-ol text-sky-400"></i>{% trans "تسلسل أرقام الفواتير" %}</a>
               <div class="my-1 border-t border-slate-700/60"></div>
               <a href="{% url 'inventory:head_office' %}" class="dd-item"><i class="fas fa-building text-purple-400"></i>{% trans "لوحة الفرع الرئيسي" %}</a>
               <a href="{% url 'inventory:pnl_report' %}" class="dd-item"><i class="fas fa-chart-line text-emerald-400"></i>{% trans "الأرباح والخسائر" %}</a>
@@ -176,15 +190,16 @@
     <!-- 📱 قائمة الموبايل -->
     <div id="mobileMenu" class="md:hidden hidden border-t border-slate-800 bg-slate-900/98 px-3 py-3 grid grid-cols-2 gap-2 text-sm font-bold">
       <a href="{% url 'inventory:dashboard' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-gauge-high text-slate-400"></i>{% trans "الرئيسية" %}</a>
-      <a href="{% url 'inventory:lightning_pos' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-bolt text-purple-400"></i>POS</a>
-      <a href="{% url 'inventory:job_card_create' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-clipboard-list text-emerald-400"></i>{% trans "أمر شغل" %}</a>
-      <a href="{% url 'inventory:sale_invoice_list' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-file-invoice text-sky-400"></i>{% trans "الفواتير" %}</a>
-      <a href="{% url 'inventory:product_list' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-boxes-stacked text-amber-400"></i>{% trans "القطع" %}</a>
-      <a href="{% url 'inventory:stock_transfer_list' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-truck-ramp-box text-sky-400"></i>{% trans "تحويلات الفروع" %}</a>
-      <a href="{% url 'inventory:stock_count' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-clipboard-check text-emerald-400"></i>{% trans "الجرد الفعلي" %}</a>
-      <a href="{% url 'inventory:product_import' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-file-import text-amber-400"></i>{% trans "استيراد" %}</a>
-      <a href="{% url 'inventory:image_studio' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-wand-magic-sparkles text-purple-400"></i>{% trans "استوديو الصور" %}</a>
-      <a href="{% url 'inventory:disassembly_workspace' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-screwdriver-wrench text-orange-400"></i>{% trans "الفك" %}</a>
+      {% if not visible_modules or 'pos' in visible_modules %}<a href="{% url 'inventory:lightning_pos' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-bolt text-purple-400"></i>POS</a>{% endif %}
+      {% if not visible_modules or 'jobcard' in visible_modules %}<a href="{% url 'inventory:job_card_create' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-clipboard-list text-emerald-400"></i>{% trans "أمر شغل" %}</a>{% endif %}
+      {% if not nav_can or nav_can.services %}{% if not visible_modules or 'jobcard' in visible_modules %}<a href="{% url 'inventory:services_catalog' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-tools text-amber-400"></i>{% trans "الخدمات والمصنعيات" %}</a>{% endif %}{% endif %}
+      {% if not visible_modules or 'invoices' in visible_modules %}<a href="{% url 'inventory:sale_invoice_list' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-file-invoice text-sky-400"></i>{% trans "الفواتير" %}</a>{% endif %}
+      {% if not visible_modules or 'inventory' in visible_modules %}<a href="{% url 'inventory:product_list' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-boxes-stacked text-amber-400"></i>{% trans "القطع" %}</a>{% endif %}
+      {% if not nav_can or nav_can.transfers %}<a href="{% url 'inventory:stock_transfer_list' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-truck-ramp-box text-sky-400"></i>{% trans "تحويلات الفروع" %}</a>{% endif %}
+      {% if not nav_can or nav_can.stock_count %}<a href="{% url 'inventory:stock_count' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-clipboard-check text-emerald-400"></i>{% trans "الجرد الفعلي" %}</a>{% endif %}
+      {% if not nav_can or nav_can.stock_tools %}<a href="{% url 'inventory:product_import' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-file-import text-amber-400"></i>{% trans "استيراد" %}</a>{% endif %}
+      {% if not nav_can or nav_can.stock_tools %}<a href="{% url 'inventory:image_studio' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-wand-magic-sparkles text-purple-400"></i>{% trans "استوديو الصور" %}</a>{% endif %}
+      {% if not visible_modules or 'inventory' in visible_modules %}<a href="{% url 'inventory:disassembly_workspace' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-screwdriver-wrench text-orange-400"></i>{% trans "الفك" %}</a>{% endif %}
       {% if module_on.omnichannel %}<a href="{% url 'omnichannel_overview' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-comment-dots text-green-400"></i>{% trans "الرد الآلي" %}</a>{% endif %}
       {% if module_on.social_ads %}<a href="{% url 'social_ads_overview' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-bullhorn text-pink-400"></i>{% trans "استوديو التسويق" %}</a>{% endif %}
       {% if user.is_superuser or user.employee_profile.role == 'admin' or user.employee_profile.role == 'manager' %}
@@ -233,6 +248,15 @@
   <main class="container mx-auto px-4 py-6 flex-1">
     {% include "clients/_email_verify_banner.html" %}
     {% load plan_usage %}{% trial_offer_banner %}{% plan_usage_banner %}
+    {# 🐛 [FIX]: رسائل النظام (messages) ماكانتش بتتعرض في البوابة — رسالة «ليس لديك ملف موظف» وغيرها كانت بتضيع #}
+    {# بعد التحويل للوحة التحكم وتظهر بعدين في صفحة تانية. الصفحة اللي بتعرض رسائلها بنفسها تفضّي الـ block ده. #}
+    {% block portal_messages %}{% if messages %}
+    <div class="space-y-2 mb-4" role="status">
+      {% for m in messages %}
+      <div class="rounded-xl border px-4 py-3 text-sm font-bold {% if 'success' in m.tags %}bg-emerald-500/10 border-emerald-500/40 text-emerald-300{% elif 'error' in m.tags %}bg-red-500/10 border-red-500/40 text-red-300{% elif 'warning' in m.tags %}bg-amber-500/10 border-amber-500/40 text-amber-200{% else %}bg-slate-800 border-slate-700 text-slate-300{% endif %}">{{ m }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}{% endblock %}
     {% block content %}{% endblock %}
   </main>
 </div>

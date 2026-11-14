@@ -10,6 +10,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.db.models import Sum, F, Q
 from django.utils import timezone
 from django.db import connection, transaction, close_old_connections
@@ -54,6 +55,26 @@ from django.utils.translation import gettext as _t
 
 # Job card review, RFQ workflow, CRM retention nudges, vehicle search.
 
+
+
+def _service_commission_paid(invoice, svc):
+    """هل عمولة الفني على سطر الخدمة ده اتحسبت خلاص؟ (بعدها الفني مايتغيّرش — وإلا العمولة تتدفع مرتين)."""
+    from inventory.models import AccountingEntry, JournalEntry
+    if JournalEntry.objects.filter(reference__startswith=f"COMM-INV{invoice.pk}-EMP",
+                                   reference__endswith=f"-SRV{svc.pk}").exists():
+        return True
+    if svc.technician_id:
+        legacy = f"COMM-INV{invoice.pk}-EMP{svc.technician_id}"
+        return (JournalEntry.objects.filter(reference=legacy).exists()
+                or AccountingEntry.objects.filter(reference=legacy).exists())
+    return False
+
+
+def _review_technicians():
+    """الفنيين/المهندسين النشطين اللي المدير يقدر يسجّلهم على خدمة."""
+    from inventory.models import EmployeeProfile
+    return list(EmployeeProfile.objects.filter(role__in=('tech', 'engineer'), user__is_active=True)
+                .select_related('user').order_by('user__first_name', 'user__username'))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -111,6 +132,10 @@ def job_card_review(request, invoice_id):
                 _t("تعديل ما يُحاسَب عليه العميل للمحاسب أو المدير فقط."))
         updated_items = 0
         updated_svcs = 0
+        techs_changed = False
+        from erp_core.decorators import can_manage_company
+        can_assign_tech = can_manage_company(request.user)
+        tech_ids = {t.pk for t in _review_technicians()} if can_assign_tech else set()
         from django.contrib import messages
 
         class _CreditLimitHit(Exception):
@@ -138,11 +163,27 @@ def job_card_review(request, invoice_id):
                     note_key = f"svc_{svc.id}_note"
                     new_billable = key in request.POST
                     new_note = (request.POST.get(note_key) or '').strip()[:200]
+                    fields = []
                     if (svc.is_billable != new_billable
                             or svc.billing_note != new_note):
                         svc.is_billable = new_billable
                         svc.billing_note = new_note
-                        svc.save(update_fields=['is_billable', 'billing_note'])
+                        fields += ['is_billable', 'billing_note']
+                    # 🔧 الفني المنفّذ (صاحب عمولة الخدمة) — المدير/الأدمن بس، وقبل ما
+                    #    العمولة تتحسب. كان بيتحدد من لوحة المالك بس فالعمولة ماكانتش بتتحسب.
+                    tech_key = f"svc_{svc.id}_tech"
+                    if can_assign_tech and tech_key in request.POST:
+                        raw_tech = (request.POST.get(tech_key) or '').strip()
+                        new_tech_id = int(raw_tech) if raw_tech.isdigit() else None
+                        if new_tech_id is not None and new_tech_id not in tech_ids:
+                            new_tech_id = svc.technician_id   # مش فني نشط — نتجاهل
+                        if (new_tech_id != svc.technician_id
+                                and not _service_commission_paid(invoice, svc)):
+                            svc.technician_id = new_tech_id
+                            fields.append('technician')
+                            techs_changed = True
+                    if fields:
+                        svc.save(update_fields=fields)
                         updated_svcs += 1
 
                 # 🐛 [FIX]: قرار المحاسب كان بيتحفظ على السطور بس — إجمالي الفاتورة
@@ -168,6 +209,16 @@ def job_card_review(request, invoice_id):
         except _CreditLimitHit as hit:
             messages.error(request, str(hit))
             return redirect('inventory:job_card_review', invoice_id=invoice.id)
+
+        # البطاقة اتسلّمت قبل ما الفني يتحدد؟ العمولة بتستحق دلوقتي (Idempotent لكل سطر خدمة).
+        if techs_changed:
+            try:
+                fresh = SaleInvoice.objects.get(pk=invoice.pk)
+                if fresh.status == 'posted' and fresh.is_applied and not fresh.is_return:
+                    from inventory.services.invoice_service import InvoiceService
+                    InvoiceService.accrue_technician_commissions(fresh)
+            except Exception as exc:  # noqa: BLE001 — العمولة ماتوقّفش حفظ المراجعة
+                logger.warning("[Job Card Review] commission accrual failed for INV #%s: %s", invoice.id, exc)
 
         logger.info(
             "[Job Card Review] tenant=%s user=%s invoice=%s items=%s svcs=%s",
@@ -200,7 +251,24 @@ def job_card_review(request, invoice_id):
         Decimal('0.00'),
     )
 
+    # 🔧 اختيار الفني لكل خدمة: الافتراضي الفني اللي اشتغل على البطاقة في ورشة الفنيين
+    #    (لو واحد بس) — بيتحفظ لما المدير يدوس حفظ.
+    from erp_core.decorators import can_manage_company
+    can_assign_tech = can_manage_company(request.user)
+    log_tech_ids = {log.technician_id for log in invoice.repair_logs.all() if log.technician_id}
+    suggested_tech_id = next(iter(log_tech_ids)) if len(log_tech_ids) == 1 else None
+    service_rows = []
+    for svc in invoice.service_items.all():
+        locked = _service_commission_paid(invoice, svc)
+        service_rows.append({
+            'svc': svc, 'tech_locked': locked,
+            'selected_tech_id': svc.technician_id or (None if locked else suggested_tech_id),
+        })
+
     return render(request, 'inventory/job_card_review.html', {
+        'service_rows': service_rows,
+        'technicians': _review_technicians() if can_assign_tech else [],
+        'can_assign_tech': can_assign_tech,
         'invoice': invoice,
         'parts_total': parts_total,
         'services_total': services_total,
@@ -513,6 +581,27 @@ def rfq_accept_quote(request, quote_id):
         "total": float(po.total_amount),
         "status": po.status,
     })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_POST
+def rfq_cancel(request, rfq_id):
+    """POST → إلغاء طلب تسعير مش محتاجينه.
+
+    🐛 [FIX — دورة ناقصة]: الإلغاء كان من لوحة Django بس — الطلب اللي العميل اتراجع عنه
+    أو القطعة اتلاقت كان بيفضل «في انتظار الردود» في برج التحكم للأبد."""
+    from inventory.models import RFQ
+    profile = getattr(request.user, 'employee_profile', None)
+    if not (request.user.is_superuser or (profile and profile.role in {'admin', 'manager', 'stock'})):
+        return JsonResponse({"error": "role_forbidden"}, status=403)
+    with transaction.atomic():
+        rfq = get_object_or_404(RFQ.objects.select_for_update(), id=rfq_id)
+        if rfq.status in (RFQ.STATUS_ORDERED, RFQ.STATUS_CANCELLED):
+            return JsonResponse({"error": _t("الطلب ده اتحوّل لأمر شراء أو اتلغى قبل كده.")}, status=400)
+        rfq.status = RFQ.STATUS_CANCELLED
+        rfq.save(update_fields=['status'])
+    return JsonResponse({"ok": True, "status": rfq.status})
 
 
 # ─────────────────────────────────────────────────────────────────────

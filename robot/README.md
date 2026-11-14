@@ -1055,3 +1055,78 @@ and again to be answered, and «العربية بتسخن، مشكلة إيه؟�
 `run_windows.bat robotpc` makes the PC by the robot the robot's own: it starts with Windows (a
 watcher in Startup, `run_windows.bat watch`), starts again 10 s after it ever stops, and the PC never
 sleeps or hibernates (`powercfg`). Signing in without a password stays the owner's to set (netplwiz).
+
+### What Vosk didn't hear, in a conversation (brain-0.9.14)
+
+After «يا موس» ← «أيوه، تحت أمرك», a question said quietly could come out of Vosk as nothing
+(`[EARS] nothing understood`) and the robot stayed silent. Said in a conversation and long enough to
+be words (`LIVE_TEACH_AFTER_MS`, not a cough), its recording now goes to the server, which hears it
+(`[EARS] nothing understood here … — in a conversation: the server hears it`). Chatter outside a
+conversation, a cough, or `[robot] teach = no`: as before, no minutes on it.
+
+### Everything the counter does, by voice (brain-0.9.15)
+
+- **A PIN for anything only staff may ask.** With no camera, «سجل مصروف 200 بنزين», «بعنا كام النهارده؟»
+  and «شغّل قرآن» were refused though the wizard's invoices asked a PIN. Now whoever isn't known is asked
+  their PIN (`wizard.hold`), and what they said is done once it's right (`views._answer_voice`); the PIN
+  is remembered `STAFF_S` and its owner's role still decides.
+- **Money in and out** (`robot/money.py`, held on the branch question like an expense, by the ERP's own
+  services): «حصّل 500 جنيه من أحمد محمود» (`customer_payments.collect` — a registered customer, never
+  «عميل نقدي», never more than they owe), «ادفع 1000 جنيه للمورد الأمل» (`vendor_payments.pay_vendor` —
+  never more than is owed), «سجل سلفة 500 جنيه للموظف محمد علي» (`AdvanceService`: HR's policy; approved
+  and paid at once only when the asker may approve advances, a request otherwise).
+  Roles: `collect`, `vendor_pay`, `advance` (robot/permissions.py).
+- **The books, asked** (`assistant.staff_question`): «رصيد الخزنة كام», «أحمد محمود عليه كام» / «حساب العميل …»,
+  «حساب المورد …», «صرفنا كام النهارده», «مبيعات امبارح» / «مبيعات الشهر ده», «مين حاضر / غايب النهارده»
+  — each behind its role (`treasury_report`, `accounts_report`, `attendance_report`, `sales_report`).
+- «🧠 مخ الفهم» writes any way of saying these as the sentences above (intents `collect`, `vendor_pay`,
+  `advance`, `staff`).
+- **A quote, a return, a transfer, the salaries** (same release):
+  «اعملي عرض سعر» is the sales wizard without «كاش ولا آجل؟» — a draft invoice (`entries.record_quote`:
+  no stock, no money). «رجّع فاتورة رقم 125» / «رجّع 1 فلتر زيت من فاتورة رقم 125», «حوّل 500 جنيه من خزنة
+  الكاش لخزنة البنك», «احسب مرتبات الشهر ده» / «اصرف مرتبات شهر 10» (`robot/money.py`): their place is known,
+  so they're confirmed with «أيوه» (`entries.ask(confirm=True)`), not a branch. The return is the ERP's
+  own (`InvoiceService.create_return_invoice`, posted as its screen does: the refund bounded by what was
+  paid, refused when the till can't cover it); the transfer is the treasuries screen's two linked
+  movements; «احسب» only calculates (`PayrollService.generate_payroll`), «اصرف» approves and pays a
+  calculated month — a manager's (`payroll_pay`), refused whole when no treasury covers a salary.
+
+### A cash sale and an expense, said with the net down (brain-0.9.16)
+
+Offline the books were the counter page's only. Now «يا موس، بعت 2 فلتر زيت كاش» and «سجل مصروف ميتين
+جنيه بنزين» are taken by voice too (`robot/brain/voicedesk.py`), by the counter's own rules
+(`counter.Counter`: cash only, a part that's out isn't sold, the role decides): the PIN is asked (said
+digit by digit, remembered 10 minutes, three wrong ones lock it, never logged), what was understood is
+read back with its amount — «بيع حتتين فلتر زيت بإجمالي تسعمية جنيه، أسجله؟» — and only «أيوه» writes it
+to the outbox, for the ERP's own posting when the net is back (`robot/offline_ledger.py`). The amount is
+said from clips (`saynumber.py`: «ألف وميتين وخمسين», fetched into the voice bank while online). Credit,
+collections, returns and the rest still wait for the net — and say so. Online none of this runs: the
+server's wizard does.
+
+### The rest of the day, by voice (brain-0.9.17)
+
+- **A return to a vendor**: «رجّع فاتورة مشتريات رقم 12» / «رجّع 2 فلتر زيت من فاتورة مشتريات رقم 12» — the
+  ERP's `return_to_vendor` (stock out, the average cost, the vendor's account), confirmed with «أيوه»; on
+  account only (cash a vendor hands back is taken on the purchases screen). Role `purchase_return`.
+- **Attendance**: «سجل حضوري» / «سجل انصرافي» — one's own, by PIN or face, through HR's
+  `AttendanceService` (its lateness, its rules: when HR requires the face, a PIN isn't one).
+- **«قفّل اليوم» / «ملخص اليوم»**: sold, spent, collected today and what the treasuries hold (`sales_report`).
+- **What needs them, once a day** (`assistant.heads_up`): after the day's numbers the manager hears what's
+  running low and how many customers have owed for over a month.
+- **A model of the shop's own**: the training download now has `finetune_openai.jsonl`
+  (`understand.finetune_rows`) — the sentences Gemini was sure of, as OpenAI fine-tuning examples; the
+  tuned model's name goes in `ROBOT_OPENAI_MODEL`.
+
+### The camera, reviewed (firmware/esp32_cam)
+
+- **Motion was random.** The detector averaged every 64th byte of the JPEG — compressed data, not
+  brightness — and said «motion» on ~30% of frames of a still scene (measured): a face check every 4 s
+  day and night, and offline a card full of photos of an empty shop within the hour. It now decodes
+  the frame small (1/8) and compares an 8x6 grid to a slow background, exposure taken out
+  (`frameMoved`): 0 false on a still scene, a person crossing seen on every frame (host-compiled test).
+- **A supply too weak to even report a brownout** (`rst:0x1 POWERON_RESET` in a loop) never lowered
+  the radio's power. Boots that die before 20 s are counted; two in a row lower it, for good.
+- **No router at boot** restarted the camera every 30 s for ever — no photos kept. It goes on
+  offline and keeps reconnecting.
+- A camera that failed to start is tried again every 10 s; the SD card's DAT3 (GPIO13) is held high
+  while the card starts when a PIR sits on it; kept photos are found whichever way the core names files.

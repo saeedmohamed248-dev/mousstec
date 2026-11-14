@@ -180,6 +180,8 @@ SHARED_APPS = (
     'daphne',          # ⚡ محرك الاتصالات الحية
     'django_tenants',
     'clients',         # 👑 إدارة الإمبراطورية السحابية والمزادات المركزية
+    'django.contrib.sitemaps',  # 🔎 sitemap.xml (erp_core/seo.py)
+    'blog',            # 📝 مقالات SEO (/blog/)
     'tenancy',         # 🏛️ SaaS tenant lifecycle, plans, entitlements (Wave 2 Phase 2A — services only; models still live in clients)
     'marketplace_b2b', # 🛒 B2B parts marketplace, blind bidding, escrow (Wave 2 Phase 2A — services + tests; models still live in clients)
     'design_store',    # 🎨 AI design store: chat + persistence + brand profile (Wave 2 Phase 2A — services + tests; models still live in clients)
@@ -232,6 +234,10 @@ SHARED_APPS = (
     # active. BYOK: each tenant publishes/advertises with their own Meta page +
     # ad account, so all ad spend is billed to the tenant by Meta directly.
     'social_ads',
+
+    # 🖨️ سوق المطابع — حسابات المطابع (مجاني) والعملاء بالإيميل، منتجات وعروض وبروفات.
+    # SHARED لأنه سوق واحد لكل المطابع على الدومين الرئيسي.
+    'print_market',
 )
 
 TENANT_APPS = (
@@ -306,10 +312,12 @@ MIDDLEWARE = [
     'axes.middleware.AxesMiddleware',                     # 3. صد هجمات التخمين السيبرانية
     'erp_core.middleware.AuditIPMiddleware',              # 4. تسجيل IP المستخدم لسجل المراجعة
     'erp_core.middleware.PWAInjectorMiddleware',          # 🔌 حقن PWA bootstrap في كل صفحة HTML
+    'erp_core.seo.SeoMiddleware',                         # 🔎 canonical + Open Graph للصفحات العامة، noindex للخاصة والشركات
     'erp_core.middleware.AttendanceReminderMiddleware',   # 👋 زرار سجّل حضورك للموظفين
     'hr.middleware.AttendanceGateMiddleware',             # 🚪 إجبار tech/engineer على تسجيل الحضور قبل الدخول للورشة
     'clients.middleware_impersonation.ImpersonationBannerMiddleware',  # 🎭 God Mode banner
     'erp_core.middleware.VisitorTrackingMiddleware',       # 5. تتبع الزوار للسوبر أدمن
+    'erp_core.middleware.ScreenRecordingMiddleware',       # 🎥 تسجيل شاشة جلسات الشركات (rrweb) للدعم
     'erp_core.middleware.TenantOnlyOnPublicMiddleware',    # 🧭 صفحة شركة على الدومين الرئيسي = 404 مش 500
     'clients.middleware_error_tracker.ErrorTrackingMiddleware',  # 🚨 6. مركز رصد الأخطاء (يكتب في public schema)
 ]
@@ -442,6 +450,8 @@ USE_THOUSAND_SEPARATOR = True
 
 LANGUAGES = [('ar', _('Arabic')), ('en', _('English'))]
 LOCALE_PATHS = [BASE_DIR / 'locale']
+# 🔢 العشري بنقطة في العربي (erp_core/formats/ar/formats.py)
+FORMAT_MODULE_PATH = ['erp_core.formats']
 
 # =====================================================================
 # 📁 إدارة الأصول الرقمية والتخزين السحابي (Cloud Storage Stack)
@@ -461,6 +471,14 @@ if _IS_RUNNING_TESTS:
     # الاختبارات (وCI) مابتعملش collectstatic — الـ manifest مش موجود فأي صفحة
     # فيها {% static %} كانت بتقع «Missing staticfiles manifest entry».
     STORAGES['staticfiles'] = {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}
+def _whitenoise_font_cors(headers, path, url):
+    """🎥 إعادة تسجيل الشاشة بتتعرض على دومين المنصة والخطوط جاية من دومين الشركة —
+    من غير الهيدر ده المتصفح بيمنعها والأيقونات بتختفي. الخطوط ملفات عامة أصلاً."""
+    if path.endswith(('.woff2', '.woff', '.ttf', '.otf', '.eot')):
+        headers['Access-Control-Allow-Origin'] = '*'
+
+
+WHITENOISE_ADD_HEADERS_FUNCTION = _whitenoise_font_cors
 WHITENOISE_MAX_AGE = 31536000  # Cache static files for 1 year (hashed filenames) 
 
 USE_S3 = env.bool('USE_S3', default=False)
@@ -514,6 +532,12 @@ SIGNUP_EMAIL_VERIFICATION = env.str('SIGNUP_EMAIL_VERIFICATION', 'auto')
 
 # 📨 صندوق دعم المالك — مخفي من الواجهة، يستقبل تذاكر Help Form
 SUPPORT_INBOX_EMAIL = env('SUPPORT_INBOX_EMAIL', default='sa3eedmohamed@hotmail.com')
+# 🛍️ إشعار طلبات أسعار الكتالوج — لو فاضي بيستخدم إيميل/واتساب الدعم
+CATALOG_NOTIFY_EMAIL = env('CATALOG_NOTIFY_EMAIL', default='')
+CATALOG_NOTIFY_WHATSAPP = os.getenv('CATALOG_NOTIFY_WHATSAPP', '')
+# 🏪 عرض إطلاق في صفحة «اعرض منتجاتك» للتجار — فاضي ⇒ مابيظهرش. صاحب المنصة مسؤول يلتزم بيه.
+# None ⇒ النص الافتراضي المترجم؛ «off» ⇒ مخفي؛ أي نص تاني بيظهر زي ما هو.
+MARKETPLACE_MERCHANT_OFFER = os.getenv('MARKETPLACE_MERCHANT_OFFER')
 
 # 🤖 بوت التصليح (clients/services/autofix.py + .github/workflows/autofix.yml):
 #    عطل 500 جديد ⇒ GitHub Actions ⇒ Claude يكتب التصليح واختبار ويفتح PR (من غير نشر).
@@ -706,6 +730,10 @@ WHATSAPP_OTP_TEMPLATE = env.str('WHATSAPP_OTP_TEMPLATE', 'otp_verification')
 WHATSAPP_RENEWAL_TEMPLATE = env.str('WHATSAPP_RENEWAL_TEMPLATE', '')
 # 📲 قالب Meta لملخص اليوم للمالك (متغيّرات: الاسم، المبيعات، العدد، المحصّل، الخزنة، الآجل) — فاضي = رسالة نصية
 WHATSAPP_DAILY_SUMMARY_TEMPLATE = env.str('WHATSAPP_DAILY_SUMMARY_TEMPLATE', '')
+# 🔧 قالب Meta لتنبيه «عملاء صيانتهم مستحقة» للمالك (متغيّرات: الاسم، العدد، الرابط) — فاضي = رسالة نصية
+WHATSAPP_MAINTENANCE_DIGEST_TEMPLATE = env.str('WHATSAPP_MAINTENANCE_DIGEST_TEMPLATE', '')
+# 👋 قالب Meta لرسالة الترحيب بعد التسجيل (متغيّرات: الشركة، رابط الدخول) — فاضي = رسالة نصية
+WHATSAPP_WELCOME_TEMPLATE = env.str('WHATSAPP_WELCOME_TEMPLATE', '')
 # ⏳ خصم عرض «اشترك قبل ما التجربة تخلص» (آخر يومين) — صفر = تذكير من غير خصم
 TRIAL_END_OFFER_PERCENT = env.int('TRIAL_END_OFFER_PERCENT', 20)
 
@@ -1030,7 +1058,16 @@ CELERY_TASK_ROUTES = {
 # 🚀 قائمة كل الـ queues المفعلة في الـ Workers (أضف هنا لتتسق مع celery worker -Q)
 CELERY_QUEUES_LIST = ['default', 'notifications', 'heavy_ai_tasks', 'urgent_fintech_tasks', 'b2b_sync']
 
+# 🎥 تسجيل شاشة جلسات الشركات (rrweb) — مفتاح عام + مدة الحفظ
+SCREEN_RECORDING_ENABLED = os.getenv('SCREEN_RECORDING_ENABLED', '1') == '1'
+SCREEN_RECORDING_RETENTION_DAYS = int(os.getenv('SCREEN_RECORDING_RETENTION_DAYS', '7'))
+
 CELERY_BEAT_SCHEDULE = {
+    # 🖨️ سوق المطابع: تأكيد استلام تلقائي للطلبات المتسلّمة من أكتر من PRINT_MARKET_AUTO_CONFIRM_DAYS
+    'print_market_auto_complete': {
+        'task': 'print_market.tasks.auto_complete_orders',
+        'schedule': crontab(minute=23),
+    },
     # ── Wix integration: sync products + pull orders every 15 min ──
     'wix_sync_all': {
         'task': 'clients.tasks.wix_sync_all',
@@ -1041,6 +1078,11 @@ CELERY_BEAT_SCHEDULE = {
     'auto_renew_subscriptions': {
         'task': 'clients.tasks.auto_renew_subscriptions',
         'schedule': crontab(hour=0, minute=1),
+    },
+    # 🎥 تسجيلات الشاشة بتتمسح بعد SCREEN_RECORDING_RETENTION_DAYS
+    'purge_screen_recordings': {
+        'task': 'clients.tasks.purge_screen_recordings',
+        'schedule': crontab(hour=3, minute=17),
     },
     'orchestrate_billing_and_suspensions': {
         'task': 'clients.tasks.orchestrate_billing_and_suspensions',
@@ -1313,6 +1355,25 @@ MARKETPLACE_PARTS_COMMISSION_INDIVIDUAL_PCT = env.str('MARKETPLACE_PARTS_COMMISS
 MARKETPLACE_SERVICE_COMMISSION_PCT = env.str('MARKETPLACE_SERVICE_COMMISSION_PCT', '0')
 # الدفع في السوق بفودافون كاش/إنستاباي بس (التحويل بيتأكد يدوي) — الكارت (Paymob) مقفول لحد ما يتفتح
 MARKETPLACE_CARD_PAYMENTS = env.bool('MARKETPLACE_CARD_PAYMENTS', default=False)
+# 🖨️ سوق المطابع: مفيش عمولة — العميل بيدفع لـ Mouss Tec سعر العرض + رسوم التحويل بس.
+#    الرسوم (pct ٪، min/max بالجنيه، max=0 يعني من غير حد أقصى) بتتغيّر من الـ .env.
+PRINT_MARKET_TRANSFER_FEES = {
+    'instapay': {'pct': env.float('PRINT_MARKET_INSTAPAY_FEE_PCT', default=0.1),
+                 'min': env.float('PRINT_MARKET_INSTAPAY_FEE_MIN', default=0.5),
+                 'max': env.float('PRINT_MARKET_INSTAPAY_FEE_MAX', default=20)},
+    'vodafone_cash': {'pct': env.float('PRINT_MARKET_VFCASH_FEE_PCT', default=1),
+                      'min': env.float('PRINT_MARKET_VFCASH_FEE_MIN', default=1),
+                      'max': env.float('PRINT_MARKET_VFCASH_FEE_MAX', default=0)},
+}
+# ⏳ الطلب اللي اتسلّم بيتأكّد لوحده بعد كام يوم لو العميل ماعترضش
+PRINT_MARKET_AUTO_CONFIRM_DAYS = env.int('PRINT_MARKET_AUTO_CONFIRM_DAYS', default=3)
+# 📲 قالب Meta لإشعار المطبعة (UTILITY، عربي، ٣ متغيرات: الاسم / الرسالة / الرابط) — فاضي = رسالة نصية
+# 🛒 قالب Meta لإشعار الشركات بطلب جديد في السوق المفتوح (٣ متغيرات: اسم الشركة / الطلب / الرابط) — فاضي = نص
+MARKETPLACE_REQUEST_WHATSAPP_TEMPLATE = env.str('MARKETPLACE_REQUEST_WHATSAPP_TEMPLATE', default='')
+PRINT_MARKET_WHATSAPP_TEMPLATE = env.str('PRINT_MARKET_WHATSAPP_TEMPLATE', default='')
+# رابط الموقع للإشعارات اللي بتتبعت من غير request (التأكيد التلقائي)
+PRINT_MARKET_BASE_URL = env.str('PRINT_MARKET_BASE_URL', default='https://mousstec.com')
+PRINT_MARKET_VODAFONE_CASH_NUMBER = env.str('PRINT_MARKET_VODAFONE_CASH_NUMBER', default='01094850763')
 BLIND_BIDDING_EXPIRY_HOURS = env.int('BLIND_BIDDING_EXPIRY_HOURS', default=24)
 
 SAAS_ADDON_PRICE_EXTRA_BRANCH = 300.00

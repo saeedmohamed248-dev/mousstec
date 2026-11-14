@@ -1,0 +1,88 @@
+{% load i18n static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}{% trans "سوق المطابع" %}{% endblock %} | Mouss Tec</title>
+<meta name="description" content="{% block meta_description %}{% trans "سوق المطابع في مصر: اطلب طباعة كروت وفلايرز وبنرات وعلب من مطابع بتقييمات حقيقية، شوف البروفة قبل الطباعة وادفع بأمان." %}{% endblock %}">
+{% block seo_head %}{% endblock %}
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+<link href="/static/vendor/bootstrap/bootstrap.rtl.min.css" rel="stylesheet">
+<style>
+:root { --pm:#7c3aed; --pm2:#ec4899; --bg:#f6f5fb; --ink:#1f1534; --muted:#6b6385; }
+body { font-family:'Cairo',sans-serif; background:var(--bg); color:var(--ink); }
+.pm-nav { background:linear-gradient(90deg,var(--pm),var(--pm2)); }
+.pm-nav a, .pm-nav button { color:#fff !important; text-decoration:none; }
+.pm-card { background:#fff; border-radius:16px; box-shadow:0 2px 12px rgba(40,20,80,.06); border:0; }
+.pm-btn { background:var(--pm); color:#fff; border:0; border-radius:12px; font-weight:700; padding:.55rem 1.1rem; }
+.pm-btn:hover { background:#6d28d9; color:#fff; }
+.pm-btn-light { background:#efe9ff; color:var(--pm); border:0; border-radius:12px; font-weight:700; padding:.55rem 1.1rem; }
+.pm-muted { color:var(--muted); }
+.pm-thumb { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:12px; background:#eee; }
+.pm-badge { display:inline-block; padding:.2rem .7rem; border-radius:999px; font-size:.8rem; font-weight:700; }
+.st-requested,.st-offered,.st-pending { background:#fff3cd; color:#8a6100; }
+.st-awaiting_payment,.st-payment_review { background:#e0f2fe; color:#075985; }
+.st-paid,.st-delivered { background:#ede9fe; color:#5b21b6; }
+.st-completed,.st-approved,.st-accepted,.st-confirmed { background:#dcfce7; color:#166534; }
+.st-cancelled,.st-rejected,.st-changes_requested { background:#fee2e2; color:#991b1b; }
+.pm-steps { display:flex; gap:.4rem; flex-wrap:wrap; }
+.pm-steps span { flex:1; min-width:90px; text-align:center; font-size:.75rem; padding:.35rem; border-radius:8px; background:#eee; color:#777; }
+.pm-steps span.on { background:var(--pm); color:#fff; }
+.pm-chat { max-height:360px; overflow-y:auto; }
+.pm-msg { padding:.5rem .8rem; border-radius:12px; margin-bottom:.4rem; max-width:85%; white-space:pre-wrap; }
+.pm-msg.me { background:#ede9fe; margin-inline-start:auto; }
+.pm-msg.them { background:#f1f1f4; }
+.pm-proof-media { width:100%; max-height:480px; object-fit:contain; border-radius:12px; background:#111; }
+.pm-stars { color:#f59e0b; white-space:nowrap; }
+.pm-stars b { color:var(--ink); }
+.pm-bell { position:relative; }
+.pm-bell .pm-count { position:absolute; top:-8px; inset-inline-end:-10px; background:#facc15; color:#1f1534; border-radius:999px; font-size:.7rem; font-weight:800; padding:0 .35rem; }
+.pm-unread { background:#f8f6ff; }
+.pm-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--pm2); margin-inline-end:.4rem; }
+.st-disputed { background:#ffedd5; color:#9a3412; }
+.pm-rate input { display:none; }
+.pm-rate { display:inline-flex; flex-direction:row-reverse; gap:.2rem; font-size:1.8rem; }
+.pm-rate label { color:#d1d5db; cursor:pointer; }
+.pm-rate input:checked ~ label, .pm-rate label:hover, .pm-rate label:hover ~ label { color:#f59e0b; }
+.pm-rule { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:12px; padding:.6rem .9rem; font-size:.85rem; }
+</style>
+</head>
+<body>
+<nav class="pm-nav py-2 mb-4">
+  <div class="container d-flex align-items-center gap-3 flex-wrap">
+    <a href="{% url 'print_market:home' %}" class="fw-bold fs-5"><i class="fas fa-print me-1"></i>{% trans "سوق المطابع" %}</a>
+    <div class="ms-auto d-flex align-items-center gap-3 flex-wrap">
+      {% if account %}
+        {% if account.is_shop %}
+          <a href="{% url 'print_market:shop_dashboard' %}"><i class="fas fa-store me-1"></i>{% trans "مطبعتي" %}</a>
+        {% else %}
+          <a href="{% url 'print_market:my_orders' %}"><i class="fas fa-box me-1"></i>{% trans "طلباتي" %}</a>
+        {% endif %}
+        <a href="{% url 'print_market:notifications' %}" class="pm-bell" aria-label="{% trans 'الإشعارات' %}"><i class="fas fa-bell"></i>{% if notif_count %}<span class="pm-count">{{ notif_count }}</span>{% endif %}</a>
+        <a href="{% url 'print_market:settings' %}"><i class="fas fa-user-cog me-1"></i>{{ account.name }}</a>
+        <form method="post" action="{% url 'print_market:logout' %}" class="m-0">{% csrf_token %}
+          <button class="btn btn-link p-0">{% trans "خروج" %}</button></form>
+      {% else %}
+        <a href="{% url 'print_market:login' %}">{% trans "دخول" %}</a>
+        <a href="{% url 'print_market:signup' %}?role=shop" class="pm-btn-light" style="color:var(--pm)!important">{% trans "سجّل مطبعتك مجاناً" %}</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+<main class="container pb-5">
+  {% for m in messages %}
+    <div class="alert {% if m.tags == 'error' %}alert-danger{% else %}alert-success{% endif %}">{{ m }}</div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="text-center pm-muted small pb-4">
+  <div class="mb-2"><a href="/print/" class="pm-muted">{% trans "خدمات الطباعة حسب المحافظة" %}</a> ·
+    <a href="/print/business-cards/" class="pm-muted">{% trans "طباعة كروت شخصية" %}</a> ·
+    <a href="/print/flyers-brochures/" class="pm-muted">{% trans "طباعة فلايرات" %}</a> ·
+    <a href="/print/banners-rollups/" class="pm-muted">{% trans "طباعة بنرات" %}</a> ·
+    <a href="/blog/" class="pm-muted">{% trans "المقالات" %}</a></div>
+  {% trans "الدفع لـ Mouss Tec بس، والتواصل من جوه المنصة بس — عشان فلوسك وطلبك يبقوا في أمان." %}
+</footer>
+</body>
+</html>
