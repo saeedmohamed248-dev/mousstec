@@ -135,6 +135,12 @@ class Brain:
         self.outbox = Outbox(Path(cfg.home) / "outbox.jsonl")   # what offline did, for the server
         self.ledger = Ledger(Path(cfg.home) / "sold.json", self.outbox)   # sold here, not in the catalog yet
         self.counter = None                    # the counter page (counter.py), started by run()
+        # A cash sale, an expense, said with the net down (voicedesk.py) — the counter's own rules.
+        from .counter import Counter
+        from .voicedesk import VoiceDesk
+        self.knowledge.desk = VoiceDesk(
+            Counter(self.knowledge, self.outbox, self.ledger, online=lambda: self.online, log=self.log),
+            self.knowledge.lookup, offline=lambda: self.online is False, log=self.log)
         self.prompt = hints(self.knowledge.catalog, cfg.name)
         self.wake_heard = wakeheard.load(cfg.home)   # how these ears hear «يا موس» (brain wake)
         self.detector = self._load_model("wake_model.npz", "Detector")      # «يا موس» by its own model (kws.py)
@@ -520,7 +526,10 @@ class Brain:
                     if not self._for_me_while_playing(text):
                         self.log(f'[EARS] "{text}" — ignored while {self.media.kind} plays (no «يا {self.cfg.name}»)')
                         return
-                    self.log(f'[EARS] "{text}" — heard in {took:.1f} s ({self.ears.model_name})')
+                    # A PIN said to the offline desk (voicedesk.py) is never written to the log.
+                    desk = getattr(self.knowledge, "desk", None)
+                    shown = "•••• (الرقم السري)" if self.online is False and desk is not None and desk.secret else text
+                    self.log(f'[EARS] "{shown}" — heard in {took:.1f} s ({self.ears.model_name})')
                     t_heard = time.monotonic()
                     sure = self._sureness(text, words, confs)
                     if self.online is False:         # known down: don't wait on it
