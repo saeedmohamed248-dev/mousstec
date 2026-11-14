@@ -99,7 +99,8 @@ _LOW = re.compile(r"^(?:(?:ايه|ايش|اي|انهي)\s+(?:اللي|الحاج
 # a collection from a customer, a payment to a vendor, an employee's advance.
 _ENTRY = re.compile(r"^(?:(?:سجل|سجلي|اعمل|اكتب|ضيف|اضف)\s+)?(?:مصروف|مصاريف|صرف|صرفنا|صرفت|دفعنا|دفعت"
                     r"|فاتوره شراء|فاتوره بيع|شراء|مشتريات|اشترينا|اشتريت|بيع|بعت|بعنا|بعتله|بعتلها"
-                    r"|تحصيل|حصل|حصلي|حصلت|حصلنا|ادفع|سدد|سددنا|سلفه)\s")
+                    r"|تحصيل|حصل|حصلي|حصلت|حصلنا|ادفع|سدد|سددنا|سلفه|مرتجع|حول|تحويل|عرض سعر"
+                    r"|(?:احسب|اصرف)\s+(?:ال)?(?:مرتبات|رواتب))(?:\s|$)")
 # robot/assistant.py: the staff's other questions about the books (the safe, who owes what,
 # what was spent, who's in) — the server's to answer, each behind its role.
 _HOW_MUCH = r"(?:كام|قد ايه|اد ايه|قد اي)"

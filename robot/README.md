@@ -1081,3 +1081,12 @@ conversation, a cough, or `[robot] teach = no`: as before, no minutes on it.
   — each behind its role (`treasury_report`, `accounts_report`, `attendance_report`, `sales_report`).
 - «🧠 مخ الفهم» writes any way of saying these as the sentences above (intents `collect`, `vendor_pay`,
   `advance`, `staff`).
+- **A quote, a return, a transfer, the salaries** (same release):
+  «اعملي عرض سعر» is the sales wizard without «كاش ولا آجل؟» — a draft invoice (`entries.record_quote`:
+  no stock, no money). «رجّع فاتورة رقم 125» / «رجّع 1 فلتر زيت من فاتورة رقم 125», «حوّل 500 جنيه من خزنة
+  الكاش لخزنة البنك», «احسب مرتبات الشهر ده» / «اصرف مرتبات شهر 10» (`robot/money.py`): their place is known,
+  so they're confirmed with «أيوه» (`entries.ask(confirm=True)`), not a branch. The return is the ERP's
+  own (`InvoiceService.create_return_invoice`, posted as its screen does: the refund bounded by what was
+  paid, refused when the till can't cover it); the transfer is the treasuries screen's two linked
+  movements; «احسب» only calculates (`PayrollService.generate_payroll`), «اصرف» approves and pays a
+  calculated month — a manager's (`payroll_pay`), refused whole when no treasury covers a salary.
