@@ -332,6 +332,16 @@ _CATEGORY_FALLBACK = {
     'social': 'screen', 'events': 'invite', 'office': 'sheet', 'photo': 'photo', 'school': 'sheet', 'cafe': 'sheet',
 }
 
+# 📏 مقاسات «بالاسم» مابتقولش للمطبعة حاجة — العميل لازم يكتب المقاس بالسنتي معاها.
+# 🐛 [FIX]: طلبات العلب كانت بتوصل «المقاس: كبير» بس، وصاحب المنصة مايعرفش يبعت إيه للمطبعة.
+CUSTOM_SIZE = 'مقاس خاص'
+VAGUE_SIZES = {'صغير', 'وسط', 'كبير', CUSTOM_SIZE}
+
+
+def is_vague_size(size):
+    return (size or '').strip() in VAGUE_SIZES
+
+
 def product_type(title, category):
     for cat, word, kind in _CATEGORY_RULES:
         if cat == category and (word is None or word in (title or '')):

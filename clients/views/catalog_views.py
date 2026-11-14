@@ -66,12 +66,15 @@ def _notify_owner_of_quote(req_id):
             lines.append(f"الكمية: {req.quantity}")
         if req.car_info:
             lines.append(f"العربية: {req.car_info}")
-        labels = {'size': 'المقاس', 'color': 'اللون', 'shape': 'الشكل', 'finish': 'التشطيب'}
+        labels = {'size': 'المقاس', 'dimensions': 'المقاس بالسنتي', 'color': 'اللون', 'shape': 'الشكل',
+                  'finish': 'التشطيب'}
         picked = [f"{labels[k]}: {v}" for k, v in (req.options or {}).items() if k in labels and v]
         if picked:
             lines.append('الاختيارات: ' + ' · '.join(picked))
         if req.attachment:
             lines.append('📎 العميل رفع لوجو/تصميم — موجود في صفحة الطلبات')
+        elif req.sector == 'printing':
+            lines.append('⚠️ العميل ما رفعش ملف التصميم — اطلبه منه من صفحة الطلبات')
         if req.details:
             lines.append(f"التفاصيل: {req.details[:800]}")
         body = '\n'.join(lines) + f"\n\n{link}"
@@ -313,6 +316,12 @@ def catalog_item(request, item_code):
             val = (request.POST.get('opt_' + key) or '').strip()
             if val and val in {v for v, _ in opts.get(group, [])}:
                 chosen[key] = val
+        # 📏 المقاس بالسنتي — إجباري مع «مقاس خاص» (من غيره المطبعة ماتعرفش تسعّر)
+        dims = ' '.join((request.POST.get('opt_dims') or '').split())[:80]
+        if dims:
+            chosen['dimensions'] = dims
+        elif chosen.get('size') == catalog_options.CUSTOM_SIZE:
+            errors.append(_('اكتب المقاس اللي محتاجه بالسنتي (طول × عرض × ارتفاع).'))
         # 📎 لوجو/تصميم العميل — صور وPDF وملفات التصميم المعروفة بس، لحد ١٥ ميجا
         upload = request.FILES.get('attachment')
         if upload:
@@ -364,6 +373,7 @@ def catalog_item(request, item_code):
     catalog_stats.decorate_stores([item.store])
     return render(request, 'clients/marketplace/catalog_item.html', {
         'opts': opts, 'chosen': chosen,
+        'ask_dims': any(catalog_options.is_vague_size(v) for v, _label in opts.get('sizes', [])),
         'reviews': item.store.reviews.filter(is_visible=True)[:5],
         'item': item, 'store': item.store, 'sector': item.store.sector, 'meta': SECTORS[item.store.sector],
         'form': form, 'errors': errors, 'related': related, 'customer': customer,
@@ -374,6 +384,44 @@ def catalog_item(request, item_code):
 
 
 # ─────────────────────────── 👑 السوبر أدمن ───────────────────────────
+
+def _decorate_for_printer(request, r):
+    """🖨️ اللي ناقص عشان الطلب يروح المطبعة + رسالتين واتساب جاهزين (للعميل وللمطبعة).
+
+    🐛 [FIX]: الطلب كان بيوصل «المقاس: كبير» ومن غير ملف تصميم، والصفحة مابتقولش إن فيه حاجة ناقصة
+    ولا بتدّي طريقة تطلبها — فصاحب المنصة مايعرفش يبعت إيه للمطبعة.
+    """
+    opts = r.options or {}
+    printing = r.sector == 'printing'
+    r.attachment_url = ''
+    if r.attachment:
+        try:
+            r.attachment_url = request.build_absolute_uri(r.attachment.url)
+        except Exception:  # noqa: BLE001 — ملف ناقص في التخزين مايوقّعش الصفحة
+            logger.warning('[CATALOG] attachment url failed for quote %s', r.pk)
+    r.needs_dims = printing and not opts.get('dimensions') and (
+        not opts.get('size') or catalog_options.is_vague_size(opts.get('size')))
+    r.needs_design = printing and not r.attachment_url
+    r.ask_text = ''
+    if r.needs_dims or r.needs_design:
+        ask = [_('أهلاً %(name)s، معاك Mouss Tec بخصوص طلب «%(title)s».') % {'name': r.name, 'title': r.item_title},
+               _('عشان نبعت طلبك للمطبعة ونرد عليك بالسعر محتاجين منك:')]
+        if r.needs_dims:
+            ask.append('• ' + _('المقاس بالسنتي (طول × عرض × ارتفاع)'))
+        if r.needs_design:
+            ask.append('• ' + _('ملف اللوجو/التصميم (PDF أو AI أو صورة بجودة عالية)'))
+        ask.append(_('ابعتهم هنا على الواتساب 🙏'))
+        r.ask_text = '\n'.join(ask)
+    r.printer_text = ''
+    if printing:
+        size = opts.get('size', '')
+        if opts.get('dimensions'):
+            size = f"{size} ({opts['dimensions']})" if size else opts['dimensions']
+        rows = [(_('المنتج'), r.item_title), (_('الكمية'), r.quantity), (_('المقاس'), size),
+                (_('اللون'), opts.get('color', '')), (_('الشكل'), opts.get('shape', '')),
+                (_('التشطيب'), opts.get('finish', '')), (_('التفاصيل'), r.details[:800]),
+                (_('ملف التصميم'), r.attachment_url)]
+        r.printer_text = '\n'.join([_('طلب تسعير من Mouss Tec')] + [f'{k}: {v}' for k, v in rows if v])
 
 @login_required
 @platform_owner_required
@@ -398,6 +446,7 @@ def catalog_requests_admin(request):
         r.review_url = (request.build_absolute_uri(f'/marketplace/catalog/review/{r.review_token}/')
                         if r.review_token else '')
         r.existing_review = getattr(r, 'review', None) if r.review_token else None
+        _decorate_for_printer(request, r)
     return render(request, 'clients/saas_admin/catalog_requests.html', {
         'reviews_hidden': CatalogReview.objects.filter(is_visible=False).count(),
         'reviews_total': CatalogReview.objects.count(),

@@ -172,7 +172,7 @@ class CatalogNotifyAndEnglishTests(_TenantDomainMixin, TestCase):
         self.assertEqual((q.notified_email, q.notified_whatsapp), (True, False))
         owner = User.objects.create(username='cat_owner2@test.com', is_staff=True, is_superuser=True)
         c = HttpClient(); c.force_login(owner)
-        self.assertIn('الإشعار ماوصلش', c.get('/superadmin/catalog/requests/').content.decode())
+        self.assertIn('الإشعار ماوصلش (واتساب)', c.get('/superadmin/catalog/requests/').content.decode())
 
     def test_english_pages(self):
         c = HttpClient()
@@ -592,6 +592,49 @@ class CatalogOptionsTests(_TenantDomainMixin, TestCase):
             'attachment': SimpleUploadedFile('virus.exe', b'MZ', content_type='application/octet-stream')})
         self.assertEqual(r.status_code, 200)
         self.assertFalse(CatalogQuoteRequest.objects.exists())
+
+    def test_box_size_in_cm_asked_saved_and_missing_bits_flagged_for_owner(self):
+        """🐛 الطلب كان بيوصل «المقاس: كبير» ومن غير تصميم، والصفحة مابتقولش إيه الناقص ولا بتطلبه."""
+        from unittest import mock
+        from urllib.parse import unquote
+        it = CatalogItem.objects.filter(store__sector='printing', category='packaging', title__contains='علب').first()
+        url = f'/marketplace/catalog/item/{it.item_code}/'
+        self.assertIn('name="opt_dims"', HttpClient().get(url).content.decode())
+        base = {'name': 'فرح', 'phone': '01011112222', 'quantity': '١٠٠ علبة', 'opt_color': 'white'}
+        # «مقاس خاص» من غير سنتي ⇒ مرفوض، والاختيارات بتفضل زي ما العميل حطها
+        r = HttpClient().post(url, {**base, 'opt_size': 'مقاس خاص', 'opt_finish': 'مط'})
+        self.assertFalse(CatalogQuoteRequest.objects.exists())
+        self.assertRegex(r.content.decode(), r'name="opt_finish" value="مط" checked')
+        with mock.patch('clients.services.whatsapp_notify.send_platform_whatsapp', return_value=True), \
+                self.captureOnCommitCallbacks(execute=True):
+            HttpClient().post(url, {**base, 'opt_size': 'كبير'})                                   # من غير سنتي
+            HttpClient().post(url, {**base, 'opt_size': 'مقاس خاص', 'opt_dims': '  ٢٠ × ١٥ ×  ٨ سم '})
+        vague, exact = CatalogQuoteRequest.objects.order_by('id')
+        self.assertNotIn('dimensions', vague.options)
+        self.assertEqual(exact.options['dimensions'], '٢٠ × ١٥ × ٨ سم')
+        owner = User.objects.create(username='cat_owner3@test.com', is_staff=True, is_superuser=True)
+        c = HttpClient(); c.force_login(owner)
+        page = c.get('/superadmin/catalog/requests/')
+        rows = {q.pk: q for q in page.context['page'].object_list}
+        self.assertTrue(rows[vague.pk].needs_dims and rows[vague.pk].needs_design)
+        self.assertFalse(rows[exact.pk].needs_dims)
+        self.assertIn('المقاس بالسنتي', rows[vague.pk].ask_text)
+        self.assertIn('كبير', rows[vague.pk].printer_text)
+        self.assertIn('مقاس خاص (٢٠ × ١٥ × ٨ سم)', rows[exact.pk].printer_text)
+        self.assertNotIn('01011112222', rows[exact.pk].printer_text)      # رقم العميل مايروحش للمطبعة
+        html = unquote(page.content.decode())
+        for s in ('المقاس بالسنتي مش متحدد', 'العميل ما رفعش ملف التصميم', 'اطلب المقاس والتصميم', 'ابعت للمطبعة',
+                  'المقاس بالسنتي: ٢٠ × ١٥ × ٨ سم', 'wa.me/201011112222?text=', 'wa.me/?text='):
+            self.assertIn(s, html)
+
+    def test_parts_requests_have_no_printer_prompts(self):
+        it = CatalogItem.objects.filter(store__sector='automotive').first()
+        HttpClient().post(f'/marketplace/catalog/item/{it.item_code}/', {'name': 'أحمد', 'phone': '01011112222'})
+        owner = User.objects.create(username='cat_owner4@test.com', is_staff=True, is_superuser=True)
+        c = HttpClient(); c.force_login(owner)
+        html = c.get('/superadmin/catalog/requests/').content.decode()
+        self.assertNotIn('ابعت للمطبعة', html)
+        self.assertNotIn('اطلب المقاس والتصميم', html)
 
     def test_parts_have_no_options_or_upload(self):
         it = CatalogItem.objects.filter(store__sector='automotive').first()

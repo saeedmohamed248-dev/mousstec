@@ -28308,3 +28308,46 @@ msgstr "Has advance credit %(a)s"
 #, python-format
 msgid "سدّد %(a)s من رصيده"
 msgstr "Settle %(a)s from credit"
+
+msgid "المقاس بالسنتي"
+msgstr "Size in cm"
+
+msgid "المقاس بالسنتي (طول × عرض × ارتفاع)"
+msgstr "Size in cm (length × width × height)"
+
+msgid "مثلاً: ٢٠ × ١٥ × ٨ سم"
+msgstr "e.g. 20 × 15 × 8 cm"
+
+msgid "لو عارف المقاس اكتبه — بيخلّي السعر أدق وأسرع. مع «مقاس خاص» لازم تكتبه."
+msgstr "If you know the size, enter it — the quote will be faster and more accurate. Required with “Custom size”."
+
+msgid "اكتب المقاس اللي محتاجه بالسنتي (طول × عرض × ارتفاع)."
+msgstr "Enter the size you need in cm (length × width × height)."
+
+msgid "المقاس بالسنتي مش متحدد"
+msgstr "Size in cm not specified"
+
+msgid "العميل ما رفعش ملف التصميم"
+msgstr "Customer didn't upload a design file"
+
+msgid "اطلب المقاس والتصميم"
+msgstr "Ask for size & design"
+
+msgid "ابعت للمطبعة"
+msgstr "Send to print shop"
+
+#, python-format
+msgid "أهلاً %(name)s، معاك Mouss Tec بخصوص طلب «%(title)s»."
+msgstr "Hi %(name)s, this is Mouss Tec about your request “%(title)s”."
+
+msgid "عشان نبعت طلبك للمطبعة ونرد عليك بالسعر محتاجين منك:"
+msgstr "To send your order to the print shop and get back to you with a price, we need:"
+
+msgid "ملف اللوجو/التصميم (PDF أو AI أو صورة بجودة عالية)"
+msgstr "Your logo/design file (PDF, AI or a high-quality image)"
+
+msgid "ابعتهم هنا على الواتساب 🙏"
+msgstr "Please send them here on WhatsApp 🙏"
+
+msgid "طلب تسعير من Mouss Tec"
+msgstr "Quote request from Mouss Tec"

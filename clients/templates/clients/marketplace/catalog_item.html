@@ -102,7 +102,13 @@
                 {% if opts.sizes %}
                 <fieldset class="opt"><legend>{% trans "المقاس" %}</legend>
                     {% for v, label in opts.sizes %}<label class="pick-chip"><input type="radio" name="opt_size" value="{{ v }}" {% if chosen.size == v or not chosen.size and forloop.first %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
-                </fieldset>{% endif %}
+                </fieldset>
+                {% if ask_dims %}
+                <label for="q-dims">{% trans "المقاس بالسنتي (طول × عرض × ارتفاع)" %}</label>
+                <input id="q-dims" name="opt_dims" value="{{ chosen.dimensions }}" maxlength="80" placeholder="{% trans 'مثلاً: ٢٠ × ١٥ × ٨ سم' %}">
+                <small style="color:var(--mt-muted);">{% trans "لو عارف المقاس اكتبه — بيخلّي السعر أدق وأسرع. مع «مقاس خاص» لازم تكتبه." %}</small>
+                {% endif %}
+                {% endif %}
                 {% if opts.colors %}
                 <fieldset class="opt"><legend>{% trans "اللون" %} <span class="opt-now" id="colorName"></span></legend>
 
@@ -110,11 +116,11 @@
                 </fieldset>{% endif %}
                 {% if opts.shapes %}
                 <fieldset class="opt"><legend>{% trans "الشكل" %}</legend>
-                    {% for v, label in opts.shapes %}<label class="pick-chip"><input type="radio" name="opt_shape" value="{{ v }}" {% if forloop.first %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+                    {% for v, label in opts.shapes %}<label class="pick-chip"><input type="radio" name="opt_shape" value="{{ v }}" {% if chosen.shape == v or not chosen.shape and forloop.first %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
                 </fieldset>{% endif %}
                 {% if opts.finishes %}
                 <fieldset class="opt"><legend>{% trans "التشطيب" %}</legend>
-                    {% for v, label in opts.finishes %}<label class="pick-chip"><input type="radio" name="opt_finish" value="{{ v }}" {% if forloop.first %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+                    {% for v, label in opts.finishes %}<label class="pick-chip"><input type="radio" name="opt_finish" value="{{ v }}" {% if chosen.finish == v or not chosen.finish and forloop.first %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
                 </fieldset>{% endif %}
                 <label for="q-qty">{% trans "الكمية" %}</label>
                 <input id="q-qty" name="quantity" value="{{ form.quantity }}" maxlength="60">
