@@ -563,7 +563,7 @@ def _gtts_synthesize(text: str, language: str) -> Optional[bytes]:
         return None
 
 
-# Replies the robot says again and again («أيوه، تحت أمرك.», the price of a
+# Replies the robot says again and again («أهلاً بحضرتك، أقدر أساعدك إزاي؟», the price of a
 # part people keep asking about) are kept, so the second time costs no TTS.
 # Only Edge's Egyptian voice is kept: a gTTS stand-in for an Edge outage
 # would otherwise outlive the outage.

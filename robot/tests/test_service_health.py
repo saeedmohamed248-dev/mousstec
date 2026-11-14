@@ -148,7 +148,7 @@ class NotedWhereCalledTests(_HealthTest):
         self.addCleanup(audio._azure_tts_rest.update, until=0.0)
         with mock.patch.dict(os.environ, AZURE), \
                 mock.patch("requests.post", return_value=mock.Mock(status_code=401, content=b"", text="denied")):
-            self.assertIsNone(audio._azure_pcm("أيوه، تحت أمرك.", 16000))
+            self.assertIsNone(audio._azure_pcm("أهلاً بحضرتك، أقدر أساعدك إزاي؟", 16000))
         self.assertEqual(health.last("azure_tts")["code"], "401")
         self.assertIn("ROBOT_AZURE_SPEECH_KEY", health.remedy("azure_tts", "401"))
 
@@ -160,7 +160,7 @@ class NotedWhereCalledTests(_HealthTest):
         health.note("azure_tts", True)
         with mock.patch.dict(os.environ, AZURE), \
                 mock.patch("requests.post", return_value=mock.Mock(status_code=200, content=b"", text="")):
-            self.assertIsNone(audio._azure_pcm("أيوه، تحت أمرك.", 16000))   # edge says this one
+            self.assertIsNone(audio._azure_pcm("أهلاً بحضرتك، أقدر أساعدك إزاي؟", 16000))   # edge says this one
         self.assertTrue(health.last("azure_tts")["ok"])
         self.assertEqual(audio._azure_tts_rest["until"], 0.0)                # nor rested
 

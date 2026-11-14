@@ -185,7 +185,7 @@ class SynthesizeUlawTests(SimpleTestCase):
 
     def test_ulaw_is_half_the_size_and_evened_out(self):
         with mock.patch.object(audio, "_synthesize_with", return_value=(b"mp3", "edge")):
-            wav = audio.synthesize_wav("أيوه، تحت أمرك.", codec=audio.ULAW)
+            wav = audio.synthesize_wav("أهلاً بحضرتك، أقدر أساعدك إزاي؟", codec=audio.ULAW)
         tag, rate, samples = audio.wav_parts(wav)
         self.assertEqual((tag, rate, len(samples)), (7, 16000, 800))
         peak = max(abs(s) for s in struct.unpack("<800h", audio.ulaw_decode(samples)))
@@ -193,8 +193,8 @@ class SynthesizeUlawTests(SimpleTestCase):
 
     def test_a_repeated_reply_comes_from_the_cache(self):
         with mock.patch.object(audio, "_synthesize_with", return_value=(b"mp3", "edge")) as tts:
-            first = audio.synthesize_wav("أيوه، تحت أمرك.", codec=audio.ULAW)
-            again = audio.synthesize_wav("أيوه، تحت أمرك.", codec=audio.ULAW)
+            first = audio.synthesize_wav("أهلاً بحضرتك، أقدر أساعدك إزاي؟", codec=audio.ULAW)
+            again = audio.synthesize_wav("أهلاً بحضرتك، أقدر أساعدك إزاي؟", codec=audio.ULAW)
         self.assertEqual(first, again)
         tts.assert_called_once()
 

@@ -382,7 +382,7 @@ Later (new hires) a manager can also say «سجّل بصمات الموظفين�
 The robot is called **«موس»** by default (change it on the device profile
 page). It answers only speech addressed to it:
 
-- «يا موس، عندك طرمبة مية E90؟» → answers. «يا موس» alone → «أيوه، تحت أمرك.»
+- «يا موس، عندك طرمبة مية E90؟» → answers. «يا موس» alone → «أهلاً بحضرتك، أقدر أساعدك إزاي؟»
 - People talking to each other nearby → silence; the sentence is **not stored**.
 - Follow-ups within 20 s need no name («وبكام؟»).
 - No name needed while the push-to-talk button is held, or for the
@@ -1140,3 +1140,10 @@ server thought in 1–4 s, but the reply's voice (79 KB) took 9 s to arrive — 
 - «مخ موس» doesn't download offline clips while someone's talking (`prefetch(hold=…)`).
 - The status line shows the backup brain: «المخ الاحتياطي ✓ / ✗ 401 / —» (`health` service `backup`), with
   what to do — «no AI answered in 25 ms» meant no `OPENAI_API_KEY`, and nothing said so.
+
+### Never silent while it waits (brain-0.9.19)
+
+At its name the robot now says «أهلاً بحضرتك، أقدر أساعدك إزاي؟» (here and on the server). While the server
+thinks or the line is slow, a longer sentence after `HOLD_ON_S` (2.5 s) — another of `HOLD_ONS` each
+time — and «لسه معاك…» (`STILL_HERE`) again after every `STILL_HERE_S` of quiet, up to `STILL_HERE_MOST`;
+each is cut the moment the answer arrives. Their clips are fetched with the day's.

@@ -303,7 +303,7 @@ SEVERAL = "عندي أكتر من صنف:"
 WHICH = "تقصد أنهي؟"
 MEAN = "تقصد"
 SAY_FULL = "قول اسمها كامل أو رقمها."
-AT_YOUR_SERVICE = "أيوه، تحت أمرك."
+AT_YOUR_SERVICE = "أهلاً بحضرتك، أقدر أساعدك إزاي؟"
 SAY_AGAIN = "مسمعتكش كويس، ممكن تعيد؟"
 FIXED = [YES, AVAILABLE, NO_PRICE, NOT_HERE, NOT_FOUND, SEVERAL, WHICH, MEAN, SAY_FULL,
          AT_YOUR_SERVICE, SAY_AGAIN, INSTEAD, NEEDS_NET, IN_SHELF, WEB_NEEDS_NET, ENTRY_NEEDS_NET]

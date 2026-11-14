@@ -79,7 +79,7 @@ class AnswerTests(unittest.TestCase):
         self.assertEqual(self.say("يا موس قديم بنزين").text, knowledge.NOT_FOUND)
 
     def test_the_name_alone_and_people_talking(self):
-        self.assertEqual(self.say("يا موس").text, "أيوه، تحت أمرك.")
+        self.assertEqual(self.say("يا موس").text, "أهلاً بحضرتك، أقدر أساعدك إزاي؟")
         self.assertIsNone(self.say("هات الشاي يا محمد", now=500.0))
 
     def test_a_follow_up_needs_no_name_for_20_seconds(self):
@@ -261,7 +261,7 @@ class OfflineBrainTests(unittest.TestCase):
         self._learn_catalog_and_voice(brain)
         self.server.voice.side_effect = server.ServerDown("no route")
         brain.handle(self._utt())
-        self.assertIn("[OFFLINE] 🔊 أيوه، تحت أمرك.", self.lines)
+        self.assertIn("[OFFLINE] 🔊 أهلاً بحضرتك، أقدر أساعدك إزاي؟", self.lines)
         self.assertGreater(brain._talking_until, loop.time.monotonic())
 
     def test_known_offline_doesnt_wait_on_the_server(self):

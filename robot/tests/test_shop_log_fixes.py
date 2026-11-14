@@ -223,6 +223,29 @@ class BrainWithTheServerTests(unittest.TestCase):
         self.assertEqual(self.speaker.play.call_count, 1)                  # «ثانية واحدة» from the bank
         self.assertEqual(self.speaker.play_wav.call_count, 1)              # then the answer
 
+    def test_a_longer_wait_says_it_is_still_there_another_sentence_each_time(self):
+        # From the shop: one short «ثانية واحدة», then up to 30 s of silence on a slow line.
+        def slow(**_kwargs):
+            time.sleep(0.5)
+            return server.Answer(wav=None, reply="تمام.", transcript="", addressed=True)
+        self.server.voice.side_effect = slow
+        for words in loop.HOLD_ONS + loop.STILL_HERE:
+            self.brain.bank.put(words, _clip(5, 160))
+        with mock.patch.object(loop, "HOLD_ON_S", 0.05), mock.patch.object(loop, "STILL_HERE_S", 0.1):
+            self.say("يا موس فيه حاجة للميني")
+            self.say("يا موس فيه حاجة للميني تاني")
+        said = [line.split("🔊 ")[1].split(" (the server")[0] for line in self.lines
+                if line.startswith("[VOICE] 🔊") and "taking long" in line]
+        firsts = [w for w in said if w in loop.HOLD_ONS]
+        self.assertEqual(len(firsts), 2)
+        self.assertNotEqual(firsts[0], firsts[1])                          # not the same sentence twice running
+        self.assertTrue(any(w in loop.STILL_HERE for w in said), said)     # «لسه معاك…» while it went on
+        self.assertLessEqual(len(said), 2 * (1 + loop.STILL_HERE_MOST))
+
+    def test_the_greeting_at_its_name_is_not_a_question_about_a_part(self):
+        self.assertFalse(loop.Brain._asks(loop.AT_YOUR_SERVICE))
+        self.assertTrue(loop.Brain._asks("تقصد أنهي؟"))
+
     def test_a_quick_answer_has_no_hold_on(self):
         self.server.voice.return_value = server.Answer(wav=None, reply="تمام.", transcript="", addressed=True)
         self.say("يا موس فيه حاجة للميني")
@@ -257,7 +280,7 @@ class AzureVoiceTests(unittest.TestCase):
         with mock.patch.dict(os.environ, AZURE), \
                 mock.patch("requests.post", return_value=mock.Mock(status_code=200, content=pcm)) as post, \
                 mock.patch.object(audio, "_synthesize_with") as edge:
-            self.assertEqual(audio._voiced_pcm("أيوه، تحت أمرك.", "ar", 16000), (pcm, "azure"))
+            self.assertEqual(audio._voiced_pcm("أهلاً بحضرتك، أقدر أساعدك إزاي؟", "ar", 16000), (pcm, "azure"))
         edge.assert_not_called()
         call = post.call_args
         self.assertIn("westeurope.tts.speech.microsoft.com", call.args[0])

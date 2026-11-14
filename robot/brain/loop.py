@@ -23,7 +23,7 @@ from typing import Optional
 
 from . import VERSION, heardfix, talk, wakeheard, wavs
 from .ears import hints
-from .knowledge import NOT_FOUND, NOT_HERE, _VOCATIVES, Knowledge, Reply, media_command, normalize, strip_name
+from .knowledge import AT_YOUR_SERVICE, NOT_FOUND, NOT_HERE, _VOCATIVES, Knowledge, Reply, media_command, normalize, strip_name
 from .ledger import Ledger
 from .live import LiveDown
 from .outbox import Outbox
@@ -56,8 +56,21 @@ WORDS_A_SECOND = 2.0
 OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان شوية."
 # The server taking long (the AI thinking, a slow line): said meanwhile, so nobody
 # stands there wondering whether the robot heard them.
-HOLD_ON = "ثانية واحدة، بشوفلك."
-HOLD_ON_S = 3.5
+# While the server thinks or the line is slow: something said, so nobody stands in silence.
+# 🐛 [FIX]: from the shop — one short «ثانية واحدة، بشوفلك», then up to 30 s of nothing on a slow
+# line. Longer sentences now, a different one each time, and «لسه معاك…» again every STILL_HERE_S
+# for as long as the answer takes. Each is cut the moment the answer arrives.
+HOLD_ON = "ثانية واحدة يا فندم، بشوفلك حالاً."
+HOLD_ONS = (HOLD_ON,
+            "لحظة واحدة معايا، بدوّر لحضرتك في السيستم.",
+            "خليك معايا ثواني، بجيبلك المعلومة حالاً.",
+            "ثواني بس، براجع البيانات عشان أديك رد مظبوط.")
+STILL_HERE = ("معلش على التأخير، النت تقيل شوية، ثواني وأرد على حضرتك.",
+              "لسه معاك يا فندم، ثواني كمان وهرد عليك.",
+              "آسف على الانتظار، الرد جاي حالاً.")
+HOLD_ON_S = 2.5
+STILL_HERE_S = 6.0                   # of silence after a filler, before the next
+STILL_HERE_MOST = 3
 SPEAK_S = 8                        # a reply's voice fetched on its own (its words came without it): no longer
 OFFLINE_REPEAT_S = 30
 SLOW_HEARING_S = 3.0                 # Whisper's test clip slower than this: the server hears first
@@ -372,7 +385,7 @@ class Brain:
 
     # ---- the shop's day
     def _day_texts(self) -> list:
-        texts = list(NO_FILES.values()) + [HOLD_ON]
+        texts = list(NO_FILES.values()) + list(HOLD_ONS) + list(STILL_HERE)
         if self.routines is not None:
             texts += [r.say for r in self.routines.routines if r.say]
         return texts
@@ -667,25 +680,44 @@ class Brain:
         worker = threading.Thread(target=ask, daemon=True)
         worker.start()
         worker.join(HOLD_ON_S)
-        if worker.is_alive():
-            audio = self.bank.compose([HOLD_ON])
-            if audio is not None:
-                self.log(f"[VOICE] 🔊 {HOLD_ON} (the server is taking long)")
-                # 🐛 [FIX]: the answer waited for «ثانية واحدة، بشوفلك» to be said to its end — 2–3 s
-                # on every slow answer (the shop's log: 7 s each, the server done in 1–2). It's cut
-                # short the moment the answer is here.
-                holding = threading.Thread(target=self.speak_samples, args=audio, daemon=True)
-                holding.start()
-                worker.join()
-                if holding.is_alive():
-                    stop = getattr(self.speaker, "stop", None)
-                    if callable(stop):
-                        stop()
-                    holding.join(3)
-            worker.join()
+        said = 0
+        while worker.is_alive() and said <= STILL_HERE_MOST:
+            words, audio = self._filler(first=not said)
+            if audio is None:
+                break
+            said += 1
+            self.log(f"[VOICE] 🔊 {words} (the server is taking long)")
+            # 🐛 [FIX]: the answer waited for «ثانية واحدة، بشوفلك» to be said to its end — 2–3 s
+            # on every slow answer (the shop's log: 7 s each, the server done in 1–2). It's cut
+            # short the moment the answer is here.
+            holding = threading.Thread(target=self.speak_samples, args=audio, daemon=True)
+            holding.start()
+            while worker.is_alive() and holding.is_alive():
+                worker.join(0.05)
+            if holding.is_alive():                   # the answer's here: the filler stops
+                stop = getattr(self.speaker, "stop", None)
+                if callable(stop):
+                    stop()
+                holding.join(3)
+            worker.join(STILL_HERE_S)                # quiet a while, then «لسه معاك…»
+        worker.join()
         if "error" in box:
             raise box["error"]
         return box["answer"]
+
+    def _filler(self, first: bool):
+        """(the words, their voice) of the next thing to say while waiting — the first of a wait
+        from HOLD_ONS, the rest from STILL_HERE; each time another, among the ones the voice bank
+        has. (None, None) when it has none yet."""
+        pool = HOLD_ONS if first else STILL_HERE
+        self._filler_n = getattr(self, "_filler_n", -1) + 1
+        for i in range(len(pool)):
+            words = pool[(self._filler_n + i) % len(pool)]
+            audio = self.bank.compose([words])
+            if audio is not None:
+                return words, audio
+        audio = self.bank.compose([HOLD_ON])         # the newer ones not fetched yet
+        return (HOLD_ON, audio) if audio is not None else (None, None)
 
     def _voice(self, **kwargs):
         """/voice/'s answer — over the live socket when this sentence's sound
@@ -992,7 +1024,8 @@ class Brain:
 
     @staticmethod
     def _asks(reply: str) -> bool:
-        return "؟" in reply or "رقم موبايلك" in reply
+        # (the greeting at its name — «…أقدر أساعدك إزاي؟» — isn't a question about a part)
+        return reply != AT_YOUR_SERVICE and ("؟" in reply or "رقم موبايلك" in reply)
 
     @staticmethod
     def _differs(here: str, there: str) -> bool:

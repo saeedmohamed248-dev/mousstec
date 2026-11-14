@@ -502,7 +502,7 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
         memory.fresh_start(device)
         timing["think"] = time.monotonic()
         return {"intent": "wake", "addressed": True, "transcript": transcript, "lang": lang,
-                "reply": "Yes? How can I help?" if lang == "en" else "أيوه، تحت أمرك."}, False
+                "reply": "Yes? How can I help?" if lang == "en" else "أهلاً بحضرتك، أقدر أساعدك إزاي؟"}, False
 
     employee = _voice_employee(request, device)
     # What the caller can do beyond speaking: «مخ موس» on a computer sends
