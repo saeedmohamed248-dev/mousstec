@@ -192,6 +192,24 @@ class VoiceBankTests(unittest.TestCase):
         self.assertEqual(calls, ["a", "b", "c"])        # «a» was on disk; stopped at the failure
         self.assertEqual(self.bank.coverage(["a", "b", "c", "d"]), (2, 4))
 
+    def test_prefetch_waits_while_someone_is_talking(self):
+        # 🐛 From the shop's log: 1400 clips kept downloading on the 4G line while the robot's own
+        # reply (79 KB) took 9 s to arrive. `hold()`: the line is the conversation's.
+        stop, busy, order = threading.Event(), [True, True, False], []
+
+        def hold():
+            held = busy.pop(0) if busy else False
+            order.append("held" if held else "free")
+            return held
+
+        def fetch(text):
+            order.append(text)
+            return _clip(5)
+
+        with mock.patch.object(stop, "wait"):
+            self.assertEqual(self.bank.prefetch(["p"], fetch, stop=stop, hold=hold), 1)
+        self.assertEqual(order, ["held", "held", "free", "p"])
+
 
 class _Ears:
     model_name, ready, error = "small", True, ""

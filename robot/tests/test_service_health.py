@@ -92,6 +92,27 @@ class NoteTests(_HealthTest):
         self.assertNotIn("AIzaSECRET", str(raised.exception))
         self.assertNotIn("AIzaSECRET", "\n".join(logs.output))
 
+    def test_the_backup_brain_is_on_the_line_too(self):
+        # 🐛 From the shop's log: Gemini out of quota and «no AI answered in 25 ms» — no backup key,
+        # and nothing said so. The status line names it now, and what to do.
+        from robot import llm
+        with self.settings(OPENAI_API_KEY="", TOGETHER_API_KEY=""):
+            row = next(r for r in health.report() if r["service"] == "backup")
+            self.assertFalse(row["ready"])
+            self.assertIn("OPENAI_API_KEY", row["remedy"])
+        with self.settings(OPENAI_API_KEY="sk-test", TOGETHER_API_KEY=""):
+            resp = mock.Mock(status_code=401, text="bad key")
+            with mock.patch("requests.post", return_value=resp):
+                self.assertEqual(llm.backup("sys", "سؤال"), "")
+            row = next(r for r in health.report() if r["service"] == "backup")
+            self.assertEqual((row["ready"], row["ok"], row["code"]), (True, False, "401"))
+            self.assertIn("OPENAI_API_KEY", row["remedy"])
+            ok = mock.Mock(status_code=200)
+            ok.json.return_value = {"choices": [{"message": {"content": "تمام"}}]}
+            with mock.patch("requests.post", return_value=ok):
+                self.assertEqual(llm.backup("sys", "سؤال"), "تمام")
+            self.assertTrue(next(r for r in health.report() if r["service"] == "backup")["ok"])
+
     def test_every_answer_has_a_remedy(self):
         for service in health.SERVICES:
             for code in ("401", "403", "404", "429", "500", "timeout", "network", "418"):

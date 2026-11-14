@@ -67,6 +67,7 @@ SLOW_HEARING_S = 3.0                 # Whisper's test clip slower than this: the
 # at once that the net is down (the counter page still works).
 TOO_SLOW_S = 15.0
 CLIP_ROUND = 60                      # clips per round, then a heartbeat's rest
+CLIPS_AFTER_TALK_S = 20              # …and none while someone's talking, nor this long after
 ROUTINE_TICK_S = 20
 COMMANDS_S = 3                       # how soon a greeting or a page is said
 SAID = ("say", "page")               # commands that are words to say
@@ -283,8 +284,12 @@ class Brain:
         if self._voice_done == catalog_id:
             return 0                        # all on disk for this catalog: no 15 000 file checks a minute
         texts = self.knowledge.clip_texts() + self._day_texts()
+        # 🐛 [FIX]: from the shop's log — the clips for offline (1400 of them) kept downloading while
+        # someone talked to the robot, on a 4G line: the reply's own voice (79 KB) took 9 s to arrive.
+        # While a conversation is on (and CLIPS_AFTER_TALK_S after), they wait.
         done = self.bank.prefetch(texts, lambda t: self.monitor.speak(t, codec="ulaw"),
-                                  stop=self._stop, budget=CLIP_ROUND, log=self.log)
+                                  stop=self._stop, budget=CLIP_ROUND, log=self.log,
+                                  hold=lambda: time.monotonic() < self._talking_until + CLIPS_AFTER_TALK_S)
         have, total = self.bank.coverage(texts)
         if done:
             self.log(f"[VOICE] offline voice: {have}/{total} clips")

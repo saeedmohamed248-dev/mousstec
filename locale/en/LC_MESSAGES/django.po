@@ -19491,6 +19491,18 @@ msgstr "It answered with error %(code)s."
 msgid "مش متظبطة على السيرفر (المفتاح ناقص)."
 msgstr "Not set up on the server (the key is missing)."
 
+msgid "المخ الاحتياطي"
+msgstr "Backup AI"
+
+msgid "مفتاح المخ الاحتياطي غلط أو اتلغى: راجع OPENAI_API_KEY في .env على السيرفر."
+msgstr "The backup AI's key is wrong or revoked: check OPENAI_API_KEY in the server's .env."
+
+msgid "رصيد المخ الاحتياطي (OpenAI) خلص أو طلبات كتير: اشحن الرصيد من platform.openai.com."
+msgstr "The backup AI (OpenAI) is out of credit or rate-limited: top up at platform.openai.com."
+
+msgid "مش متظبط: لما Gemini يبقى زحمة أو حصته تخلص الروبوت بيرد بالقواعد بس. حط OPENAI_API_KEY في .env على السيرفر."
+msgstr "Not set up: when Gemini is busy or out of quota the robot answers by its rules alone. Put OPENAI_API_KEY in the server's .env."
+
 msgid "لما الروبوت مش متأكد من اللي سمعه، بيبعت التسجيل لمدرّس (Azure أو Google أو Gemini) يسمعه، ويرد على اللي المدرّس سمعه. ومن الفرق بين الاتنين بيتعلّم: الكلمة اللي بيغلط فيها مرتين بيصحّحها لوحده بعد كده، والجملة اللي اتسمعت بنفس الكلام مرتين بيرد عليها على طول من غير مدرّس — حتى من غير نت. التسجيلات مع الكلام الصح بتتحفظ عشان نعلّم بيها موديل المحل بعدين."
 msgstr "When the robot isn't sure what it heard, it sends the recording to a teacher (Azure, Google or Gemini) and answers what the teacher heard. It learns from the difference: a word it gets wrong twice it corrects by itself from then on, and a sentence heard the same way twice it answers at once without a teacher — even with no internet. The recordings are kept with the right words to train the shop's own model later."
 

@@ -1130,3 +1130,13 @@ server's wizard does.
   offline and keeps reconnecting.
 - A camera that failed to start is tried again every 10 s; the SD card's DAT3 (GPIO13) is held high
   while the card starts when a PIR sits on it; kept photos are found whichever way the core names files.
+
+### A slow line (brain-0.9.18, from the shop's log)
+
+The day the camera came on, the robot's answers took 10–30 s and the live socket kept dropping: the
+server thought in 1–4 s, but the reply's voice (79 KB) took 9 s to arrive — the shop's 4G line was full.
+- The camera's idle cadence is 4 s (was 1.5 s, all day); and the firmware rests 3× as long as an upload
+  took (`linkRestMs`), so it never holds more than a quarter of a weak line.
+- «مخ موس» doesn't download offline clips while someone's talking (`prefetch(hold=…)`).
+- The status line shows the backup brain: «المخ الاحتياطي ✓ / ✗ 401 / —» (`health` service `backup`), with
+  what to do — «no AI answered in 25 ms» meant no `OPENAI_API_KEY`, and nothing said so.
