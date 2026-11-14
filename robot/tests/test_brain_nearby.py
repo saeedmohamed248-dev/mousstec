@@ -20,6 +20,19 @@ TALK = ["عايز اسجل فاتوره بيع", "ازيك عامل ايه", "ع
         "عندك مكان اركن", "حسابي كام", "فلوس"]
 
 
+# The shop's own names: the chassis, the engine and the maker's name in each.
+LONG = ["خرطوم علوي من موتور لمبرد الزيت F25 N20 - RAPRO", "حساس ساعة الزيت - F30 - BST", "فلتر زيت MINI - JP",
+        "فلتر زيت - BOSCH - E90", "زيت موتور - SHELL", "طرمبة مياه كهرباء N20 F30 - PIERBURG",
+        "تيل فرامل أمامي F10 - TEXTAR", "تيل فرامل خلفي E90 - ATE", "كويل اشعال N20 N55 - BOSCH",
+        "مساعد أمامي يمين E90 - SACHS", "مقص أمامي سفلي شمال F30 - LEMFORDER", "رديتر مياه E60 N52 - NISSENS",
+        "كمبروسر تكييف F10 N20 - DENSO", "جوان وش سلندر N46 - ELRING", "دبرياج كامل MINI R56 - LUK",
+        "حساس اكسجين أمامي N20 - BOSCH", "طنبورة فرامل أمامي F30 - ZIMMERMANN", "سير مكنة N52 - CONTI",
+        "بوجيه N20 - NGK", "قاعدة فلتر زيت N52 E90 - VAICO", "خرطوم رديتر سفلي E90 N46 - RAPRO"]
+LONG_HEARD = {"بكام خلطوم": "خرطوم", "عايز كمبروسور": "كمبروسر تكييف", "بكام الدبرياش": "دبرياج كامل",
+              "عندك حصاص اكسيجين": "حساس اكسجين", "بكام المقس": "مقص أمامي", "كويل اشعاع": "كويل اشعال",
+              "طنبوره فرامن": "طنبورة فرامل"}
+
+
 class NearbyTests(unittest.TestCase):
 
     def setUp(self):
@@ -38,6 +51,24 @@ class NearbyTests(unittest.TestCase):
         for said in TALK:
             with self.subTest(said):
                 self.assertEqual(self.near(said), [])
+
+    def test_the_shops_long_names_are_scored_by_the_words_people_say(self):
+        # 🐛 «most of the name has to be said» counted «F25», «N20», «RAPRO» too: with the shop's
+        # own names a part a letter off was still «ملقتش القطعة دي».
+        k = knowledge.Knowledge({"parts": [{"part_number": f"L{i}", "name": name, "retail_price": 100, "stock": 2}
+                                           for i, name in enumerate(LONG)]})
+        for heard, name in LONG_HEARD.items():
+            with self.subTest(heard):
+                reply = k.answer(f"يا موس {heard}", now=10.0)
+                k._start_over()
+                self.assertIn(name, reply.text)
+                self.assertNotIn("جنيه", reply.text)                     # offered, or asked which: never priced
+        for said in TALK:
+            with self.subTest(said):
+                keys = [w for w in knowledge.part_words(said) if len(w) >= 2 and w not in knowledge._QUESTION_WORDS]
+                self.assertEqual(nearby.nearest(keys, k.parts, knowledge._forms), [])
+        self.assertEqual(sorted(nearby.spoken({"خرطوم", "علوي", "من", "f25", "n20", "rapro"})), ["خرطوم", "علوي"])
+        self.assertEqual(set(nearby.spoken({"e90", "jp"})), {"e90", "jp"})   # no word of it said: all of it
 
     def test_as_it_sounds(self):
         self.assertEqual(nearby.sounds("طلمبة"), nearby.sounds("تلمبه"))

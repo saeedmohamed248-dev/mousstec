@@ -13,13 +13,21 @@ by letter:
 What it finds is only ever *offered* — «تقصد فلتر زيت؟» — never answered as if it were heard:
 a price is said once they say yes (robot/brain/talk.pick_choice). And never online, where a
 teacher hears the recording instead (Knowledge.understands doesn't count these).
+
+A name is scored by the words of it that are *said*: «خرطوم علوي من موتور لمبرد الزيت F25 N20 -
+RAPRO» is «خرطوم علوي موتور لمبرد الزيت» to someone asking for it — the chassis, the engine and
+the maker's name are on the label, not in the question.
 """
+
+import re
 
 # Letters Vosk (and people) swap: written the way they sound in Egyptian.
 _SOUNDS = str.maketrans({
     "ط": "ت", "ض": "د", "ص": "س", "ث": "س", "ذ": "ز", "ظ": "ز", "ق": "ك", "ج": "ج", "غ": "ع",
     "ة": "ه", "ى": "ي", "أ": "ا", "إ": "ا", "آ": "ا", "ؤ": "و", "ئ": "ي", "ء": "",
 })
+_SAID = re.compile(r"^[\u0621-\u064A]{2,}$")    # an Arabic word of a name — not «F25», «N20», «RAPRO»
+_JOINS = {"من", "في", "علي", "الي", "مع", "او", "لل", "عن"}       # …nor the words that only join it
 SAME, NEAR, START = 1.0, 0.7, 0.5
 ENOUGH = 0.7                       # a part's score to be offered: one word nearly right, at the least
 SHOWN = 3
@@ -67,6 +75,11 @@ def alike(said: str, named: str) -> float:
     return 0.0
 
 
+def spoken(name_words) -> list:
+    """The words of a part's name that someone asking for it says (all of them, when none is)."""
+    return [w for w in name_words if _SAID.match(w) and w not in _JOINS] or list(name_words)
+
+
 def score(keys: list, name_words, forms=lambda w: {w}) -> float:
     """What was heard against one part's name: each word heard counts once, at its best."""
     total = 0.0
@@ -91,13 +104,16 @@ def nearest(keys: list, parts, forms=lambda w: {w}, shown: int = SHOWN) -> list:
     for part in parts:
         if not getattr(part, "active", True):
             continue
-        got = score(keys, part.name_words, forms)
-        if got < ENOUGH:
+        words = spoken(part.name_words)
+        got = score(keys, words, forms)
+        # 🐛 [FIX]: «وأغلب الاسم لازم يتقال» كانت بتتحسب على كل كلمات الاسم — وأسماء المحل طويلة وفيها
+        # الشاسيه والموتور والماركة («خرطوم علوي من موتور لمبرد الزيت F25 N20 - RAPRO» = 9 كلمات)، فـ
+        # «بكام الخلطوم»، «عايز كمبروسور»، «بكام الدبرياش» كانت لسه بترجع «ملقتش القطعة دي» على كتالوج
+        # المحل الحقيقي (4 من 12 جملة في الاختبار). كلمة واحدة قريبة من اللي اتقال كفاية للعرض — هو
+        # عرض بس («تقصد …؟») — والاسم الأقصر (اللي اتقال أغلبه) بيتعرض الأول.
+        if got < ENOUGH or got < 0.6 * len(keys):    # most of what was said has to be in the name
             continue
-        # most of what was said has to be in the name, and most of the name in what was said
-        if got < 0.6 * len(keys) or got < 0.34 * len(part.name_words):
-            continue
-        found.append((got - 0.05 * len(part.name_words), -(part.stock or 0), part))
+        found.append((got - 0.05 * len(words), -(part.stock or 0), part))
     found.sort(key=lambda f: (-f[0], f[1]))
     if not found:
         return []
@@ -109,8 +125,9 @@ def best_of(keys: list, parts: list, forms=lambda w: {w}, lead: float = 0.4):
     """Among parts the catalog's search couldn't choose between (each had a word of what was
     said), the one whose name is clearly nearest the rest of it — or None when none stands out."""
     keys = [k for k in dict.fromkeys(keys) if len(k) >= 2][:8]
-    scored = sorted(((score(keys, p.name_words, forms) - 0.05 * len(p.name_words), i, p)
-                     for i, p in enumerate(parts)), key=lambda s: (-s[0], s[1]))
+    said = [spoken(p.name_words) for p in parts]
+    scored = sorted(((score(keys, words, forms) - 0.05 * len(words), i, p)
+                     for i, (p, words) in enumerate(zip(parts, said))), key=lambda s: (-s[0], s[1]))
     if not scored or (len(scored) > 1 and scored[0][0] - scored[1][0] < lead):
         return None
     return scored[0][2]

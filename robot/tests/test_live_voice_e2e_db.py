@@ -116,7 +116,7 @@ class LiveVoiceEndToEndTests(ERPTenantTestCase):
         self.http = server.Server(API, token, session=_Wire())
         self.brain = loop.Brain(self.cfg, ears=_Ears("يا موس عندك سلطة الزيت"), server=self.http, mic=None,
                                 speaker=mock.Mock(), log=self.lines.append, live=self.live)
-        self.brain._ask = lambda **kwargs: self.brain._voice(**kwargs)   # on this thread: /voice/ in the shop's schema
+        self.brain._ask = lambda fill=True, **kwargs: self.brain._voice(**kwargs)   # on this thread: /voice/ in the shop's schema
         self.brain._check = lambda *args: None
         self.assertTrue(self.brain.refresh())
         for clip in self.brain.knowledge.clip_texts():

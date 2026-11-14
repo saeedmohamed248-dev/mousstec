@@ -1156,3 +1156,30 @@ against what was heard — the same word, a letter or two off once both are writ
 the start of the word — and the nearest is *offered*: «تقصد طرمبة مياه؟». Its price is said only after
 «أيوه». Talk that names no part offers nothing, and `understands` doesn't count a near miss, so online
 the sentence still goes to a teacher.
+
+### A review of 0.9.18–0.9.20, tried by hand (brain-0.9.21)
+
+- **Talking to people who never called it.** Every sentence heard goes to the server, which says whose
+  it is; on a slow line the robot said «ثانية واحدة يا فندم…» and up to three «معلش على التأخير…» to staff
+  talking to each other, then `not addressed to me`. The waiting sentences are now only for what was said
+  to it — by name (the wake model's «يا موس» when the server listens), or in a conversation (`_ask(fill=…)`).
+- **The first question still shared the line with the offline clips**: they only waited once a
+  conversation was on, i.e. after the first answer. A question on its way to the server holds them too
+  (`Brain._line_busy`).
+- **The nearest part did nothing with the shop's own names.** «Most of the name has to be said» counted
+  the chassis, the engine and the maker («خرطوم علوي من موتور لمبرد الزيت F25 N20 - RAPRO»: nine words), so
+  «بكام الخلطوم», «عايز كمبروسور», «بكام الدبرياش» were still «ملقتش القطعة دي». A name is scored by the words
+  of it people say (`nearby.spoken`); one word nearly right is enough for an offer.
+- **Online, an offer nobody heard.** With the net up the server answers a misheard part, but this computer
+  worked out «تقصد …؟» too and kept it as offered: «تمام» after could be priced. The nearest part is for
+  offline only (`Knowledge.answer(near=False)` from `_answer_here`).
+- **The update's last step was missing.** «Unzip over the folder and close the brain's window: it comes
+  back» — closing the window closes the watcher that brings it back. On a robot PC the brain now sees the
+  newer one on disk (`Brain.updated`: another VERSION, the same size twice running — the unzip is over),
+  waits until nobody's talking, and stops; the watcher starts the new one 10 s later. The watcher is known
+  by its window's title, so `run_windows.bat` is unchanged (cmd reads a .bat as it runs: one changed under a
+  running loop can land anywhere). `MOUSS_WATCH=1` says the same for a systemd unit or launchd. Run by
+  hand, it only says so in the log.
+- **The wiring for the shop's build** (the PC as the brain, two relays, one wiper motor):
+  `robot/firmware/WIRING_PC_AR.md`. A summary sent to the owner had +12 V on COM and −12 V on NC — a dead
+  short through every idle relay. WIRING.md §5 was right all along; the new page says it in Arabic, first.
