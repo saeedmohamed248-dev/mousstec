@@ -1116,3 +1116,17 @@ server's wizard does.
 - **A model of the shop's own**: the training download now has `finetune_openai.jsonl`
   (`understand.finetune_rows`) — the sentences Gemini was sure of, as OpenAI fine-tuning examples; the
   tuned model's name goes in `ROBOT_OPENAI_MODEL`.
+
+### The camera, reviewed (firmware/esp32_cam)
+
+- **Motion was random.** The detector averaged every 64th byte of the JPEG — compressed data, not
+  brightness — and said «motion» on ~30% of frames of a still scene (measured): a face check every 4 s
+  day and night, and offline a card full of photos of an empty shop within the hour. It now decodes
+  the frame small (1/8) and compares an 8x6 grid to a slow background, exposure taken out
+  (`frameMoved`): 0 false on a still scene, a person crossing seen on every frame (host-compiled test).
+- **A supply too weak to even report a brownout** (`rst:0x1 POWERON_RESET` in a loop) never lowered
+  the radio's power. Boots that die before 20 s are counted; two in a row lower it, for good.
+- **No router at boot** restarted the camera every 30 s for ever — no photos kept. It goes on
+  offline and keeps reconnecting.
+- A camera that failed to start is tried again every 10 s; the SD card's DAT3 (GPIO13) is held high
+  while the card starts when a PIR sits on it; kept photos are found whichever way the core names files.
