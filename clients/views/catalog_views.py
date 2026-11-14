@@ -16,6 +16,7 @@ from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_POST
 
 from django.utils.translation import get_language, gettext as _, gettext_lazy as _l
@@ -294,7 +295,8 @@ def _item_ld(item):
     prod = None
     crumbs = breadcrumbs_ld([('Mouss Tec', '/'), (meta['title'], f'/marketplace/catalog/{store.sector}/'),
                              (store.name, f'/marketplace/catalog/store/{store.slug}/'), (item.title, url)])
-    return (jsonld(prod) if prod else '') + jsonld(crumbs)
+    # 🐛 [FIX]: «'' + SafeString» بيرجّع نص عادي ⇒ Django كان بيهرّب الـ <script> ويطبعه كلام فوق صفحة المنتج.
+    return mark_safe((jsonld(prod) if prod else '') + jsonld(crumbs))
 
 
 def catalog_item(request, item_code):

@@ -55,6 +55,12 @@ class CatalogTests(_TenantDomainMixin, TestCase):
         self.assertIn('اطلب سعر', html)
         self.assertEqual(c.get('/marketplace/catalog/nothing/').status_code, 404)
 
+    def test_item_page_structured_data_is_a_script_not_visible_text(self):
+        """🐛 الـ JSON-LD كان بيتطبع كلام ظاهر فوق صفحة المنتج (الـ <script> متهرّب)."""
+        html = HttpClient().get(f'/marketplace/catalog/item/{self.item.item_code}/').content.decode()
+        self.assertIn('<script type="application/ld+json">', html)
+        self.assertNotIn('&lt;script', html)
+
     def test_anonymous_visitor_sees_both_markets(self):
         """🛍️ سوق الطباعة وسوق السيارات مفتوحين لأي زائر من غير تسجيل — وكروت الصفحة الرئيسية بتودّي عليهم."""
         c = HttpClient()
