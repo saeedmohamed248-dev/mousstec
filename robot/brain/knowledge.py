@@ -514,10 +514,12 @@ class Knowledge:
 
     # ---- robot/wakename.gate + the inventory branch of robot/views._handle_voice
     def answer(self, transcript: str, now: Optional[float] = None,
-               said: Optional[float] = None) -> Optional[Reply]:
+               said: Optional[float] = None, near: bool = True) -> Optional[Reply]:
         """The spoken answer, or None when it wasn't said to the robot.
         `said`: when they started saying it — the follow-up window is checked
-        then, not after the seconds a slow computer took to hear it."""
+        then, not after the seconds a slow computer took to hear it.
+        `near`: a part a letter off what was heard may be offered («تقصد …؟», nearby.py) —
+        not when the server is the one answering (loop.Brain._answer_here)."""
         now = time.monotonic() if now is None else now
         addressed, rest = strip_name(self.names, transcript)
         if not addressed and (now if said is None else said) - self._heard_at > CONVERSATION_SECONDS:
@@ -535,10 +537,10 @@ class Knowledge:
         greeting, after, clips = talk.opening(text)  # robot/views._handle_voice
         if greeting:
             self._start_over()
-            inner = self._respond(after, now)
+            inner = self._respond(after, now, near)
             reply = Reply(f"{greeting} {inner.text}", clips + inner.segments, inner.part, inner.intent, inner.event)
         else:
-            reply = self._respond(text, now)
+            reply = self._respond(text, now, near)
         self._last, self._last_at = reply, now
         return reply
 
@@ -552,7 +554,7 @@ class Knowledge:
         self._on, self._choices, self._restock_for, self._car = None, [], None, {}
         self._last = None
 
-    def _respond(self, text: str, now: float) -> Reply:
+    def _respond(self, text: str, now: float, near: bool = True) -> Reply:
         """robot/views._answer_voice, on the catalog."""
         if self.desk is not None:                   # «سجل مصروف …», «بعت … كاش» — and its own questions
             took = self.desk.hear(text)
@@ -593,7 +595,7 @@ class Knowledge:
         if not said_car and not [w for w in part_words(text) if len(w) >= 2 and w not in _QUESTION_WORDS]:
             return Reply(talk.ASK_PART, [talk.ASK_PART], intent="chat")   # «عندك؟»: robot/views too
         part, choices = self.lookup(text, self._car)
-        if not part and not choices:
+        if not part and not choices and near:
             # 🐛 [FIX]: أوفلاين Vosk بيكتب الكلمة غلط بحرف («طلمبه ميه»، «تيل فرامن») والقطعة اللي على
             # الرف كانت بترجع «ملقتش القطعة دي». أقرب قطعة للي اتسمع بتتعرض — «تقصد طرمبة مياه؟» —
             # وسعرها بيتقال بعد «أيوه» بس (robot/brain/nearby.py). `understands` مبتحسبهاش: أونلاين
@@ -601,7 +603,7 @@ class Knowledge:
             from . import nearby
             keys = [w for w in part_words(text) if len(w) >= 2 and w not in _QUESTION_WORDS]
             choices = nearby.nearest(keys, self.parts, _forms)
-        elif not part and len(choices) > 1:
+        elif not part and len(choices) > 1 and near:
             # «المقس الامامي»: three parts have «أمامي» — the one the rest of it is nearest is asked about.
             from . import nearby
             keys = [w for w in part_words(text) if len(w) >= 2 and w not in _QUESTION_WORDS]

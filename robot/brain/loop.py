@@ -13,6 +13,7 @@ when a manager asks (the server checks who's asking — robot/assistant.py),
 the Quran paused — never talked over — whenever the robot speaks.
 """
 
+import os
 import re
 import threading
 import time
@@ -33,6 +34,29 @@ from .voicebank import ReplyVoices, VoiceBank
 from .vosk_ears import is_vosk
 
 HEARTBEAT_S = 30
+# «run_windows.bat robotpc» starts the robot again 10 s after it stops (its :watch loop): a brain
+# unzipped over the folder then takes over by itself — nobody at the shop's computer. The loop is
+# known by its window's title (`title Mouss Brain`), so run_windows.bat itself stays as it is: cmd
+# reads a .bat as it goes, and one changed under a running loop can send it anywhere. MOUSS_WATCH=1
+# says the same for any other keeper (a systemd unit with Restart=always, a Mac's launchd).
+WATCHED = "MOUSS_WATCH"
+WATCH_TITLE = "Mouss Brain"
+UPDATE_QUIET_S = 5                   # …but not in the middle of a conversation
+
+
+def watched() -> bool:
+    """Something starts this robot again when it stops."""
+    if os.environ.get(WATCHED) == "1":
+        return True
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        title = ctypes.create_unicode_buffer(512)
+        ctypes.windll.kernel32.GetConsoleTitleW(title, 512)
+        return WATCH_TITLE.lower() in title.value.lower()
+    except Exception:                    # no console, an odd Windows: not known to be watched
+        return False
 WARM_S = 45                          # the voice's connection kept open: a question then needs no handshake
 CATALOG_S = 15 * 60                  # the stock changes; the hint follows
 FRESH_CATALOG_S = 60                 # [robot] answer_here: the stock it answers from is a minute old at most
@@ -125,6 +149,7 @@ class Brain:
         self._net = threading.Lock()           # the voice's own connection: one request at a time
         self._asked = False                    # the last answer asked something: the server has the thread
         self._talking_until = 0.0              # a conversation's on (monotonic): no name needed to the server
+        self._asking = 0                       # questions on their way to the server now (_ask)
         self._catalog_parts = None
         self._net_used = time.monotonic()
         self._heard_itself = threading.Event()  # the day spoke: drop what the mic caught
@@ -136,6 +161,8 @@ class Brain:
         self._voice_done = ""                  # the catalog whose every clip is on disk
         self.online = None
         self._offline_said = 0.0
+        self._update_seen = None               # a newer brain on disk, as last looked at (version, size)
+        self._update_said = False
         self._stop = threading.Event()
         self.voice_dir = Path(cfg.home) / "voice"
         self.catalog_path = Path(cfg.home) / "catalog.json"
@@ -250,7 +277,56 @@ class Brain:
         shipped = str(status.get("brain") or "")
         if shipped and _version(shipped) > _version(VERSION):
             self.log(f"[UPDATE] a newer brain is on the server ({shipped}; this one is {VERSION}): "
-                     "«⬇️ تحديث المخ» on the robot's dashboard, unzipped over this folder")
+                     "«⬇️ تحديث المخ» on the robot's dashboard, unzipped over this folder"
+                     + (" — it then starts by itself" if watched() else ""))
+
+    # ---- a newer brain unzipped over this folder
+    @staticmethod
+    def _on_disk() -> tuple:
+        """(VERSION, the size of its files) of the brain folder as it is on disk now."""
+        here = Path(__file__).resolve().parent
+        try:
+            found = re.search(r'^VERSION\s*=\s*"([^"]+)"', (here / "__init__.py").read_text(encoding="utf-8"), re.M)
+            size = sum(f.stat().st_size for f in here.glob("*.py"))
+        except (OSError, UnicodeError):
+            return "", 0
+        return (found.group(1) if found else ""), size
+
+    def updated(self) -> bool:
+        """🐛 [FIX]: دورة التحديث كانت ناقصة: «فك الـ zip فوق الفولدر واقفل نافذة المخ وهي هترجع لوحدها» —
+        بس قفل النافذة بيقفل معاها الحارس (:watch) اللي بيرجّعه، فالروبوت كان بيفضل واقف لحد ما حد
+        يشغّله بإيده؛ ولو محدش قفل حاجة بيفضل شغال بالنسخة القديمة (وأي import متأخر بياخد ملف جديد
+        على كود قديم). دلوقتي المخ نفسه بيشوف إن اللي على الديسك نسخة تانية، يستنى لما الفك يخلص
+        (نفس الحجم مرتين ورا بعض) ومفيش حد بيكلمه، ويقفل نفسه — والحارس يرجّعه بالنسخة الجديدة.
+        من غير الحارس (تشغيل عادي): سطر واحد في اللوج يقول اقفله وشغّله تاني."""
+        version, size = self._on_disk()
+        if not version or version == VERSION:
+            self._update_seen = None
+            return False
+        seen, self._update_seen = self._update_seen, (version, size)
+        if seen != (version, size):
+            return False                         # still being unzipped, maybe: looked at again next round
+        kept = watched()
+        if not self._update_said:
+            self._update_said = True
+            self.log(f"[UPDATE] {version} is in this folder now (this one is {VERSION}): "
+                     + ("starting it as soon as nobody's talking" if kept else
+                        "stop the robot (Ctrl+C) and start it again to use it"))
+        if not kept:
+            return False
+        # (the Quran or music playing doesn't hold it: the day's routine puts it back on)
+        return not (self._asking or time.monotonic() < self._talking_until + UPDATE_QUIET_S)
+
+    def restart(self) -> None:
+        """Stop, the way Ctrl+C does — the :watch loop starts the new brain 10 s later."""
+        import _thread
+
+        self.log("[UPDATE] stopping: the new brain starts in 10 seconds")
+        self._stop.set()
+        timer = threading.Timer(8.0, os._exit, args=(0,))      # the mic's loop never came round to it
+        timer.daemon = True
+        timer.start()
+        _thread.interrupt_main()
 
     def warm(self) -> bool:
         """🐛 [FIX]: a question asked after a quiet minute opened a new
@@ -280,6 +356,9 @@ class Brain:
                 self.beat()
                 self.warm()
                 self.sync()
+                if self.updated():
+                    self.restart()
+                    return
                 every = FRESH_CATALOG_S if self.cfg.answer_here else CATALOG_S
                 if self.online and time.monotonic() - last_catalog > every:
                     self.refresh()
@@ -300,15 +379,20 @@ class Brain:
         # 🐛 [FIX]: from the shop's log — the clips for offline (1400 of them) kept downloading while
         # someone talked to the robot, on a 4G line: the reply's own voice (79 KB) took 9 s to arrive.
         # While a conversation is on (and CLIPS_AFTER_TALK_S after), they wait.
+        # 🐛 [FIX]: أول سؤال («يا موس عندك…») كان لسه بيتزاحم مع تحميل المقاطع: المحادثة بتتحسب
+        # «شغالة» بعد أول رد بس. دلوقتي أي سؤال في الطريق للسيرفر (`_asking`) بيوقّف التحميل برضه.
         done = self.bank.prefetch(texts, lambda t: self.monitor.speak(t, codec="ulaw"),
-                                  stop=self._stop, budget=CLIP_ROUND, log=self.log,
-                                  hold=lambda: time.monotonic() < self._talking_until + CLIPS_AFTER_TALK_S)
+                                  stop=self._stop, budget=CLIP_ROUND, log=self.log, hold=self._line_busy)
         have, total = self.bank.coverage(texts)
         if done:
             self.log(f"[VOICE] offline voice: {have}/{total} clips")
         if not self.bank.missing_now(texts):
             self._voice_done = catalog_id
         return done
+
+    def _line_busy(self) -> bool:
+        """Someone's being answered (or was, a moment ago): the shop's line is theirs."""
+        return self._asking > 0 or time.monotonic() < self._talking_until + CLIPS_AFTER_TALK_S
 
     def _voice_filler(self) -> None:
         while not self._stop.is_set():
@@ -573,7 +657,7 @@ class Brain:
                         raw = {"heard": self._as_heard} if normalize(self._as_heard) != normalize(text) else {}
                         answer = self._ask(
                             transcript=text, wav=wavs.ulaw_wav(wavs.louder(utt.samples)), check=True, **raw,
-                            confidence=sure[0] if sure else None, caps=self._caps(),
+                            confidence=sure[0] if sure else None, caps=self._caps(), fill=to_me,
                             said_ago_ms=self._ago(said), **({"talking": True} if talking else {}))
                         if answer.heard_by:
                             self.log(f"[TEACH] «{text}» — {answer.heard_by} heard «{answer.taught}»")
@@ -584,12 +668,17 @@ class Brain:
                         # 🐛 [FIX]: a recheck sent with this question made the answer wait for a teacher (up to
                         # 6 s) — the recheck is for an answer given here, behind it (_answer_here → _check).
                         answer = self._ask(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said),
+                                           fill=to_me,
                                            **({"talking": True} if talking else {}), **({"known": known} if known else {}))
             else:                                # no Whisper here (or a slow one): the server listens
                 t_heard, text = t0, ""
+                # No words here to tell whose it is: a conversation that's on, or the wake model's «يا موس».
+                talking = said < self._talking_until
+                if not talking and woke is None:
+                    woke = self._wake(utt.samples)
                 answer = self._ask(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps(),
-                                   said_ago_ms=self._ago(said),
-                                   **({"talking": True} if said < self._talking_until else {}))
+                                   said_ago_ms=self._ago(said), fill=talking or bool(woke and woke[0]),
+                                   **({"talking": True} if talking else {}))
         except ServerDown as exc:
             self.log(f"[NET] server unreachable: {exc}")
             self.online = False
@@ -663,9 +752,14 @@ class Brain:
         if do in ("play", "volume"):
             self.apply_media(answer.media)       # «حاضر، هشغّل القرآن», then the Quran
 
-    def _ask(self, **kwargs):
+    def _ask(self, fill: bool = True, **kwargs):
         """/voice/'s answer — and, when the server takes longer than HOLD_ON_S
-        (the AI thinking, a slow line), «ثانية واحدة، بشوفلك» meanwhile."""
+        (the AI thinking, a slow line), «ثانية واحدة، بشوفلك» meanwhile.
+
+        🐛 [FIX]: كل جملة بتتسمع في المحل بتروح للسيرفر وهو اللي بيقرر هي للروبوت ولا لأ. على خط بطيء
+        الروبوت كان بيقول «ثانية واحدة يا فندم…» و«معلش على التأخير…» (لحد 4 جمل) لناس بتكلم بعض
+        ومنادوش عليه أصلاً، وبعدها «not addressed to me». جمل الانتظار دلوقتي بتتقال بس للي اتقاله
+        بالاسم أو جوه محادثة شغالة (`fill`)."""
         box = {}
 
         def ask():
@@ -678,10 +772,17 @@ class Brain:
                 box["error"] = exc
 
         worker = threading.Thread(target=ask, daemon=True)
+        self._asking += 1                        # the line is this question's: the offline clips wait
+        try:
+            return self._wait(worker, box, fill)
+        finally:
+            self._asking -= 1
+
+    def _wait(self, worker, box: dict, fill: bool):
         worker.start()
         worker.join(HOLD_ON_S)
         said = 0
-        while worker.is_alive() and said <= STILL_HERE_MOST:
+        while fill and worker.is_alive() and said <= STILL_HERE_MOST:
             words, audio = self._filler(first=not said)
             if audio is None:
                 break
@@ -1000,7 +1101,10 @@ class Brain:
         it hears the recording (`heard`: what the ears wrote) and answers that."""
         if self._asked:
             return False
-        reply = self.knowledge.answer(text, said=said)
+        # 🐛 [FIX]: أونلاين، جملة مسموعة غلط بحرف كانت بتتحسب هنا «تقصد دبرياج كامل؟» وتتحفظ كاختيار
+        # معروض — من غير ما تتقال (السيرفر هو اللي رد). «تمام» بعدها كانت ممكن تطلع سعر قطعة محدش
+        # عرضها. أقرب قطعة (nearby.py) للأوفلاين بس: هنا السيرفر والمدرّس بيسمعوا التسجيل.
+        reply = self.knowledge.answer(text, said=said, near=False)
         if reply is None or reply.event is not None or "النت" in reply.text:
             return False
         if not (reply.intent in ("wake", "shop_reply")
