@@ -8,6 +8,7 @@ from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce, TruncMonth
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
+from django.utils.translation import gettext_lazy as _
 from inventory.models import Inventory, Product, SaleInvoiceItem
 from inventory.views import _json_response_safe, tenant_required
 from inventory.views.utils import module_required, role_required
@@ -88,6 +89,11 @@ def business_advisor(request):
     })
 
 
+# 🐛 [FIX]: الرسالة كانت بتعرض للعميل أسماء متغيرات السيرفر (ENABLE_AI_PREDICTIONS / AI_VISION_API_KEY)
+#    — دي حاجة تخصّ فريق المنصة مش صاحب الشركة.
+_ADVISOR_FAILED_MSG = _("المساعد الذكي مقدرش يرد دلوقتي — جرّب كمان شوية.")
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
@@ -107,6 +113,12 @@ def business_advisor_ask(request):
     question = (payload.get('question') or '').strip()
     if not question:
         return _json_response_safe({"error": "اكتب سؤالك."}, status=400)
+    # 🐛 [FIX]: لو الذكاء الاصطناعي مطفي على السيرفر، السؤال كان بيتخصم من حصة الشركة
+    #    (أو من رصيد AI المدفوع) الأول وبعدين يرجع «مش مفعّل» — دلوقتي بنرد قبل أي خصم.
+    from django.conf import settings as _st
+    if not getattr(_st, 'ENABLE_AI_PREDICTIONS', False):
+        return _offline_reply(question)
+
     # 🧠 حد أسئلة المستشار الشهري (حسب الباقة، وبعده من رصيد AI)
     from django.db import connection as _conn
     from clients.services.ai_quota import take_copilot_question
@@ -126,13 +138,21 @@ def business_advisor_ask(request):
     snap = _adv.build_snapshot(branch=branch, days=days)
     answer = _adv.ai_analysis(snap, question=question, history=history)
     if not answer:
-        return _json_response_safe({
-            "answer": None,
-            "error": "المساعد الذكي غير مُفعّل حالياً. فعّل ENABLE_AI_PREDICTIONS "
-                     "وأضف مفتاح Google AI Studio المجاني (AI_VISION_API_KEY) "
-                     "لتشغيل التحليل النصّي والشات مجاناً.",
-        }, status=200)
+        return _offline_reply(question)
     return _json_response_safe({"answer": answer})
+
+
+def _offline_reply(question):
+    """🌙 رد من بيانات الشركة نفسها من غير نموذج لغة (لما الـ AI مطفي أو مارَدّش) — بدل رسالة خطأ."""
+    try:
+        from erp_core.ai.advisor_offline import offline_answer
+        res = offline_answer(question)
+        if res.get('answer'):
+            return _json_response_safe({"answer": res['answer'], "mode": "offline"})
+    except Exception:  # noqa: BLE001
+        import logging
+        logging.getLogger('mouss_tec_core').exception('[ADVISOR] offline answer failed')
+    return _json_response_safe({"answer": None, "error": str(_ADVISOR_FAILED_MSG)}, status=200)
 
 
 # =====================================================================
