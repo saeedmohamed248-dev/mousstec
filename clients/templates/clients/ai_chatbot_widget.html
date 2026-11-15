@@ -64,8 +64,8 @@
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     font-size: 11px; color: #6B6F76; direction: inherit; flex-shrink: 0;
 }
-.ai-chat-footer a { color: #6B6F76; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
-.ai-chat-footer a:hover { color: #1E2A57; }
+.ai-chat-footer a, .ai-chat-footer button { color: #6B6F76; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+.ai-chat-footer a:hover, .ai-chat-footer button:hover { color: #1E2A57; }
 #ai-chat-main { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 #ai-chat-main.hidden { display: none; }
 #ai-chat-panel.open { display: flex; animation: slideUp 0.3s ease; }
@@ -211,9 +211,10 @@
         <a href="https://www.facebook.com/profile.php?id=61589886542375" target="_blank" rel="noopener">
             <i class="fab fa-facebook"></i> {% trans "صفحتنا على فيسبوك" %}
         </a>
-        <a href="#" onclick="switchAiTab('help');return false;">
+        {# 🐛 [FIX]: كان <a href="#"> — بيتعدّ رابط مكسور، ولو الجافاسكربت اتأخر بيطلّع الزائر لأول الصفحة #}
+        <button type="button" onclick="switchAiTab('help');">
             <i class="fas fa-headset"></i> {% trans "الدعم" %}
-        </a>
+        </button>
     </div>
 </div>
 

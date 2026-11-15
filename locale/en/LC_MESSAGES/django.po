@@ -28351,3 +28351,9 @@ msgstr "Please send them here on WhatsApp 🙏"
 
 msgid "طلب تسعير من Mouss Tec"
 msgstr "Quote request from Mouss Tec"
+
+msgid "الباقات تبدأ من"
+msgstr "Plans start at"
+
+msgid "في الشهر"
+msgstr "per month"
