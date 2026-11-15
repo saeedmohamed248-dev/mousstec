@@ -4,6 +4,8 @@
 """
 import json
 
+from django.db import connection
+
 from django.test import RequestFactory, override_settings
 
 from inventory.tests.base import ERPTenantTestCase
@@ -15,6 +17,7 @@ from inventory.views.fixit_webhook import fixit_order_webhook
 @override_settings(FIXIT_SYNC_SECRET='s3cret', FIXIT_BRANCH_ID=None)
 class FixitDepositOrderTests(ERPTenantTestCase):
     def setUp(self):
+        connection.set_tenant(self.tenant)  # TransactionTestCase بيرجّع الاتصال لـ public بين الاختبارات
         self.branch = make_branch()
         self.product = make_product(part_number='DEP-1', retail_price='2345.00')
 
@@ -28,7 +31,7 @@ class FixitDepositOrderTests(ERPTenantTestCase):
                 'items': [{'sku': 'DEP-1', 'name': 'تيل', 'qty': 1, 'price': 2345}],
                 'total': 2345, **extra}
 
-    def test_deposit_order_notes_show_deposit_and_balance(self):
+    def test_deposit_order_notes_show_deposit_and_balance_only_for_deposit(self):
         r = self._post(self._order('ORD-DEP1', payment='deposit', deposit=470, balanceDue=1875))
         self.assertEqual(r.status_code, 200, r.content)
         inv = SaleInvoice.objects.get(pk=json.loads(r.content)['invoice_id'])
@@ -37,7 +40,8 @@ class FixitDepositOrderTests(ERPTenantTestCase):
         self.assertIn('الباقي 1875', inv.notes)
         self.assertIn('كاش عند الاستلام', inv.notes)
 
-    def test_full_transfer_order_has_no_deposit_line(self):
+        # طلب بتحويل كامل: مفيش سطر عربون
         r = self._post(self._order('ORD-DEP2', payment='instapay'))
+        self.assertEqual(r.status_code, 200, r.content)
         inv = SaleInvoice.objects.get(pk=json.loads(r.content)['invoice_id'])
         self.assertNotIn('عربون', inv.notes)
