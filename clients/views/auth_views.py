@@ -962,7 +962,12 @@ def landing_starting_price(request):
                 best = price
         if best is None:
             return None
-        return {'amount': best, 'symbol': region['currency_symbol']}
+        # 🐛 [FIX]: رمز العملة بلغة الصفحة — region['currency_symbol'] بلغة الدولة (عربي)،
+        #    فالموقع الإنجليزي كان بيعرض «249 ج.م» بدل «249 EGP».
+        from django.utils.translation import get_language
+        from erp_core.localization import currency_symbol
+        lang = 'en' if (get_language() or 'ar').startswith('en') else 'ar'
+        return {'amount': best, 'symbol': currency_symbol(region['currency'], lang)}
     except Exception:
         logger.exception('[LANDING] starting price lookup failed')
         return None

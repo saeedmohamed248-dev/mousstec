@@ -53,6 +53,15 @@ class LandingStartingPriceTests(_TenantDomainMixin, TestCase):
         self.assertNotIn('100', block)  # الباقة المتوقفة مابتدخلش
         self.assertIn('href="/pricing/"', block)
 
+    def test_english_site_shows_latin_currency(self):
+        """🐛 الموقع الإنجليزي كان بيعرض «550 ج.م» — نص عربي في صفحة إنجليزي (اختبار e2e وقع عليه)."""
+        html = HttpClient().get('/', HTTP_ACCEPT_LANGUAGE='en-US').content.decode()
+        self.assertIn('lang="en"', html)
+        block = _price_block(html)
+        self.assertIn('550 EGP', block)
+        self.assertIn('Plans start at', block)
+        self.assertNotIn('ج.م', block)
+
     def test_active_promotion_lowers_the_shown_price(self):
         from clients.models import PlanPromotion
         now = timezone.now()
