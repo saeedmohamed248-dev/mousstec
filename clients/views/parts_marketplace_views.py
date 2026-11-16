@@ -141,8 +141,17 @@ def parts_feed(request):
 
     listings = listings[:60]
 
+    # 🐛 [FIX]: أصناف الشركات (طلبات «نشر في سوق التجار») اللي الإدارة وافقت عليها
+    #    ماكانتش بتظهر هنا خالص — دلوقتي ليها قسم «من مخازن التجار».
+    from clients.services import parts_stock_orders as stock_svc
+    stock_items = stock_svc.filter_stock_items(
+        stock_svc.public_stock_items(), q=q, make=selected_make,
+        condition=condition if condition in dict(PartListing.CONDITION_CHOICES) else '', sort=sort,
+    )[:60]
+
     customer = _marketplace_auth(request)
     return render(request, 'clients/marketplace/parts_feed.html', {
+        'stock_items': stock_items,
         'makes': makes,
         'selected_make': selected_make,
         'selected_make_slug': selected_make_slug,
@@ -150,6 +159,37 @@ def parts_feed(request):
         'q': q, 'condition': condition, 'sort': sort,
         'customer': customer,
         'condition_choices': PartListing.CONDITION_CHOICES,
+    })
+
+
+def parts_stock_detail(request, item_id):
+    """🏬 صفحة صنف من مخازن التجار + «اطلب القطعة» (فاتورة عرض سعر عند الشركة)."""
+    if getattr(connection, 'schema_name', 'public') != 'public':
+        return HttpResponseForbidden('Access from main site only')
+    from clients.services import parts_stock_orders as stock_svc
+    item = get_object_or_404(stock_svc.public_stock_items(), pk=item_id)
+    customer = _marketplace_auth(request)
+    error = ''
+    placed = None
+    qty = 1
+    note = ''
+    if request.method == 'POST':
+        if customer is None:
+            from clients.views.marketplace_core_views import marketplace_login_page_url
+            return redirect(marketplace_login_page_url(request, request.path))
+        qty = _parse_int(request.POST.get('quantity'), 0)
+        note = (request.POST.get('note') or '')[:stock_svc.MAX_NOTE_LEN]
+        try:
+            placed = stock_svc.place_order(item, customer, qty, note)
+        except stock_svc.StockOrderError as exc:
+            error = str(exc)
+        except Exception:  # noqa: BLE001 — مشكلة في سيستم الشركة ماتطلعش 500 للعميل
+            logger.exception("[PARTS STOCK] order failed for item %s", item.pk)
+            error = 'حصلت مشكلة وإحنا بنبعت طلبك للمحل — جرّب تاني بعد شوية.'
+    return render(request, 'clients/marketplace/parts_stock_detail.html', {
+        'item': item, 'customer': customer, 'error': error, 'placed': placed,
+        'qty': qty or 1, 'note': note,
+        'max_qty': min(item.available_qty, 999),
     })
 
 

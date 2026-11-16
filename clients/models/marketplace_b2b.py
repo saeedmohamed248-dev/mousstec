@@ -38,6 +38,10 @@ class GlobalB2BMarketplace(models.Model):
     
     wholesale_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر الجملة للمراكز"))
     available_qty = models.IntegerField(default=0, verbose_name=_("الكمية المتاحة"))
+    # 🐛 [FIX]: أصناف الشركات المعتمدة ماكانتش بتظهر في سوق قطع الغيار العام خالص —
+    #    الصورة والموديلات بتتنسخ من الصنف عشان تتعرض للعميل في «من مخازن التجار».
+    car_model = models.CharField(max_length=150, blank=True, default='', verbose_name=_("الموديلات المتوافقة"))
+    image_url = models.CharField(max_length=500, blank=True, default='', verbose_name=_("صورة الصنف"))
     
     ai_quality_confidence = models.IntegerField(default=95, verbose_name=_("مؤشر جودة AI"), help_text="مؤشر ذكاء اصطناعي لجودة هذا الصنف من هذا التاجر")
     

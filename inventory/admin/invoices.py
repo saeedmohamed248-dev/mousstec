@@ -291,6 +291,9 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     def channel_badge(self, obj):
         if obj.sales_channel == 'website':
             return format_html('<span style="color:#8b5cf6; font-weight:700;">🛒 الموقع</span>')
+        # 🐛 [FIX]: طلبات «من مخازن التجار» في سوق Mouss Tec كانت هتظهر «المحل» في عمود القناة
+        if obj.sales_channel == 'marketplace':
+            return format_html('<span style="color:#f59e0b; font-weight:700;">🏬 سوق Mouss Tec</span>')
         return format_html('<span style="color:#64748b;">🏪 المحل</span>')
     channel_badge.short_description = 'القناة'
 

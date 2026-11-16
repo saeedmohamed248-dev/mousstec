@@ -707,7 +707,7 @@ def create_robot_sale_lines(*, lines, branch, customer, payment: str = "cash",
         status="quotation",
         customer=customer,
         branch=branch,
-        sales_channel="in_store",  # only in_store/website exist; robot is in-store
+        sales_channel="in_store",  # robot is in-store (in_store/website/marketplace)
         **({"notes": notes} if notes else {}),
     )
     # 2) Add the lines at the explicit RETAIL price (never auto-filled wholesale).

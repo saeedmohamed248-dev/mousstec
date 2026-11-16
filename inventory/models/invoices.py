@@ -371,6 +371,8 @@ class SaleInvoice(models.Model):
     SALES_CHANNEL_CHOICES = (
         ('in_store', _('بيع مباشر (المحل)')),
         ('website', _('الموقع الإلكتروني')),
+        # 🛒 طلب عميل من سوق قطع الغيار على Mouss Tec (قسم «من مخازن التجار»)
+        ('marketplace', _('سوق Mouss Tec')),
     )
 
     invoice_type = models.CharField(max_length=20, choices=INVOICE_TYPES, verbose_name=_("النوع"))

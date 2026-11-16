@@ -406,6 +406,16 @@ def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
                 # are still active) may ever appear in the shared market.
                 'publishable':   bool(product.is_b2b_published and product.is_active),
             }
+            from inventory.services.inventory_service import InventoryService as _InvSvc
+            display = _InvSvc.b2b_display_fields(product)
+            # 🐛 [FIX]: صنف اتوافق عليه ورصيده خلص كان بيتشال من السوق ومايرجعش تاني لما
+            #    المخزون يرجع (كان محتاج طلب نشر وموافقة من الأول). آخر سعر معتمد من
+            #    الإدارة = إذن إنه يرجع لوحده بنفس السعر.
+            requests_rel = getattr(product, 'b2b_listing_requests', None)
+            last_approved = (requests_rel.filter(status='approved')
+                             .exclude(approved_price__isnull=True)
+                             .order_by('-reviewed_at', '-pk').values_list('approved_price', flat=True).first()
+                             if requests_rel is not None else None)
 
         # 2. الكتابة في سكيما السوق المركزي (public)
         # 🐛 [FIX]: المهمة كانت بتقرأ product.sale_price (حقل مش موجود) فكانت
@@ -432,10 +442,27 @@ def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
                     product_name=listing_data['name'][:200],
                     brand=listing_data['brand'][:100],
                     available_qty=listing_data['available_qty'],
+                    **display,
                 )
                 # Not listed yet → publishing needs the admin approval flow
-                # (B2BListingRequest), never an automatic stock event.
-                action = 'updated' if updated else 'skipped'
+                # (B2BListingRequest), never an automatic stock event —
+                # except a product the admin already approved before (restock).
+                if updated:
+                    action = 'updated'
+                elif last_approved and last_approved > 0:
+                    GlobalB2BMarketplace.objects.create(
+                        tenant=tenant,
+                        part_number=listing_data['part_number'],
+                        condition=listing_data['condition'],
+                        product_name=listing_data['name'][:200],
+                        brand=listing_data['brand'][:100],
+                        wholesale_price=last_approved,
+                        available_qty=listing_data['available_qty'],
+                        **display,
+                    )
+                    action = 'relisted'
+                else:
+                    action = 'skipped'
 
         AgentEventBus.set_agent_state(
             'b2b_marketplace_sync_task', schema=schema_name,
@@ -445,6 +472,7 @@ def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
             f"🌐 [B2B SYNC TASK] P/N {listing_data['part_number']} "
             f"{action} in global market. Schema: {schema_name}"
         )
+        return action
 
     try:
         return run_agent_safely(

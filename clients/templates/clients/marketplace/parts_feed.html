@@ -80,6 +80,14 @@
         .badge-warranty { background: rgba(16,185,129,0.18); color: #6ee7b7;
                           padding: 3px 8px; border-radius: 8px; font-weight: 700; }
 
+        .section-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 30px 0 12px; }
+        .section-head h2 { font-size: 1.2rem; font-weight: 900; margin: 0; }
+        .section-head p { color: var(--muted); margin: 0; font-size: 0.85rem; }
+        .badge-stock { background: rgba(59,130,246,0.18); color: #93c5fd;
+                       padding: 3px 8px; border-radius: 8px; font-weight: 700; }
+        .card-store { color: var(--soft); font-size: 0.78rem; margin-bottom: 6px; }
+        .card-store .fa-circle-check { color: #60a5fa; }
+
         .empty { background: var(--card); border: 1px dashed var(--line); border-radius: 18px;
                  text-align: center; padding: 60px 20px; }
         .empty i { font-size: 3rem; color: var(--accent); opacity: 0.4; margin-bottom: 12px; }
@@ -172,7 +180,39 @@
         </a>
         {% endfor %}
     </div>
-    {% else %}
+    {% endif %}
+
+    {% if stock_items %}
+    <div class="section-head">
+        <h2><i class="fas fa-warehouse"></i> {% trans "من مخازن التجار" %}</h2>
+        <p>{% trans "أصناف متاحة عند محلات قطع غيار مسجّلة على Mouss Tec — اطلبها والمحل يتواصل معاك." %}</p>
+    </div>
+    <div class="grid">
+        {% for s in stock_items %}
+        <a href="/marketplace/parts/stock/{{ s.pk }}/" class="card">
+            <div class="card-img">
+                {% if s.image_url %}
+                <img src="{{ s.image_url }}" alt="{{ s.product_name }}" loading="lazy">
+                {% else %}
+                <div class="no-img"><i class="fas fa-cog"></i></div>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <h3 class="card-title">{{ s.product_name }}</h3>
+                <div class="card-make">{{ s.brand }}{% if s.car_model %} — {{ s.car_model }}{% endif %}</div>
+                <div class="card-store"><i class="fas fa-store"></i> {{ s.tenant.name }}{% if s.tenant.is_verified_merchant %} <i class="fas fa-circle-check" title="{% trans "تاجر موثّق" %}"></i>{% endif %}</div>
+                <div class="card-price">{{ s.wholesale_price|num }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                <div class="card-meta">
+                    <span><i class="fas fa-tag"></i> {{ s.get_condition_display }}</span>
+                    <span class="badge-stock"><i class="fas fa-boxes-stacked"></i> {% blocktrans with n=s.available_qty %}متاح {{ n }}{% endblocktrans %}</span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not listings and not stock_items %}
     <div class="empty">
         <i class="fas fa-box-open"></i>
         <h3>لا توجد قطع متاحة بالفلتر ده</h3>
