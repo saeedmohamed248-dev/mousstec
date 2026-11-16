@@ -48,6 +48,17 @@
 	}
 }
 
+# 🤖 Dify (منصة الوكلاء) — شغال بـ Docker Compose منفصل في /opt/dify على نفس السيرفر،
+#    والـ nginx بتاعه مربوط على 172.17.0.1:8081 بس (مش مفتوح للإنترنت). الدومين ده أدق من
+#    الـ wildcard اللي تحت فـ Caddy بيختاره الأول. «ai» حرفين — مايتاخدش سَبدومين شركة (أقل حاجة ٣).
+ai.{$BASE_DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 100MB
+	}
+	reverse_proxy host.docker.internal:8081
+}
+
 # كل سَبدومينات الفروع (tenant1.example.com ...)
 *.{$BASE_DOMAIN} {
 	tls {
