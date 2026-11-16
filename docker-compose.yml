@@ -150,6 +150,9 @@ services:
     environment:
       BASE_DOMAIN: ${BASE_DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
+    # 🤖 عشان Caddy يوصل لـ Dify اللي شغال على السيرفر نفسه (ai.<الدومين>)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - media_data:/srv/media:ro
