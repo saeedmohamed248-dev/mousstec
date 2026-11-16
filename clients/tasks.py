@@ -411,9 +411,11 @@ def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
             # 🐛 [FIX]: صنف اتوافق عليه ورصيده خلص كان بيتشال من السوق ومايرجعش تاني لما
             #    المخزون يرجع (كان محتاج طلب نشر وموافقة من الأول). آخر سعر معتمد من
             #    الإدارة = إذن إنه يرجع لوحده بنفس السعر.
-            last_approved = (product.b2b_listing_requests.filter(status='approved')
+            requests_rel = getattr(product, 'b2b_listing_requests', None)
+            last_approved = (requests_rel.filter(status='approved')
                              .exclude(approved_price__isnull=True)
-                             .order_by('-reviewed_at', '-pk').values_list('approved_price', flat=True).first())
+                             .order_by('-reviewed_at', '-pk').values_list('approved_price', flat=True).first()
+                             if requests_rel is not None else None)
 
         # 2. الكتابة في سكيما السوق المركزي (public)
         # 🐛 [FIX]: المهمة كانت بتقرأ product.sale_price (حقل مش موجود) فكانت
