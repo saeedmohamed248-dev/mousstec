@@ -749,6 +749,26 @@ def expire_stale_parts_orders():
     return result
 
 
+@shared_task(name='clients.tasks.close_stale_tender_requests')
+def close_stale_tender_requests():
+    """🛍️ السوق المفتوح: يقفل الطلبات اللي مدتها خلصت، ويفكّر العميل يقيّم التاجر، ويقفل
+    الطلبات المقبولة القديمة «مكتمل». كل ساعة.
+
+    🐛 [FIX — دورة ناقصة]: انتهاء الطلبات المفتوحة كان بيحصل بس لما حد يفتح صفحة السوق،
+    والطلب المقبول من غير تقييم كان بيفضل «مقبول» للأبد.
+    """
+    try:
+        from clients.views.marketplace_core_views import _expire_overdue_requests
+        from marketplace_c2c.services.tenders import close_stale_accepted_requests
+        expired = _expire_overdue_requests()
+        result = close_stale_accepted_requests()
+    except Exception as exc:
+        logger.error(f"🔴 [TENDERS] failed: {exc}", exc_info=True)
+        return {'error': str(exc)}
+    result['expired'] = expired
+    return result
+
+
 # ─────────────────────────────────────────────────────────────────────
 # 🎨 Design persistence — async fallback when inline persist fails
 # ─────────────────────────────────────────────────────────────────────

@@ -164,8 +164,32 @@ def job_card_save(request):
             if veh_id:
                 vehicle = Vehicle.objects.filter(id=veh_id, customer=customer).first()
             elif payload.get("vehicle_chassis"):
-                chassis = payload["vehicle_chassis"].strip().upper()
+                chassis = str(payload["vehicle_chassis"]).strip().upper()
+                # 🐛 [FIX]: رقم شاسيه أطول من ١٧ حرف (الـ VIN العالمي ١٧) كان بيوقّع الحفظ كله
+                #    بـ 500 «فشل حفظ أمر الشغل» من الداتابيز بدل رسالة واضحة.
+                if len(chassis) > 17:
+                    raise _RollbackWith(_json_response_safe(
+                        {"error": "رقم الشاسيه (VIN) أقصاه ١٧ حرف — راجعه."}, status=400))
                 vehicle = Vehicle.objects.filter(chassis_number=chassis).first()
+                if vehicle is not None and vehicle.customer_id != customer.pk and not _is_walk_in(customer):
+                    # 🐛 [FIX]: شاسيه عربية مسجّلة على عميل تاني كان بيتربط بأمر الشغل في صمت —
+                    #    تاريخ صيانتها وتذكيراتها بيروحوا لصاحبها القديم والعميل الجديد مايشوفهاش.
+                    #    زي أنظمة الـ DMS العالمية: نسأل — نقل ملكية (اتباعت) ولا تفضل باسم صاحبها
+                    #    (سواق/قريب جايبها). العميل النقدي مابياخدش ملكية — العربية بتفضل لصاحبها.
+                    choice = payload.get("vehicle_owner")
+                    if choice == "transfer":
+                        old_owner = vehicle.customer.name if vehicle.customer_id else ""
+                        Vehicle.objects.filter(pk=vehicle.pk).update(customer=customer)
+                        vehicle.customer = customer
+                        note = f"🚗 نقل ملكية العربية {chassis} من «{old_owner}»"
+                        payload["notes"] = (note + " — " + (payload.get("notes") or "")).strip(" —")
+                    elif choice != "keep":
+                        owner = vehicle.customer.name if vehicle.customer_id else "—"
+                        raise _RollbackWith(_json_response_safe({
+                            "error": f"العربية دي (شاسيه {chassis}) مسجّلة باسم «{owner}».",
+                            "code": "vehicle_owner_mismatch",
+                            "owner": owner,
+                        }, status=409))
                 if vehicle is None:
                     vehicle = Vehicle.objects.create(
                         customer=customer,
@@ -210,7 +234,12 @@ def job_card_save(request):
             # --- Services: validate before writing ---------------------------
             svc_specs = []
             for svc in services:
-                service = ServiceCatalog.objects.filter(id=int(svc.get("service_id"))).first()
+                # 🐛 [FIX]: خدمة من غير id (أو id مش رقم) كانت بتطلّع 500 بدل رسالة
+                try:
+                    service_id = int(svc.get("service_id"))
+                except (TypeError, ValueError, AttributeError):
+                    raise _RollbackWith(_json_response_safe({"error": "خدمة غير صالحة."}, status=400))
+                service = ServiceCatalog.objects.filter(id=service_id).first()
                 if service is None:
                     continue
                 price = svc.get("price")

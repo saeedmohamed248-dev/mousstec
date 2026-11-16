@@ -147,7 +147,8 @@ def _accept_tender_offer(offer_code, customer):
         svc_request.status = 'accepted'
         svc_request.accepted_offer = offer
         svc_request.platform_commission_earned = commission
-        svc_request.save(update_fields=['status', 'accepted_offer', 'platform_commission_earned'])
+        svc_request.accepted_at = timezone.now()
+        svc_request.save(update_fields=['status', 'accepted_offer', 'platform_commission_earned', 'accepted_at'])
 
         MarketplaceCustomer.objects.filter(pk=customer.pk).update(
             total_accepted_offers=F('total_accepted_offers') + 1
@@ -868,7 +869,8 @@ def marketplace_rate_offer(request, offer_code):
         return JsonResponse({"error": "غير مصرح"}, status=403)
     # 🐛 [FIX]: الـ API كان بيقبل تقييم متكرر لنفس العرض (والصفحة بس اللي مخبية الزرار)
     #    — يعني تقييم التاجر يتلعب فيه بإعادة الإرسال.
-    if offer.customer_rating is not None or offer.service_request.status != 'accepted':
+    # 🐛 [FIX]: الطلب اللي اتقفل «مكتمل» تلقائي (العميل ماقيّمش في المدة) لسه ينفع يتقيّم مرة واحدة.
+    if offer.customer_rating is not None or offer.service_request.status not in ('accepted', 'completed'):
         return JsonResponse({"error": "الطلب ده اتقيّم قبل كده"}, status=400)
 
     try:
@@ -884,9 +886,9 @@ def marketplace_rate_offer(request, offer_code):
     offer.customer_review = review
     offer.save(update_fields=['customer_rating', 'customer_review'])
 
-    # Mark request completed
+    # Mark request completed (اللي اتقفل تلقائي بيفضل بتاريخ قفله)
     offer.service_request.status = 'completed'
-    offer.service_request.completed_at = timezone.now()
+    offer.service_request.completed_at = offer.service_request.completed_at or timezone.now()
     offer.service_request.save(update_fields=['status', 'completed_at'])
 
     # Update merchant rating

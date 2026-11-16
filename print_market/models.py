@@ -193,6 +193,12 @@ class MarketOrder(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='requested',
                               db_index=True, verbose_name=_('الحالة'))
     payout_done_at = models.DateTimeField(null=True, blank=True, verbose_name=_('اتحوّل للمطبعة في'))
+    # 🐛 [FIX — دورة ناقصة]: الحكم للعميل في مشكلة بيلغي الطلب و«رجّع الفلوس يدوي» — بس مكانش فيه
+    #    أي مكان يتسجّل فيه إن الفلوس رجعت، ولا قايمة بالمبالغ اللي لسه على المنصة للعملاء
+    #    (عكس التحويل للمطبعة اللي ليه payout_done_at). فلوس العميل كانت بتتنسي بسهولة.
+    refund_done_at = models.DateTimeField(null=True, blank=True, verbose_name=_('اترجّع للعميل في'))
+    # ⏰ اتبلّغ الطرفين إن التسليم اتأخر عن مدة العرض (مرة واحدة)
+    late_notified_at = models.DateTimeField(null=True, blank=True, verbose_name=_('اتبلّغ بالتأخير في'))
     delivered_at = models.DateTimeField(null=True, blank=True, verbose_name=_('اتسلّم في'))
     auto_completed = models.BooleanField(default=False, verbose_name=_('اتأكّد تلقائي'))
     dispute_reason = models.TextField(blank=True, max_length=2000, verbose_name=_('سبب المشكلة'))
@@ -251,6 +257,82 @@ class MarketOrder(models.Model):
             order.delivered_at = timezone.now()
             order.save(update_fields=['delivered_at'])
             self._set_status(order, 'delivered')
+
+    @property
+    def confirmed_payment(self):
+        return self.payments.filter(status='confirmed').order_by('-reviewed_at').first()
+
+    @property
+    def refund_due(self):
+        """المبلغ اللي لسه على المنصة للعميل: طلب اتلغى بعد ما دفعه اتأكّد ولسه ماترجّعش."""
+        if self.status != 'cancelled' or self.refund_done_at:
+            return None
+        pay = self.confirmed_payment
+        return pay.total if pay else None
+
+    @classmethod
+    def refunds_due(cls):
+        return cls.objects.filter(status='cancelled', refund_done_at__isnull=True,
+                                  payments__status='confirmed').distinct()
+
+    # 🐛 [FIX — دورة ناقصة]: مفيش أي مهلة على الطلبات — المطبعة اللي اتدفعلها وماسلّمتش في المدة
+    #    اللي هي كتبتها في العرض محدش بيعرف، وطلب مستني دفع/عرض/رد بيفضل مفتوح للأبد. سوق قطع
+    #    الغيار بيرجّع الفلوس تلقائي بعد ٥ أيام من غير شحن؛ هنا الطباعة شغل مخصوص فالتأخير بيتبلّغ
+    #    للطرفين ولصاحب المنصة (والعميل يقدر يفتح «عندي مشكلة»)، والطلبات المهجورة قبل الدفع بتتلغي.
+    STALE_DAYS = {'requested': 30, 'offered': 14, 'awaiting_payment': 7}
+
+    @property
+    def paid_at(self):
+        pay = self.confirmed_payment
+        return pay.reviewed_at if pay else None
+
+    @property
+    def delivery_due_at(self):
+        """ميعاد التسليم = تأكيد الدفع + مدة التنفيذ اللي في العرض المقبول."""
+        offer, paid = self.accepted_offer, self.paid_at
+        if offer is None or paid is None:
+            return None
+        return paid + timezone.timedelta(days=offer.delivery_days)
+
+    @property
+    def is_late(self):
+        due = self.delivery_due_at if self.status == 'paid' else None
+        return due is not None and timezone.now() > due
+
+    @classmethod
+    def flag_late_orders(cls, now=None):
+        """الطلبات المدفوعة اللي عدّت ميعاد تسليمها ولسه مااتبلّغش عنها — بتتعلّم مرة واحدة."""
+        now = now or timezone.now()
+        late = []
+        for order in cls.objects.filter(status='paid', late_notified_at__isnull=True).select_related(
+                'customer', 'shop')[:500]:
+            due = order.delivery_due_at
+            if due is None or now <= due:
+                continue
+            if cls.objects.filter(pk=order.pk, status='paid', late_notified_at__isnull=True).update(
+                    late_notified_at=now):
+                late.append(order)
+        return late
+
+    @classmethod
+    def cancel_abandoned(cls, now=None):
+        """طلبات قبل الدفع ماحدش اتحرّك فيها من مدة طويلة ⇒ ملغية (مفيش فلوس اتدفعت)."""
+        now = now or timezone.now()
+        done = []
+        for status, days in cls.STALE_DAYS.items():
+            cutoff = now - timezone.timedelta(days=days)
+            for order in cls.objects.filter(status=status, updated_at__lte=cutoff).select_related(
+                    'customer', 'shop')[:500]:
+                with transaction.atomic():
+                    locked = cls.objects.select_for_update().get(pk=order.pk)
+                    if locked.status != status or locked.updated_at > cutoff:
+                        continue
+                    locked.offers.filter(status='pending').update(status='rejected', responded_at=now)
+                    locked.status = 'cancelled'
+                    locked.save(update_fields=['status', 'updated_at'])
+                order.stale_status = status
+                done.append(order)
+        return done
 
     @property
     def auto_confirm_at(self):
@@ -503,9 +585,13 @@ class MarketProof(models.Model):
     def respond(self, customer, approve, comment=''):
         with transaction.atomic():
             proof = MarketProof.objects.select_for_update().get(pk=self.pk)
-            order = proof.order
+            order = MarketOrder.objects.select_for_update().get(pk=proof.order_id)
             if customer.pk != order.customer_id:
                 raise ValidationError(_('مش مسموح.'))
+            # 🐛 [FIX]: الموافقة على بروفة كانت ماشية حتى على طلب اتلغى أو اتقفل — الرد بيتسجّل
+            #    والمطبعة بتوصلها «العميل وافق» على شغل مابقاش موجود.
+            if order.status not in self.OPEN_ORDER_STATUSES:
+                raise ValidationError(_('الطلب مابقاش مفتوح للبروفات.'))
             if proof.status != 'pending':
                 raise ValidationError(_('البروفة دي اترد عليها قبل كده.'))
             if not approve and not (comment or '').strip():

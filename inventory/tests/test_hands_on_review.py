@@ -281,6 +281,70 @@ class HandsOnReviewTests(ERPTenantTestCase):
         self.assertEqual(r.status_code, 200, r.content)
         self.assertFalse(VehicleInspection.objects.filter(invoice_id=r.json()['invoice_id']).exists())
 
+    def test_job_card_delivery_updates_vehicle_mileage_and_next_visit(self):
+        """🐛 مراجعة ٢٠٢٦-١١: أمر الشغل بيتحفظ «مُطبّق» فـ execute_sale مابيشتغلش — عداد العربية
+        وموعد صيانتها الجاية ماكانوش بيتحدّثوا أبداً، فتذكير الصيانة والتنبيهات بالكيلو شغالين على صفر."""
+        from inventory.models import SaleInvoice, Vehicle
+        r = self._job(invoice_type='maintenance', vehicle_chassis='WBA0000000X9', mileage=85000)
+        self.assertEqual(r.status_code, 200, r.content)
+        inv = SaleInvoice.objects.get(pk=r.json()['invoice_id'])
+        vehicle = Vehicle.objects.get(chassis_number='WBA0000000X9')
+        self.assertEqual((vehicle.last_mileage, vehicle.estimated_next_visit), (0, None))   # لسه في الورشة
+        Vehicle.objects.filter(pk=vehicle.pk).update(ai_health_score=50)
+
+        inv.status = 'posted'
+        inv.save(update_fields=['status'])
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.last_mileage, 85000)
+        self.assertIsNotNone(vehicle.estimated_next_visit)
+        self.assertEqual(vehicle.ai_health_score, 65)
+        # إعادة حفظ فاتورة متسلّمة مابتعدّيش تاني
+        inv.notes = 'ملاحظة بعد التسليم'
+        inv.save()
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.ai_health_score, 65)
+
+    def test_job_card_bad_service_or_long_vin_is_a_clear_400(self):
+        """🐛 خدمة من غير id أو شاسيه أطول من ١٧ حرف كانوا بيطلّعوا 500."""
+        r = self._job(services=[{'price': 50}])
+        self.assertEqual(r.status_code, 400, r.content)
+        r = self._job(vehicle_chassis='W' * 20)
+        self.assertEqual(r.status_code, 400, r.content)
+        self.assertEqual(Inventory.objects.get(product=self.product, branch=self.branch).quantity, 10)
+
+    def test_job_card_on_a_car_owned_by_another_customer_asks_first(self):
+        """🐛 شاسيه عربية عميل تاني كان بيتربط في صمت — دلوقتي: نقل ملكية أو تفضل باسم صاحبها."""
+        from inventory.models import Customer, SaleInvoice, Vehicle
+        chassis = 'WBAOWN0000000001'
+        r = self._job(customer_phone='01044440001', vehicle_chassis=chassis)
+        self.assertEqual(r.status_code, 200, r.content)
+        first_owner_id = Vehicle.objects.get(chassis_number=chassis).customer_id
+
+        r = self._job(customer_name='سواق', customer_phone='01044440002', vehicle_chassis=chassis)
+        self.assertEqual(r.status_code, 409, r.content)
+        self.assertEqual(r.json()['code'], 'vehicle_owner_mismatch')
+        self.assertFalse(Customer.objects.filter(phone=Customer.normalize_phone('01044440002')).exists())   # مفيش حاجة اتحفظت
+
+        r = self._job(customer_name='سواق', customer_phone='01044440002', vehicle_chassis=chassis,
+                      vehicle_owner='keep')
+        self.assertEqual(r.status_code, 200, r.content)
+        vehicle = Vehicle.objects.get(chassis_number=chassis)
+        self.assertEqual(vehicle.customer_id, first_owner_id)
+        self.assertEqual(SaleInvoice.objects.get(pk=r.json()['invoice_id']).vehicle_id, vehicle.pk)
+
+        r = self._job(customer_name='المالك الجديد', customer_phone='01044440003', vehicle_chassis=chassis,
+                      vehicle_owner='transfer')
+        self.assertEqual(r.status_code, 200, r.content)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.customer.name, 'المالك الجديد')
+        self.assertIn('نقل ملكية', SaleInvoice.objects.get(pk=r.json()['invoice_id']).notes)
+
+    def test_parts_only_job_card_with_vehicle_records_mileage(self):
+        from inventory.models import Vehicle
+        r = self._job(invoice_type='sale', vehicle_chassis='WBA0000000Y1', mileage=40000)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(Vehicle.objects.get(chassis_number='WBA0000000Y1').last_mileage, 40000)
+
 
     # ── Customers page ────────────────────────────────────────────────
     def test_customer_collect_rejects_more_than_the_debt(self):

@@ -742,8 +742,10 @@ def super_admin_dashboard(request):
     pm_payments_pending = MarketPayment.objects.filter(status='pending').count()
     pm_disputes = MarketOrder.objects.filter(status='disputed').count()
     pm_payouts_due = MarketOrder.objects.filter(status='completed', payout_done_at__isnull=True).count()
+    # ↩️ طلبات اتلغت لصالح العميل بعد ما دفع — فلوسه لسه على المنصة لحد ما تتسجّل راجعة
+    pm_refunds_due = MarketOrder.refunds_due().count()
     attention_total = (
-        catalog_new + pm_payments_pending + pm_disputes + pm_payouts_due +
+        catalog_new + pm_payments_pending + pm_disputes + pm_payouts_due + pm_refunds_due +
         uploaded_receipts_count + support_unseen + len(pending_refund_orders)
         + len(pending_design_purchases) + len(pending_marketplace_requests)
         + len(pending_parts_listings) + print_needs_action
@@ -769,6 +771,7 @@ def super_admin_dashboard(request):
         'pm_payments_pending': pm_payments_pending,
         'pm_disputes': pm_disputes,
         'pm_payouts_due': pm_payouts_due,
+        'pm_refunds_due': pm_refunds_due,
         'catalog_new': catalog_new,
         'pending_design_purchases': pending_design_purchases,
         'pending_manual_receipts': pending_manual_receipts,

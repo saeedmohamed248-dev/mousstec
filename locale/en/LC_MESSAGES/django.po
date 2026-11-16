@@ -28369,3 +28369,60 @@ msgstr "No sales in this period — change the period above or create your first
 
 msgid "المساعد الذكي مقدرش يرد دلوقتي — جرّب كمان شوية."
 msgstr "The smart assistant couldn't answer right now — please try again shortly."
+
+msgid "اترجّع للعميل في"
+msgstr "Refunded to the customer on"
+
+msgid "الطلب مابقاش مفتوح للبروفات."
+msgstr "This order is no longer open for proofs."
+
+msgid "الطلب ده اتقفل — البروفة مابقتش مستنية رد."
+msgstr "This order is closed — the proof is no longer awaiting a reply."
+
+msgid "فلوسك رجعتلك على نفس طريقة الدفع."
+msgstr "Your money was refunded to the same payment method."
+
+msgid "الطلب اتلغى وفلوسك هترجعلك على نفس طريقة الدفع:"
+msgstr "The order was cancelled and your money will be refunded to the same payment method:"
+
+msgid "سوق المطابع: طلبات اتلغت بعد الدفع — رجّع فلوس العميل"
+msgstr "Print market: orders cancelled after payment — refund the customer"
+
+msgid "اتبلّغ بالتأخير في"
+msgstr "Late notice sent on"
+
+msgid "وقت قبول العرض"
+msgstr "Offer accepted at"
+
+msgid "اتفكّر يقيّم في"
+msgstr "Rating reminder sent on"
+
+msgid "المطبعة ماقدّمتش عرض"
+msgstr "the print shop didn't send an offer"
+
+msgid "العرض ماترّدش عليه"
+msgstr "the offer got no reply"
+
+msgid "الدفع ماتمّش"
+msgstr "payment wasn't completed"
+
+msgid "المطبعة اتأخرت"
+msgstr "The print shop is late"
+
+msgid "«%(t)s» عدّى ميعاد تسليمه — كلّم المطبعة من الرسائل، ولو عايز تلغي وترجع فلوسك افتح «عندي مشكلة»."
+msgstr "“%(t)s” is past its delivery date — message the print shop, and if you want to cancel and get your money back, open “I have a problem”."
+
+msgid "اتأخرت في التسليم"
+msgstr "You're late on delivery"
+
+msgid "«%(t)s» عدّى ميعاد التسليم اللي في عرضك — سلّم أو طمّن العميل من الرسائل."
+msgstr "“%(t)s” is past the delivery date in your offer — deliver it or reassure the customer in the messages."
+
+msgid "«%(t)s» اتلغى تلقائي: %(why)s من مدة طويلة."
+msgstr "“%(t)s” was cancelled automatically: %(why)s for a long time."
+
+msgid "التسليم اتأخر عن الميعاد اللي في العرض:"
+msgstr "Delivery is past the date in the offer:"
+
+msgid "تنقل ملكية العربية للعميل ده؟ موافق = نقل الملكية (العربية اتباعت) — إلغاء = تفضل باسم صاحبها وأمر الشغل يكمّل."
+msgstr "Transfer the car's ownership to this customer? OK = transfer ownership (the car was sold) — Cancel = keep it under its owner and continue the job card."

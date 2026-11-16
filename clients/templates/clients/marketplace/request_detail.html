@@ -182,7 +182,7 @@
             <p><i class="fas fa-map-marker-alt"></i> {{ offer.merchant_address }}</p>
             {% endif %}
 
-            {% if svc_request.status == 'accepted' and not offer.customer_rating %}
+            {% if not offer.customer_rating and svc_request.status == 'accepted' or not offer.customer_rating and svc_request.status == 'completed' %}
             <!-- Rating section -->
             <hr style="border-color:rgba(255,255,255,0.1)">
             <h5><i class="fas fa-star" style="color:var(--warn)"></i> قيّم التاجر</h5>
