@@ -24,6 +24,7 @@ import logging
 
 from clients import views as client_views
 from clients.views import saas_admin_views as saas_admin_views
+from clients.views import agent_api as agent_api_views
 from clients.views import screen_recording_views as screen_rec_views
 from clients.views import catalog_views as catalog_views
 from omnichannel import saas_admin_views as omnichannel_saas_views
@@ -640,6 +641,8 @@ urlpatterns = [
     # 🩺 Tenant Health / Churn Risk
     path('superadmin/churn-risk/', saas_admin_views.churn_risk, name='saas_churn_risk'),
     path('superadmin/trials/', saas_admin_views.trials_watch, name='saas_trials_watch'),
+    # 🤖 وكيل المتابعة (Dify/n8n) — بيقرأ نفس بيانات صفحتي التجارب والـ churn
+    path('api/agent/followups/', agent_api_views.followups, name='agent_api_followups'),
 
     # 💎 Revenue Intelligence — MRR, conversion, cohorts
     path('superadmin/revenue-intel/', saas_admin_views.revenue_intel, name='saas_revenue_intel'),

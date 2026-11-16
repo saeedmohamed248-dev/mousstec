@@ -13,7 +13,7 @@ import logging
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.utils import timezone
 from django_tenants.utils import schema_context
 
@@ -71,7 +71,13 @@ def trial_rows(tenants=None, now=None) -> list[dict]:
     now = now or timezone.now()
     today = timezone.localdate()
     if tenants is None:
-        tenants = (Client.objects.exclude(schema_name='public').filter(is_deleted=False, status='trial')
+        # 🐛 [FIX]: الـ cron اليومي (clients/tasks.py) بيحوّل أي تجربة خلصت لـ suspended فوراً،
+        #    فكان فلتر status='trial' لوحده بيخفي كل «التجربة خلصت — كلّمه للاشتراك» —
+        #    أهم ناس المفروض تتكلّم. بنضيف الموقوف اللي عمره ما اشترك (مالوش subscription_end_date)
+        #    ومش موقوف يدوي (is_active) ولا احتيال.
+        tenants = (Client.objects.exclude(schema_name='public').filter(is_deleted=False)
+                   .filter(Q(status='trial') | Q(status='suspended', subscription_end_date__isnull=True,
+                                                 is_active=True, is_fraud_flagged=False))
                    .filter(trial_ends_at__gte=today - timedelta(days=RECENTLY_EXPIRED_DAYS)))
     rows = []
     for t in tenants:
