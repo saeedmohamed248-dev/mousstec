@@ -10,5 +10,8 @@ def send_shop_whatsapp(phone, name, line, link):
 
 @shared_task(ignore_result=True)
 def auto_complete_orders():
-    from .services import run_auto_complete
-    return len(run_auto_complete(None))
+    from .services import run_auto_complete, run_housekeeping
+    done = run_auto_complete(None)
+    # ⏰ التأخير والطلبات المهجورة — في نفس المهمة الدورية (مش مع كل فتح صفحة)
+    run_housekeeping(None)
+    return len(done)

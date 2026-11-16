@@ -171,6 +171,25 @@ def job_card_save(request):
                     raise _RollbackWith(_json_response_safe(
                         {"error": "رقم الشاسيه (VIN) أقصاه ١٧ حرف — راجعه."}, status=400))
                 vehicle = Vehicle.objects.filter(chassis_number=chassis).first()
+                if vehicle is not None and vehicle.customer_id != customer.pk and not _is_walk_in(customer):
+                    # 🐛 [FIX]: شاسيه عربية مسجّلة على عميل تاني كان بيتربط بأمر الشغل في صمت —
+                    #    تاريخ صيانتها وتذكيراتها بيروحوا لصاحبها القديم والعميل الجديد مايشوفهاش.
+                    #    زي أنظمة الـ DMS العالمية: نسأل — نقل ملكية (اتباعت) ولا تفضل باسم صاحبها
+                    #    (سواق/قريب جايبها). العميل النقدي مابياخدش ملكية — العربية بتفضل لصاحبها.
+                    choice = payload.get("vehicle_owner")
+                    if choice == "transfer":
+                        old_owner = vehicle.customer.name if vehicle.customer_id else ""
+                        Vehicle.objects.filter(pk=vehicle.pk).update(customer=customer)
+                        vehicle.customer = customer
+                        note = f"🚗 نقل ملكية العربية {chassis} من «{old_owner}»"
+                        payload["notes"] = (note + " — " + (payload.get("notes") or "")).strip(" —")
+                    elif choice != "keep":
+                        owner = vehicle.customer.name if vehicle.customer_id else "—"
+                        raise _RollbackWith(_json_response_safe({
+                            "error": f"العربية دي (شاسيه {chassis}) مسجّلة باسم «{owner}».",
+                            "code": "vehicle_owner_mismatch",
+                            "owner": owner,
+                        }, status=409))
                 if vehicle is None:
                     vehicle = Vehicle.objects.create(
                         customer=customer,

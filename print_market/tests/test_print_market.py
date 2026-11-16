@@ -573,6 +573,66 @@ class PrintMarketFlowTests(_TenantDomainMixin, TestCase):
         self.assertEqual(proof.status, 'pending')
 
 
+    # ── مراجعة ٢٠٢٦-١١: مهلة التسليم والطلبات المهجورة ──
+    def _paid_order(self, days='2'):
+        order = self._new_order()
+        self.shop_c.post(self._u('offer_submit', order), {'price': '300', 'delivery_days': days})
+        order.refresh_from_db()
+        self.cust_c.post(self._u('offer_respond', order, order.pending_offer.pk), {'action': 'accept'})
+        self.cust_c.post(self._u('payment_submit', order), {'method': 'instapay', 'reference': 'L1',
+                                                            'receipt': _png()})
+        MarketPayment.objects.get(order=order).review(None, confirm=True)
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'paid')
+        return order
+
+    def test_late_delivery_is_flagged_once_and_shown(self):
+        """🐛 المطبعة اللي اتدفعلها وعدّت مدة التنفيذ اللي في عرضها — محدش كان بيعرف."""
+        order = self._paid_order('2')
+        self.assertFalse(order.is_late)
+        self.assertEqual(MarketOrder.flag_late_orders(), [])
+        MarketPayment.objects.filter(order=order).update(reviewed_at=timezone.now() - timedelta(days=3))
+        order.refresh_from_db()
+        self.assertTrue(order.is_late)
+        from print_market.tasks import auto_complete_orders
+        auto_complete_orders()
+        order.refresh_from_db()
+        self.assertIsNotNone(order.late_notified_at)
+        self.assertTrue(MarketNotification.objects.filter(account=self.cust, title='المطبعة اتأخرت').exists())
+        self.assertTrue(MarketNotification.objects.filter(account=self.shop, title='اتأخرت في التسليم').exists())
+        self.assertEqual(MarketOrder.flag_late_orders(), [])   # مرة واحدة بس
+        self.assertContains(self.cust_c.get(self._u('order_detail', order)), 'التسليم اتأخر')
+        self.shop_c.post(self._u('order_delivered', order))
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'delivered')
+        self.assertFalse(order.is_late)
+
+    def test_abandoned_orders_before_payment_are_cancelled(self):
+        """🐛 طلب مستني دفع/عرض/رد كان بيفضل مفتوح للأبد."""
+        from print_market.services import run_housekeeping
+        order = self._new_order()
+        self.shop_c.post(self._u('offer_submit', order), {'price': '100', 'delivery_days': '2'})
+        order.refresh_from_db()
+        self.cust_c.post(self._u('offer_respond', order, order.pending_offer.pk), {'action': 'accept'})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'awaiting_payment')
+        fresh = MarketOrder.objects.create(customer=self.cust, shop=self.shop, title='بنر', details='٢×١ متر')
+        old = MarketOrder.objects.create(customer=self.cust, shop=self.shop, title='ستيكر', details='٥٠٠ ستيكر')
+        now = timezone.now()
+        MarketOrder.objects.filter(pk=order.pk).update(updated_at=now - timedelta(days=6))
+        MarketOrder.objects.filter(pk=old.pk).update(updated_at=now - timedelta(days=31))
+        self.assertEqual(run_housekeeping(), {'late': 0, 'cancelled': 1})
+        for o in (order, fresh, old):
+            o.refresh_from_db()
+        self.assertEqual((order.status, fresh.status, old.status), ('awaiting_payment', 'requested', 'cancelled'))
+        MarketOrder.objects.filter(pk=order.pk).update(updated_at=now - timedelta(days=8))
+        self.assertEqual(run_housekeeping()['cancelled'], 1)
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'cancelled')
+        self.assertIsNone(order.refund_due)   # مااتدفعش — مفيش استرداد
+        self.assertTrue(MarketNotification.objects.filter(account=self.shop, title='الطلب اتلغى').exists())
+
+
 class PartsReceiptCopyTests(_TenantDomainMixin, TestCase):
     """🐛 شراء قطعة مش «تفعيل خدمة» — المشتري كان بيقرا «هيتم التفعيل» بعد ما يدفع تمن قطعة."""
 

@@ -353,6 +353,11 @@ class ServiceRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     expires_at = models.DateTimeField(verbose_name=_("ينتهي الطلب في"))
     completed_at = models.DateTimeField(null=True, blank=True)
+    # 🐛 [FIX — دورة ناقصة]: الطلب المقبول كان بيتقفل «مكتمل» بس لو العميل قيّم — مفيش تذكير
+    #    ولا قفل تلقائي، فطلبات كتير بتفضل «مقبول» للأبد وتقييمات التجار مابتتجمعش.
+    #    marketplace_c2c.services.tenders بيفكّر العميل يقيّم ويقفل الطلب بعد مدة.
+    accepted_at = models.DateTimeField(null=True, blank=True, verbose_name=_("وقت قبول العرض"))
+    rating_reminded_at = models.DateTimeField(null=True, blank=True, verbose_name=_("اتفكّر يقيّم في"))
 
     class Meta:
         verbose_name = _("طلب خدمة / مناقصة")

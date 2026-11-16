@@ -218,12 +218,14 @@ const T = {
   netErr:     "{% trans 'خطأ في الشبكة.' %}",
   searchErr:  "{% trans 'تعذّر البحث — جرّب تاني.' %}",
   branchChanged: "{% trans 'اتغيّر الفرع — القطع اتشالت عشان المخزون بتاع الفرع الجديد.' %}",
+  ownerAsk:   "{% trans 'تنقل ملكية العربية للعميل ده؟ موافق = نقل الملكية (العربية اتباعت) — إلغاء = تفضل باسم صاحبها وأمر الشغل يكمّل.' %}",
 };
 
 const state = {
   invoice_type: 'sale',   // 'sale' (parts only) | 'maintenance' (parts + services + DVI)
   customer_id: null,
   vehicle_id: null,
+  vehicle_owner: null,    // 'transfer' | 'keep' — لما الشاسيه مسجّل على عميل تاني
   parts: new Map(),       // pid → {id, sku, name, price, qty, stock}
   services: [],           // [{service_id, name, price}]
   dvi: { brakes_status:'green', engine_oil_status:'green', tires_status:'green', battery_status:'green' },
@@ -289,7 +291,7 @@ async function doCustSearch(q) {
 }
 let custVehicles = [];
 function pickCustomer(c) {
-  state.customer_id = c.id; state.vehicle_id = null;
+  state.customer_id = c.id; state.vehicle_id = null; state.vehicle_owner = null;
   custVehicles = c.vehicles || [];
   $('cust-name').value = c.name; $('cust-phone').value = c.phone;
   $('cust-status').textContent = `${T.linkedCust} #${c.id}`;
@@ -303,9 +305,9 @@ function pickVehicle(i) {
   state.vehicle_id = v.id;
   $('veh-chassis').value = v.chassis || ''; $('veh-plate').value = v.plate === '—' ? '' : (v.plate || ''); $('veh-model').value = v.model || '';
 }
-$('cust-name').addEventListener('input', () => { state.customer_id = null; });
-$('cust-phone').addEventListener('input', () => { state.customer_id = null; });
-$('veh-chassis').addEventListener('input', () => { state.vehicle_id = null; });
+$('cust-name').addEventListener('input', () => { state.customer_id = null; state.vehicle_owner = null; });
+$('cust-phone').addEventListener('input', () => { state.customer_id = null; state.vehicle_owner = null; });
+$('veh-chassis').addEventListener('input', () => { state.vehicle_id = null; state.vehicle_owner = null; });
 
 // ------ Parts search
 let partTimer;
@@ -457,6 +459,7 @@ async function saveJobCard() {
     customer_phone: $('cust-phone').value,
     vehicle_id: state.vehicle_id,
     vehicle_chassis: $('veh-chassis').value,
+    vehicle_owner: state.vehicle_owner,
     vehicle_plate: $('veh-plate').value,
     vehicle_brand: $('veh-brand').value,
     vehicle_model: $('veh-model').value,
@@ -478,6 +481,12 @@ async function saveJobCard() {
       body: JSON.stringify(payload),
     });
     const data = await r.json();
+    // 🚗 الشاسيه مسجّل على عميل تاني ⇒ نسأل: نقل ملكية ولا تفضل باسم صاحبها، ونحفظ تاني
+    if (r.status === 409 && data.code === 'vehicle_owner_mismatch' && !state.vehicle_owner) {
+      state.vehicle_owner = confirm(data.error + ' ' + T.ownerAsk) ? 'transfer' : 'keep';
+      btn.disabled = false;
+      return saveJobCard();
+    }
     if (!r.ok || !data.ok) { flash(data.error || T.saveFail, 'error'); btn.disabled = false; return; }
     flash(`${T.savedJob} #${data.invoice_id} — ${T.opening}`, 'success');
     window.open(data.print_url, '_blank');

@@ -60,13 +60,13 @@ class MarketOrderAdmin(admin.ModelAdmin):
     list_display = ('title', 'customer', 'shop', 'status', 'payout_info', 'updated_at')
     fieldsets = ((None, {'fields': ('code', 'customer', 'shop', 'product', 'title', 'details', 'quantity',
                                     'attachment', 'status', 'payout_done_at', 'refund_done_at', 'created_at')}),
-                 ('التسليم والمشاكل', {'fields': ('delivered_at', 'auto_completed', 'disputed_at',
+                 ('التسليم والمشاكل', {'fields': ('delivered_at', 'late_notified_at', 'auto_completed', 'disputed_at',
                                                   'dispute_reason')}))
     list_filter = ('status',)
     search_fields = ('title', 'customer__name', 'shop__name', 'customer__email', 'shop__email')
     readonly_fields = ('code', 'customer', 'shop', 'product', 'status', 'payout_done_at', 'refund_done_at',
                        'created_at',
-                       'delivered_at', 'auto_completed', 'disputed_at', 'dispute_reason')
+                       'delivered_at', 'late_notified_at', 'auto_completed', 'disputed_at', 'dispute_reason')
     inlines = (_OfferInline, _ProofInline, _MessageInline)
     actions = ('mark_payout_done', 'mark_refund_done', 'dispute_for_shop', 'dispute_for_customer')
 

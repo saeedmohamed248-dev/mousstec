@@ -13,4 +13,9 @@ class Migration(migrations.Migration):
             name="refund_done_at",
             field=models.DateTimeField(blank=True, null=True, verbose_name="اترجّع للعميل في"),
         ),
+        migrations.AddField(
+            model_name="marketorder",
+            name="late_notified_at",
+            field=models.DateTimeField(blank=True, null=True, verbose_name="اتبلّغ بالتأخير في"),
+        ),
     ]

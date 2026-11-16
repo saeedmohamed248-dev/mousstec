@@ -312,6 +312,33 @@ class HandsOnReviewTests(ERPTenantTestCase):
         self.assertEqual(r.status_code, 400, r.content)
         self.assertEqual(Inventory.objects.get(product=self.product, branch=self.branch).quantity, 10)
 
+    def test_job_card_on_a_car_owned_by_another_customer_asks_first(self):
+        """🐛 شاسيه عربية عميل تاني كان بيتربط في صمت — دلوقتي: نقل ملكية أو تفضل باسم صاحبها."""
+        from inventory.models import Customer, SaleInvoice, Vehicle
+        chassis = 'WBAOWN0000000001'
+        r = self._job(customer_phone='01044440001', vehicle_chassis=chassis)
+        self.assertEqual(r.status_code, 200, r.content)
+        first_owner_id = Vehicle.objects.get(chassis_number=chassis).customer_id
+
+        r = self._job(customer_name='سواق', customer_phone='01044440002', vehicle_chassis=chassis)
+        self.assertEqual(r.status_code, 409, r.content)
+        self.assertEqual(r.json()['code'], 'vehicle_owner_mismatch')
+        self.assertFalse(Customer.objects.filter(phone=Customer.normalize_phone('01044440002')).exists())   # مفيش حاجة اتحفظت
+
+        r = self._job(customer_name='سواق', customer_phone='01044440002', vehicle_chassis=chassis,
+                      vehicle_owner='keep')
+        self.assertEqual(r.status_code, 200, r.content)
+        vehicle = Vehicle.objects.get(chassis_number=chassis)
+        self.assertEqual(vehicle.customer_id, first_owner_id)
+        self.assertEqual(SaleInvoice.objects.get(pk=r.json()['invoice_id']).vehicle_id, vehicle.pk)
+
+        r = self._job(customer_name='المالك الجديد', customer_phone='01044440003', vehicle_chassis=chassis,
+                      vehicle_owner='transfer')
+        self.assertEqual(r.status_code, 200, r.content)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.customer.name, 'المالك الجديد')
+        self.assertIn('نقل ملكية', SaleInvoice.objects.get(pk=r.json()['invoice_id']).notes)
+
     def test_parts_only_job_card_with_vehicle_records_mileage(self):
         from inventory.models import Vehicle
         r = self._job(invoice_type='sale', vehicle_chassis='WBA0000000Y1', mileage=40000)
