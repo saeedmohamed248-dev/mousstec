@@ -28351,3 +28351,21 @@ msgstr "Please send them here on WhatsApp 🙏"
 
 msgid "طلب تسعير من Mouss Tec"
 msgstr "Quote request from Mouss Tec"
+
+msgid "الباقات تبدأ من"
+msgstr "Plans start at"
+
+msgid "في الشهر"
+msgstr "per month"
+
+msgid "التحليل المكتوب مش متاح دلوقتي. المؤشرات والتوصيات اللي فوق شغّالة بالكامل من بياناتك."
+msgstr "The written analysis isn't available right now. The indicators and recommendations above are fully working from your data."
+
+msgid "لسه مفيش مبيعات — أول فاتورة بيع هتظهر هنا."
+msgstr "No sales yet — your first sale invoice will show up here."
+
+msgid "مفيش مبيعات في الفترة دي — غيّر المدة من فوق أو اعمل أول فاتورة."
+msgstr "No sales in this period — change the period above or create your first invoice."
+
+msgid "المساعد الذكي مقدرش يرد دلوقتي — جرّب كمان شوية."
+msgstr "The smart assistant couldn't answer right now — please try again shortly."

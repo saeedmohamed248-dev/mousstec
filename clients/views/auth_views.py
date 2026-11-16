@@ -937,9 +937,48 @@ def owner_auto_login(request):
 # =====================================================================
 # 📰 Landing pages
 # =====================================================================
+def landing_starting_price(request):
+    """💰 أقل سعر شهري لباقة مدفوعة — بيظهر فوق في الصفحة الرئيسية («الباقات تبدأ من …»)
+    عشان الزائر يشوف رقم من غير ما يروح صفحة الأسعار.
+
+    نفس حساب صفحة الأسعار بالظبط (Plan.price_for_period بالعرض المؤقت لو شغّال)،
+    والموقع الإماراتي بيعرض سعر الدرهم بس (لو مفيش سعر درهم مابنعرضش رقم — الاشتراك هناك
+    عن طريق الدعم). أي مشكلة في القاعدة ⇒ None والصفحة تكمّل عادي من غير الرقم.
+    """
+    try:
+        from clients.models import Plan
+        from erp_core.regions import region_from_request
+        region = region_from_request(request)
+        is_ae = region['country'] == 'AE'
+        best = None
+        for plan in Plan.objects.filter(is_active=True, monthly_price__gt=0):
+            base = plan.monthly_price
+            if is_ae:
+                base = getattr(plan, 'monthly_price_aed', 0) or 0
+                if base <= 0:
+                    continue
+            price = plan.price_for_period(1, base)
+            if price > 0 and (best is None or price < best):
+                best = price
+        if best is None:
+            return None
+        # 🐛 [FIX]: رمز العملة بلغة الصفحة — region['currency_symbol'] بلغة الدولة (عربي)،
+        #    فالموقع الإنجليزي كان بيعرض «249 ج.م» بدل «249 EGP».
+        from django.utils.translation import get_language
+        from erp_core.localization import currency_symbol
+        lang = 'en' if (get_language() or 'ar').startswith('en') else 'ar'
+        return {'amount': best, 'symbol': currency_symbol(region['currency'], lang)}
+    except Exception:
+        logger.exception('[LANDING] starting price lookup failed')
+        return None
+
+
 def mousstec_landing_page(request):
     from erp_core.seo import jsonld, organization_ld
-    return render(request, 'clients/landing.html', {'seo_jsonld': jsonld(organization_ld())})
+    return render(request, 'clients/landing.html', {
+        'seo_jsonld': jsonld(organization_ld()),
+        'starting_price': landing_starting_price(request),
+    })
 
 
 def set_region(request):

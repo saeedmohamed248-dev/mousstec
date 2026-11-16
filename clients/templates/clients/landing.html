@@ -1,4 +1,4 @@
-{% load i18n landing_tags %}
+{% load i18n landing_tags numfmt %}
 {% get_current_language as LANGUAGE_CODE %}
 {% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
@@ -103,6 +103,15 @@
             <p style="color:var(--muted); font-size:clamp(15px,3.4vw,18px); max-width:640px; margin:0 auto 22px; font-weight:500;">
                 {% trans "إدارة شركتك بالكامل، والتواصل مع عملاء جدد كل يوم، واستوديو تصميم بالذكاء الاصطناعي — كله من نظام واحد." %}
             </p>
+            {% if starting_price %}
+            {# 💰 سعر واحد واضح فوق — أقل باقة مدفوعة (نفس حساب صفحة الأسعار) #}
+            <a id="starting-price" href="{% url 'saas_pricing' %}" class="mt-card" style="display:inline-flex; align-items:baseline; gap:8px; flex-wrap:wrap; justify-content:center; padding:12px 20px; margin:0 auto 18px; border:2px solid var(--brand); text-decoration:none; color:var(--ink);">
+                <span style="font-size:15px; font-weight:600; color:var(--muted);">{% trans "الباقات تبدأ من" %}</span>
+                <span style="font-size:clamp(26px,5vw,34px); font-weight:800; color:var(--brand);" dir="ltr">{{ starting_price.amount|num:"-2" }} {{ starting_price.symbol }}</span>
+                <span style="font-size:15px; font-weight:600; color:var(--muted);">{% trans "في الشهر" %}</span>
+                <span style="font-size:13px; font-weight:700; color:var(--blue);">{% trans "قارن الباقات" %} <i class="fas fa-arrow-left"></i></span>
+            </a>
+            {% endif %}
             <div class="flex gap-3 justify-center flex-wrap" style="margin-bottom:6px;">
                 <a href="{% url 'saas_customer_signup' %}" class="mt-btn mt-btn-primary" style="padding:12px 22px;font-size:15px;">{% trans "ابدأ مجاناً" %}</a>
                 <a href="{% url 'features_page' %}" class="mt-btn mt-btn-ghost" style="padding:12px 22px;font-size:15px;">{% trans "شاهد المميزات" %}</a>

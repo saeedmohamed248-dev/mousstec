@@ -69,7 +69,7 @@
         details.more summary::-webkit-details-marker { display: none; }
         .industry-picked { background: var(--soft); border: 1px solid #D5DBEE; border-radius: 12px; padding: 10px 14px;
                            display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 700; }
-        .industry-picked a { color: var(--brand-2); font-size: 13px; }
+        .industry-picked a, .industry-picked button { color: var(--brand-2); font-size: 13px; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
         .btn-submit {
             background: var(--brand);
             border: none;
@@ -140,7 +140,7 @@
             <div class="col-12 mb-3" id="industryPicked">
                 <div class="industry-picked">
                     <span>{% if picked == 'printing' %}🎨 {% trans "طباعة وتصميم" %}{% else %}🚗 {% trans "سيارات — صيانة وقطع غيار" %}{% endif %}</span>
-                    <a href="#" id="industryChange">{% trans "تغيير" %}</a>
+                    <button type="button" id="industryChange">{% trans "تغيير" %}</button>
                 </div>
             </div>
             {% endif %}
