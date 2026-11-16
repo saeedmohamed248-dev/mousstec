@@ -108,7 +108,9 @@ def _support_score(open_tickets):
 def _trust_score(tenant):
     if getattr(tenant, 'is_fraud_flagged', False):
         return 0, 'fraud flag مرفوع'
-    base = int(getattr(tenant, 'ai_trust_score', 100) or 100)
+    # 🐛 [FIX]: `or 100` كان بيقلب درجة ثقة 0 (أسوأ تاجر) لـ 100 — None بس هي اللي تاخد الافتراضي
+    raw = getattr(tenant, 'ai_trust_score', None)
+    base = 100 if raw is None else int(raw)
     dispute_rate = float(getattr(tenant, 'dispute_rate', 0) or 0)
     reasons = []
     if dispute_rate > 10:
