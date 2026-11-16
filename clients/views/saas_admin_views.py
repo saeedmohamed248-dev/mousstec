@@ -1449,11 +1449,12 @@ def b2b_listing_request_decide(request, schema_name, request_id):
     from clients.services import b2b_listing_review as svc
     action = (request.POST.get('action') or '').strip()
     label = request.user.get_full_name() or request.user.get_username()
+    info = {}
     try:
         tenant, name = svc.decide(
             schema_name, request_id, action, reviewer_label=label,
             price=(request.POST.get('price') or '').strip() or None,
-            notes=(request.POST.get('notes') or '')[:500],
+            notes=(request.POST.get('notes') or '')[:500], info=info,
         )
     except svc.ReviewError as exc:
         messages.error(request, str(exc))
@@ -1462,6 +1463,11 @@ def b2b_listing_request_decide(request, schema_name, request_id):
     _log_event('other', tenant=tenant, user=request.user,
                description=f"🌐 سوق B2B: {verb} «{name[:60]}» (طلب #{request_id})")
     messages.success(request, f"تم {verb} «{name[:40]}» — {tenant.name}.")
+    # 🐛 [FIX]: الموافقة على صنف رصيده صفر كانت بتعدّي بنجاح والصنف مابيظهرش في السوق
+    #    من غير ولا كلمة — دلوقتي الأدمن بيعرف إنه هيظهر أول ما يدخله مخزون.
+    if action == 'approve' and info.get('stock', 1) <= 0:
+        messages.warning(request, f"«{name[:40]}» رصيده صفر عند {tenant.name} — "
+                                  "مش هيظهر في سوق قطع الغيار غير لما يدخله مخزون (هيظهر لوحده).")
     return redirect(f"{reverse('saas_b2b_listing_requests')}?show=pending")
 
 
@@ -1490,6 +1496,8 @@ def b2b_listing_requests_approve_bulk(request):
                description=f"🌐 سوق B2B: موافقة جماعية على {res['approved']} صنف "
                            f"({'، '.join(sorted(res['tenants']))[:200]})")
     msg = f"تمت الموافقة ونشر {res['approved']} صنف في السوق."
+    if res.get('no_stock'):
+        msg += f" منهم {res['no_stock']} رصيده صفر — هيظهر لوحده أول ما يدخله مخزون."
     if res['skipped']:
         msg += f" اتساب {res['skipped']} (اتراجع قبل كده أو سعره صفر — راجعه لوحده)."
     if res['failed']:

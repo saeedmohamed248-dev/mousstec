@@ -585,6 +585,7 @@ urlpatterns = [
     path('marketplace/parts/orders/',                         client_views.parts_my_orders,        name='parts_my_orders'),
     path('marketplace/parts/sales/',                          client_views.parts_my_sales,         name='parts_my_sales'),
     path('marketplace/parts/paymob-callback/',                client_views.parts_paymob_callback,  name='parts_paymob_callback'),
+    path('marketplace/parts/stock/<int:item_id>/',           client_views.parts_stock_detail,     name='parts_stock_detail'),
     path('marketplace/parts/<uuid:listing_code>/',            client_views.parts_detail,           name='parts_detail'),
     path('marketplace/parts/<uuid:listing_code>/checkout/',   client_views.parts_checkout,         name='parts_checkout'),
     path('marketplace/parts/order/<uuid:order_code>/shipped/',  client_views.parts_mark_shipped,      name='parts_mark_shipped'),

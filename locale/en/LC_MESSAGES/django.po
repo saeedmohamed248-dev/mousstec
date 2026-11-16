@@ -28426,3 +28426,51 @@ msgstr "Delivery is past the date in the offer:"
 
 msgid "تنقل ملكية العربية للعميل ده؟ موافق = نقل الملكية (العربية اتباعت) — إلغاء = تفضل باسم صاحبها وأمر الشغل يكمّل."
 msgstr "Transfer the car's ownership to this customer? OK = transfer ownership (the car was sold) — Cancel = keep it under its owner and continue the job card."
+
+#: clients/templates/clients/marketplace/parts_stock_detail.html
+msgid "من مخازن التجار"
+msgstr "From merchants' stock"
+
+#: clients/templates/clients/marketplace/parts_stock_detail.html
+msgid "أصناف متاحة عند محلات قطع غيار مسجّلة على Mouss Tec — اطلبها والمحل يتواصل معاك."
+msgstr "Parts in stock at parts shops registered on Mouss Tec — order and the shop will contact you."
+
+#: clients/templates/clients/marketplace/parts_stock_detail.html
+msgid "تاجر موثّق"
+msgstr "Verified merchant"
+
+#: clients/templates/clients/marketplace/parts_stock_detail.html
+msgid "متاح %(n)s"
+msgstr "%(n)s available"
+
+#: clients/templates/clients/marketplace/parts_stock_detail.html
+msgid "كمّل تسوّق"
+msgstr "Continue shopping"
+
+#: clients/templates/clients/marketplace/parts_stock_detail.html
+msgid "اطلب القطعة"
+msgstr "Order this part"
+
+#: clients/templates/clients/marketplace/parts_stock_detail.html
+msgid "طلبك وصل لـ %(store)s — هيتواصل معاك على رقمك يأكد السعر والتسليم."
+msgstr "Your order reached %(store)s — they will call you to confirm the price and delivery."
+
+#: clients/templates/clients/marketplace/parts_stock_detail.html
+msgid "ملاحظات للمحل (اختياري)"
+msgstr "Notes for the shop (optional)"
+
+#: clients/templates/clients/marketplace/parts_stock_detail.html
+msgid "موديل وسنة العربية، العنوان، وقت التواصل المناسب…"
+msgstr "Car model and year, address, best time to call…"
+
+#: clients/templates/clients/marketplace/parts_stock_detail.html
+msgid "سجّل دخول عشان تطلب القطعة"
+msgstr "Log in to order this part"
+
+#: clients/templates/clients/marketplace/parts_stock_detail.html
+msgid "الطلب بيوصل للمحل مباشرة والدفع والتسليم بتتفق عليهم معاه — الأصناف دي مش داخلة في ضمان الـ Escrow."
+msgstr "Your order goes straight to the shop; payment and delivery are agreed with them — these items are not covered by Escrow protection."
+
+#: clients/templates/clients/marketplace/parts_stock_detail.html
+msgid "صورة الصنف"
+msgstr "Item image"
