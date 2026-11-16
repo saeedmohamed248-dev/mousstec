@@ -283,6 +283,12 @@
                 <span class="min-w-0"><span class="num block">{{ pm_payouts_due }}</span><span class="lbl block">{% trans "سوق المطابع: طلبات اكتملت — حوّل للمطبعة" %}</span></span>
             </a>
             {% endif %}
+            {% if pm_refunds_due %}
+            <a href="/{{ admin_url }}/print_market/marketorder/?status__exact=cancelled" class="sa-alert hot">
+                <span class="sa-ico sm tone-orange"><i class="fas fa-rotate-left"></i></span>
+                <span class="min-w-0"><span class="num block">{{ pm_refunds_due }}</span><span class="lbl block">{% trans "سوق المطابع: طلبات اتلغت بعد الدفع — رجّع فلوس العميل" %}</span></span>
+            </a>
+            {% endif %}
             {% if catalog_new %}
             <a href="{% url 'catalog_requests_admin' %}" class="sa-alert hot">
                 <span class="sa-ico sm tone-violet"><i class="fas fa-tags"></i></span>

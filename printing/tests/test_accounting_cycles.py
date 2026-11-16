@@ -388,6 +388,21 @@ class PrintingAccountingCycleTests(ERPTenantTestCase):
         self.assertTrue(job.is_complete)
         self.assertEqual(order.status, 'ready')
 
+    def test_proof_link_of_a_closed_order_cannot_be_answered(self):
+        """🐛 مراجعة ٢٠٢٦-١١: رابط بروفة لطلب اتلغى كان بيقبل «موافقة» وينقل المهمة للطباعة."""
+        order = PrintOrder.objects.create(customer=self.customer, status='confirmed')
+        job = PrintJob.objects.create(order=order, description='بوستر', quantity=10, unit_price=D('5'))
+        proof = PrintProof.objects.create(job=job, file=self._proof_file(), created_by=self.user)
+        order.refresh_from_db()
+        order.status = 'cancelled'
+        order.save()
+        r = Client().post(f'/printing/proof/{proof.share_token}/respond/', json.dumps({'action': 'approve'}),
+                          content_type='application/json', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 400, r.content)
+        proof.refresh_from_db()
+        job.refresh_from_db()
+        self.assertEqual((proof.status, job.stage), ('pending', 'proof'))
+
     def test_waived_proof_goes_straight_to_printing(self):
         order, job = self._order()
         self.assertEqual(job.advance_stage(), 'printing')        # من غير بروفة

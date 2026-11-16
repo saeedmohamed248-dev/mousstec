@@ -59,15 +59,16 @@ class _MessageInline(admin.TabularInline):
 class MarketOrderAdmin(admin.ModelAdmin):
     list_display = ('title', 'customer', 'shop', 'status', 'payout_info', 'updated_at')
     fieldsets = ((None, {'fields': ('code', 'customer', 'shop', 'product', 'title', 'details', 'quantity',
-                                    'attachment', 'status', 'payout_done_at', 'created_at')}),
+                                    'attachment', 'status', 'payout_done_at', 'refund_done_at', 'created_at')}),
                  ('التسليم والمشاكل', {'fields': ('delivered_at', 'auto_completed', 'disputed_at',
                                                   'dispute_reason')}))
     list_filter = ('status',)
     search_fields = ('title', 'customer__name', 'shop__name', 'customer__email', 'shop__email')
-    readonly_fields = ('code', 'customer', 'shop', 'product', 'status', 'payout_done_at', 'created_at',
+    readonly_fields = ('code', 'customer', 'shop', 'product', 'status', 'payout_done_at', 'refund_done_at',
+                       'created_at',
                        'delivered_at', 'auto_completed', 'disputed_at', 'dispute_reason')
     inlines = (_OfferInline, _ProofInline, _MessageInline)
-    actions = ('mark_payout_done', 'dispute_for_shop', 'dispute_for_customer')
+    actions = ('mark_payout_done', 'mark_refund_done', 'dispute_for_shop', 'dispute_for_customer')
 
     def has_add_permission(self, request):
         # 🐛 [FIX]: «أضف طلب» كان ظاهر — الطلب بيعمله العميل من السوق، والعميل/المطبعة هنا للقراءة بس
@@ -100,8 +101,13 @@ class MarketOrderAdmin(admin.ModelAdmin):
     def dispute_for_customer(self, request, queryset):
         self._resolve(request, queryset, False)
 
-    @admin.display(description='تحويل المطبعة')
+    @admin.display(description='تحويل المطبعة / استرداد العميل')
     def payout_info(self, obj):
+        if obj.refund_done_at:
+            return '↩️ ✅'
+        refund = obj.refund_due
+        if refund:
+            return f'↩️ استرداد للعميل {refund} ج.م ← نفس طريقة دفعه'
         if obj.payout_done_at:
             return '✅'
         if obj.status == 'completed':
@@ -121,6 +127,19 @@ class MarketOrderAdmin(admin.ModelAdmin):
                    f'Mouss Tec حوّلتلك {offer.price if offer else ""} ج.م تمن «{order.title}»'
                    f' على {order.shop.get_payout_method_display()} {order.shop.payout_account}'.rstrip() + '.', order)
         self.message_user(request, f'اتسجّل التحويل لـ {n} طلب (الطلبات المكتملة بس).')
+
+    @admin.action(description='↩️ سجّل إن الفلوس رجعت للعميل (الطلبات الملغية بعد الدفع)')
+    def mark_refund_done(self, request, queryset):
+        # 🐛 [FIX — دورة ناقصة]: الحكم للعميل كان بيقول «هنرجّعلك فلوسك» وبس — ماكانش فيه تسجيل
+        #    للاسترداد ولا إشعار للعميل إنه حصل، فالمبلغ يفضل متعلّق على المنصة من غير ما حد يعرف.
+        orders = [o for o in queryset.filter(pk__in=MarketOrder.refunds_due().values('pk')).select_related('customer')]
+        amounts = {o.pk: o.refund_due for o in orders}
+        n = MarketOrder.objects.filter(pk__in=list(amounts), refund_done_at__isnull=True).update(
+            refund_done_at=timezone.now())
+        for order in orders:
+            notify(request, order.customer, 'رجّعنالك فلوسك',
+                   f'Mouss Tec رجّعتلك {amounts[order.pk]} ج.م تمن «{order.title}» على نفس طريقة الدفع.', order)
+        self.message_user(request, f'اتسجّل الاسترداد لـ {n} طلب (الملغية بعد ما الدفع اتأكّد بس).')
 
 
 @admin.register(MarketPayment)

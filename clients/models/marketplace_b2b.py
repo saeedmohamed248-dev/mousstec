@@ -813,24 +813,35 @@ class PartOrder(SoftDeleteMixin, models.Model):
             return False
         if self.warranty_ends_at and timezone.now() < self.warranty_ends_at:
             return False
-        # Conditional update — a dispute or refund request opened while the
-        # sweep was running must win; never release a frozen order.
+        # 🐛 [FIX — فلوس البائع بتضيع]: الطلب كان بيتقلب «released» الأول وبعدين تحرير الـ Escrow
+        #    في خطوة منفصلة جوه try/except بيكتب لوج بس — لو التحرير وقع، الطلب يبان «اتحرّر»
+        #    والـ hold يفضل «held» ومفيش تحويل متسجّل للبائع: الفلوس تختفي من محفظته (مش في
+        #    الـ Escrow ولا مستنية تحويل) والـ sweep مابيرجعلهاش تاني لأنه بيدوّر على «delivered» بس.
+        #    دلوقتي الاتنين في transaction واحدة: يا الاتنين يحصلوا، يا الطلب يفضل «delivered»
+        #    والـ sweep الجاي يحاول تاني.
+        from clients.services import escrow as escrow_svc
         now = timezone.now()
-        if not type(self).objects.filter(pk=self.pk, status='delivered').update(
-            status='released', released_at=now,
-        ):
+        try:
+            with transaction.atomic():
+                # Conditional update — a dispute or refund request opened while the
+                # sweep was running must win; never release a frozen order.
+                if not type(self).objects.filter(pk=self.pk, status='delivered').update(
+                    status='released', released_at=now,
+                ):
+                    return False
+                hold_status = EscrowHold.objects.filter(order_id=self.pk).values_list(
+                    'status', flat=True).first()
+                if hold_status in (None, 'held'):
+                    escrow_svc.release_to_seller(self, by_user=by_user, reason='warranty period elapsed')
+                elif hold_status != 'released_to_seller':
+                    # الفلوس اتسوّت للمشتري (أو اتقسمت) — الطلب مايتقفلش «اتحرّر للبائع».
+                    raise ValidationError(f"escrow hold already settled as '{hold_status}'")
+        except Exception:
+            logger.exception("[ESCROW] release_to_seller failed for order %s — order kept 'delivered'",
+                             self.order_code)
             return False
         self.status = 'released'
         self.released_at = now
-        # Update escrow ledger — the financial record must reflect the release.
-        try:
-            from clients.services import escrow as escrow_svc
-            escrow_svc.release_to_seller(self, by_user=by_user, reason='warranty period elapsed')
-        except Exception:
-            import logging
-            logging.getLogger('mouss_tec_core').exception(
-                "[ESCROW] release_to_seller failed for order %s", self.order_code
-            )
         # The seller is notified by the payout service (queued inside
         # escrow_svc.release_to_seller) — with the real amount and where it
         # will be sent. The old "💰 تم تحويل أموالك" message here claimed the

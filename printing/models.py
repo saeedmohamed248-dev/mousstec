@@ -1914,6 +1914,11 @@ class PrintProof(models.Model):
                 raise ValidationError(_("البروفة دي اترد عليها قبل كده."))
             if not proof.is_latest:
                 raise ValidationError(_("فيه نسخة أحدث من البروفة دي — افتح الرابط الجديد."))
+            # 🐛 [FIX]: رابط بروفة قديم كان بيشتغل حتى بعد ما الطلب اتلغى أو اتسلّم — «موافقة»
+            #    بتنقل المهمة لـ «طباعة» على طلب مقفول وبتسجّل رد على شغل مابقاش موجود.
+            order_status = PrintOrder.objects.filter(jobs__pk=proof.job_id).values_list('status', flat=True).first()
+            if order_status in ('cancelled', 'delivered'):
+                raise ValidationError(_("الطلب ده اتقفل — البروفة مابقتش مستنية رد."))
             proof.status = 'approved' if action == 'approve' else 'changes_requested'
             proof.customer_comment = (comment or '').strip()[:2000]
             proof.responded_at = timezone.now()

@@ -516,6 +516,63 @@ class PrintMarketFlowTests(_TenantDomainMixin, TestCase):
         self.assertEqual(c.get('/superadmin/').context['pm_payouts_due'], 0)
 
 
+    # ── مراجعة ٢٠٢٦-١١: استرداد فلوس العميل بعد الحكم لصالحه ──
+    def test_refund_after_dispute_for_customer_is_tracked_until_done(self):
+        """🐛 الحكم للعميل كان بيلغي الطلب وبس — مفيش تسجيل ولا متابعة لفلوسه اللي على المنصة."""
+        from django.conf import settings as dj
+        owner = User.objects.create_superuser('pm_refund_owner', 'pmr@x.com', 'x')
+        c = Client()
+        c.force_login(owner)
+        order = self._delivered_order()
+        pay = MarketPayment.objects.get(order=order)
+        self.cust_c.post(self._u('order_dispute', order), {'reason': 'الألوان مختلفة عن البروفة'})
+        order.refresh_from_db()
+        order.resolve_dispute(for_shop=False)
+        self.assertEqual(order.status, 'cancelled')
+        self.assertEqual(order.refund_due, pay.total)
+        self.assertEqual(c.get('/superadmin/').context['pm_refunds_due'], 1)
+        self.assertContains(self.cust_c.get(self._u('order_detail', order)), 'فلوسك هترجعلك')
+
+        r = c.post(f'/{dj.ADMIN_URL}/print_market/marketorder/',
+                   {'action': 'mark_refund_done', '_selected_action': [order.pk]})
+        self.assertEqual(r.status_code, 302)
+        order.refresh_from_db()
+        self.assertIsNotNone(order.refund_done_at)
+        self.assertIsNone(order.refund_due)
+        self.assertTrue(MarketNotification.objects.filter(account=self.cust, title='رجّعنالك فلوسك').exists())
+        self.assertEqual(c.get('/superadmin/').context['pm_refunds_due'], 0)
+        self.assertContains(self.cust_c.get(self._u('order_detail', order)), 'فلوسك رجعتلك')
+        # مايتسجّلش مرتين ولا يتعمل على طلب مكتمل
+        first = order.refund_done_at
+        c.post(f'/{dj.ADMIN_URL}/print_market/marketorder/',
+               {'action': 'mark_refund_done', '_selected_action': [order.pk]})
+        order.refresh_from_db()
+        self.assertEqual(order.refund_done_at, first)
+
+    def test_cancel_before_payment_owes_no_refund(self):
+        order = self._new_order()
+        self.cust_c.post(self._u('order_cancel', order))
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'cancelled')
+        self.assertIsNone(order.refund_due)
+        self.assertFalse(MarketOrder.refunds_due().exists())
+
+    def test_proof_reply_refused_on_closed_order(self):
+        """🐛 الرد على بروفة كان بيتسجّل حتى بعد ما الطلب اتلغى."""
+        order = self._new_order()
+        self.shop_c.post(self._u('offer_submit', order), {'price': '200', 'delivery_days': '2'})
+        order.refresh_from_db()
+        self.cust_c.post(self._u('offer_respond', order, order.pending_offer.pk), {'action': 'accept'})
+        self.shop_c.post(self._u('proof_submit', order), {'file': _png('p.png')})
+        proof = MarketProof.objects.get(order=order)
+        self.cust_c.post(self._u('order_cancel', order))
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'cancelled')
+        self.cust_c.post(self._u('proof_respond', order, proof.pk), {'action': 'approve'})
+        proof.refresh_from_db()
+        self.assertEqual(proof.status, 'pending')
+
+
 class PartsReceiptCopyTests(_TenantDomainMixin, TestCase):
     """🐛 شراء قطعة مش «تفعيل خدمة» — المشتري كان بيقرا «هيتم التفعيل» بعد ما يدفع تمن قطعة."""
 

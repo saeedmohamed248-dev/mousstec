@@ -193,6 +193,10 @@ class MarketOrder(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='requested',
                               db_index=True, verbose_name=_('الحالة'))
     payout_done_at = models.DateTimeField(null=True, blank=True, verbose_name=_('اتحوّل للمطبعة في'))
+    # 🐛 [FIX — دورة ناقصة]: الحكم للعميل في مشكلة بيلغي الطلب و«رجّع الفلوس يدوي» — بس مكانش فيه
+    #    أي مكان يتسجّل فيه إن الفلوس رجعت، ولا قايمة بالمبالغ اللي لسه على المنصة للعملاء
+    #    (عكس التحويل للمطبعة اللي ليه payout_done_at). فلوس العميل كانت بتتنسي بسهولة.
+    refund_done_at = models.DateTimeField(null=True, blank=True, verbose_name=_('اترجّع للعميل في'))
     delivered_at = models.DateTimeField(null=True, blank=True, verbose_name=_('اتسلّم في'))
     auto_completed = models.BooleanField(default=False, verbose_name=_('اتأكّد تلقائي'))
     dispute_reason = models.TextField(blank=True, max_length=2000, verbose_name=_('سبب المشكلة'))
@@ -251,6 +255,23 @@ class MarketOrder(models.Model):
             order.delivered_at = timezone.now()
             order.save(update_fields=['delivered_at'])
             self._set_status(order, 'delivered')
+
+    @property
+    def confirmed_payment(self):
+        return self.payments.filter(status='confirmed').order_by('-reviewed_at').first()
+
+    @property
+    def refund_due(self):
+        """المبلغ اللي لسه على المنصة للعميل: طلب اتلغى بعد ما دفعه اتأكّد ولسه ماترجّعش."""
+        if self.status != 'cancelled' or self.refund_done_at:
+            return None
+        pay = self.confirmed_payment
+        return pay.total if pay else None
+
+    @classmethod
+    def refunds_due(cls):
+        return cls.objects.filter(status='cancelled', refund_done_at__isnull=True,
+                                  payments__status='confirmed').distinct()
 
     @property
     def auto_confirm_at(self):
@@ -503,9 +524,13 @@ class MarketProof(models.Model):
     def respond(self, customer, approve, comment=''):
         with transaction.atomic():
             proof = MarketProof.objects.select_for_update().get(pk=self.pk)
-            order = proof.order
+            order = MarketOrder.objects.select_for_update().get(pk=proof.order_id)
             if customer.pk != order.customer_id:
                 raise ValidationError(_('مش مسموح.'))
+            # 🐛 [FIX]: الموافقة على بروفة كانت ماشية حتى على طلب اتلغى أو اتقفل — الرد بيتسجّل
+            #    والمطبعة بتوصلها «العميل وافق» على شغل مابقاش موجود.
+            if order.status not in self.OPEN_ORDER_STATUSES:
+                raise ValidationError(_('الطلب مابقاش مفتوح للبروفات.'))
             if proof.status != 'pending':
                 raise ValidationError(_('البروفة دي اترد عليها قبل كده.'))
             if not approve and not (comment or '').strip():

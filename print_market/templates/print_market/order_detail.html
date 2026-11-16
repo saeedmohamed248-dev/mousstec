@@ -162,6 +162,13 @@
     <div class="pm-rule mt-3"><b>{% trans "فيه مشكلة مفتوحة — Mouss Tec بتراجع." %}</b>
       <div style="white-space:pre-wrap">{{ order.dispute_reason }}</div></div>
   {% endif %}
+  {% if is_customer and order.status == 'cancelled' %}
+    {% if order.refund_done_at %}
+      <div class="pm-rule mt-3"><i class="fas fa-circle-check me-1"></i>{% trans "فلوسك رجعتلك على نفس طريقة الدفع." %} <span dir="ltr">{{ order.refund_done_at|date:"Y-m-d H:i" }}</span></div>
+    {% elif order.refund_due %}
+      <div class="pm-rule mt-3"><i class="fas fa-rotate-left me-1"></i>{% trans "الطلب اتلغى وفلوسك هترجعلك على نفس طريقة الدفع:" %} <b>{{ order.refund_due|num:"-2" }} {% trans "ج.م" %}</b></div>
+    {% endif %}
+  {% endif %}
   {% if order.status == 'completed' %}
     {% if review %}
       <div class="mt-3"><span class="fw-bold">{% trans "التقييم:" %}</span>

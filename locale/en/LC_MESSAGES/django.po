@@ -28369,3 +28369,21 @@ msgstr "No sales in this period — change the period above or create your first
 
 msgid "المساعد الذكي مقدرش يرد دلوقتي — جرّب كمان شوية."
 msgstr "The smart assistant couldn't answer right now — please try again shortly."
+
+msgid "اترجّع للعميل في"
+msgstr "Refunded to the customer on"
+
+msgid "الطلب مابقاش مفتوح للبروفات."
+msgstr "This order is no longer open for proofs."
+
+msgid "الطلب ده اتقفل — البروفة مابقتش مستنية رد."
+msgstr "This order is closed — the proof is no longer awaiting a reply."
+
+msgid "فلوسك رجعتلك على نفس طريقة الدفع."
+msgstr "Your money was refunded to the same payment method."
+
+msgid "الطلب اتلغى وفلوسك هترجعلك على نفس طريقة الدفع:"
+msgstr "The order was cancelled and your money will be refunded to the same payment method:"
+
+msgid "سوق المطابع: طلبات اتلغت بعد الدفع — رجّع فلوس العميل"
+msgstr "Print market: orders cancelled after payment — refund the customer"
