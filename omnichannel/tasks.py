@@ -203,6 +203,25 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
         reply = quick or config.fallback_message
         used_fallback = True
 
+    # ── 🛒 البوت يقفل البيعة: سطر [[ORDER: ...]] ⇒ عرض سعر في موس تك ─────
+    #    السطر بيتشال من الرد دايماً (حتى لو الميزة مقفولة) عشان العميل مايشوفش أكواد.
+    from .services import orders as bot_orders
+    reply, order_request = bot_orders.extract_order(reply)
+    bot_invoice = None
+    if order_request and config.auto_orders_enabled:
+        try:
+            with schema_context(tenant.schema_name):
+                bot_invoice = bot_orders.create_draft_order(
+                    channel=channel, sender_id=sender_id, sender_name=sender_name,
+                    order=order_request)
+        except Exception:  # noqa: BLE001 — الطلب مايوقّفش الرد
+            logger.exception("omnichannel: bot order creation failed for %s", tenant.schema_name)
+        if bot_invoice is not None:
+            reply = f"{reply}\n\n✅ رقم طلبك: {bot_invoice.pk}".strip()
+    if not reply:
+        reply = config.fallback_message
+        used_fallback = True
+
     if config.max_reply_chars and len(reply) > config.max_reply_chars:
         reply = reply[: config.max_reply_chars].rstrip() + "…"
 
@@ -246,8 +265,9 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
     # ── Smart handoff notification ────────────────────────────────────
     # Alert the shop only when the AI couldn't answer confidently (fallback),
     # so the owner can take over — not on every message.
-    if used_fallback and config.notify_on_handoff:
-        _notify_handoff(config, tenant, channel, sender_id, text)
+    if (used_fallback or bot_invoice is not None) and config.notify_on_handoff:
+        note = text if bot_invoice is None else f"🛒 طلب جديد من البوت (عرض سعر رقم {bot_invoice.pk}): {text}"
+        _notify_handoff(config, tenant, channel, sender_id, note)
 
 
 def _notify_quota_exhausted(config, tenant):

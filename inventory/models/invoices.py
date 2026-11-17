@@ -373,6 +373,8 @@ class SaleInvoice(models.Model):
         ('website', _('الموقع الإلكتروني')),
         # 🛒 طلب عميل من سوق قطع الغيار على Mouss Tec (قسم «من مخازن التجار»)
         ('marketplace', _('سوق Mouss Tec')),
+        # 🤖 طلب سجّله البوت من واتساب/ماسنجر/إنستجرام (عرض سعر يتعتمد يدوياً)
+        ('chatbot', _('شات البوت')),
     )
 
     invoice_type = models.CharField(max_length=20, choices=INVOICE_TYPES, verbose_name=_("النوع"))

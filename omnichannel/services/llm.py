@@ -56,6 +56,9 @@ def build_system_prompt(config, catalog_context: str) -> str:
         parts += ["", f"سياسة الخصومات (التزم بها حرفياً):\n{discount}"]
     if extra:
         parts += ["", f"تعليمات إضافية من الشركة:\n{extra}"]
+    if getattr(config, "auto_orders_enabled", False):
+        from .orders import ORDER_PROMPT_RULES
+        parts += ORDER_PROMPT_RULES
     parts += ["", "الكتالوج (بيانات حيّة من مخزون الشركة):", catalog]
     return "\n".join(parts)
 

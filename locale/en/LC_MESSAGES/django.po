@@ -28474,3 +28474,6 @@ msgstr "Your order goes straight to the shop; payment and delivery are agreed wi
 #: clients/templates/clients/marketplace/parts_stock_detail.html
 msgid "صورة الصنف"
 msgstr "Item image"
+
+msgid "البوت يسجّل طلبات العملاء كعرض سعر (تعتمده بضغطة)"
+msgstr "Bot records customer orders as quotations (approve with one click)"
