@@ -49,6 +49,10 @@ class Command(BaseCommand):
         parser.add_argument("--lifetime", action="store_true", help="Grant a lifetime subscription")
         parser.add_argument("--months", type=int, default=0, help="Grant N months of subscription")
         parser.add_argument(
+            "--auto-orders", action="store_true",
+            help="البوت يسجّل طلبات العملاء كعرض سعر (مسودة) في موس تك",
+        )
+        parser.add_argument(
             "--no-enable", action="store_true",
             help="Do not flip channel/AI enable flags (only write provided fields)",
         )
@@ -83,6 +87,8 @@ class Command(BaseCommand):
             cfg.instagram_enabled = True
             cfg.web_widget_enabled = True
             cfg.ai_enabled = True
+        if opts["auto_orders"]:
+            cfg.auto_orders_enabled = True
 
         cfg.save()
         widget_key = cfg.ensure_web_widget_key()
@@ -103,6 +109,7 @@ class Command(BaseCommand):
         w(f"   Facebook Page ID   : {cfg.facebook_page_id or '-'}")
         w(f"   Instagram Acc ID   : {cfg.instagram_account_id or '-'}")
         w(f"   مزوّد الـ AI        : {cfg.llm_provider}")
+        w(f"   البوت بيسجّل طلبات؟ : {'أيوة ✅' if cfg.auto_orders_enabled else 'لأ'}")
         w(f"   حالة الاشتراك      : {cfg.subscription_state}")
         w(f"   الأتمتة شغّالة؟     : {'أيوة ✅' if cfg.is_operational else 'لأ ❌ (راجع الاشتراك/التوكن)'}")
         w("")

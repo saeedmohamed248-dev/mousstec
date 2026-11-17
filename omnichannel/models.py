@@ -200,6 +200,13 @@ class TenantChannelConfig(models.Model):
         verbose_name=_("تنبيهي عند حاجة العميل لتدخّل بشري؟"),
         help_text=_("يُرسَل إيميل عند تعذّر رد المساعد آلياً (يحتاج ضبط SMTP)."),
     )
+    # ── 🛒 البوت يقفل البيعة: يسجّل طلب العميل كعرض سعر (مسودة) ──────────
+    auto_orders_enabled = models.BooleanField(
+        default=False,
+        verbose_name=_("البوت يسجّل طلبات العملاء؟"),
+        help_text=_("لما العميل يأكد إنه عاوز يشتري، البوت يعمل فاتورة «عرض سعر» بأسعار المخزون "
+                    "وتعتمدها انت بضغطة."),
+    )
     notify_email = models.EmailField(
         blank=True, default="",
         verbose_name=_("بريد الإشعارات"),

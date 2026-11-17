@@ -44,7 +44,7 @@ class TenantChannelConfigForm(forms.ModelForm):
             "webhook_verify_token",
             "business_display_name", "tone_of_voice", "discount_policy",
             "custom_instructions", "fallback_message", "max_reply_chars",
-            "notify_on_handoff", "notify_email",
+            "notify_on_handoff", "notify_email", "auto_orders_enabled",
             "llm_provider", "llm_model", "ai_enabled",
         ]
         widgets = {
