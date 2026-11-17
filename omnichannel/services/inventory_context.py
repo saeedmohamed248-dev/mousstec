@@ -136,6 +136,19 @@ _CHAT_STOPWORDS = {
     'الخير', 'النور', 'شكرا', 'يا', 'باشا', 'حضرتك', 'the', 'price', 'have', 'you', 'for',
 }
 
+# كلمات بتوصف «مكان/حالة/موديل» القطعة مش القطعة نفسها — لوحدها ماتكفيش إن
+# الصنف يتقال عليه «متوفر».
+_QUALIFIERS = {
+    'خلفي', 'خلفى', 'امامي', 'أمامي', 'امامى', 'قدام', 'ورا', 'يمين', 'شمال', 'يسار',
+    'اصلي', 'أصلي', 'جديد', 'مستعمل', 'استيراد', 'تقليد', 'كامل', 'كامله', 'كاملة', 'طقم',
+    'front', 'rear', 'left', 'right', 'new', 'used', 'bmw', 'mini', 'ميني',
+}
+_MODEL_RE = re.compile(r"^(?:[efgrnbxm]\d{1,3}|\d{2,4}|[\u0660-\u0669]{2,4})$")
+
+
+def _is_part_word(kw: str) -> bool:
+    return kw not in _QUALIFIERS and not _MODEL_RE.match(kw)
+
 
 def quick_catalog_reply(query_text: str, *, currency: str = "") -> str:
     """
@@ -172,6 +185,13 @@ def quick_catalog_reply(query_text: str, *, currency: str = "") -> str:
                 qty = 0
             if qty and qty > 0:
                 scored.append((score, p))
+        # 🐛 [FIX]: «عندك طنابير خلفي F30؟» كان بيرد بـ «ماشة خلفي F30» و«اكصدام خلفي F30»
+        #    على إنهم متوفرين — لأن «خلفي» و«F30» لوحدهم كانوا بيكسبوا النقط.
+        #    لو العميل ذكر اسم قطعة، لازم اسم الصنف نفسه يحتوي على كلمة منها.
+        part_words = [k for k in keywords if _is_part_word(k)]
+        if part_words:
+            scored = [(sc, p) for sc, p in scored
+                      if any(w in (p.name or '').lower() for w in part_words)]
         if not scored:
             return ""
         best = max(sc for sc, _p in scored)
