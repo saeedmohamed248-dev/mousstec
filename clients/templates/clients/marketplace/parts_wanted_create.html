@@ -40,6 +40,8 @@
         .alert-ok  { background:rgba(34,197,94,0.15); color:#86efac; border:1px solid rgba(34,197,94,0.4); }
         .legal { font-size:0.78rem; color:var(--muted); margin-top:18px; line-height:1.6; }
     </style>
+{# 📣 Meta Pixel — زيارات سوق قطع الغيار (Retargeting + حدث Lead لطلب القطعة) #}
+{% include 'clients/_meta_pixel.html' %}
 </head>
 <body>
 <div class="topbar">
@@ -120,6 +122,10 @@ document.getElementById('wantedForm').addEventListener('submit', async (e) => {
         });
         const j = await r.json();
         if (j.ok) {
+            // 📣 نفس الـ event_id اللي اتبعت من السيرفر ⇒ فيسبوك بيحسب الطلب مرة واحدة
+            if (window.fbq && j.pixel_event_id) {
+                fbq('track', 'Lead', {content_category: 'parts_wanted'}, {eventID: j.pixel_event_id});
+            }
             alertBox.className = 'alert alert-ok';
             alertBox.textContent = j.message || 'تم النشر.';
             alertBox.style.display = 'block';

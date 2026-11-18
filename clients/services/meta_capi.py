@@ -110,5 +110,49 @@ def send(event_name, tenant, *, event_id, value=None, currency=None, source_url=
     return True
 
 
+def contact_user_data(*, email='', phone='', external_id='', country='EG', request=None):
+    """بيانات عميل السوق (مش شركة) — نفس التشفير، و fbp/fbc/IP/المتصفح من الطلب نفسه."""
+    data = {
+        'em': [_sha(email)] if email else None,
+        'ph': [_sha(normalize_phone(phone, country))] if phone else None,
+        'external_id': [_sha(external_id)] if external_id else None,
+        'country': [_sha((country or 'EG').lower())],
+    }
+    if request is not None:
+        meta = getattr(request, 'META', {}) or {}
+        cookies = getattr(request, 'COOKIES', {}) or {}
+        ip = (meta.get('HTTP_X_FORWARDED_FOR') or meta.get('REMOTE_ADDR') or '').split(',')[0].strip()
+        data.update({'fbp': cookies.get('_fbp') or None, 'fbc': cookies.get('_fbc') or None,
+                     'client_ip_address': ip or None,
+                     'client_user_agent': (meta.get('HTTP_USER_AGENT') or '')[:500] or None})
+    return {k: v for k, v in data.items() if v}
+
+
+def send_contact(event_name, *, event_id, email='', phone='', external_id='', country='EG',
+                 request=None, source_url=''):
+    """📣 حدث لعميل في السوق (طلب قطعة / مطبعة اتسجلت) — مش مربوط بشركة (tenant).
+
+    نفس الـ event_id اللي بيتبعت من المتصفح ⇒ فيسبوك بيحسبه مرة واحدة. بعد الـ commit وفي thread.
+    """
+    if not configured():
+        return False
+    try:
+        event = {
+            'event_name': event_name,
+            'event_time': int(time.time()),
+            'event_id': event_id,
+            'action_source': 'website',
+            'user_data': contact_user_data(email=email, phone=phone, external_id=external_id,
+                                           country=country, request=request),
+        }
+        if source_url:
+            event['event_source_url'] = source_url
+    except Exception:
+        logger.exception('[META_CAPI] could not build %s (%s)', event_name, event_id)
+        return False
+    transaction.on_commit(lambda: threading.Thread(target=_post, args=(event,), daemon=True).start())
+    return True
+
+
 def purchase_currency(tenant):
     return 'AED' if getattr(tenant, 'country', 'EG') == 'AE' else 'EGP'

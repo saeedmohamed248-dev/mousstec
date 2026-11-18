@@ -206,6 +206,8 @@ def signup(request):
         acc, errors = _new_account(request, role, data, request.POST.get('password') or '')
         if acc is not None:
             messages.success(request, _('أهلاً بيك! حسابك اتعمل.'))
+            if acc.is_shop:
+                _track_shop_signup(request, acc)
             dest = reverse('print_market:shop_dashboard') if acc.is_shop else auth.safe_next(
                 request, reverse('print_market:my_orders'))
             return auth.login(redirect(dest), acc)
@@ -213,6 +215,19 @@ def signup(request):
             messages.error(request, e)
     return render(request, 'print_market/signup.html', _ctx(
         request, data=data, governorates=GOVERNORATES, next=request.GET.get('next', '')))
+
+
+def _track_shop_signup(request, acc):
+    """📣 مطبعة اتسجلت في السوق ⇒ حدث «SubmitApplication» لفيسبوك (المتصفح + السيرفر بنفس الـ id).
+
+    ده اللي حملة «سجّل مطبعتك» بتتحسّن عليه — من غيره فيسبوك مايعرفش مين من الإعلان سجّل فعلاً.
+    """
+    from clients.services import meta_capi
+    event_id = f'pms-{acc.pk}'
+    request.session['pixel_event'] = {'name': 'SubmitApplication', 'id': event_id}
+    meta_capi.send_contact('SubmitApplication', event_id=event_id, email=acc.email, phone=acc.whatsapp,
+                           external_id=f'pm-{acc.pk}', request=request,
+                           source_url=request.build_absolute_uri())
 
 
 def _dup_email():
