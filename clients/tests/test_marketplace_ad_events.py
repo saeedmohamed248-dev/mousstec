@@ -11,12 +11,19 @@ from types import SimpleNamespace
 from unittest import mock
 
 from django.core.cache import cache
-from django.test import Client as DjangoClient, SimpleTestCase, TestCase, override_settings
+from django.test import Client as DjangoClient
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
+from django.utils.html import escapejs
 
 from clients.services import meta_capi
 from clients.tests.test_printing_customer_flow import _TenantDomainMixin
-from marketplace_c2c.tests.test_parts_order_lifecycle import _PublicDomainMixin, _customer, _login, _make
+from marketplace_c2c.tests.test_parts_order_lifecycle import (
+    _customer,
+    _login,
+    _make,
+    _PublicDomainMixin,
+)
 
 META = dict(META_PIXEL_ID='1234567890', META_CAPI_TOKEN='tok', META_CAPI_TEST_CODE='')
 PW = 'Strong-Pass-2026'
@@ -115,7 +122,8 @@ class PrintShopSignupEventTests(_TenantDomainMixin, TestCase):
         event_id = send.call_args.kwargs['event_id']
         page = c.get(r['Location'])
         self.assertContains(page, "fbq('track', 'SubmitApplication'")
-        self.assertContains(page, event_id)
+        # 🐛 [FIX]: القالب بيعدّي الـ id على escapejs فالشرطة بتطلع \u002D (نفس القيمة في الـ JS)
+        self.assertContains(page, escapejs(event_id))
         # مرة واحدة بس — الصفحة اللي بعدها مافيهاش الحدث
         self.assertNotContains(c.get(r['Location']), "fbq('track', 'SubmitApplication'")
 
