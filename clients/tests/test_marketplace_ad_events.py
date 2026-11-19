@@ -132,3 +132,41 @@ class PrintShopSignupEventTests(_TenantDomainMixin, TestCase):
             DjangoClient().post(reverse('print_market:signup'), {'role': 'customer', 'name': 'أحمد',
                                                                  'email': 'c@x.com', 'password': PW})
         send.assert_not_called()
+
+
+@override_settings(ALLOWED_HOSTS=['*'], **META)
+class CatalogQuoteLeadTests(_TenantDomainMixin, TestCase):
+    """📣 حملة «مطبوعات الشركات»: طلب سعر من كتالوج الطباعة ⇒ «Lead» (سيرفر + متصفح بنفس الـ id، مرة واحدة)."""
+
+    def setUp(self):
+        from clients.catalog_seed import seed_catalog
+        from clients.models import CatalogItem, CatalogStore
+        cache.clear()
+        if not CatalogStore.objects.exists():
+            seed_catalog(CatalogStore, CatalogItem)
+        self.item = CatalogItem.objects.filter(store__sector='printing').first()
+
+    def test_quote_request_fires_lead_once_with_same_id(self):
+        from django.template.defaultfilters import escapejs
+        from clients.models import CatalogQuoteRequest
+        c = DjangoClient()
+        url = f'/marketplace/catalog/item/{self.item.item_code}/'
+        self.assertContains(c.get(url), "fbq('init', '1234567890')")
+        with mock.patch.object(meta_capi, 'send_contact') as send:
+            r = c.post(url, {'name': 'شركة النور', 'phone': '01011112222', 'quantity': '٥٠٠'})
+        self.assertEqual(r.status_code, 302)
+        q = CatalogQuoteRequest.objects.get()
+        send.assert_called_once()
+        self.assertEqual(send.call_args.args[0], 'Lead')
+        event_id = send.call_args.kwargs['event_id']
+        self.assertEqual(event_id, f'cq-{q.request_code}')
+        page = c.get(r['Location'])
+        self.assertContains(page, "fbq('track', 'Lead'")
+        self.assertContains(page, escapejs(event_id))
+        self.assertNotContains(c.get(url), "fbq('track', 'Lead'")
+
+    def test_invalid_request_sends_nothing(self):
+        with mock.patch.object(meta_capi, 'send_contact') as send:
+            r = DjangoClient().post(f'/marketplace/catalog/item/{self.item.item_code}/', {'name': 'م', 'phone': '1'})
+        self.assertEqual(r.status_code, 200)
+        send.assert_not_called()

@@ -299,6 +299,22 @@ def _item_ld(item):
     return mark_safe((jsonld(prod) if prod else '') + jsonld(crumbs))
 
 
+def _track_quote_lead(request, req):
+    """📣 طلب سعر من الكتالوج ⇒ حدث «Lead» لفيسبوك (السيرفر هنا + المتصفح بنفس الـ id في الصفحة اللي بعدها).
+
+    ده اللي حملة «مطبوعات الشركات» بتتحسّن عليه — من غيره فيسبوك مايعرفش مين من الإعلان طلب سعر فعلاً.
+    """
+    event_id = f'cq-{req.request_code}'
+    request.session['pixel_event'] = {'name': 'Lead', 'id': event_id}
+    try:
+        from clients.services import meta_capi
+        meta_capi.send_contact('Lead', event_id=event_id, phone=req.phone,
+                               external_id=f'mpc-{req.customer_id}' if req.customer_id else '',
+                               request=request, source_url=request.build_absolute_uri())
+    except Exception:
+        logger.exception('[META_CAPI] catalog quote Lead failed for %s', req.pk)
+
+
 def catalog_item(request, item_code):
     item = get_object_or_404(CatalogItem.objects.select_related('store'), item_code=item_code,
                              is_active=True, store__is_active=True)
@@ -367,6 +383,7 @@ def catalog_item(request, item_code):
                 logger.exception('[CATALOG] event log failed')
             from django.db import transaction
             transaction.on_commit(lambda: notify_owner_async(req.pk))
+            _track_quote_lead(request, req)
             return redirect(f'/marketplace/catalog/item/{item.item_code}/?sent=1#quote')
     related = list(_with_photo_first(CatalogItem.objects.filter(store=item.store, is_active=True)
                                      .exclude(pk=item.pk)).select_related('store')
