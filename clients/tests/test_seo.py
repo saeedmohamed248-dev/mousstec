@@ -33,6 +33,7 @@ class SeoTests(_TenantDomainMixin, TestCase):
         body = r.content.decode()
         self.assertIn('Disallow: /secure-portal', body)
         self.assertIn('Disallow: /marketplace/print-market/order/', body)
+        self.assertIn('Disallow: /pricing/coupon/', body)   # Googlebot كان بيفتحه من سكريبت صفحة الأسعار
         self.assertIn('Sitemap: https://mousstec.com/sitemap.xml', body)
         self.assertNotIn('Disallow: /\n', body)
 

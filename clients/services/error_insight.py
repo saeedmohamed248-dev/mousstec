@@ -25,12 +25,18 @@ _PROBE_PATH = re.compile(
 # 🐛 [FIX]: الـ regex فوق متثبّت على أول المسار — `/api/actuator/env` و`/blog/wp-login.php` و`/x/.env`
 #    كانوا بيعدّوا ويقعدوا مفتوحين في مركز الأخطاء (اتكرر ٤٠ مرة). دول بصمات سكانرات في أي جزء من
 #    المسار — مفيش صفحة عندنا اسمها كده — فبتتقفل لوحدها حتى لو المستخدم داخل.
-SCANNER_PATH = re.compile(
-    r'(?:^|/)(?:\.env|\.git/|\.git$|\.aws|\.ssh|actuator(?:/|$)|wp-(?:admin|login|content|includes|json|config)'
-    r'|wordpress|xmlrpc\.php|phpmyadmin|phpunit|cgi-bin|boaform|HNAP1|server-status|telescope)', re.I)
-# نفس النمط بصيغة Postgres (`path__iregex`) — لقفل اللي اتسجّل قبل كده (error_autoheal.autoclose_stale)
-SCANNER_PATH_SQL = (r'(^|/)(\.env|\.git/|\.git$|\.aws|\.ssh|actuator(/|$)|wp-(admin|login|content|includes|json|config)'
-                    r'|wordpress|xmlrpc\.php|phpmyadmin|phpunit|cgi-bin|boaform|HNAP1|server-status|telescope)')
+# 🐛 [FIX]: سكانرات بتدوّر على ملفات أدوات المطوّرين وإعدادات الواجهة (`/.idea/workspace.xml`،
+#    `/.claude/settings.json`، `/.aider.model.settings.yml`، `/runtime-config.js`، `/__ENV.js`،
+#    `/phpinfo.php`، `/@fs/root/.aws/credentials`) كانت بتتسجّل «ملف/أيقونة ناقصة — مفتوح» وبتملا رحلة
+#    الشركة. أي جزء في المسار بيبدأ بنقطة (غير `.well-known`) مفيش صفحة عندنا كده، ولا أي ملف PHP/ASP،
+#    ولا ملفات JS إعدادات في جذر الموقع (الـ JS بتاعنا كله تحت /static/).
+#    نمط واحد بيشتغل في بايثون وفي Postgres (`path__iregex`) عشان الاتنين مايختلفوش.
+SCANNER_PATH_SQL = (
+    r'(?:^|/)(?:\.(?!well-known(?:/|$))[^/]|actuator(?:/|$)|wp-(?:admin|login|content|includes|json|config)'
+    r'|wordpress|xmlrpc\.php|phpmyadmin|phpunit|phpinfo|cgi-bin|boaform|HNAP1|server-status|telescope|@fs/)'
+    r'|\.(?:php\d?|aspx?|jsp|cgi)$'
+    r'|^/(?:js/)?(?:app\.config|runtime-config|config|env|__env|index)\.js$')
+SCANNER_PATH = re.compile(SCANNER_PATH_SQL, re.I)
 
 # استثناءات «متوقعة» — جانجو بيحوّلها لـ 404/403/400 مش عطل في الكود.
 # 🐛 [FIX]: Http404 من get_object_or_404 كان بيتسجّل «500 — عطل في الكود» (process_exception).
@@ -90,9 +96,11 @@ def classify(status, path, user_id=None, exception_class='', ua='', referer='', 
         return 'code'
     if SCANNER_PATH.search(path):
         return 'bot'
-    if status == 400:
-        return 'bad_request'
     anonymous = not user_id
+    if status == 400:
+        # 🐛 [FIX]: Googlebot لقى رابط `/pricing/coupon/` جوه سكريبت صفحة الأسعار وفتحه من غير كود
+        #    ⇒ 400 «طلب غير صالح — مفتوح». بوت معروف مش داخل = مش مشكلة عميل.
+        return 'bot' if anonymous and _BOT_UA.search(ua or '') else 'bad_request'
     if anonymous and (_PROBE_PATH.match(path) or _PROBE_EXT.search(path)
                       or not ua or _BOT_UA.search(ua or '')):
         return 'bot'

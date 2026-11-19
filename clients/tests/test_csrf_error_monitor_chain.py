@@ -285,6 +285,43 @@ class ErrorMonitorFingerprintTests(_Base):
         logs = self._logs(path='/api/actuator/env')
         self.assertTrue(logs and all(e.is_resolved for e in logs))
 
+    def test_dev_tool_and_config_probes_are_bots_not_missing_assets(self):
+        """🐛 من مركز الأخطاء: /.idea/workspace.xml و/runtime-config.js و/__ENV.js كانوا «ملف/أيقونة ناقصة — مفتوح»."""
+        from clients.models import VisitorLog
+        from clients.services.tenant_journey import build_tenant_journey
+        win = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+               'Chrome/120.0.0.0 Safari/537.36')
+        for p in ('/.idea/workspace.xml', '/runtime-config.js', '/__ENV.js', '/js/config.js', '/app.config.js',
+                  '/.aider.model.settings.yml', '/.claude/settings.json', '/@fs/root/.aws/credentials',
+                  '/phpinfo.php', '/.env.development'):
+            self.assertEqual(classify(404, p, ua=win), 'bot', p)
+            self.assertEqual(classify(302, p, user_id=5, ua=win), 'bot', p)
+        for p in ('/.well-known/assetlinks.json', '/static/js/config.js', '/system/environment/'):
+            self.assertNotEqual(classify(404, p, user_id=5, ua=win), 'bot', p)
+        # Googlebot فتح رابط فحص الكوبون من غير كود ⇒ مش «طلب غير صالح» مفتوح
+        gbot = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+        self.assertEqual(classify(400, '/pricing/coupon/', ua=gbot), 'bot')
+        self.assertEqual(classify(400, '/pricing/coupon/', ua=win), 'bad_request')
+
+        # السكانر مايتسجّلش زيارة، والقديم مايظهرش في رحلة الشركة
+        from django_tenants.utils import schema_context
+        with schema_context('public'):   # VisitorLog في الـ public بس
+            VisitorLog.objects.all().delete()
+        HttpClient().get('/.env.development', HTTP_HOST=self.host, HTTP_USER_AGENT=win)
+        HttpClient().get('/login/', HTTP_HOST=self.host, HTTP_USER_AGENT=win)
+        with schema_context('public'):
+            paths = set(VisitorLog.objects.values_list('path', flat=True))
+            self.assertIn('/login/', paths)
+            self.assertNotIn('/.env.development', paths)
+            VisitorLog.objects.create(path='/.git/HEAD', method='GET', status_code=302,
+                                      tenant_schema=self.tenant.schema_name, ip_address='1.2.3.4',
+                                      device_type='desktop')
+            journey = build_tenant_journey(self.tenant, days=1)
+        seen = [pg['path'] for s in journey['sessions'] for pg in s['pages']]
+        self.assertIn('/login/', seen)
+        self.assertNotIn('/.git/HEAD', seen)
+        self.assertEqual(journey['last_page']['path'], '/login/')
+
     def test_anonymous_post_without_our_referer_is_a_bot_not_a_csrf_problem(self):
         """🐛 من سجل المنصة: POST «/» من سيرفرات سحابية (٤ في ثانية، Chrome/Edge قديم) من غير
         Referer — كانت «فشل تحقق الأمان — مفتوح». المتصفح الحقيقي بيبعت الـ Referer من صفحتنا."""
