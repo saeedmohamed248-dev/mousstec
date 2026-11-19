@@ -239,7 +239,18 @@ def platform_modules(request):
 def marketing(request):
     """📣 رقم Meta Pixel للصفحات العامة (فاضي ⇒ مفيش سكريبت فيسبوك خالص)."""
     from django.conf import settings
-    return {'META_PIXEL_ID': getattr(settings, 'META_PIXEL_ID', '')}
+    ctx = {'META_PIXEL_ID': getattr(settings, 'META_PIXEL_ID', '')}
+    # 📣 حدث بيتسجّل قبل redirect (مثلاً مطبعة اتسجلت في السوق ⇒ تتحوّل للوحة) — بيتبعت مرة
+    #    واحدة في أول صفحة كاملة بعدها. القالب بيقرأ pixel_event / pixel_event_id (_meta_pixel.html).
+    if ctx['META_PIXEL_ID'] and getattr(request, 'session', None) is not None:
+        try:
+            pending = request.session.pop('pixel_event', None)
+        except Exception:
+            pending = None
+        if isinstance(pending, dict) and pending.get('name'):
+            ctx['pixel_event'] = str(pending['name'])
+            ctx['pixel_event_id'] = str(pending.get('id') or '')
+    return ctx
 
 
 def payment_handles(request):

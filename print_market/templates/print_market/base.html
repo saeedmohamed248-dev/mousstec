@@ -47,6 +47,8 @@ body { font-family:'Cairo',sans-serif; background:var(--bg); color:var(--ink); }
 .pm-rate input:checked ~ label, .pm-rate label:hover, .pm-rate label:hover ~ label { color:#f59e0b; }
 .pm-rule { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:12px; padding:.6rem .9rem; font-size:.85rem; }
 </style>
+{# 📣 Meta Pixel — زيارات السوق (Retargeting) + حدث تسجيل المطبعة بعد الـ redirect #}
+{% include 'clients/_meta_pixel.html' %}
 </head>
 <body>
 <nav class="pm-nav py-2 mb-4">

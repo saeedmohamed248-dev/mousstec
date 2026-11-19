@@ -31,14 +31,18 @@ def landing_plans(context, industry):
     rows = []
     for idx, p in enumerate(plans):
         aed = p.monthly_price_aed or 0
+        # 🐛 [FIX]: باقات المطابع كانت بتعرض «50 تصميم AI/شهر» مرتين — مرة من حصة الـ AI ومرة
+        #    من مميزات الباقة في الداتابيز (الأدمن كاتبها هناك). لو المميزات فيها سطر الـ AI نسيبه هو بس.
+        features = p.features or []
+        ai_in_features = any(('تصميم AI' in str(x)) or ('AI design' in str(x)) for x in features)
         rows.append({
             # 🐛 [FIX]: name_en فاضي ⇒ «Starter — ستارتر» كان بيظهر في الموقع الإنجليزي — نفس منطق صفحة الأسعار
             'name': plan_display_name(p, is_en), 'slug': p.slug,
             'price': aed if (is_ae and aed > 0) else p.monthly_price,
             'max_users': p.max_users, 'max_branches': p.max_branches, 'max_treasuries': p.max_treasuries,
-            'ai_quota': p.monthly_ai_designs_quota,
+            'ai_quota': None if ai_in_features else p.monthly_ai_designs_quota,
             # 💎 مميزات الباقة الحقيقية من الداتابيز (كانت سطر ثابت «طلبات طباعة» لكل الباقات)
-            'features': [gettext(x) if is_en else x for x in (p.features or [])],
+            'features': [gettext(x) if is_en else x for x in features],
             'is_popular': len(plans) >= 3 and idx == 1,
         })
     return rows

@@ -1198,7 +1198,9 @@ def parts_wanted_create(request):
     """Buyer posts a 'Part Wanted' request."""
     customer = _marketplace_auth(request)
     if not customer:
-        return redirect('/marketplace/login/?next=/marketplace/parts/wanted/new/')
+        # 🐛 [FIX]: كان بيودّي لتبويب «دخول» — واللي جاي من إعلان «اكتب طلبك» غالباً عميل جديد
+        #    ملوش حساب. صفحة سوق السيارات بتفتح على «حساب جديد» وفيها تبويب الدخول، وبعدها يرجع هنا.
+        return redirect('/marketplace/automotive/?next=/marketplace/parts/wanted/new/')
     if customer.sector != 'automotive':
         return JsonResponse({'error': 'هذا الطلب مخصص لقطاع السيارات.'}, status=403)
 
@@ -1264,9 +1266,22 @@ def parts_wanted_create(request):
     message = 'تم نشر الطلب. هتوصلك عروض البائعين قريباً.'
     if matches:
         message = f'تم نشر الطلب — ولقينا {len(matches)} قطعة معروضة ممكن تناسبك دلوقتي.'
+
+    # 📣 طلب قطعة اتنشر ⇒ حدث «Lead» لفيسبوك (السيرفر هنا + المتصفح بنفس الـ id في القالب)
+    #    عشان حملة «سوق قطع الغيار» تتحسّن على ناس بتطلب فعلاً مش مجرد زيارات.
+    pixel_event_id = f'pw-{req.request_code}'
+    try:
+        from clients.services import meta_capi
+        meta_capi.send_contact('Lead', event_id=pixel_event_id, email=customer.email or '',
+                               phone=customer.phone or '', external_id=f'mpc-{customer.pk}',
+                               request=request, source_url=request.build_absolute_uri())
+    except Exception:
+        logger.exception("[META_CAPI] wanted-request Lead failed for %s", req.pk)
+
     return JsonResponse({
         'ok': True,
         'message': message,
+        'pixel_event_id': pixel_event_id,
         'request_code': str(req.request_code),
         'redirect': '/marketplace/parts/wanted/mine/',
         'matches': [
