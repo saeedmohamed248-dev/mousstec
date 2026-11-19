@@ -38,7 +38,7 @@ PORTAL_ROOTS = {
 # صفحات ماينفعش تتفهرس (حسابات / لوحات / طلبات / دفع / API)
 PRIVATE_PREFIXES = (
     '/secure-portal', '/superadmin', '/admin-tools', '/api/', '/account/', '/accounts/', '/payment/',
-    '/subscription/', '/system/', '/i18n/', '/healthz', '/support/', '/screen-rec/',
+    '/subscription/', '/pricing/coupon/', '/system/', '/i18n/', '/healthz', '/support/', '/screen-rec/',
     '/marketplace/dashboard', '/marketplace/request/', '/marketplace/merchant/', '/marketplace/offer/',
     '/marketplace/notifications', '/marketplace/admin/', '/marketplace/profile',
     '/marketplace/parts/my-', '/marketplace/parts/wallet', '/marketplace/parts/saved', '/marketplace/parts/order',

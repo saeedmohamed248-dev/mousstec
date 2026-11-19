@@ -669,6 +669,11 @@ class VisitorTrackingMiddleware:
                 return response
             if any(path.endswith(ext) for ext in self.IGNORE_EXTENSIONS):
                 return response
+            # 🐛 [FIX]: سكانر واحد بيجرّب ٢٧٠ مسار (/.env، /.git/HEAD، /phpinfo.php…) في ثواني — كانوا
+            #    بيتسجّلوا زيارات للشركة ويطلعوا في «رحلة الشركة» و«آخر صفحة وقف عندها». مش زوار.
+            from clients.services.error_insight import SCANNER_PATH
+            if SCANNER_PATH.search(path):
+                return response
 
             elapsed_ms = int((time.time() - start) * 1000)
 

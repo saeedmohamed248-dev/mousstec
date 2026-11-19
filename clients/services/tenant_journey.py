@@ -121,7 +121,10 @@ def build_tenant_journey(tenant, days=DEFAULT_DAYS):
     now = timezone.now()
     since = now - timedelta(days=days)
     # الأحدث الأول عشان الحد ياخد آخر الحركة، وبعدين نرتّب تصاعدي للتقسيم
+    from clients.services.error_insight import SCANNER_PATH_SQL
+    # 🐛 [FIX]: طلبات السكانرات اللي اتسجّلت قبل كده (/.env…) كانت بتظهر رحلة للشركة وآخر صفحة ليها
     logs = list(VisitorLog.objects.filter(tenant_schema=tenant.schema_name, timestamp__gte=since)
+                .exclude(path__iregex=SCANNER_PATH_SQL)
                 .order_by('-timestamp')[:MAX_ROWS])
     logs.reverse()
 
