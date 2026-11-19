@@ -28477,3 +28477,30 @@ msgstr "Item image"
 
 msgid "البوت يسجّل طلبات العملاء كعرض سعر (تعتمده بضغطة)"
 msgstr "Bot records customer orders as quotations (approve with one click)"
+
+msgid "أضف صور"
+msgstr "Add photos"
+
+msgid "مفيش صور مختارة"
+msgstr "No photos selected"
+
+msgid "تقدر تختار من المعرض أو تصوّر بالكاميرا، وتدوس «أضف صور» تاني عشان تزوّد. أول صورة هتكون الأساسية."
+msgstr "Pick from your gallery or take a photo, and tap “Add photos” again to add more. The first photo becomes the main one."
+
+msgid "🎨 نظّف خلفية الصورة الأساسية (أبيض) بالذكاء الاصطناعي بعد الحفظ"
+msgstr "🎨 Clean the main photo's background (white) with AI after saving"
+
+msgid "حذف الصورة"
+msgstr "Remove photo"
+
+msgid "صور مختارة:"
+msgstr "Photos selected:"
+
+msgid "🎨 جارٍ تنظيف الخلفية... ممكن ياخد دقيقة"
+msgstr "🎨 Cleaning the background... this may take a minute"
+
+msgid "فشل تنظيف الخلفية."
+msgstr "Background cleanup failed."
+
+msgid "✅ تم تنظيف خلفية الصورة الأساسية"
+msgstr "✅ Main photo background cleaned"

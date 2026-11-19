@@ -108,15 +108,32 @@
   <div class="bg-slate-900/40 rounded-xl p-4 border border-slate-700/50">
     <label class="block text-sm font-bold text-slate-200 mb-2"><i class="fas fa-images text-sky-400 ml-1"></i> {% trans "صور القطعة (اختياري — تقدر ترفع أكثر من صورة)" %}</label>
     {# بدون capture: يسمح باختيار صورة من المعرض أو التقاطها بالكاميرا على الموبايل #}
-    <input name="images" type="file" accept="image/*" multiple class="w-full text-sm text-slate-300 file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-sky-600 file:text-white file:font-bold hover:file:bg-sky-500">
-    <p class="text-xs text-slate-500 mt-1">{% trans "تقدر تختار من المعرض أو تصوّر بالكاميرا. أول صورة هتكون الأساسية." %}
-      {% if not nav_can or nav_can.stock_tools %}<a href="{% url 'inventory:image_studio' %}" class="text-sky-400 underline">{% trans "🎨 نظّف الخلفية (أبيض) بالذكاء الاصطناعي بعد الحفظ من استوديو الصور" %}</a>{% endif %}</p>
+    {% comment %}🐛 [FIX]: كل اختيار جديد (خصوصاً صورة من الكاميرا على الآيفون) كان بيمسح اللي قبله فيترفع صورة واحدة بس.
+       دلوقتي الـ input مالوش name — الصور بتتجمّع في JS مع كل اختيار وبتتضاف للـ FormData وقت الحفظ.{% endcomment %}
+    <input id="img-picker" type="file" accept="image/*" multiple class="hidden">
+    <div class="flex flex-wrap items-center gap-3">
+      <button type="button" id="img-add" class="bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm py-2 px-4 rounded-lg">
+        <i class="fas fa-plus ml-1"></i> {% trans "أضف صور" %}
+      </button>
+      <span id="img-count" class="text-xs text-slate-400">{% trans "مفيش صور مختارة" %}</span>
+    </div>
+    <div id="img-previews" class="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-3"></div>
+    <p class="text-xs text-slate-500 mt-2">{% trans "تقدر تختار من المعرض أو تصوّر بالكاميرا، وتدوس «أضف صور» تاني عشان تزوّد. أول صورة هتكون الأساسية." %}</p>
+    {% if not nav_can or nav_can.stock_tools %}
+    {% comment %}🐛 [FIX]: لينك استوديو الصور كان بينقلك لصفحة تانية والفورم لسه ما اتحفظش فالبيانات بتضيع.
+       بقى اختيار هنا — الخلفية بتتنضف بعد الحفظ وانت في نفس الصفحة.{% endcomment %}
+    <label class="flex items-start gap-2 mt-3 text-sm text-slate-200 cursor-pointer">
+      <input type="checkbox" id="clean-bg" class="mt-1 accent-sky-500">
+      <span>{% trans "🎨 نظّف خلفية الصورة الأساسية (أبيض) بالذكاء الاصطناعي بعد الحفظ" %}</span>
+    </label>
+    {% endif %}
   </div>
 
   <button type="submit" class="w-full bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl shadow-lg disabled:opacity-40">
     <i class="fas fa-bolt"></i> {% trans "حفظ القطعة وتسجيل المخزون" %}
   </button>
   <p id="msg" class="text-sm text-center"></p>
+  <p id="bg-msg" class="text-sm text-center"></p>
 </form>
 {% endblock %}
 
@@ -124,19 +141,101 @@
 <script>
 const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
 const URL_CREATE = "{% url 'inventory:quick_product_create' %}";
+const URL_BG_GENERATE = "{% url 'inventory:image_studio_generate' %}";
+const URL_BG_APPLY = "{% url 'inventory:image_studio_apply' %}";
+const MAX_IMAGES = 12;
+
+// 📸 الصور المختارة بتتجمّع هنا مع كل اختيار (المعرض أو الكاميرا)
+let pickedFiles = [];
+const picker = document.getElementById('img-picker');
+const previews = document.getElementById('img-previews');
+const imgCount = document.getElementById('img-count');
+document.getElementById('img-add').addEventListener('click', () => picker.click());
+
+function renderPicked() {
+  previews.querySelectorAll('img').forEach(i => URL.revokeObjectURL(i.src));
+  previews.innerHTML = '';
+  pickedFiles.forEach((f, idx) => {
+    const box = document.createElement('div');
+    box.className = 'relative aspect-square rounded-lg overflow-hidden border ' + (idx === 0 ? 'border-amber-400 border-2' : 'border-slate-700');
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(f);
+    img.className = 'w-full h-full object-cover';
+    img.alt = '';
+    box.appendChild(img);
+    if (idx === 0) {
+      const tag = document.createElement('span');
+      tag.className = 'absolute bottom-0 inset-x-0 bg-amber-500/90 text-white text-[10px] font-bold text-center py-0.5';
+      tag.textContent = '{% trans "الأساسية" %}';
+      box.appendChild(tag);
+    }
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'absolute top-1 left-1 w-7 h-7 rounded-full bg-black/70 text-white text-sm leading-7';
+    rm.setAttribute('aria-label', '{% trans "حذف الصورة" %}');
+    rm.textContent = '✕';
+    rm.addEventListener('click', () => { pickedFiles.splice(idx, 1); renderPicked(); });
+    box.appendChild(rm);
+    previews.appendChild(box);
+  });
+  imgCount.textContent = pickedFiles.length
+    ? `{% trans "صور مختارة:" %} ${pickedFiles.length}`
+    : '{% trans "مفيش صور مختارة" %}';
+}
+
+picker.addEventListener('change', () => {
+  const key = (f) => `${f.name}|${f.size}|${f.lastModified}`;
+  const seen = new Set(pickedFiles.map(key));
+  for (const f of picker.files) {
+    if (pickedFiles.length >= MAX_IMAGES) break;
+    if (!seen.has(key(f))) { pickedFiles.push(f); seen.add(key(f)); }
+  }
+  picker.value = '';  // عشان نفس الصورة تتختار تاني لو اتمسحت
+  renderPicked();
+});
+
+async function postJSON(url, body) {
+  const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json', 'X-CSRFToken':csrf}, body: JSON.stringify(body) });
+  let data = {}; try { data = await r.json(); } catch (_) {}
+  return { ok: r.ok && !data.error, data };
+}
+
+// 🎨 تنظيف الخلفية بعد الحفظ — في نفس الصفحة (توليد ثم اعتماد)
+async function cleanBackground(productId) {
+  const bgMsg = document.getElementById('bg-msg');
+  bgMsg.className = 'text-sm text-center text-sky-300';
+  bgMsg.textContent = '{% trans "🎨 جارٍ تنظيف الخلفية... ممكن ياخد دقيقة" %}';
+  const gen = await postJSON(URL_BG_GENERATE, { product_id: productId, preset: 'studio_white' });
+  if (!gen.ok) { bgMsg.className = 'text-sm text-center text-red-400'; bgMsg.textContent = gen.data.error || '{% trans "فشل تنظيف الخلفية." %}'; return; }
+  const app = await postJSON(URL_BG_APPLY, { product_id: productId, preview_path: gen.data.preview_path, preset: gen.data.preset || 'studio_white' });
+  if (!app.ok) { bgMsg.className = 'text-sm text-center text-red-400'; bgMsg.textContent = app.data.error || '{% trans "فشل تنظيف الخلفية." %}'; return; }
+  bgMsg.className = 'text-sm text-center text-emerald-400 font-bold';
+  bgMsg.textContent = '{% trans "✅ تم تنظيف خلفية الصورة الأساسية" %}';
+}
+
 document.getElementById('quick-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = e.target.querySelector('button[type=submit]'); btn.disabled = true;
   const msg = document.getElementById('msg');
+  const bgMsg = document.getElementById('bg-msg');
+  bgMsg.textContent = '';
   msg.className = 'text-sm text-center text-slate-300'; msg.textContent = '{% trans "جارٍ الحفظ..." %}';
+  const fd = new FormData(e.target);
+  pickedFiles.forEach(f => fd.append('images', f, f.name));
+  const cleanBox = document.getElementById('clean-bg');
+  const keepClean = !!(cleanBox && cleanBox.checked);
+  const wantClean = keepClean && pickedFiles.length > 0;
   try {
-    const r = await fetch(URL_CREATE, { method:'POST', headers:{'X-CSRFToken':csrf}, body: new FormData(e.target) });
-    const data = await r.json();
+    const r = await fetch(URL_CREATE, { method:'POST', headers:{'X-CSRFToken':csrf}, body: fd });
+    let data = {}; try { data = await r.json(); } catch (_) {}
     if (!r.ok || !data.ok) { msg.className = 'text-sm text-center text-red-400'; msg.textContent = data.error || '{% trans "فشل الحفظ." %}'; btn.disabled = false; return; }
     msg.className = 'text-sm text-center text-emerald-400 font-bold';
     msg.textContent = `{% trans "تم! قطعة" %} #${data.product_id} (${data.sku}) · {% trans "مخزون افتتاحي:" %} ${data.stock}`;
     e.target.reset();
     e.target.querySelector('[name=min_stock_level]').value = '2';
+    if (cleanBox) cleanBox.checked = keepClean;  // نفتكر اختياره للقطعة الجاية
+    pickedFiles = []; renderPicked();
+    if (wantClean) await cleanBackground(data.product_id);
     btn.disabled = false;
     e.target.querySelector('[name=part_number]').focus();
   } catch { msg.className = 'text-sm text-center text-red-400'; msg.textContent = '{% trans "خطأ في الشبكة." %}'; btn.disabled = false; }
