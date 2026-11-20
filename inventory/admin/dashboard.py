@@ -82,6 +82,25 @@ def MoussTec_dashboard_index(request, extra_context=None):
             # rather than always /system/dashboard/.
             return redirect(landing or '/auth/redirect/')
 
+    # 🐛 [FIX]: صاحب شركة السيارات (superuser) كان بيدخل من /secure-portal/login/ أو أيقونة التطبيق
+    #    أو بعد التحقق بخطوتين على لوحة Django بدل «الوصول السريع» (/system/dashboard/) زي باقي الموظفين.
+    #    دلوقتي أول دخول بيروح على الوصول السريع، واللوحة الكاملة بتتفتح بس من زرارها (?full=1)
+    #    وبتفضل مفتوحة باقي الجلسة (عشان «الرئيسية» جوه لوحة Django ماترجّعوش برّه).
+    if (
+        request.user.is_authenticated
+        and request.user.is_superuser
+        and getattr(connection, 'schema_name', 'public') != 'public'
+        and getattr(connection.tenant, 'industry', 'automotive') != 'printing'
+    ):
+        if request.GET.get('full') == '1':
+            request.session['admin_full_panel'] = True
+        elif not request.session.get('admin_full_panel'):
+            from django.shortcuts import redirect
+            from clients.views.auth_views import _tenant_landing_url
+            landing = _tenant_landing_url(request.user, connection.tenant)
+            if landing.rstrip('/') != request.path.rstrip('/'):
+                return redirect(landing)
+
     if connection.schema_name == 'public':
         extra_context['branch_name'] = "غرفة عمليات Mouss Tec المركزية السحابية"
         return original_index(request, extra_context)

@@ -48,7 +48,8 @@ class SignupFunnelTests(ERPTenantTestCase):
         Client.objects.filter(pk=self.tenant.pk).update(industry='automotive', business_type='both',
                                                         business_type_confirmed=False)
         c = self.owner()
-        r = c.get('/secure-portal/', HTTP_HOST=self.host)
+        r = c.get('/secure-portal/', HTTP_HOST=self.host, follow=True)   # شركة السيارات ⇒ الوصول السريع
+        self.assertEqual(r.redirect_chain[-1][0], '/system/dashboard/')
         self.assertContains(r, 'businessTypePrompt')
         r = c.post('/account/workspace/business-type/', {'business_type': 'parts_dealer', 'next': '/secure-portal/'},
                    HTTP_HOST=self.host)

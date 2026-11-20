@@ -135,7 +135,7 @@ class IndustryChangeTests(ERPTenantTestCase):
 
         dash = self.c.get('/system/dashboard/', HTTP_HOST=self.domain.domain)
         self.assertContains(dash, 'id="industryChangeLink"')
-        admin_index = self.c.get(f'/{settings.ADMIN_URL}/', HTTP_HOST=self.domain.domain)
+        admin_index = self.c.get(f'/{settings.ADMIN_URL}/?full=1', HTTP_HOST=self.domain.domain)   # من زرار اللوحة الكاملة
         self.assertContains(admin_index, 'id="industryChangeBanner"')
         self.assertContains(admin_index, f'href="{URL}"', count=2)      # البانر + قايمة المستخدم
 

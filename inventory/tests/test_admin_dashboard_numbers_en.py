@@ -30,7 +30,7 @@ class AdminDashboardNumbersEnglishTests(ERPTenantTestCase):
 
     def _index(self, lang):
         self.c.cookies['django_language'] = lang
-        r = self.c.get('/secure-portal/')
+        r = self.c.get('/secure-portal/?full=1')   # من غير full بيروح للوصول السريع
         self.assertEqual(r.status_code, 200)
         return r.content.decode()
 
