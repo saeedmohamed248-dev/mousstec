@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/i18n.dart';
+
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/common.dart';
@@ -25,7 +27,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('تفاصيل القطعة')),
+      appBar: AppBar(title: Text(tr('تفاصيل القطعة'))),
       body: FutureBuilder<Product>(
         future: _future,
         builder: (context, snap) {
@@ -52,15 +54,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       const SizedBox(height: 4),
                       Text(p.partNumber, style: TextStyle(color: Colors.grey.shade600)),
                       const Divider(height: 24),
-                      _kv('الماركة', p.brand),
-                      if (p.carModel != null) _kv('الموديلات', p.carModel!),
-                      if (p.condition != null) _kv('الحالة', p.condition!),
-                      if (p.barcode != null) _kv('الباركود', p.barcode!),
+                      _kv(tr('الماركة'), p.brand),
+                      if (p.carModel != null) _kv(tr('الموديلات'), p.carModel!),
+                      if (p.condition != null) _kv(tr('الحالة'), p.condition!),
+                      if (p.barcode != null) _kv(tr('الباركود'), p.barcode!),
                       if (p.warrantyMonths != null && p.warrantyMonths! > 0)
-                        _kv('الضمان', '${p.warrantyMonths} شهر'),
-                      _kv('سعر البيع', formatMoney(p.retailPrice)),
-                      _kv('إجمالي المتاح', '${p.totalQuantity}'),
-                      _kv('حد الأمان', '${p.minStockLevel}'),
+                        _kv(tr('الضمان'), trf('{n} شهر', {'n': p.warrantyMonths})),
+                      _kv(tr('سعر البيع'), formatMoney(p.retailPrice)),
+                      _kv(tr('إجمالي المتاح'), '${p.totalQuantity}'),
+                      _kv(tr('حد الأمان'), '${p.minStockLevel}'),
                     ],
                   ),
                 ),
@@ -68,9 +70,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               if (p.isLowStock)
                 Card(
                   color: Colors.red.shade50,
-                  child: const ListTile(
+                  child: ListTile(
                     leading: Icon(Icons.warning_amber, color: Colors.red),
-                    title: Text('المخزون منخفض — يُنصح بإعادة الطلب'),
+                    title: Text(tr('المخزون منخفض — يُنصح بإعادة الطلب')),
                   ),
                 ),
               Card(
@@ -79,19 +81,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.all(8),
-                        child: Text('التوزيع على الفروع',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: Text(tr('التوزيع على الفروع'), style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                       if (p.stockByBranch.isEmpty)
-                        const ListTile(dense: true, title: Text('لا يوجد رصيد في أي فرع')),
+                        ListTile(dense: true, title: Text(tr('لا يوجد رصيد في أي فرع'))),
                       for (final loc in p.stockByBranch)
                         ListTile(
                           dense: true,
                           leading: const Icon(Icons.store_outlined),
                           title: Text(loc.branchName),
-                          subtitle: loc.shelf != null ? Text('الرف: ${loc.shelf}') : null,
+                          subtitle: loc.shelf != null ? Text(trf('الرف: {v}', {'v': loc.shelf})) : null,
                           trailing: Text('${loc.quantity}',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         ),
@@ -112,7 +113,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(k, style: TextStyle(color: Colors.grey.shade700)),
-            Flexible(child: Text(v, textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w600))),
+            Flexible(
+                child:
+                    Text(v, textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w600))),
           ],
         ),
       );

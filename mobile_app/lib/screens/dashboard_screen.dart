@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/i18n.dart';
+
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/common.dart';
@@ -36,10 +38,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final user = context.watch<AuthProvider>().user;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الرئيسية'),
+        title: Text(tr('الرئيسية')),
         actions: [
           IconButton(
-            tooltip: 'التحليلات',
+            tooltip: tr('التحليلات'),
             icon: const Icon(Icons.bar_chart),
             onPressed: () => Navigator.push(
               context,
@@ -68,10 +70,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return ListView(
               padding: const EdgeInsets.all(12),
               children: [
-                Text('أهلاً، ${user?.fullName ?? ''} 👋',
+                Text(trf('أهلاً، {name} 👋', {'name': user?.fullName ?? ''}),
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text('ملخّص اليوم', style: TextStyle(color: Colors.grey.shade600)),
+                Text(tr('ملخّص اليوم'), style: TextStyle(color: Colors.grey.shade600)),
                 const SizedBox(height: 12),
                 GridView.count(
                   crossAxisCount: 2,
@@ -80,67 +82,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   childAspectRatio: 1.15,
                   children: [
                     MetricCard(
-                      title: 'أوامر شغل مفتوحة',
+                      title: tr('أوامر شغل مفتوحة'),
                       value: '${d.openWorkOrders}',
                       icon: Icons.build_circle_outlined,
                       color: Colors.orange,
                     ),
                     MetricCard(
-                      title: 'جاهز للتسليم',
+                      title: tr('جاهز للتسليم'),
                       value: '${d.readyForDelivery}',
                       icon: Icons.check_circle_outline,
                       color: Colors.green,
                     ),
+                    // 🐛 [FIX]: الفني/الكاشير كان بيشوف «إيراد اليوم = 0» (السيرفر مابيبعتهوش ليهم)
+                    if (d.revenueToday != null)
+                      MetricCard(
+                        title: tr('إيراد اليوم'),
+                        value: formatMoney(d.revenueToday!),
+                        icon: Icons.payments_outlined,
+                        color: Colors.teal,
+                      ),
                     MetricCard(
-                      title: 'إيراد اليوم',
-                      value: formatMoney(d.revenueToday),
-                      icon: Icons.payments_outlined,
-                      color: Colors.teal,
-                    ),
-                    MetricCard(
-                      title: 'تنبيهات نقص المخزون',
+                      title: tr('تنبيهات نقص المخزون'),
                       value: '${d.lowStockAlerts}',
                       icon: Icons.warning_amber_outlined,
                       color: Colors.redAccent,
                     ),
                     MetricCard(
-                      title: 'العملاء',
+                      title: tr('العملاء'),
                       value: '${d.totalCustomers}',
                       icon: Icons.people_outline,
                       color: Colors.indigo,
                     ),
                     MetricCard(
-                      title: 'قطع الغيار',
+                      title: tr('قطع الغيار'),
                       value: '${d.totalProducts}',
                       icon: Icons.inventory_2_outlined,
                       color: Colors.blueGrey,
                     ),
                     MetricCard(
-                      title: 'المركبات',
+                      title: tr('المركبات'),
                       value: '${d.totalVehicles}',
                       icon: Icons.directions_car_outlined,
                       color: Colors.blue,
                     ),
                     MetricCard(
-                      title: 'فواتير شراء معلّقة',
+                      title: tr('فواتير شراء معلّقة'),
                       value: '${d.pendingPurchases}',
                       icon: Icons.receipt_long_outlined,
                       color: Colors.deepPurple,
                     ),
                     MetricCard(
-                      title: 'أعطال غير محلولة',
+                      title: tr('أعطال غير محلولة'),
                       value: '${d.unresolvedFaults}',
                       icon: Icons.error_outline,
                       color: Colors.red,
                     ),
                     MetricCard(
-                      title: 'موظفون نشطون',
+                      title: tr('موظفون نشطون'),
                       value: '${d.activeEmployees}',
                       icon: Icons.badge_outlined,
                       color: Colors.green,
                     ),
                     MetricCard(
-                      title: 'إجازات معلّقة',
+                      title: tr('إجازات معلّقة'),
                       value: '${d.pendingLeaves}',
                       icon: Icons.event_busy_outlined,
                       color: Colors.orange,
@@ -154,13 +158,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('حالة أوامر الشغل',
+                        Text(tr('حالة أوامر الشغل'),
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         const SizedBox(height: 12),
-                        _row('عروض أسعار', d.quotations),
-                        _row('قيد العمل', d.inProgress),
-                        _row('فحص الجودة', d.qualityCheck),
-                        _row('جاهز للتسليم', d.readyForDelivery),
+                        _row(tr('عروض أسعار'), d.quotations),
+                        _row(tr('قيد العمل'), d.inProgress),
+                        _row(tr('فحص الجودة'), d.qualityCheck),
+                        _row(tr('جاهز للتسليم'), d.readyForDelivery),
                       ],
                     ),
                   ),

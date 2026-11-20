@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/i18n.dart';
 import '../core/modules.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/common.dart';
@@ -57,15 +58,15 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
       reason = await showDialog<String>(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text(a.label),
+          title: Text(tr(a.label)),
           content: TextField(
             controller: ctrl,
-            decoration: const InputDecoration(hintText: 'السبب (اختياري)'),
+            decoration: InputDecoration(hintText: tr('السبب (اختياري)')),
             maxLines: 2,
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-            TextButton(onPressed: () => Navigator.pop(context, ctrl.text), child: Text(a.label)),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('إلغاء'))),
+            TextButton(onPressed: () => Navigator.pop(context, ctrl.text), child: Text(tr(a.label))),
           ],
         ),
       );
@@ -74,11 +75,11 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
       final ok = await showDialog<bool>(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text(a.label),
-          content: Text('تأكيد: ${a.label}؟'),
+          title: Text(tr(a.label)),
+          content: Text(trf('تأكيد: {action}؟', {'action': tr(a.label)})),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-            TextButton(onPressed: () => Navigator.pop(context, true), child: Text(a.label)),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('إلغاء'))),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: Text(tr(a.label))),
           ],
         ),
       );
@@ -86,12 +87,15 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
     }
     try {
       await context.read<AuthProvider>().apiService.rawAction(
-            m.endpoint, widget.itemId, a.slug,
+            m.endpoint,
+            widget.itemId,
+            a.slug,
             body: reason != null && reason.isNotEmpty ? {'notes': reason} : null,
           );
       if (!mounted) return;
       _changed = true;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم: ${a.label}')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(trf('تم: {action}', {'action': tr(a.label)}))));
       _load();
     } catch (e) {
       if (!mounted) return;
@@ -105,13 +109,13 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
-        content: const Text('هل تريد حذف هذا السجل نهائياً؟'),
+        title: Text(tr('تأكيد الحذف')),
+        content: Text(tr('هل تريد حذف هذا السجل نهائياً؟')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('إلغاء'))),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('حذف', style: TextStyle(color: Colors.red)),
+            child: Text(tr('حذف'), style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -131,17 +135,16 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.pop(context, _changed);
-        return false;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) Navigator.pop(context, _changed);
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(m.title),
+          title: Text(tr(m.title)),
           actions: [
-            if (m.canEdit && _item != null)
-              IconButton(icon: const Icon(Icons.edit), onPressed: _edit),
+            if (m.canEdit && _item != null) IconButton(icon: const Icon(Icons.edit), onPressed: _edit),
             if (m.canDelete && _item != null)
               IconButton(icon: const Icon(Icons.delete_outline), onPressed: _delete),
           ],
@@ -154,9 +157,8 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
   Widget _buildBody() {
     if (_error != null) return StateView.error('$_error', onRetry: _load);
     if (_item == null) return const StateView.loading();
-    final entries = _item!.entries
-        .where((e) => e.key != 'id' && e.value is! List && e.value is! Map)
-        .toList();
+    final entries =
+        _item!.entries.where((e) => e.key != 'id' && e.value is! List && e.value is! Map).toList();
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
@@ -173,14 +175,13 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
                       children: [
                         Expanded(
                           flex: 2,
-                          child: Text(fieldLabels[e.key] ?? e.key,
+                          child: Text(tr(fieldLabels[e.key] ?? e.key),
                               style: TextStyle(color: Colors.grey.shade700)),
                         ),
                         Expanded(
                           flex: 3,
                           child: Text(displayValue(e.value),
-                              textAlign: TextAlign.end,
-                              style: const TextStyle(fontWeight: FontWeight.w600)),
+                              textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w600)),
                         ),
                       ],
                     ),
@@ -199,7 +200,7 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
                     style: ElevatedButton.styleFrom(backgroundColor: a.color),
                     onPressed: () => _runAction(a),
                     icon: Icon(a.icon, size: 18),
-                    label: Text(a.label),
+                    label: Text(tr(a.label)),
                   ),
                 ),
                 const SizedBox(width: 8),

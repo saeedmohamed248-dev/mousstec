@@ -1,0 +1,62 @@
+# 📱 تطبيق الموبايل (Flutter) — تحليل + اختبارات + بناء APK على أي تغيير في mobile_app/
+name: Mobile
+
+on:
+  pull_request:
+    paths: ['mobile_app/**', '.github/workflows/mobile.yml']
+  push:
+    branches: [main]
+    paths: ['mobile_app/**', '.github/workflows/mobile.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: mobile_app
+
+jobs:
+  test:
+    name: 🧪 تحليل + اختبارات
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: تحليل الكود (الأخطاء والتحذيرات بس)
+        run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
+  android:
+    name: 🤖 بناء APK
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: توليد قشرة أندرويد/iOS + الأيقونة
+        run: python3 tool/setup_native.py
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mousstec-apk
+          path: mobile_app/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14

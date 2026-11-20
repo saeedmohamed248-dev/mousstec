@@ -1,15 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../core/i18n.dart';
 import '../core/theme.dart';
 
-final _money = NumberFormat.currency(locale: 'ar_EG', symbol: 'ج.م ', decimalDigits: 2);
-String formatMoney(num v) => _money.format(v);
+/// 💱 عملة الشركة (من السيرفر) — كانت «ج.م» ثابتة حتى لشركة في الإمارات/السعودية.
+String _currency = 'EGP';
+void setAppCurrency(String code) => _currency = code.isEmpty ? 'EGP' : code;
+
+const Map<String, String> _arSymbols = {
+  'EGP': 'ج.م',
+  'SAR': 'ر.س',
+  'AED': 'د.إ',
+  'KWD': 'د.ك',
+  'QAR': 'ر.ق',
+  'BHD': 'د.ب',
+  'OMR': 'ر.ع',
+  'JOD': 'د.أ',
+  'USD': r'$',
+};
+
+String formatMoney(num v) {
+  final en = AppLanguage.instance.isEnglish;
+  final symbol = en ? _currency : (_arSymbols[_currency] ?? _currency);
+  return NumberFormat.currency(locale: en ? 'en' : 'ar_EG', symbol: '$symbol ', decimalDigits: 2).format(v);
+}
 
 /// تنسيق قيمة خام قادمة من JSON لعرضها كنص.
 String displayValue(dynamic v) {
   if (v == null || v == '') return '—';
-  if (v is bool) return v ? 'نعم' : 'لا';
+  if (v is bool) return v ? tr('نعم') : tr('لا');
   if (v is String && v.length > 19 && v.contains('T') && v.contains('-')) {
     // ISO datetime → نعرض التاريخ فقط.
     return v.substring(0, 10);
@@ -55,7 +75,7 @@ class MetricCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.12),
+                      color: color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(icon, color: color, size: 22),
@@ -89,12 +109,11 @@ class StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.14),
+        color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
-      child: Text(label,
-          style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12)),
+      child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12)),
     );
   }
 }
@@ -126,7 +145,7 @@ class StateView extends StatelessWidget {
             children: [
               Icon(Icons.inbox_outlined, size: 56, color: Colors.grey.shade400),
               const SizedBox(height: 12),
-              Text(message ?? 'لا توجد بيانات', style: TextStyle(color: Colors.grey.shade600)),
+              Text(message ?? tr('لا توجد بيانات'), style: TextStyle(color: Colors.grey.shade600)),
             ],
           ),
         );
@@ -139,13 +158,13 @@ class StateView extends StatelessWidget {
               children: [
                 const Icon(Icons.error_outline, size: 56, color: Colors.redAccent),
                 const SizedBox(height: 12),
-                Text(message ?? 'حدث خطأ', textAlign: TextAlign.center),
+                Text(message ?? tr('حدث خطأ'), textAlign: TextAlign.center),
                 if (onRetry != null) ...[
                   const SizedBox(height: 16),
                   OutlinedButton.icon(
                     onPressed: onRetry,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('إعادة المحاولة'),
+                    label: Text(tr('إعادة المحاولة')),
                   ),
                 ],
               ],

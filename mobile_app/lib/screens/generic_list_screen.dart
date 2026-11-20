@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/i18n.dart';
 import '../core/modules.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/common.dart';
@@ -63,9 +64,7 @@ class _GenericListScreenState extends State<GenericListScreen> {
         'page': _page,
         if (_search.isNotEmpty) 'search': _search,
       });
-      final results = (page['results'] as List? ?? const [])
-          .map((e) => e as Map<String, dynamic>)
-          .toList();
+      final results = (page['results'] as List? ?? const []).map((e) => e as Map<String, dynamic>).toList();
       setState(() {
         _items.addAll(results);
         _hasNext = page['next'] != null && results.isNotEmpty;
@@ -90,12 +89,12 @@ class _GenericListScreenState extends State<GenericListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(m.title)),
+      appBar: AppBar(title: Text(tr(m.title))),
       floatingActionButton: m.canCreate
           ? FloatingActionButton.extended(
               onPressed: () => _openForm(),
               icon: const Icon(Icons.add),
-              label: const Text('إضافة'),
+              label: Text(tr('إضافة')),
             )
           : null,
       body: Column(
@@ -105,7 +104,7 @@ class _GenericListScreenState extends State<GenericListScreen> {
               padding: const EdgeInsets.all(12),
               child: TextField(
                 decoration: InputDecoration(
-                  hintText: 'بحث…',
+                  hintText: tr('بحث…'),
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _search.isNotEmpty
                       ? IconButton(
@@ -146,7 +145,7 @@ class _GenericListScreenState extends State<GenericListScreen> {
       return const StateView.loading();
     }
     if (_items.isEmpty) {
-      return ListView(children: const [SizedBox(height: 400, child: StateView.empty('لا توجد بيانات'))]);
+      return ListView(children: [SizedBox(height: 400, child: StateView.empty(tr('لا توجد بيانات')))]);
     }
     return ListView.builder(
       controller: _scroll,
@@ -165,10 +164,7 @@ class _GenericListScreenState extends State<GenericListScreen> {
   }
 
   Widget _row(Map<String, dynamic> item) {
-    final subtitle = m.subtitleKeys
-        .map((k) => displayValue(item[k]))
-        .where((s) => s != '—')
-        .join(' • ');
+    final subtitle = m.subtitleKeys.map((k) => displayValue(item[k])).where((s) => s != '—').join(' • ');
     final status = m.statusKey != null ? item[m.statusKey] : null;
     return Card(
       child: ListTile(
@@ -180,7 +176,8 @@ class _GenericListScreenState extends State<GenericListScreen> {
           if (changed == true) _reload();
         },
         title: Text(displayValue(item[m.titleKey]),
-            maxLines: 1, overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: subtitle.isEmpty ? null : Text(subtitle),
         trailing: _trailing(item, status),

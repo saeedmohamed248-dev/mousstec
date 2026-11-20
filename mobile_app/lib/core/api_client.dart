@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'auth_store.dart';
+import 'i18n.dart';
 import 'constants.dart';
 
 /// خطأ عام قادم من الـ API مع رسالة قابلة للعرض للمستخدم.
@@ -23,8 +24,7 @@ class ApiException implements Exception {
 ///   • تحديث الـ access token تلقائياً عند 401 ثم إعادة المحاولة مرة واحدة
 ///   • تحويل الأخطاء إلى ApiException بعربية مفهومة
 class ApiClient {
-  ApiClient({required this.store, http.Client? httpClient})
-      : _http = httpClient ?? http.Client();
+  ApiClient({required this.store, http.Client? httpClient}) : _http = httpClient ?? http.Client();
 
   final AuthStore store;
   final http.Client _http;
@@ -38,7 +38,12 @@ class ApiClient {
   }
 
   Future<Map<String, String>> _headers({bool auth = true}) async {
-    final headers = {'Content-Type': 'application/json', 'Accept': 'application/json'};
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      // رسائل السيرفر (الأخطاء/الحالات) بلغة التطبيق
+      'Accept-Language': AppLanguage.instance.code,
+    };
     if (auth) {
       final token = await store.accessToken;
       if (token != null) headers['Authorization'] = 'Bearer $token';
@@ -53,8 +58,8 @@ class ApiClient {
 
   Future<dynamic> post(String endpoint, {Object? body, bool auth = true}) {
     return _send(
-      () async => _http.post(await _uri(endpoint),
-          headers: await _headers(auth: auth), body: jsonEncode(body ?? {})),
+      () async =>
+          _http.post(await _uri(endpoint), headers: await _headers(auth: auth), body: jsonEncode(body ?? {})),
       auth: auth,
       retryOn401: auth,
     );
@@ -86,7 +91,7 @@ class ApiClient {
     try {
       resp = await run();
     } catch (e) {
-      throw ApiException('تعذّر الاتصال بالخادم. تأكد من الإنترنت ورابط الورشة.');
+      throw ApiException(tr('تعذّر الاتصال بالخادم. تأكد من الإنترنت وكود الشركة.'));
     }
 
     // تحديث التوكن تلقائياً ومحاولة واحدة إضافية.
@@ -96,7 +101,7 @@ class ApiClient {
         try {
           resp = await run();
         } catch (_) {
-          throw ApiException('تعذّر الاتصال بالخادم.');
+          throw ApiException(tr('تعذّر الاتصال بالخادم.'));
         }
       }
     }
@@ -110,7 +115,7 @@ class ApiClient {
     try {
       final resp = await _http.post(
         await _uri('/auth/refresh/'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'Accept-Language': AppLanguage.instance.code},
         body: jsonEncode({'refresh': refresh}),
       );
       if (resp.statusCode == 200) {
@@ -123,7 +128,15 @@ class ApiClient {
   }
 
   dynamic _decode(http.Response resp) {
-    final body = resp.body.isEmpty ? null : jsonDecode(utf8.decode(resp.bodyBytes));
+    // 🐛 [FIX]: صفحة HTML (دومين غلط/404 من السيرفر) كانت بتوقّع jsonDecode برسالة «خطأ غير متوقع».
+    dynamic body;
+    if (resp.bodyBytes.isNotEmpty) {
+      try {
+        body = jsonDecode(utf8.decode(resp.bodyBytes));
+      } on FormatException {
+        body = null;
+      }
+    }
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
       return body;
     }
@@ -131,7 +144,7 @@ class ApiClient {
   }
 
   String _extractError(dynamic body, int status) {
-    if (status == 401) return 'انتهت الجلسة. من فضلك سجّل الدخول مجدداً.';
+    if (status == 401) return tr('انتهت الجلسة. من فضلك سجّل الدخول مجدداً.');
     if (body is Map) {
       for (final key in ['detail', 'message', 'error']) {
         if (body[key] is String) return body[key] as String;
@@ -141,7 +154,8 @@ class ApiClient {
       if (first is List && first.isNotEmpty) return '${first.first}';
       if (first is String) return first;
     }
-    return 'حدث خطأ ($status). حاول مرة أخرى.';
+    if (status == 404) return tr('القسم ده مش موجود على السيرفر — تأكد من كود الشركة.');
+    return trf('حدث خطأ ({status}). حاول مرة أخرى.', {'status': status});
   }
 
   void close() => _http.close();

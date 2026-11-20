@@ -13,7 +13,12 @@ purchasing / workshop / finance / hr / diagnostics).
 | تسجيل الدخول (JWT + المستخدم) | POST | `auth/login/` |
 | تحديث التوكن | POST | `auth/refresh/` |
 | المستخدم الحالي | GET | `auth/me/` |
-| لوحة معلومات شاملة | GET | `dashboard/` |
+| لوحة معلومات شاملة (ورش) | GET | `dashboard/` |
+| تسجيل/إلغاء جهاز إشعارات | POST / DELETE | `devices/` |
+
+> رد `auth/login/` و `auth/me/` فيه `tenant`: اسم الشركة، **القطاع** (`automotive` / `printing`)،
+> العملة، اللغة، اللوجو — وللمطابع `permissions` (صلاحيات الموظف). التطبيق بيبني نفسه عليها.
+> كل مسار مقفول على قطاعه: مسارات الورش ترجع 403 للمطبعة والعكس (`IndustryGate`).
 
 ## الموارد (تحت `/api/mobile/v1/`)
 
@@ -51,6 +56,31 @@ purchasing / workshop / finance / hr / diagnostics).
 
 **CRUD** = list / retrieve / create / update (PATCH) / delete.
 
+## 🎨 المطابع (تحت `/api/mobile/v1/print/`)
+
+الصلاحيات = صلاحيات Django الموديل (جروبات «فريق العمل» في الويب): القراءة `view_*` والكتابة `add/change_*`.
+الكتابة بتعدّي على نفس دوال الويب — مفيش قيود أو حسابات جديدة.
+
+| الموديول | المسار | العمليات |
+|---------|--------|----------|
+| لوحة المطبعة | `print/dashboard/` | get (فواتير النهارده لمن يشوف الخزنة بس) |
+| الطلبات/الفواتير | `print/orders/` | list (`?status=open`) / retrieve / **create** (= الفاتورة السريعة) |
+| إجراءات الطلب | `print/orders/‹id›/action/` | `confirm` (حد الائتمان) / `deliver` (= زرار «اتسلّمت») / `cancel` (من غير مدفوع بس) |
+| مهام الإنتاج | `print/jobs/` | list (الشغالة) / retrieve / `‹id›/advance/` (بيحترم موافقة البروفة) / `‹id›/proofs/` |
+| العملاء | `print/customers/` | list / retrieve / create / update — من غير حذف أو رصيد افتتاحي |
+| الخامات | `print/materials/` | list (`?low=1`) / retrieve / `low-stock/` |
+| عروض الأسعار | `print/quotations/` | list / retrieve (+ رابط المشاركة) |
+| البروفات | `print/proofs/` | list / retrieve (+ رابط موافقة العميل) |
+| الماكينات | `print/machines/` | list / retrieve |
+| الخزائن (للتحصيل) | `print/treasuries/` | get — من غير أرصدة |
+
+## 🔔 الإشعارات (Firebase Cloud Messaging)
+
+`MobileDevice` (جوه schema كل شركة) + `push.py` (FCM HTTP v1 من غير مكتبات جديدة) + `signals.py`:
+رد العميل على البروفة ⇒ فريق الإنتاج، تنبيه نقص مخزون ⇒ المخزن والإدارة، طلب إجازة ⇒ الـ HR.
+الإرسال بعد الـ commit وفي Celery، وأي خطأ فيه مابيوقّعش العملية الأصلية.
+الإعداد: `FCM_SERVICE_ACCOUNT_JSON` (أو `FCM_SERVICE_ACCOUNT_FILE`) — من غيره الإشعارات بتتسجّل في اللوج بس.
+
 ## قرارات تصميمية
 
 - **CRUD كامل** مُفعّل على البيانات الرئيسية التي يحرّرها المستخدم بيده (العملاء،
@@ -66,7 +96,8 @@ purchasing / workshop / finance / hr / diagnostics).
 ## الاختبارات
 
 ```bash
-python manage.py test mobile_api
+python manage.py test mobile_api            # كله
+python manage.py test mobile_api.test_printing   # المطابع + القطاع + الإشعارات
 ```
 
 تغطّي المصادقة، لوحة المعلومات، أوامر الشغل (وتحديث الحالة)، المخزون والبحث ونقص

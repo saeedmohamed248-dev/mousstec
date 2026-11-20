@@ -2,15 +2,18 @@ import 'package:flutter/foundation.dart';
 
 import '../core/api_client.dart';
 import '../core/auth_store.dart';
+import '../core/constants.dart';
+import '../core/i18n.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
+import '../services/push_service.dart';
+import '../widgets/common.dart' show setAppCurrency;
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
 /// حالة المصادقة على مستوى التطبيق.
 class AuthProvider extends ChangeNotifier {
-  AuthProvider({AuthStore? store, ApiClient? api})
-      : store = store ?? AuthStore() {
+  AuthProvider({AuthStore? store, ApiClient? api}) : store = store ?? AuthStore() {
     _api = api ?? ApiClient(store: this.store);
     service = ApiService(_api);
   }
@@ -26,6 +29,17 @@ class AuthProvider extends ChangeNotifier {
 
   ApiService get apiService => service;
 
+  /// القطاع والعملة وصلاحيات المطابع — من `tenant` في رد الدخول/me.
+  TenantInfo get tenant => user?.tenant ?? TenantInfo.automotive;
+  bool get isPrinting => tenant.isPrinting;
+
+  void _onUser(AppUser u) {
+    user = u;
+    setAppCurrency(u.tenant?.currency ?? 'EGP');
+    // 🔔 بعد الدخول: سجّل الجهاز للإشعارات (من غير ما نستنى)
+    PushService.instance.registerDevice(service);
+  }
+
   /// يُستدعى عند إقلاع التطبيق: يحاول استعادة الجلسة من التوكن المخزّن.
   Future<void> bootstrap() async {
     final token = await store.accessToken;
@@ -35,8 +49,14 @@ class AuthProvider extends ChangeNotifier {
       return;
     }
     try {
-      user = await service.me();
+      _onUser(await service.me());
       status = AuthStatus.authenticated;
+    } on ApiException catch (e) {
+      // 🐛 [FIX]: أي خطأ (حتى انقطاع النت لحظة فتح التطبيق) كان بيمسح التوكن ويطلّع
+      //    المستخدم برا. نخرج بس لو السيرفر قال صراحةً إن الجلسة مش صالحة.
+      if (e.isUnauthorized) await store.clear();
+      error = e.isUnauthorized ? null : e.message;
+      status = AuthStatus.unauthenticated;
     } catch (_) {
       // التوكن غير صالح أو الخادم غير متاح — نطلب تسجيل دخول جديد.
       await store.clear();
@@ -55,9 +75,13 @@ class AuthProvider extends ChangeNotifier {
         access: data['access'] as String,
         refresh: data['refresh'] as String,
       );
-      user = data['user'] != null
-          ? AppUser.fromJson(data['user'] as Map<String, dynamic>)
-          : await service.me();
+      if (data['user'] != null) {
+        final u = Map<String, dynamic>.from(data['user'] as Map);
+        if (data['tenant'] != null) u['tenant'] = data['tenant'];
+        _onUser(AppUser.fromJson(u));
+      } else {
+        _onUser(await service.me());
+      }
       status = AuthStatus.authenticated;
       busy = false;
       notifyListeners();
@@ -68,7 +92,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     } catch (_) {
-      error = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
+      error = tr('حدث خطأ غير متوقع. حاول مرة أخرى.');
       busy = false;
       notifyListeners();
       return false;
@@ -76,6 +100,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await PushService.instance.unregister(service);
     await store.clear();
     user = null;
     status = AuthStatus.unauthenticated;
@@ -83,6 +108,15 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<String> get baseUrl => store.getBaseUrl();
+
+  /// كود الشركة أو رابطها ⇒ رابط كامل. بيرجّع false لو المدخل مش صالح.
+  Future<bool> setWorkspace(String input) async {
+    final url = ApiConfig.workspaceUrl(input);
+    if (url == null) return false;
+    await store.setBaseUrl(url);
+    notifyListeners();
+    return true;
+  }
 
   Future<void> setBaseUrl(String url) async {
     await store.setBaseUrl(url);

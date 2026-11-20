@@ -6,7 +6,6 @@
 build/
 .flutter-plugins
 .flutter-plugins-dependencies
-pubspec.lock
 
 # Generated native shells (recreate with: flutter create .)
 # نلتزم بلجنة الكود عبر lib/ فقط؛ القشرة الأصلية تُولَّد محلياً.
@@ -26,3 +25,8 @@ pubspec.lock
 # Misc
 *.log
 .DS_Store
+
+# 🔑 توقيع المتجر — ممنوع يترفع
+key.properties
+*.jks
+*.keystore

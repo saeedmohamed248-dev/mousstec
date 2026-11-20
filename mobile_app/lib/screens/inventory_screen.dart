@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/i18n.dart';
+
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/common.dart';
@@ -59,15 +61,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('المخزون'),
+        title: Text(tr('المخزون')),
         actions: [
           IconButton(
-            tooltip: 'مسح باركود',
+            tooltip: tr('مسح باركود'),
             icon: const Icon(Icons.qr_code_scanner),
             onPressed: _scan,
           ),
           IconButton(
-            tooltip: 'نقص المخزون فقط',
+            tooltip: tr('نقص المخزون فقط'),
             icon: Icon(_lowOnly ? Icons.warning_amber : Icons.warning_amber_outlined),
             color: _lowOnly ? Colors.amberAccent : null,
             onPressed: () {
@@ -85,7 +87,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               child: TextField(
                 controller: _searchCtrl,
                 decoration: InputDecoration(
-                  hintText: 'ابحث بالاسم / رقم القطعة / الباركود',
+                  hintText: tr('ابحث بالاسم / رقم القطعة / الباركود'),
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _search.isNotEmpty
                       ? IconButton(
@@ -110,8 +112,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               width: double.infinity,
               color: Colors.amber.shade100,
               padding: const EdgeInsets.all(10),
-              child: const Text('عرض القطع التي وصلت لحد الأمان أو أقل',
-                  textAlign: TextAlign.center),
+              child: Text(tr('عرض القطع التي وصلت لحد الأمان أو أقل'), textAlign: TextAlign.center),
             ),
           Expanded(
             child: RefreshIndicator(
@@ -129,8 +130,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   }
                   final items = snap.data!.results;
                   if (items.isEmpty) {
-                    return ListView(children: const [
-                      SizedBox(height: 400, child: StateView.empty('لا توجد قطع')),
+                    return ListView(children: [
+                      SizedBox(height: 400, child: StateView.empty(tr('لا توجد قطع'))),
                     ]);
                   }
                   return ListView.builder(
@@ -164,8 +165,7 @@ class _ProductTile extends StatelessWidget {
           backgroundColor: product.isLowStock ? Colors.red.shade50 : Colors.blue.shade50,
           child: Text('${product.totalQuantity}',
               style: TextStyle(
-                  color: product.isLowStock ? Colors.red : Colors.blue,
-                  fontWeight: FontWeight.bold)),
+                  color: product.isLowStock ? Colors.red : Colors.blue, fontWeight: FontWeight.bold)),
         ),
         title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text('${product.partNumber} • ${product.brand}'
@@ -174,10 +174,8 @@ class _ProductTile extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(formatMoney(product.retailPrice),
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-            if (product.isLowStock)
-              const Text('نقص', style: TextStyle(color: Colors.red, fontSize: 12)),
+            Text(formatMoney(product.retailPrice), style: const TextStyle(fontWeight: FontWeight.bold)),
+            if (product.isLowStock) Text(tr('نقص'), style: TextStyle(color: Colors.red, fontSize: 12)),
           ],
         ),
       ),

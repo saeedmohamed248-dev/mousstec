@@ -56,6 +56,15 @@ router.register(r'diag-devices', views.DiagnosticDeviceViewSet, basename='diag-d
 router.register(r'diag-scans', views.DiagnosticScanViewSet, basename='diag-scan')
 router.register(r'fault-logs', views.FaultLogViewSet, basename='fault-log')
 
+# 🎨 المطابع (قطاع الطباعة والتصميم)
+router.register(r'print/orders', views.PrintOrderViewSet, basename='print-order')
+router.register(r'print/jobs', views.PrintJobViewSet, basename='print-job')
+router.register(r'print/customers', views.PrintCustomerViewSet, basename='print-customer')
+router.register(r'print/materials', views.PrintMaterialViewSet, basename='print-material')
+router.register(r'print/quotations', views.PriceQuotationViewSet, basename='print-quotation')
+router.register(r'print/proofs', views.PrintProofViewSet, basename='print-proof')
+router.register(r'print/machines', views.MachineProfileViewSet, basename='print-machine')
+
 urlpatterns = [
     # 🔐 المصادقة
     path('auth/login/', views.MobileTokenObtainPairView.as_view(), name='login'),
@@ -65,6 +74,11 @@ urlpatterns = [
     # 📊 لوحة المعلومات والتحليلات
     path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
     path('analytics/', views.AnalyticsView.as_view(), name='analytics'),
+    path('print/dashboard/', views.PrintDashboardView.as_view(), name='print-dashboard'),
+    path('print/treasuries/', views.PrintTreasuryListView.as_view(), name='print-treasuries'),
+
+    # 🔔 أجهزة الإشعارات
+    path('devices/', views.DeviceView.as_view(), name='devices'),
 
     # الموارد
     path('', include(router.urls)),

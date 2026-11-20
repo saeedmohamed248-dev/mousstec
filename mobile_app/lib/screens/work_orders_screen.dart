@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/constants.dart';
+import '../core/i18n.dart';
 import '../core/field_spec.dart';
 import '../core/modules.dart';
 import '../models/models.dart';
@@ -12,8 +13,13 @@ import 'work_order_detail_screen.dart';
 
 /// تعريف نموذج إنشاء أمر شغل صيانة جديد (يُعاد استخدام محرك النماذج العام).
 const _newWorkOrderModule = ModuleDef(
-  key: 'work-order-create', title: 'أمر شغل', icon: Icons.build, group: 'الورشة',
-  endpoint: '/work-orders/', titleKey: 'id', canCreate: true,
+  key: 'work-order-create',
+  title: 'أمر شغل',
+  icon: Icons.build,
+  group: 'الورشة',
+  endpoint: '/work-orders/',
+  titleKey: 'id',
+  canCreate: true,
   fields: [
     FieldSpec('customer', 'العميل', type: FieldType.fk, fkEndpoint: '/customers/', required: true),
     FieldSpec('vehicle', 'المركبة', type: FieldType.fk, fkEndpoint: '/vehicles/', fkLabelKey: 'car_plate'),
@@ -64,7 +70,7 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('أوامر الشغل')),
+      appBar: AppBar(title: Text(tr('أوامر الشغل'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final created = await Navigator.push<bool>(
@@ -74,7 +80,7 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
           if (created == true) _refresh();
         },
         icon: const Icon(Icons.add),
-        label: const Text('أمر شغل جديد'),
+        label: Text(tr('أمر شغل جديد')),
       ),
       body: Column(
         children: [
@@ -82,7 +88,7 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
             child: TextField(
               decoration: InputDecoration(
-                hintText: 'ابحث باسم العميل / الموبايل / اللوحة',
+                hintText: tr('ابحث باسم العميل / الموبايل / اللوحة'),
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _search.isNotEmpty
                     ? IconButton(
@@ -112,7 +118,7 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: ChoiceChip(
-                    label: Text(e.value),
+                    label: Text(tr(e.value)),
                     selected: selected,
                     onSelected: (_) {
                       _filter = e.key;
@@ -137,7 +143,7 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
                   }
                   final orders = snap.data!.results;
                   if (orders.isEmpty) {
-                    return _scrollable(const StateView.empty('لا توجد أوامر شغل'));
+                    return _scrollable(StateView.empty(tr('لا توجد أوامر شغل')));
                   }
                   return ListView.builder(
                     padding: const EdgeInsets.all(8),
@@ -184,7 +190,7 @@ class _WorkOrderTile extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(child: Text(order.customerName, style: const TextStyle(fontWeight: FontWeight.bold))),
-            StatusChip(status: order.status, label: WorkOrderStatus.label(order.status)),
+            StatusChip(status: order.status, label: tr(WorkOrderStatus.label(order.status))),
           ],
         ),
         subtitle: Padding(
@@ -192,11 +198,14 @@ class _WorkOrderTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('أمر شغل #${order.id}'
+              Text('${trf('أمر شغل #{id}', {'id': order.id})}'
                   '${order.vehiclePlate != null ? ' • ${order.vehiclePlate}' : ''}'),
               const SizedBox(height: 2),
-              Text('الإجمالي: ${formatMoney(order.totalAmount)}'
-                  '${order.dueAmount > 0 ? ' • متبقّي: ${formatMoney(order.dueAmount)}' : ''}',
+              Text(
+                  '${trf('الإجمالي: {v}', {'v': formatMoney(order.totalAmount)})}'
+                  '${order.dueAmount > 0 ? ' • ${trf('متبقّي: {v}', {
+                          'v': formatMoney(order.dueAmount)
+                        })}' : ''}',
                   style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
             ],
           ),
