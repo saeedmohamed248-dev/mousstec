@@ -45,9 +45,48 @@ def _product_list_qs(request, branch):
     elif stock_filter == "low":
         # نفس كارت «قرب يخلص» — اللي خلص خالص له فلتر «نفد» لوحده
         qs = qs.filter(_stock__gt=0, _stock__lte=F("min_stock_level"))
-    if not q:
+    # 📅 تاريخ دخول البضاعة (من حركات المخزون اللي زوّدت الرصيد) — ترتيب وفلتر بالمدة
+    sort, date_from, date_to = _entry_params(request)
+    if sort in ("newest", "oldest") or date_from or date_to:
+        from django.db.models import Exists, OuterRef, Subquery
+        entries = InventoryMovement.objects.filter(
+            product=OuterRef("pk"), reason__in=ENTRY_REASONS, quantity_change__gt=0)
+        if branch is not None:
+            entries = entries.filter(branch=branch)
+        if date_from:
+            entries = entries.filter(created_at__date__gte=date_from)
+        if date_to:
+            entries = entries.filter(created_at__date__lte=date_to)
+        if date_from or date_to:
+            qs = qs.filter(Exists(entries))
+        qs = qs.annotate(_entered=Subquery(entries.order_by("-created_at").values("created_at")[:1]))
+    if sort == "newest":
+        qs = qs.order_by(F("_entered").desc(nulls_last=True), "name")
+    elif sort == "oldest":
+        qs = qs.order_by(F("_entered").asc(nulls_last=True), "name")
+    elif not q:
         qs = qs.order_by("name")
     return qs, q, stock_filter
+
+
+# حركات «دخول بضاعة»: توريد، تحويل وارد، رصيد بداية/تسوية بالزيادة، تعديل يدوي بالزيادة
+ENTRY_REASONS = ("purchase", "transfer_in", "adjustment", "manual")
+
+
+def _entry_params(request):
+    """(sort, من, إلى) — الترتيب بتاريخ الدخول والمدة. التواريخ الغلط بتتجاهل."""
+    import datetime
+    data = request.GET if request.method == "GET" else request.POST
+    sort = (data.get("sort") or "").strip()
+    if sort not in ("newest", "oldest"):
+        sort = ""
+
+    def _d(key):
+        try:
+            return datetime.date.fromisoformat((data.get(key) or "").strip())
+        except ValueError:
+            return None
+    return sort, _d("from"), _d("to")
 
 
 def _effective_unit_cost(p):
@@ -392,7 +431,8 @@ def product_list(request):
         products_view.append({"product": p, "stock": stock, "is_low": is_low,
                               "unit_cost": unit_cost, "value": line_value, "by_branch": by_branch,
                               "expense_share": share, "goods_cost": unit_cost - share,
-                              "profit": profit, "margin": margin})
+                              "profit": profit, "margin": margin,
+                              "entered": getattr(p, "_entered", None)})
 
     # 📊 KPI summary across the WHOLE catalogue (not just this page) — a
     # professional stock overview: units on hand, capital tied up (cost),
@@ -454,11 +494,22 @@ def product_list(request):
     show_cost, show_sale = _product_price_visibility(request, branch)
 
     from inventory.services import fixit_sync
+    sort, date_from, date_to = _entry_params(request)
+    from urllib.parse import urlencode
+    # كل الفلاتر الحالية كـ querystring (الصفحات اللي بعدها/التصدير ميضيعوش الترتيب والمدة)
+    filter_qs = urlencode({k: v for k, v in (
+        ("q", q), ("stock", stock_filter), ("sort", sort),
+        ("from", date_from.isoformat() if date_from else ""),
+        ("to", date_to.isoformat() if date_to else "")) if v})
     return render(request, "inventory/product_list.html", {
         "page": page,
         "rows": products_view,
         "q": q,
         "stock_filter": stock_filter,
+        "sort": sort,
+        "date_from": date_from,
+        "date_to": date_to,
+        "filter_qs": filter_qs,
         "branch": branch,
         "summary": summary,
         "show_cost": show_cost,
