@@ -360,6 +360,48 @@ def product_gallery(request, pk):
 @login_required(login_url='/login/')
 @tenant_required
 @module_required('inventory')
+def product_detail(request, pk):
+    """🔎 صفحة القطعة: الصور، الحالة والتوافق، الأسعار، الرصيد في كل فرع، وآخر حركات المخزون.
+
+    🐛 [FIX]: قائمة القطع ماكانش فيها أي صفحة تفاصيل — البند مش بيتفتح، والمعلومات متفرّقة
+    بين «تعديل» و«الصور». الأسعار بتتعرض حسب صلاحية الموظف زي القائمة بالظبط.
+    """
+    product = Product.objects.filter(pk=pk).first()
+    if product is None:
+        return redirect(reverse('inventory:product_list') + '?err=notfound')
+    branch = _get_branch_for_user(request.user)
+    show_cost, show_sale = _product_price_visibility(request, branch)
+
+    stock_rows = list(Inventory.objects.filter(product=product).select_related('branch').order_by('branch__name'))
+    if branch is not None:
+        stock_rows = [r for r in stock_rows if r.branch_id == branch.id]
+    total_stock = sum(r.quantity for r in stock_rows)
+
+    movements = InventoryMovement.objects.filter(product=product).select_related('branch', 'created_by')
+    if branch is not None:
+        movements = movements.filter(branch=branch)
+    movements = list(movements.order_by('-created_at')[:25])
+
+    images = list(product.images.all())
+    unit_cost = product.average_cost if (product.average_cost or 0) > 0 else product.purchase_price
+    retail = Decimal(str(product.retail_price or 0))
+    profit = retail - Decimal(str(unit_cost or 0))
+    margin = f"{(profit * 100 / retail):.1f}" if retail > 0 else None
+    part_numbers = [n for n in (product.additional_part_numbers or []) if n and n != product.part_number]
+    return render(request, 'inventory/product_detail.html', {
+        'product': product, 'branch': branch, 'images': images,
+        'main_image': (images[0].image if images else product.image) or None,
+        'stock_rows': stock_rows, 'total_stock': total_stock,
+        'is_low': total_stock <= (product.min_stock_level or 0),
+        'movements': movements, 'part_numbers': part_numbers,
+        'show_cost': show_cost, 'show_sale': show_sale,
+        'unit_cost': unit_cost, 'profit': profit, 'margin': margin,
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
 @require_POST
 def product_prices_update(request, pk):
     """تحديث أسعار المنتج (بيع/جملة/هالك/خردة/تكلفة) من صفحة المنتج.
