@@ -174,6 +174,18 @@ def saas_pricing_page(request):
                 messages.error(request, "🛑 غير مصرح — فقط السوبر أدمن يمكنه تغيير الاشتراك مباشرة.")
                 return redirect(reverse('saas_pricing') + f'?shop={shop_post}')
             with transaction.atomic():
+                # 🐛 [FIX — الحسابات]: كان بيمدّ ٣٠ يوم من غير فاتورة ⇒ الفلوس مش بتظهر في الحسابات.
+                #    لو الباقة ليها سعر: فاتورة منصة مدفوعة زي التجديد من صفحة الشركات.
+                from clients.models import Plan
+                from clients.services.plan_mapping import resolve_plan_slug
+                from clients.services.platform_billing import issue_subscription_invoice
+                plan_obj = Plan.objects.filter(slug=resolve_plan_slug(selected_plan) or '', is_active=True).first()
+                if plan_obj is not None:
+                    issue_subscription_invoice(target_tenant, plan_obj, 1, paid=True, provider='manual_admin',
+                                               user=request.user, notes='تفعيل من صفحة الأسعار')
+                    from django.conf import settings as _cfg3
+                    return redirect(f"https://{target_tenant.schema_name.replace('_', '-')}."
+                                    f"{getattr(_cfg3, 'BASE_DOMAIN', 'mousstec.com')}/{ADMIN_URL}/")
                 target_tenant.plan, target_tenant.status = selected_plan, 'active'
                 base_date = max(target_tenant.subscription_end_date or timezone.localdate(), timezone.localdate())
 
