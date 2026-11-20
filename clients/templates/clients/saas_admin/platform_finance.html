@@ -89,15 +89,63 @@
     <div class="cards">
         <div class="card"><div class="lbl">💰 {% trans "الإيرادات" %}</div><div class="val">{{ pnl.revenue.total|amount }}</div>
             {% if changes.revenue is not None %}<div class="chg {% if changes.revenue >= 0 %}up{% else %}down{% endif %}" dir="ltr">{% if changes.revenue >= 0 %}▲{% else %}▼{% endif %} {{ changes.revenue }}%</div>{% endif %}</div>
-        <div class="card"><div class="lbl">💸 {% trans "المصروفات" %}</div><div class="val">{{ pnl.expenses.total|amount }}</div>
+        <div class="card"><div class="lbl">💸 {% trans "المصروفات" %}</div><div class="val">{{ pnl.all_expenses|amount }}</div>
+            {% if pnl.amortization %}<div class="hint">{% trans "منها إهلاك تكاليف البناء:" %} {{ pnl.amortization|amount }}</div>{% endif %}
             {% if expense_change is not None %}<div class="chg {% if expense_change <= 0 %}up{% else %}down{% endif %}" dir="ltr">{% if expense_change >= 0 %}▲{% else %}▼{% endif %} {{ expense_change }}%</div>{% endif %}</div>
-        <div class="card"><div class="lbl">📈 {% trans "مجمل الربح" %}</div><div class="val {% if pnl.gross_profit < 0 %}down{% endif %}">{{ pnl.gross_profit|amount }}</div>
-            <div class="chg muted">{% trans "الهامش" %} {% if pnl.gross_margin is not None %}{{ pnl.gross_margin }}%{% else %}—{% endif %}</div></div>
+        <div class="card"><div class="lbl">📈 EBITDA — {% trans "الربح التشغيلي" %}</div><div class="val {% if pnl.ebitda < 0 %}down{% endif %}">{{ pnl.ebitda|amount }}</div>
+            <div class="chg muted">{% trans "هامش مجمل الربح" %} {% if pnl.gross_margin is not None %}{{ pnl.gross_margin }}%{% else %}—{% endif %}</div></div>
         <div class="card" style="{% if pnl.net_profit < 0 %}background:#FBEDEA;border-color:#E8C3BC{% else %}background:#EEF5EF;border-color:#BFD8C5{% endif %}">
             <div class="lbl">{% if pnl.net_profit < 0 %}🔻 {% trans "صافي خسارة" %}{% else %}✅ {% trans "صافي الربح" %}{% endif %}</div>
             <div class="val {% if pnl.net_profit < 0 %}down{% else %}up{% endif %}">{{ pnl.net_profit|amount }}</div>
             <div class="chg muted">{% trans "الهامش" %} {% if pnl.net_margin is not None %}{{ pnl.net_margin }}%{% else %}—{% endif %}
                 {% if changes.net_profit is not None %} · <span class="{% if changes.net_profit >= 0 %}up{% else %}down{% endif %}" dir="ltr">{% if changes.net_profit >= 0 %}▲{% else %}▼{% endif %} {{ changes.net_profit }}%</span>{% endif %}</div></div>
+    </div>
+
+    {# 📌 المصاريف الشهرية الثابتة ونقطة التعادل — السيستم عارف الثابت ويقولك محتاج كام عشان تغطيه #}
+    <div class="grid-2">
+        <div class="panel" id="fixed">
+            <h3>📌 {% trans "المصاريف الشهرية الثابتة" %}</h3>
+            {% if fixed.items %}
+            <div class="cards" style="margin-bottom:10px;">
+                <div class="card"><div class="lbl">{% trans "الثابت كل شهر" %}</div><div class="val">{{ fixed.total|amount }}</div>
+                    <div class="hint">{% trans "في السنة:" %} {{ fixed.yearly|amount }}</div></div>
+                <div class="card" style="{% if fixed.covered_pct is not None and fixed.covered_pct >= 100 %}background:#EEF5EF;border-color:#BFD8C5{% else %}background:#FBF4E4;border-color:#E8D6AE{% endif %}">
+                    <div class="lbl">⚖️ {% trans "نقطة التعادل (إيراد شهري)" %}</div><div class="val">{{ fixed.break_even|amount }}</div>
+                    <div class="hint">{% if fixed.customers_needed is not None %}{% blocktrans with n=fixed.customers_needed a=fixed.arpa %}= {{ n }} عميل بيدفع بمتوسط {{ a }}{% endblocktrans %}{% if fixed.arpa_source == 'plans' %} ({% trans "متوسط أسعار الباقات" %}){% endif %}{% endif %}</div></div>
+            </div>
+            {% if fixed.covered_pct is not None %}
+            <p style="margin:0 0 6px;font-weight:800;">{% blocktrans with m=fixed.mrr p=fixed.covered_pct n=fixed.active_customers %}الاشتراكات الحالية ({{ m }} من {{ n }} عميل) بتغطّي {{ p }}% من الثابت{% endblocktrans %}</p>
+            <div class="gbar" style="height:10px;"><span style="width:{% if fixed.covered_pct > 100 %}100{% else %}{{ fixed.covered_pct|floatformat:0 }}{% endif %}%;background:{% if fixed.covered_pct >= 100 %}#2F6B3F{% else %}#A33A2A{% endif %};"></span></div>
+            {% endif %}
+            <table style="margin-top:10px;">
+                <tr><th>{% trans "البند" %}</th><th>{% trans "البيان" %}</th><th class="num">{% trans "شهرياً" %}</th><th></th></tr>
+                {% for it in fixed.items %}
+                <tr><td>{{ it.label }}</td><td>{{ it.e.description }}{% if it.e.vendor %} <span class="hint">— {{ it.e.vendor }}</span>{% endif %}
+                        <div class="hint">{% trans "من" %} <span dir="ltr">{{ it.e.date|date:"Y-m" }}</span>{% if it.e.recurring_until %} {% trans "لحد" %} <span dir="ltr">{{ it.e.recurring_until|date:"Y-m" }}</span>{% endif %}{% if it.e.currency != 'EGP' %} · {{ it.e.amount|amount }} {{ it.e.currency }}{% endif %}</div></td>
+                    <td class="num"><b>{{ it.e.amount_egp|amount }}</b></td>
+                    <td><form method="post" action="{% url 'saas_platform_entry_delete' 'expense' it.e.id %}" onsubmit="return confirm('{% trans "توقف المصروف الثابت ده من الشهر الجاي؟ (اللي اتسجّل قبل كده بيفضل)" %}')">{% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="hidden" name="stop_recurring" value="1">
+                        <button class="btn btn-ghost" style="padding:2px 8px;" title="{% trans 'وقف' %}">⏹</button></form></td></tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <p class="muted">{% trans "مفيش مصاريف ثابتة متسجّلة — ضيف السيرفر والمرتبات والاشتراكات من «سجّل مصروف» ← «شهري ثابت»، والسيستم هيسجّلها لوحده كل شهر ويحسبلك نقطة التعادل." %}</p>
+            {% endif %}
+        </div>
+
+        {# 🏗️ تكلفة بناء السيستم — استثمار بيتوزّع على عمره (IAS 38) #}
+        <div class="panel" id="capex">
+            <h3>🏗️ {% trans "تكلفة بناء السيستم (استثمار)" %}</h3>
+            {% if balance.capex_total %}
+            <div class="cards" style="margin-bottom:10px;">
+                <div class="card"><div class="lbl">{% trans "اتصرف على البناء" %}</div><div class="val">{{ balance.capex_total|amount }}</div></div>
+                <div class="card"><div class="lbl">{% trans "اتحمّل مصروف لحد النهارده" %}</div><div class="val">{{ balance.capex_amortized|amount }}</div></div>
+                <div class="card"><div class="lbl">{% trans "الباقي (قيمة الأصل)" %}</div><div class="val">{{ balance.capex_net|amount }}</div></div>
+            </div>
+            {% endif %}
+            <p class="hint" style="font-size:12px;">{% trans "زي الشركات العالمية: فلوس بناء السيستم (تطوير، تصميم، أجهزة، فترة ما قبل الإطلاق) مش مصروف الشهر اللي اتدفعت فيه — دي استثمار بيتوزّع على عمره الافتراضي (غالباً ٣ سنين) كـ«إهلاك» تحت الربح التشغيلي. كده الشهر مايطلعش خسارة وهمية، وتعرف سيستمك بيكسب من تشغيله ولا لأ." %}</p>
+            {% if not balance.capex_total %}<p class="muted">{% trans "سجّلها من «سجّل مصروف» ← «تكلفة بناء»." %}</p>{% endif %}
+        </div>
     </div>
 
     <div class="grid-2">
@@ -116,6 +164,8 @@
                 <tr class="indent"><td>− {{ g.label }}</td><td class="num">{{ g.total|amount }}</td><td class="num muted">{{ g.prev|amount }}</td></tr>
                 {% endif %}{% endfor %}
                 <tr class="indent"><td class="muted">{% trans "المصروفات التشغيلية ÷ الإيراد" %}</td><td class="num muted">{% if pnl.opex_ratio is not None %}{{ pnl.opex_ratio }}%{% else %}—{% endif %}</td><td class="num muted">{% if prev.opex_ratio is not None %}{{ prev.opex_ratio }}%{% else %}—{% endif %}</td></tr>
+                <tr class="sum"><td>EBITDA — {% trans "الربح التشغيلي قبل الإهلاك" %}</td><td class="num {% if pnl.ebitda < 0 %}down{% endif %}">{{ pnl.ebitda|amount }}</td><td class="num muted">{{ prev.ebitda|amount }}</td></tr>
+                <tr class="indent"><td>− {% trans "إهلاك تكاليف البناء" %}{% if basis == 'cash' %} <span class="hint">({% trans "اللي اتدفع في الفترة" %})</span>{% endif %}</td><td class="num">{{ pnl.amortization|amount }}</td><td class="num muted">{{ prev.amortization|amount }}</td></tr>
                 <tr class="sum"><td>{% trans "صافي الربح / الخسارة" %}</td><td class="num {% if pnl.net_profit < 0 %}down{% else %}up{% endif %}">{{ pnl.net_profit|amount }}</td><td class="num muted">{{ prev.net_profit|amount }}</td></tr>
             </table>
             {% if pnl.revenue.financing %}<p class="hint">💼 {% trans "تمويل/استثمار دخل في الفترة (مش محسوب إيراد):" %} {{ pnl.revenue.financing|amount }}</p>{% endif %}
@@ -189,8 +239,14 @@
     {# تسجيل مصروف #}
     <div class="panel" id="add-expense">
         <h3>➖ {% trans "سجّل مصروف" %}</h3>
-        <form class="entry" method="post" action="{% url 'saas_platform_expense_add' %}" enctype="multipart/form-data">{% csrf_token %}
+        <form class="entry js-exp-form" method="post" action="{% url 'saas_platform_expense_add' %}" enctype="multipart/form-data">{% csrf_token %}
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;">
+                <label class="tab" style="cursor:pointer;"><input type="radio" name="kind" value="normal" checked style="width:auto;margin:0 0 0 6px;"> 🧾 {% trans "مصروف عادي" %}</label>
+                <label class="tab" style="cursor:pointer;"><input type="radio" name="kind" value="fixed" style="width:auto;margin:0 0 0 6px;"> 📌 {% trans "شهري ثابت (سيرفر، مرتب، اشتراك…)" %}</label>
+                <label class="tab" style="cursor:pointer;"><input type="radio" name="kind" value="capex" style="width:auto;margin:0 0 0 6px;"> 🏗️ {% trans "تكلفة بناء السيستم (اتصرفت خلاص)" %}</label>
+            </div>
+            <p class="hint js-kind-hint" style="grid-column:1/-1;margin:0;"></p>
             <label>{% trans "تاريخ الدفع" %}<input type="date" name="date" value="{{ today|date:'Y-m-d' }}" required></label>
             <label>{% trans "البند" %}<select name="category" required><option value="">—</option>
                 {% for glabel, items in grouped_categories %}<optgroup label="{{ glabel }}">{% for k, l in items %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</optgroup>{% endfor %}</select></label>
@@ -201,10 +257,11 @@
             <label class="js-rate" style="display:none;">{% trans "سعر الصرف (بالجنيه)" %}<input name="exchange_rate" type="number" step="0.0001" min="0.0001"><span class="hint js-egp"></span></label>
             <label>{% trans "طريقة الدفع" %}<select name="payment_method">{% for k, l in payment_methods %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></label>
             <label>{% trans "الإيصال (صورة/PDF)" %}<input type="file" name="receipt" accept="image/*,application/pdf"></label>
-            <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="is_recurring" value="1" style="width:auto;" class="js-rec"> {% trans "بيتكرر كل شهر" %}</label>
-            <label class="js-rec-until" style="display:none;">{% trans "التكرار لحد (اختياري)" %}<input type="date" name="recurring_until"></label>
+            <label class="js-k js-k-fixed">{% trans "التكرار لحد (اختياري)" %}<input type="date" name="recurring_until"></label>
+            <label class="js-k js-k-capex">{% trans "يبدأ يتوزّع من (تاريخ الإطلاق)" %}<input type="date" name="amortize_from"></label>
+            <label class="js-k js-k-capex">{% trans "على كام شهر (العمر الافتراضي)" %}<input type="number" name="life_months" value="36" min="1" max="120"></label>
             {# 📅 مصروف بيغطي فترة (اشتراك سنة مقدّم، مصاريف فترة الإطلاق…) — بيتوزّع على شهورها #}
-            <fieldset style="grid-column:1/-1;border:1px dashed #E6E1D8;border-radius:10px;padding:10px;">
+            <fieldset class="js-k js-k-normal" style="grid-column:1/-1;border:1px dashed #E6E1D8;border-radius:10px;padding:10px;">
                 <legend style="font-size:12px;font-weight:800;color:#1E2A57;padding:0 6px;">📅 {% trans "المصروف ده بيغطي فترة؟ (اختياري)" %}</legend>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
                     <label>{% trans "من" %}<input type="date" name="period_start"></label>
@@ -244,7 +301,7 @@
             {% for row in expenses %}{% with e=row.e %}
             <tr>
                 <td><span dir="ltr">{{ e.date|date:"Y-m-d" }}</span></td>
-                <td>{{ e.get_category_display }}{% if e.is_recurring or e.recurring_source_id %} <span class="pill" title="{% trans 'بيتكرر كل شهر' %}">🔁</span>{% endif %}</td>
+                <td>{{ e.get_category_display }}{% if e.is_recurring or e.recurring_source_id %} <span class="pill" title="{% trans 'مصروف شهري ثابت' %}">📌</span>{% endif %}{% if e.is_capex %} <span class="pill" title="{% trans 'تكلفة بناء — بتتوزّع على عمرها' %}">🏗️ {{ e.monthly_months }} {% trans "شهر" %}</span>{% endif %}</td>
                 <td>{{ e.description }}{% if e.is_spread %}<div class="hint">📅 {% trans "بيغطي" %} <span dir="ltr">{{ e.period_start|date:"Y-m-d" }} → {{ e.period_end|date:"Y-m-d" }}</span></div>{% endif %}{% if e.notes %}<div class="hint">{{ e.notes|truncatechars:80 }}</div>{% endif %}</td>
                 <td>{{ e.vendor|default:"—" }}</td>
                 <td class="num">{{ e.amount|amount }} {{ e.currency }}{% if e.currency != 'EGP' %}<div class="hint" dir="ltr">× {{ e.exchange_rate|floatformat:2 }}</div>{% endif %}</td>
@@ -305,10 +362,21 @@
         rate.addEventListener('input', calc); amt.addEventListener('input', calc);
         sync();
     });
-    document.querySelectorAll('.js-rec').forEach(function (cb) {
-        var until = cb.closest('form').querySelector('.js-rec-until');
-        function t() { until.style.display = cb.checked ? '' : 'none'; }
-        cb.addEventListener('change', t); t();
+    var HINTS = {
+        normal: '{% trans "مصروف حصل مرة — لو بيغطي فترة (من/لحد) هيتوزّع عليها." %}',
+        fixed: '{% trans "بيتسجّل مرة ويتكرر لوحده كل شهر بنفس المبلغ — والسيستم بيجمع الثابت ويحسبلك نقطة التعادل. التاريخ = أول شهر." %}',
+        capex: '{% trans "فلوس اتصرفت على بناء السيستم — بتتوزّع على عمره الافتراضي كإهلاك تحت الربح التشغيلي. التاريخ = يوم ما اتدفعت (حتى لو قديم)." %}'
+    };
+    document.querySelectorAll('.js-exp-form').forEach(function (f) {
+        function t() {
+            var k = (f.querySelector('[name=kind]:checked') || {}).value || 'normal';
+            f.querySelectorAll('.js-k').forEach(function (el) { el.style.display = el.classList.contains('js-k-' + k) ? '' : 'none'; });
+            f.querySelectorAll('[name=kind]').forEach(function (r) { r.parentNode.classList.toggle('on', r.checked); });
+            f.querySelector('.js-kind-hint').textContent = HINTS[k];
+            f.querySelector('[name=amount]').placeholder = k === 'fixed' ? '{% trans "المبلغ الشهري" %}' : '';
+        }
+        f.querySelectorAll('[name=kind]').forEach(function (r) { r.addEventListener('change', t); });
+        t();
     });
 })();
 </script>

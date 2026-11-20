@@ -11,10 +11,14 @@
 
 الإيراد: اشتراكات (PlatformInvoice المدفوعة) + عمولات سوق القطع (PartOrder اتفرج عنها) + يدوي
 (PlatformIncome) — التمويل/الاستثمار مش إيراد تشغيل (بيتعرض لوحده).
-الترتيب: إيراد ← تكلفة تشغيل الخدمة (COGS) ← مجمل الربح ← مصروفات تشغيلية ← صافي الربح.
+الترتيب (زي قوايم الدخل العالمية):
+  إيراد ← تكلفة تشغيل الخدمة (COGS) ← مجمل الربح ← مصروفات تشغيلية ← EBITDA
+  ← إهلاك تكاليف البناء (CapEx موزّعة على عمرها) ← صافي الربح.
+تكاليف البناء (nature='capex') مش جوه COGS/OpEx — عشان شهر اتصرف فيه البناء مايطلعش خسارة وهمية.
 """
 import calendar
 import datetime
+import math
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
@@ -118,10 +122,17 @@ def revenue(start, end, basis=ACCRUAL):
 
 # ─────────────────────────────── المصروف ───────────────────────────────
 def expenses(start, end, basis=ACCRUAL):
-    """المصروفات بالمجموعة والبند (الأكبر الأول)."""
+    """المصروفات التشغيلية بالمجموعة والبند (الأكبر الأول) + إهلاك تكاليف البناء لوحده.
+
+    على الأساس النقدي تكلفة البناء بتظهر في تاريخ دفعها (فلوس خرجت فعلاً) — برضه في سطر لوحدها.
+    """
     labels = {k: str(lbl) for k, lbl, _g in EXPENSE_CATEGORIES}
     per_cat = {}
+    amortization = ZERO
     for row, amount in _money_rows(PlatformExpense, start, end, basis):
+        if row.nature == 'capex':
+            amortization += amount
+            continue
         per_cat[row.category] = per_cat.get(row.category, ZERO) + amount
     by_group = {g: ZERO for g, _l in EXPENSE_GROUPS}
     by_category = []
@@ -135,7 +146,8 @@ def expenses(start, end, basis=ACCRUAL):
     total = sum(by_group.values(), ZERO)
     for c in by_category:
         c['pct'] = round(float(c['total'] * 100 / total), 1) if total else 0
-    return {'by_group': by_group, 'by_category': by_category, 'total': total}
+    return {'by_group': by_group, 'by_category': by_category, 'total': total,
+            'amortization': amortization.quantize(CENT)}
 
 
 # ─────────────────────────────── قايمة الدخل ───────────────────────────────
@@ -155,10 +167,13 @@ def profit_and_loss(start, end, basis=ACCRUAL):
     cogs = exp['by_group']['cogs']
     gross = rev['total'] - cogs
     opex = exp['total'] - cogs
-    net = rev['total'] - exp['total']
+    ebitda = gross - opex
+    net = ebitda - exp['amortization']
     return {'start': start, 'end': end, 'basis': basis, 'revenue': rev, 'expenses': exp,
             'cogs': cogs, 'gross_profit': gross, 'gross_margin': _pct(gross, rev['total']),
             'opex': opex, 'opex_ratio': _pct(opex, rev['total']),
+            'ebitda': ebitda, 'ebitda_margin': _pct(ebitda, rev['total']),
+            'amortization': exp['amortization'], 'all_expenses': exp['total'] + exp['amortization'],
             'net_profit': net, 'net_margin': _pct(net, rev['total'])}
 
 
@@ -169,7 +184,8 @@ def monthly_series(months=12, today=None, basis=ACCRUAL):
     for i in range(months - 1, -1, -1):
         m_start, m_end = month_bounds(add_months(today.replace(day=1), -i))
         rev = revenue(m_start, m_end, basis)['total']
-        exp = expenses(m_start, m_end, basis)['total']
+        e = expenses(m_start, m_end, basis)
+        exp = e['total'] + e['amortization']
         out.append({'month': m_start, 'revenue': rev, 'expenses': exp, 'net': rev - exp})
     return out
 
@@ -182,9 +198,68 @@ def balance_items(today=None):
     far = datetime.date(9999, 12, 31)
     deferred = sum((_share(inv.total, *_invoice_cover(inv), tomorrow, far)
                     for inv in _paid_invoices().filter(period_end__gt=today, paid_at__date__lte=today)), ZERO)
-    prepaid = sum((_share(e.amount_egp, *e.coverage, tomorrow, far)
-                   for e in PlatformExpense.objects.filter(period_end__gt=today, date__lte=today)), ZERO)
-    return {'deferred_revenue': deferred.quantize(CENT), 'prepaid_expenses': prepaid.quantize(CENT)}
+    prepaid = capex_left = ZERO
+    for e in PlatformExpense.objects.filter(period_end__gt=today, date__lte=today):
+        left = _share(e.amount_egp, *e.coverage, tomorrow, far)
+        if e.nature == 'capex':
+            capex_left += left
+        else:
+            prepaid += left
+    capex = PlatformExpense.objects.filter(nature='capex', date__lte=today)
+    capex_total = _sum(capex, 'amount_egp')
+    return {'deferred_revenue': deferred.quantize(CENT), 'prepaid_expenses': prepaid.quantize(CENT),
+            # تكاليف البناء: اللي اتصرف كله، واللي اتحمّل مصروف لحد النهارده، والباقي (صافي قيمة الأصل)
+            'capex_total': capex_total, 'capex_net': capex_left.quantize(CENT),
+            'capex_amortized': (capex_total - capex_left).quantize(CENT)}
+
+
+def fixed_costs(today=None, kpis_data=None):
+    """المصاريف الشهرية الثابتة (المتكررة الشغّالة) + نقطة التعادل.
+
+    نقطة التعادل = الثابت ÷ هامش المساهمة (الإيراد − المصروف المتغيّر ÷ الإيراد) آخر ٩٠ يوم —
+    ولو مفيش إيراد كفاية للحساب = الثابت نفسه. وعدد العملاء = نقطة التعادل ÷ متوسط الإيراد للعميل.
+    """
+    today = today or datetime.date.today()
+    items = list(PlatformExpense.objects.filter(is_recurring=True, recurring_source__isnull=True,
+                                                nature='operating')
+                 .filter(Q(recurring_until__isnull=True) | Q(recurring_until__gte=today))
+                 .order_by('-amount_egp'))
+    total = sum((e.amount_egp for e in items), ZERO).quantize(CENT)
+    labels = dict((k, str(lbl)) for k, lbl, _g in EXPENSE_CATEGORIES)
+    by_group = {g: ZERO for g, _l in EXPENSE_GROUPS}
+    for e in items:
+        by_group[CATEGORY_GROUP.get(e.category, 'ga')] += e.amount_egp
+
+    t_start = today - datetime.timedelta(days=89)
+    rev90 = revenue(t_start, today, ACCRUAL)['total']
+    # المتغيّر = كل مصروف تشغيلي مش جزء من المصاريف الشهرية الثابتة (لا أصل متكرر ولا نسخة منه)
+    variable90 = sum((amt for row, amt in _money_rows(PlatformExpense, t_start, today, ACCRUAL, nature='operating')
+                      if not (row.is_recurring or row.recurring_source_id)), ZERO)
+    contribution = (rev90 - variable90) / rev90 if rev90 > 0 else None
+    if contribution is not None and contribution > 0:
+        break_even = (total / contribution).quantize(CENT)
+    else:
+        break_even = total
+    k = kpis_data or {}
+    arpa = k.get('arpa')
+    arpa_source = 'actual'
+    if not arpa:
+        # لسه مفيش عملاء بيدفعوا ⇒ متوسط سعر الباقات الشهري
+        from clients.models import Plan
+        from django.db.models import Avg
+        arpa = Plan.objects.filter(is_active=True, monthly_price__gt=0).aggregate(a=Avg('monthly_price'))['a']
+        arpa = Decimal(arpa).quantize(CENT) if arpa else None
+        arpa_source = 'plans'
+    customers_needed = None
+    if arpa:
+        customers_needed = math.ceil(break_even / arpa) if break_even else 0
+    return {'items': [{'e': e, 'label': labels.get(e.category, e.category)} for e in items],
+            'total': total, 'by_group': by_group, 'yearly': total * 12,
+            'contribution_margin': round(float(contribution) * 100, 1) if contribution is not None else None,
+            'break_even': break_even, 'customers_needed': customers_needed, 'arpa': arpa,
+            'arpa_source': arpa_source,
+            'active_customers': k.get('active_customers'), 'mrr': k.get('mrr'),
+            'covered_pct': round(float(k['mrr'] * 100 / total), 1) if (k.get('mrr') is not None and total) else None}
 
 
 # ─────────────────────────────── مؤشرات SaaS ───────────────────────────────
@@ -263,7 +338,7 @@ def generate_recurring(today=None):
     today = today or datetime.date.today()
     created = 0
     for src in PlatformExpense.objects.filter(is_recurring=True, recurring_source__isnull=True,
-                                              date__lt=today.replace(day=1)):
+                                              nature='operating', date__lt=today.replace(day=1)):
         stop = min(today, src.recurring_until) if src.recurring_until else today
         month = add_months(src.date.replace(day=1), 1)
         while month <= stop:
