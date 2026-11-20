@@ -28564,3 +28564,150 @@ msgstr "Balance after"
 
 msgid "مفيش حركات لسه."
 msgstr "No movements yet."
+
+msgid "(الاشتراكات والعمولات بتتحسب لوحدها)"
+msgstr "(subscriptions and commissions are calculated automatically)"
+
+msgid "آخر ١٢ شهر"
+msgstr "Last 12 months"
+
+msgid "إيرادات ومصروفات Mouss Tec ككل — الاشتراكات والعمولات بتتحسب لوحدها، والمصروفات بتسجّلها انت بعملتها وسعر الصرف وقت الدفع."
+msgstr "Mouss Tec revenue and expenses as a whole — subscriptions and commissions are automatic; you record expenses in their currency at the exchange rate on the payment date."
+
+msgid "إيرادات يدوية"
+msgstr "Manual income"
+
+msgid "احسب"
+msgstr "Calculate"
+
+msgid "اشتراكات الشركات"
+msgstr "Company subscriptions"
+
+msgid "الإيراد الشهري المتكرر"
+msgstr "Monthly recurring revenue"
+
+msgid "الإيصال (صورة/PDF)"
+msgstr "Receipt (image/PDF)"
+
+msgid "الفترة دي"
+msgstr "This period"
+
+msgid "الفلوس بتروح فين"
+msgstr "Where the money goes"
+
+msgid "الفلوس تكفّي كام شهر"
+msgstr "Months of cash left"
+
+msgid "اللي قبلها"
+msgstr "Previous"
+
+msgid "المصروف الشهري (متوسط ٣ شهور)"
+msgstr "Monthly spend (3-month average)"
+
+msgid "المقارنة بالفترة اللي قبلها بنفس الطول"
+msgstr "Compared with the previous period of the same length"
+
+msgid "المورّد"
+msgstr "Vendor"
+
+msgid "المورّد/الجهة"
+msgstr "Vendor"
+
+msgid "بالجنيه"
+msgstr "In EGP"
+
+msgid "بيتكرر كل شهر"
+msgstr "Repeats monthly"
+
+msgid "تسويق {{ m }} · {{ p }} دفعوا · {{ s }} سجّلوا"
+msgstr "Marketing {{ m }} · {{ p }} paid · {{ s }} signed up"
+
+msgid "تصدير Excel"
+msgstr "Export Excel"
+
+msgid "تكلفة العميل الجديد (الشهر ده)"
+msgstr "Customer acquisition cost (this month)"
+
+msgid "تكلفة تشغيل الخدمة"
+msgstr "Cost of service (COGS)"
+
+msgid "تمسح الإيراد ده؟"
+msgstr "Delete this income?"
+
+msgid "تمسح المصروف ده؟"
+msgstr "Delete this expense?"
+
+msgid "تمويل/استثمار دخل في الفترة (مش محسوب إيراد):"
+msgstr "Financing/investment received in the period (not counted as revenue):"
+
+msgid "توقف التكرار الشهري؟"
+msgstr "Stop the monthly repeat?"
+
+msgid "جنيه"
+msgstr "EGP"
+
+msgid "حسابات المنصة"
+msgstr "Platform finance"
+
+msgid "سجّل إيراد من برّه السيستم"
+msgstr "Record income from outside the system"
+
+msgid "سجّل الإيراد"
+msgstr "Record income"
+
+msgid "سجّل مصروف"
+msgstr "Record an expense"
+
+msgid "سعر الصرف (بالجنيه)"
+msgstr "Exchange rate (EGP)"
+
+msgid "صافي الحرق (مصروف − إيراد):"
+msgstr "Net burn (expenses − revenue):"
+
+msgid "صافي الربح / الخسارة"
+msgstr "Net profit / loss"
+
+msgid "صافي خسارة"
+msgstr "Net loss"
+
+msgid "عمولات سوق القطع"
+msgstr "Parts market commissions"
+
+msgid "قايمة الدخل (P&L)"
+msgstr "Income statement (P&L)"
+
+msgid "كل البنود"
+msgstr "All categories"
+
+msgid "مؤشرات زي الشركات العالمية"
+msgstr "SaaS metrics"
+
+msgid "مثال: سيرفر DigitalOcean نوفمبر"
+msgstr "e.g. DigitalOcean server, November"
+
+msgid "مفيش مصروفات في الفترة دي — سجّل أول مصروف تحت."
+msgstr "No expenses in this period — record the first one below."
+
+msgid "مفيش مصروفات في الفترة دي."
+msgstr "No expenses in this period."
+
+msgid "من (العميل/الجهة)"
+msgstr "From (client/party)"
+
+msgid "وقف التكرار"
+msgstr "Stop repeating"
+
+msgid "مصروفات • أرباح وخساير"
+msgstr "Expenses • profit & loss"
+
+msgid "الشهر ده"
+msgstr "This month"
+
+msgid "آخر ٣ شهور"
+msgstr "Last 3 months"
+
+msgid "السنة دي"
+msgstr "This year"
+
+msgid "السنة اللي فاتت"
+msgstr "Last year"

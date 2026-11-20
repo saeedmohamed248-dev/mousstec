@@ -407,6 +407,7 @@
                 <summary class="sa-group-head"><i class="fas fa-sack-dollar gico"></i><span class="flex-1">{% trans "الفلوس والنمو" %}</span><span class="gcnt">6</span><i class="fas fa-chevron-down chev"></i></summary>
                 <div class="grid grid-cols-3 sm:grid-cols-2 gap-2 pt-2">
                 <a href="/superadmin/revenue/" class="sa-tool"><span class="sa-ico tone-green"><i class="fas fa-chart-line"></i></span><span class="txt"><span class="name">{% trans "الإيرادات" %}</span><span class="desc">MRR • {% trans "نمو" %} • {% trans "تحصيل" %}</span></span></a>
+                <a href="/superadmin/finance/" class="sa-tool"><span class="sa-ico tone-green"><i class="fas fa-scale-balanced"></i></span><span class="txt"><span class="name">{% trans "حسابات المنصة" %}</span><span class="desc">{% trans "مصروفات • أرباح وخساير" %}</span></span></a>
                 <a href="/superadmin/revenue-intel/" class="sa-tool"><span class="sa-ico tone-green"><i class="fas fa-gem"></i></span><span class="txt"><span class="name">Revenue Intel</span><span class="desc">MRR • cohorts • conversion</span></span></a>
                 <a href="/superadmin/churn-risk/" class="sa-tool"><span class="sa-ico tone-rose"><i class="fas fa-user-doctor"></i></span><span class="txt"><span class="name">{% trans "صحة الشركات" %}</span><span class="desc">Churn risk • health score</span></span></a>
                 <a href="/superadmin/marketing/" class="sa-tool"><span class="sa-ico tone-orange"><i class="fas fa-bullseye"></i></span><span class="txt"><span class="name">{% trans "الإعلانات ومصادر العملاء" %}</span><span class="desc">{% trans "كل حملة جابت كام تسجيل وكام مشترك" %}</span></span></a>
@@ -3020,6 +3021,7 @@ async function submitCustomerDelete(e) {
         { kind:'page', label:'{{ _("إدارة المستأجرين")|escapejs }}',  sub:'soft-delete · restore · force',   url:'/superadmin/tenants/',               icon:'building' },
         { kind:'page', label:'{{ _("الباقات")|escapejs }}',           sub:'{{ _("تسعير · مزايا · تحرير")|escapejs }}',           url:'/superadmin/plans/',                 icon:'gem' },
         { kind:'page', label:'{{ _("الإيرادات")|escapejs }}',         sub:'MRR · {{ _("نمو · تحصيل")|escapejs }}',               url:'/superadmin/revenue/',               icon:'chart-line' },
+        { kind:'page', label:'{% trans "حسابات المنصة" %}', sub:'P&L · Burn · Runway', url:'/superadmin/finance/', icon:'scale-balanced' },
         { kind:'page', label:'Revenue Intelligence', sub:'MRR breakdown · cohorts · conversion', url:'/superadmin/revenue-intel/',      icon:'gem' },
         { kind:'page', label:'{{ _("مصروفات التشخيص")|escapejs }}',   sub:'OpenAI / Anthropic cost',          url:'/superadmin/diagnostics-spend/',     icon:'coins' },
         { kind:'page', label:'{{ _("سجل الأخطاء")|escapejs }}',       sub:'live 4xx / 5xx',                  url:'/superadmin/errors/',                icon:'triangle-exclamation' },

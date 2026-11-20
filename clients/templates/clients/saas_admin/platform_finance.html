@@ -1,0 +1,270 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <title>{% trans "حسابات المنصة" %} — Mouss Tec</title>
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        body { margin:0; padding:24px; }
+        .container { max-width:1240px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:12px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#1E2A57; margin:0 0 4px; font-size:26px; }
+        .sub { color:#6B6F76; font-size:13px; margin:0 0 18px; }
+        .bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:18px; }
+        .tab { padding:7px 14px; border-radius:999px; border:1px solid #E6E1D8; background:#fff; color:#1C2430; text-decoration:none; font-size:13px; font-weight:700; }
+        .tab.on { background:#1E2A57; color:#fff; border-color:#1E2A57; }
+        .bar input[type=date] { padding:6px 8px; border:1px solid #E6E1D8; border-radius:8px; }
+        .btn { display:inline-block; border:0; cursor:pointer; padding:8px 14px; border-radius:8px; font-weight:800; font-size:13px; text-decoration:none; }
+        .btn-navy { background:#1E2A57; color:#fff; } .btn-green { background:#2F6B3F; color:#fff; } .btn-red { background:#A33A2A; color:#fff; }
+        .btn-ghost { background:#F3EFE7; color:#1C2430; }
+        .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:18px; }
+        .card { background:#fff; border:1px solid #E6E1D8; border-radius:14px; padding:16px; }
+        .card .lbl { font-size:12px; color:#6B6F76; } .card .val { font-size:24px; font-weight:900; margin-top:4px; }
+        .card .chg { font-size:12px; font-weight:800; margin-top:4px; }
+        .up { color:#2F6B3F; } .down { color:#A33A2A; } .muted { color:#6B6F76; }
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+        @media (max-width: 900px) { .grid-2 { grid-template-columns:1fr; } }
+        .panel { background:#fff; border:1px solid #E6E1D8; border-radius:14px; padding:16px; margin-bottom:16px; }
+        .panel h3 { margin:0 0 12px; font-size:15px; color:#1E2A57; }
+        table { width:100%; border-collapse:collapse; font-size:13px; }
+        th { background:#F3EFE7; color:#3A4049; padding:8px; text-align:start; font-size:12px; }
+        td { padding:8px; border-top:1px solid #EFEAE0; vertical-align:top; }
+        td.num, th.num { text-align:end; font-variant-numeric:tabular-nums; white-space:nowrap; }
+        .pnl td { border-top:1px solid #F3EFE7; }
+        .pnl .sum td { font-weight:900; border-top:2px solid #1C2430; }
+        .pnl .indent td:first-child { padding-inline-start:22px; color:#3A4049; }
+        .gbar { height:8px; background:#F3EFE7; border-radius:4px; overflow:hidden; margin-top:4px; }
+        .gbar span { display:block; height:100%; background:#9A6A12; }
+        .chart { display:flex; align-items:flex-end; gap:8px; height:180px; padding-top:10px; }
+        .chart .m { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; }
+        .chart .cols { display:flex; align-items:flex-end; gap:2px; height:140px; width:100%; justify-content:center; }
+        .chart .cols i { display:block; width:42%; border-radius:4px 4px 0 0; }
+        .chart .r { background:#2F6B3F; } .chart .e { background:#A33A2A; }
+        .chart .lb { font-size:10px; color:#6B6F76; white-space:nowrap; }
+        .chart .net { font-size:10px; font-weight:800; }
+        form.entry { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; align-items:end; }
+        form.entry label { font-size:12px; color:#3A4049; display:block; }
+        form.entry input, form.entry select, form.entry textarea { width:100%; box-sizing:border-box; padding:8px; border:1px solid #E6E1D8; border-radius:8px; font-family:inherit; margin-top:3px; }
+        .msg { padding:10px 14px; border-radius:10px; margin-bottom:12px; font-weight:700; }
+        .msg.success { background:#EEF5EF; color:#2F6B3F; } .msg.error { background:#FBEDEA; color:#A33A2A; }
+        .pill { font-size:11px; padding:2px 8px; border-radius:999px; background:#F3EFE7; }
+        .hint { font-size:11px; color:#6B6F76; }
+    </style>
+    {% include "clients/saas_admin/_admin_theme.html" %}
+</head>
+<body>
+{% include "clients/saas_admin/_lang_switch.html" %}
+<div class="container">
+    <div class="breadcrumb"><a href="/superadmin/">SaaS Dashboard</a> › {% trans "حسابات المنصة" %}</div>
+    <h1>📒 {% trans "حسابات المنصة" %}</h1>
+    <p class="sub">{% trans "إيرادات ومصروفات Mouss Tec ككل — الاشتراكات والعمولات بتتحسب لوحدها، والمصروفات بتسجّلها انت بعملتها وسعر الصرف وقت الدفع." %}</p>
+
+    {% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    {# الفترة #}
+    <div class="bar">
+        {% for k, label in periods %}{% if k != 'custom' %}<a class="tab {% if period == k %}on{% endif %}" href="?period={{ k }}">{% trans label %}</a>{% endif %}{% endfor %}
+        <form method="get" style="display:flex;gap:6px;align-items:center;">
+            <input type="hidden" name="period" value="custom">
+            <input type="date" name="from" value="{{ start|date:'Y-m-d' }}"> <span class="muted">→</span>
+            <input type="date" name="to" value="{{ end|date:'Y-m-d' }}">
+            <button class="btn btn-ghost">{% trans "عرض" %}</button>
+        </form>
+        <a class="btn btn-green" href="?{{ qs_nocat }}{% if qs_nocat %}&{% endif %}{% if cat %}cat={{ cat }}&{% endif %}export=xlsx"><i class="fas fa-file-excel"></i> {% trans "تصدير Excel" %}</a>
+    </div>
+    <p class="hint">{% trans "الفترة:" %} <span dir="ltr">{{ start|date:"Y-m-d" }} → {{ end|date:"Y-m-d" }}</span> · {% trans "المقارنة بالفترة اللي قبلها بنفس الطول" %}</p>
+
+    {# الكروت الرئيسية #}
+    <div class="cards">
+        <div class="card"><div class="lbl">💰 {% trans "الإيرادات" %}</div><div class="val">{{ pnl.revenue.total|amount }}</div>
+            {% if changes.revenue is not None %}<div class="chg {% if changes.revenue >= 0 %}up{% else %}down{% endif %}" dir="ltr">{% if changes.revenue >= 0 %}▲{% else %}▼{% endif %} {{ changes.revenue }}%</div>{% endif %}</div>
+        <div class="card"><div class="lbl">💸 {% trans "المصروفات" %}</div><div class="val">{{ pnl.expenses.total|amount }}</div>
+            {% if expense_change is not None %}<div class="chg {% if expense_change <= 0 %}up{% else %}down{% endif %}" dir="ltr">{% if expense_change >= 0 %}▲{% else %}▼{% endif %} {{ expense_change }}%</div>{% endif %}</div>
+        <div class="card"><div class="lbl">📈 {% trans "مجمل الربح" %}</div><div class="val {% if pnl.gross_profit < 0 %}down{% endif %}">{{ pnl.gross_profit|amount }}</div>
+            <div class="chg muted">{% trans "الهامش" %} {% if pnl.gross_margin is not None %}{{ pnl.gross_margin }}%{% else %}—{% endif %}</div></div>
+        <div class="card" style="{% if pnl.net_profit < 0 %}background:#FBEDEA;border-color:#E8C3BC{% else %}background:#EEF5EF;border-color:#BFD8C5{% endif %}">
+            <div class="lbl">{% if pnl.net_profit < 0 %}🔻 {% trans "صافي خسارة" %}{% else %}✅ {% trans "صافي الربح" %}{% endif %}</div>
+            <div class="val {% if pnl.net_profit < 0 %}down{% else %}up{% endif %}">{{ pnl.net_profit|amount }}</div>
+            <div class="chg muted">{% trans "الهامش" %} {% if pnl.net_margin is not None %}{{ pnl.net_margin }}%{% else %}—{% endif %}
+                {% if changes.net_profit is not None %} · <span class="{% if changes.net_profit >= 0 %}up{% else %}down{% endif %}" dir="ltr">{% if changes.net_profit >= 0 %}▲{% else %}▼{% endif %} {{ changes.net_profit }}%</span>{% endif %}</div></div>
+    </div>
+
+    <div class="grid-2">
+        {# قايمة الدخل #}
+        <div class="panel">
+            <h3>🧾 {% trans "قايمة الدخل (P&L)" %}</h3>
+            <table class="pnl">
+                <tr><th>{% trans "البند" %}</th><th class="num">{% trans "الفترة دي" %}</th><th class="num">{% trans "اللي قبلها" %}</th></tr>
+                <tr class="indent"><td>{% trans "اشتراكات الشركات" %}</td><td class="num">{{ pnl.revenue.subscriptions|amount }}</td><td class="num muted">{{ prev.revenue.subscriptions|amount }}</td></tr>
+                <tr class="indent"><td>{% trans "عمولات سوق القطع" %}</td><td class="num">{{ pnl.revenue.commissions|amount }}</td><td class="num muted">{{ prev.revenue.commissions|amount }}</td></tr>
+                <tr class="indent"><td>{% trans "إيرادات أخرى" %}</td><td class="num">{{ pnl.revenue.manual|amount }}</td><td class="num muted">{{ prev.revenue.manual|amount }}</td></tr>
+                <tr class="sum"><td>{% trans "إجمالي الإيراد" %}</td><td class="num">{{ pnl.revenue.total|amount }}</td><td class="num muted">{{ prev.revenue.total|amount }}</td></tr>
+                <tr class="indent"><td>− {% trans "تكلفة تشغيل الخدمة" %}</td><td class="num">{{ pnl.cogs|amount }}</td><td class="num muted">{{ prev.cogs|amount }}</td></tr>
+                <tr class="sum"><td>{% trans "مجمل الربح" %}</td><td class="num">{{ pnl.gross_profit|amount }}</td><td class="num muted">{{ prev.gross_profit|amount }}</td></tr>
+                {% for g in groups %}{% if g.key != 'cogs' %}
+                <tr class="indent"><td>− {{ g.label }}</td><td class="num">{{ g.total|amount }}</td><td class="num muted">{{ g.prev|amount }}</td></tr>
+                {% endif %}{% endfor %}
+                <tr class="sum"><td>{% trans "صافي الربح / الخسارة" %}</td><td class="num {% if pnl.net_profit < 0 %}down{% else %}up{% endif %}">{{ pnl.net_profit|amount }}</td><td class="num muted">{{ prev.net_profit|amount }}</td></tr>
+            </table>
+            {% if pnl.revenue.financing %}<p class="hint">💼 {% trans "تمويل/استثمار دخل في الفترة (مش محسوب إيراد):" %} {{ pnl.revenue.financing|amount }}</p>{% endif %}
+        </div>
+
+        {# المصروفات بالبند #}
+        <div class="panel">
+            <h3>📊 {% trans "الفلوس بتروح فين" %}</h3>
+            {% for g in groups %}{% if g.total %}
+                <div style="margin-bottom:12px;"><b>{{ g.label }}</b> <span class="muted">— {{ g.total|amount }}</span>
+                {% for c in g.items %}
+                    <div style="margin-top:6px;"><a href="?{{ qs_nocat }}&cat={{ c.key }}#expenses" style="color:#1C2430;text-decoration:none;">{{ c.label }}</a>
+                        <span class="muted" style="float:inline-end;">{{ c.total|amount }} · {{ c.pct }}%</span>
+                        <div class="gbar"><span style="width:{{ c.pct }}%"></span></div></div>
+                {% endfor %}</div>
+            {% endif %}{% empty %}{% endfor %}
+            {% if not pnl.expenses.total %}<p class="muted">{% trans "مفيش مصروفات في الفترة دي — سجّل أول مصروف تحت." %}</p>{% endif %}
+        </div>
+    </div>
+
+    {# الرسم الشهري #}
+    <div class="panel">
+        <h3>📅 {% trans "آخر ١٢ شهر" %} <span class="hint"><span style="color:#2F6B3F">■</span> {% trans "إيراد" %} <span style="color:#A33A2A">■</span> {% trans "مصروف" %}</span></h3>
+        <div class="chart">
+            {% for m in series %}
+            <div class="m" title="{{ m.month|date:'Y-m' }}: {{ m.revenue|amount }} / {{ m.expenses|amount }}">
+                <div class="cols"><i class="r" style="height:{{ m.rev_h }}%"></i><i class="e" style="height:{{ m.exp_h }}%"></i></div>
+                <div class="net {% if m.net < 0 %}down{% else %}up{% endif %}">{{ m.net|floatformat:0 }}</div>
+                <div class="lb" dir="ltr">{{ m.month|date:"M y" }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# مؤشرات SaaS #}
+    <div class="panel">
+        <h3>🚀 {% trans "مؤشرات زي الشركات العالمية" %}</h3>
+        <div class="cards" style="margin-bottom:8px;">
+            <div class="card"><div class="lbl">MRR — {% trans "الإيراد الشهري المتكرر" %}</div><div class="val">{{ kpis.mrr|amount }}</div><div class="hint">ARR: {{ kpis.arr|amount }}</div></div>
+            <div class="card"><div class="lbl">Burn — {% trans "المصروف الشهري (متوسط ٣ شهور)" %}</div><div class="val">{{ kpis.burn|amount }}</div>
+                <div class="hint">{% trans "صافي الحرق (مصروف − إيراد):" %} <b class="{% if kpis.net_burn > 0 %}down{% else %}up{% endif %}">{{ kpis.net_burn|amount }}</b></div></div>
+            <div class="card"><div class="lbl">CAC — {% trans "تكلفة العميل الجديد (الشهر ده)" %}</div><div class="val">{% if kpis.cac is not None %}{{ kpis.cac|amount }}{% else %}—{% endif %}</div>
+                <div class="hint">{% blocktrans with m=kpis.marketing_this_month p=kpis.new_paying s=kpis.new_signups %}تسويق {{ m }} · {{ p }} دفعوا · {{ s }} سجّلوا{% endblocktrans %}</div></div>
+            <div class="card"><div class="lbl">Runway — {% trans "الفلوس تكفّي كام شهر" %}</div>
+                <div class="val">{% if kpis.runway_months is not None %}{{ kpis.runway_months }} {% trans "شهر" %}{% elif cash is not None %}∞{% else %}—{% endif %}</div>
+                <form method="get" style="display:flex;gap:6px;margin-top:6px;">{% for k, v in request.GET.items %}{% if k != 'cash' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
+                    <input name="cash" value="{{ cash|default_if_none:'' }}" placeholder="{% trans 'الرصيد الحالي' %}" style="width:100%;padding:6px;border:1px solid #E6E1D8;border-radius:8px;">
+                    <button class="btn btn-ghost">{% trans "احسب" %}</button></form></div>
+        </div>
+    </div>
+
+    {# تسجيل مصروف #}
+    <div class="panel" id="add-expense">
+        <h3>➖ {% trans "سجّل مصروف" %}</h3>
+        <form class="entry" method="post" action="{% url 'saas_platform_expense_add' %}" enctype="multipart/form-data">{% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <label>{% trans "التاريخ" %}<input type="date" name="date" value="{{ today|date:'Y-m-d' }}" required></label>
+            <label>{% trans "البند" %}<select name="category" required><option value="">—</option>
+                {% for glabel, items in grouped_categories %}<optgroup label="{{ glabel }}">{% for k, l in items %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</optgroup>{% endfor %}</select></label>
+            <label>{% trans "البيان" %}<input name="description" required placeholder="{% trans 'مثال: سيرفر DigitalOcean نوفمبر' %}"></label>
+            <label>{% trans "المورّد/الجهة" %}<input name="vendor" placeholder="DigitalOcean / Meta / Google"></label>
+            <label>{% trans "المبلغ" %}<input name="amount" type="number" step="0.01" min="0.01" required></label>
+            <label>{% trans "العملة" %}<select name="currency" class="js-cur">{% for k, l in currencies %}<option value="{{ k }}">{{ k }} — {{ l }}</option>{% endfor %}</select></label>
+            <label class="js-rate" style="display:none;">{% trans "سعر الصرف (بالجنيه)" %}<input name="exchange_rate" type="number" step="0.0001" min="0.0001"><span class="hint js-egp"></span></label>
+            <label>{% trans "طريقة الدفع" %}<select name="payment_method">{% for k, l in payment_methods %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></label>
+            <label>{% trans "الإيصال (صورة/PDF)" %}<input type="file" name="receipt" accept="image/*,application/pdf"></label>
+            <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="is_recurring" value="1" style="width:auto;"> {% trans "بيتكرر كل شهر" %}</label>
+            <label style="grid-column:1/-1;">{% trans "ملاحظات" %}<textarea name="notes" rows="2"></textarea></label>
+            <div><button class="btn btn-red">{% trans "سجّل المصروف" %}</button></div>
+        </form>
+    </div>
+
+    {# تسجيل إيراد يدوي #}
+    <div class="panel">
+        <h3>➕ {% trans "سجّل إيراد من برّه السيستم" %} <span class="hint">{% trans "(الاشتراكات والعمولات بتتحسب لوحدها)" %}</span></h3>
+        <form class="entry" method="post" action="{% url 'saas_platform_income_add' %}">{% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <label>{% trans "التاريخ" %}<input type="date" name="date" value="{{ today|date:'Y-m-d' }}" required></label>
+            <label>{% trans "النوع" %}<select name="category">{% for k, l in income_categories %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></label>
+            <label>{% trans "البيان" %}<input name="description" required></label>
+            <label>{% trans "من (العميل/الجهة)" %}<input name="source"></label>
+            <label>{% trans "المبلغ" %}<input name="amount" type="number" step="0.01" min="0.01" required></label>
+            <label>{% trans "العملة" %}<select name="currency" class="js-cur">{% for k, l in currencies %}<option value="{{ k }}">{{ k }} — {{ l }}</option>{% endfor %}</select></label>
+            <label class="js-rate" style="display:none;">{% trans "سعر الصرف (بالجنيه)" %}<input name="exchange_rate" type="number" step="0.0001" min="0.0001"><span class="hint js-egp"></span></label>
+            <div><button class="btn btn-green">{% trans "سجّل الإيراد" %}</button></div>
+        </form>
+    </div>
+
+    {# جدول المصروفات #}
+    <div class="panel" id="expenses">
+        <h3>💸 {% trans "المصروفات" %} {% if cat %}<a class="pill" href="?{{ qs_nocat }}#expenses">✕ {% trans "كل البنود" %}</a>{% endif %}</h3>
+        <div class="mt-table-scroll"><table>
+            <tr><th>{% trans "التاريخ" %}</th><th>{% trans "البند" %}</th><th>{% trans "البيان" %}</th><th>{% trans "المورّد" %}</th>
+                <th class="num">{% trans "المبلغ" %}</th><th class="num">{% trans "بالجنيه" %}</th><th></th></tr>
+            {% for e in expenses %}
+            <tr>
+                <td><span dir="ltr">{{ e.date|date:"Y-m-d" }}</span></td>
+                <td>{{ e.get_category_display }}{% if e.is_recurring or e.recurring_source_id %} <span class="pill" title="{% trans 'بيتكرر كل شهر' %}">🔁</span>{% endif %}</td>
+                <td>{{ e.description }}{% if e.notes %}<div class="hint">{{ e.notes|truncatechars:80 }}</div>{% endif %}</td>
+                <td>{{ e.vendor|default:"—" }}</td>
+                <td class="num">{{ e.amount|amount }} {{ e.currency }}{% if e.currency != 'EGP' %}<div class="hint" dir="ltr">× {{ e.exchange_rate|floatformat:2 }}</div>{% endif %}</td>
+                <td class="num"><b>{{ e.amount_egp|amount }}</b></td>
+                <td style="white-space:nowrap;">
+                    {% if e.receipt %}<a href="{% url 'saas_platform_expense_receipt' e.id %}" target="_blank" rel="noopener" title="{% trans 'الإيصال' %}">🧾</a>{% endif %}
+                    {% if e.is_recurring or e.recurring_source_id %}
+                    <form method="post" action="{% url 'saas_platform_entry_delete' 'expense' e.id %}" style="display:inline" onsubmit="return confirm('{% trans "توقف التكرار الشهري؟" %}')">{% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="hidden" name="stop_recurring" value="1">
+                        <button class="btn btn-ghost" style="padding:2px 8px;" title="{% trans 'وقف التكرار' %}">⏹</button></form>{% endif %}
+                    <form method="post" action="{% url 'saas_platform_entry_delete' 'expense' e.id %}" style="display:inline" onsubmit="return confirm('{% trans "تمسح المصروف ده؟" %}')">{% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button class="btn btn-ghost" style="padding:2px 8px;" title="{% trans 'مسح' %}">🗑</button></form>
+                </td>
+            </tr>
+            {% empty %}<tr><td colspan="7" class="muted">{% trans "مفيش مصروفات في الفترة دي." %}</td></tr>{% endfor %}
+        </table></div>
+    </div>
+
+    {# جدول الإيرادات اليدوية #}
+    {% if incomes %}
+    <div class="panel">
+        <h3>💵 {% trans "إيرادات يدوية" %}</h3>
+        <div class="mt-table-scroll"><table>
+            <tr><th>{% trans "التاريخ" %}</th><th>{% trans "النوع" %}</th><th>{% trans "البيان" %}</th><th>{% trans "من" %}</th><th class="num">{% trans "بالجنيه" %}</th><th></th></tr>
+            {% for i in incomes %}
+            <tr><td><span dir="ltr">{{ i.date|date:"Y-m-d" }}</span></td><td>{{ i.get_category_display }}</td><td>{{ i.description }}</td><td>{{ i.source|default:"—" }}</td>
+                <td class="num"><b>{{ i.amount_egp|amount }}</b>{% if i.currency != 'EGP' %}<div class="hint">{{ i.amount|amount }} {{ i.currency }}</div>{% endif %}</td>
+                <td><form method="post" action="{% url 'saas_platform_entry_delete' 'income' i.id %}" onsubmit="return confirm('{% trans "تمسح الإيراد ده؟" %}')">{% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-ghost" style="padding:2px 8px;">🗑</button></form></td></tr>
+            {% endfor %}
+        </table></div>
+    </div>
+    {% endif %}
+</div>
+{{ last_rates|json_script:"mt-last-rates" }}
+<script>
+(function () {
+    var rates = JSON.parse(document.getElementById('mt-last-rates').textContent || '{}');
+    document.querySelectorAll('form.entry').forEach(function (f) {
+        var cur = f.querySelector('.js-cur'), wrap = f.querySelector('.js-rate');
+        if (!cur || !wrap) return;
+        var rate = wrap.querySelector('input'), egp = wrap.querySelector('.js-egp'), amt = f.querySelector('[name=amount]');
+        function calc() {
+            var a = parseFloat(amt.value || 0), r = parseFloat(rate.value || 0);
+            egp.textContent = (a && r) ? ('= ' + (a * r).toFixed(2) + ' {% trans "جنيه" %}') : '';
+        }
+        function sync() {
+            var foreign = cur.value !== 'EGP';
+            wrap.style.display = foreign ? '' : 'none';
+            rate.required = foreign;
+            if (foreign && !rate.value && rates[cur.value]) rate.value = rates[cur.value];
+            calc();
+        }
+        cur.addEventListener('change', function () { rate.value = ''; sync(); });
+        rate.addEventListener('input', calc); amt.addEventListener('input', calc);
+        sync();
+    });
+})();
+</script>
+</body>
+</html>
