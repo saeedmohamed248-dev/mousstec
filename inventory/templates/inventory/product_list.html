@@ -144,8 +144,24 @@
       <option value="archived" {% if stock_filter == 'archived' %}selected{% endif %}>{% trans "🗄️ المؤرشفة (المحذوفة)" %}</option>
     </select>
   </div>
+  {# 📅 ترتيب الرصّة بتاريخ دخول البضاعة + البحث عن اللي دخل في مدة معيّنة #}
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+    <label class="block text-xs text-slate-400">{% trans "الترتيب" %}
+      <select name="sort" class="mt-1 w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700">
+        <option value="">{% trans "بالاسم" %}</option>
+        <option value="newest" {% if sort == 'newest' %}selected{% endif %}>{% trans "📅 تاريخ الدخول: الأحدث الأول" %}</option>
+        <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>{% trans "📅 تاريخ الدخول: الأقدم الأول" %}</option>
+      </select>
+    </label>
+    <label class="block text-xs text-slate-400">{% trans "دخلت المخزن من" %}
+      <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}" class="mt-1 w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+    </label>
+    <label class="block text-xs text-slate-400">{% trans "لحد" %}
+      <input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}" class="mt-1 w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+    </label>
+  </div>
   <div class="flex justify-end mt-3 gap-2">
-    {% if q or stock_filter %}<a href="{% url 'inventory:product_list' %}" class="text-xs text-slate-400 hover:text-white px-3 py-1.5">{% trans "إلغاء الفلاتر" %}</a>{% endif %}
+    {% if filter_qs %}<a href="{% url 'inventory:product_list' %}" class="text-xs text-slate-400 hover:text-white px-3 py-1.5">{% trans "إلغاء الفلاتر" %}</a>{% endif %}
     <button class="bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold px-5 py-1.5 rounded-lg"><i class="fas fa-filter ml-1"></i> {% trans "فلترة" %}</button>
   </div>
 </form>
@@ -174,7 +190,7 @@
         <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
           <td class="py-3 px-3 text-center"><input type="checkbox" class="sel-prod" value="{{ row.product.id|stringformat:'d' }}"></td>
           <td class="py-3 px-4 font-mono text-xs text-slate-300">{{ row.product.part_number }}</td>
-          <td class="py-3 px-4"><b class="text-white">{{ row.product.name }}</b>{% if row.product.engine_code %}<br><span class="text-xs text-slate-500">{{ row.product.engine_code }}</span>{% endif %}</td>
+          <td class="py-3 px-4"><b class="text-white">{{ row.product.name }}</b>{% if row.product.engine_code %}<br><span class="text-xs text-slate-500">{{ row.product.engine_code }}</span>{% endif %}{% if row.entered %}<br><span class="text-[11px] text-sky-300">📅 {% trans "دخل:" %} <span dir="ltr">{{ row.entered|date:"Y-m-d H:i" }}</span></span>{% endif %}</td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ row.product.brand }} · {{ row.product.car_model }}</td>
           {% if show_cost %}<td class="py-3 px-4 text-end whitespace-nowrap"><div class="font-bold text-slate-100 tabular-nums">{{ row.unit_cost|amount }}</div>{% if row.expense_share > 0 %}<div class="text-[11px] text-slate-500 tabular-nums">{% trans "شراء" %} {{ row.goods_cost|amount }} · {% trans "مصاريف" %} {{ row.expense_share|amount }}</div>{% elif row.unit_cost != row.product.purchase_price %}<div class="text-[11px] text-slate-500 tabular-nums">{% trans "آخر شراء" %} {{ row.product.purchase_price|amount }}</div>{% endif %}</td>{% endif %}
           {% if show_sale %}<td class="py-3 px-4 text-end whitespace-nowrap"><div class="font-bold tabular-nums {% if show_cost and row.product.retail_price < row.unit_cost %}text-red-400{% else %}text-slate-100{% endif %}">{{ row.product.retail_price|amount }}</div>{% if row.product.b2b_wholesale_price %}<div class="text-[11px] text-slate-500 tabular-nums">{% trans "جملة" %} {{ row.product.b2b_wholesale_price|amount }}</div>{% endif %}</td>{% endif %}
@@ -208,9 +224,9 @@
 
   {% if page.paginator.num_pages > 1 %}
   <div class="flex justify-center items-center gap-2 py-4 text-sm border-t border-slate-700/30">
-    {% if page.has_previous %}<a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if stock_filter %}stock={{ stock_filter|urlencode }}&{% endif %}page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
+    {% if page.has_previous %}<a href="?{% if filter_qs %}{{ filter_qs }}&{% endif %}page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
     <span class="text-slate-400">{% blocktrans with cur=page.number tot=page.paginator.num_pages %}صفحة {{ cur }} من {{ tot }}{% endblocktrans %}</span>
-    {% if page.has_next %}<a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if stock_filter %}stock={{ stock_filter|urlencode }}&{% endif %}page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
+    {% if page.has_next %}<a href="?{% if filter_qs %}{{ filter_qs }}&{% endif %}page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
   </div>
   {% endif %}
 </div>
@@ -235,14 +251,14 @@
 <form id="bulk-form" method="post" action="{% url 'inventory:product_bulk_action' %}" class="hidden">
   {% csrf_token %}
   <input type="hidden" name="action"><input type="hidden" name="ids"><input type="hidden" name="all">
-  <input type="hidden" name="q" value="{{ q }}"><input type="hidden" name="stock" value="{{ stock_filter }}">
+  <input type="hidden" name="q" value="{{ q }}"><input type="hidden" name="stock" value="{{ stock_filter }}"><input type="hidden" name="sort" value="{{ sort }}"><input type="hidden" name="from" value="{{ date_from|date:'Y-m-d' }}"><input type="hidden" name="to" value="{{ date_to|date:'Y-m-d' }}">
 </form>
 
 {% if can_b2b_publish %}
 <form id="b2b-form" method="post" action="{% url 'inventory:product_b2b_publish' %}" class="hidden">
   {% csrf_token %}
   <input type="hidden" name="ids"><input type="hidden" name="all">
-  <input type="hidden" name="q" value="{{ q }}"><input type="hidden" name="stock" value="{{ stock_filter }}">
+  <input type="hidden" name="q" value="{{ q }}"><input type="hidden" name="stock" value="{{ stock_filter }}"><input type="hidden" name="sort" value="{{ sort }}"><input type="hidden" name="from" value="{{ date_from|date:'Y-m-d' }}"><input type="hidden" name="to" value="{{ date_to|date:'Y-m-d' }}">
 </form>
 {% endif %}
 
@@ -320,6 +336,9 @@
     const q = "{{ q|escapejs }}";
     if (q) p.set('q', q);
     {% if stock_filter %}p.set('stock', "{{ stock_filter|escapejs }}");{% endif %}
+    {% if sort %}p.set('sort', "{{ sort|escapejs }}");{% endif %}
+    {% if date_from %}p.set('from', "{{ date_from|date:'Y-m-d' }}");{% endif %}
+    {% if date_to %}p.set('to', "{{ date_to|date:'Y-m-d' }}");{% endif %}
     const scope = document.querySelector('[name=exp-scope]:checked').value;
     if (scope === 'selected' && !allResults) p.set('ids', chosen().join(',')); else p.set('all', '1');
     window.location = "{% url 'inventory:product_export' %}?" + p.toString();

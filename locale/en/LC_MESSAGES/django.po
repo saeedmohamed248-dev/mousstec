@@ -28516,3 +28516,18 @@ msgstr "Open chat"
 
 msgid "رسالة جديدة في Mouss Tec"
 msgstr "New message on Mouss Tec"
+
+msgid "بالاسم"
+msgstr "By name"
+
+msgid "📅 تاريخ الدخول: الأحدث الأول"
+msgstr "📅 Entry date: newest first"
+
+msgid "📅 تاريخ الدخول: الأقدم الأول"
+msgstr "📅 Entry date: oldest first"
+
+msgid "دخلت المخزن من"
+msgstr "Entered stock from"
+
+msgid "دخل:"
+msgstr "In:"
