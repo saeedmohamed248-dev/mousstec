@@ -282,3 +282,31 @@ class DeviceAndPushTests(PrintingApiBase):
         with mock.patch('mobile_api.push.send_to_tokens', return_value=['dead']):
             deliver(self.tenant.schema_name, [self.owner.pk], 't', 'b')
         self.assertFalse(MobileDevice.objects.get(token='dead').is_active)
+
+
+class FcmSenderTests(PrintingApiBase):
+    """push.send_to_tokens: التوكن الميت بس هو اللي يتقفل — والإرسال من غير إعداد مايعملش حاجة."""
+
+    def test_without_config_nothing_is_sent(self):
+        from mobile_api import push
+        with mock.patch.dict('os.environ', {'FCM_SERVICE_ACCOUNT_JSON': '', 'FCM_SERVICE_ACCOUNT_FILE': ''}), \
+                mock.patch('requests.post') as post:
+            self.assertEqual(push.send_to_tokens(['t'], 'x', 'y'), [])
+        post.assert_not_called()
+
+    def test_only_unregistered_tokens_are_dead(self):
+        from mobile_api import push
+        sa = {'project_id': 'p', 'client_email': 'e', 'private_key': 'k'}
+
+        def resp(code, text):
+            return mock.Mock(status_code=code, text=text)
+
+        replies = {'dead': resp(404, '{"error": {"status": "NOT_FOUND", "details": [{"errorCode": "UNREGISTERED"}]}}'),
+                   'bad': resp(400, '{"error": {"message": "The registration token is not a valid FCM registration token"}}'),
+                   'ok': resp(200, '{}'),
+                   'payload': resp(400, '{"error": {"status": "INVALID_ARGUMENT", "message": "Invalid JSON payload"}}')}
+        with mock.patch.object(push, '_service_account', return_value=sa), \
+                mock.patch.object(push, '_access_token', return_value='AT'), \
+                mock.patch('requests.post', side_effect=lambda url, json, **kw: replies[json['message']['token']]):
+            dead = push.send_to_tokens(['dead', 'bad', 'ok', 'payload'], 'x', 'y')
+        self.assertEqual(sorted(dead), ['bad', 'dead'])

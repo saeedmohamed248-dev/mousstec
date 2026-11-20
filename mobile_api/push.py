@@ -86,7 +86,9 @@ def send_to_tokens(tokens, title, body, data=None):
         except Exception:   # noqa: BLE001
             logger.exception('[PUSH] فشل الإرسال')
             continue
-        if r.status_code in (404, 400) and ('UNREGISTERED' in r.text or 'INVALID_ARGUMENT' in r.text):
+        # التوكن مات (التطبيق اتمسح/اتسجّل خروج) ⇒ يتقفل. غلط تاني في الرسالة نفسها مايقفلش الجهاز.
+        if (r.status_code == 404 and 'UNREGISTERED' in r.text) or \
+                (r.status_code == 400 and 'registration token' in r.text.lower()):
             dead.append(tok)
         elif r.status_code >= 300:
             logger.warning('[PUSH] FCM %s: %s', r.status_code, r.text[:300])
