@@ -67,16 +67,23 @@
 
     {# الفترة #}
     <div class="bar">
-        {% for k, label in periods %}{% if k != 'custom' %}<a class="tab {% if period == k %}on{% endif %}" href="?period={{ k }}">{% trans label %}</a>{% endif %}{% endfor %}
+        {% for k, label in periods %}{% if k != 'custom' %}<a class="tab {% if period == k %}on{% endif %}" href="?period={{ k }}{% if basis == 'cash' %}&basis=cash{% endif %}">{% trans label %}</a>{% endif %}{% endfor %}
         <form method="get" style="display:flex;gap:6px;align-items:center;">
-            <input type="hidden" name="period" value="custom">
+            <input type="hidden" name="period" value="custom">{% if basis == 'cash' %}<input type="hidden" name="basis" value="cash">{% endif %}
             <input type="date" name="from" value="{{ start|date:'Y-m-d' }}"> <span class="muted">→</span>
             <input type="date" name="to" value="{{ end|date:'Y-m-d' }}">
             <button class="btn btn-ghost">{% trans "عرض" %}</button>
         </form>
         <a class="btn btn-green" href="?{{ qs_nocat }}{% if qs_nocat %}&{% endif %}{% if cat %}cat={{ cat }}&{% endif %}export=xlsx"><i class="fas fa-file-excel"></i> {% trans "تصدير Excel" %}</a>
     </div>
-    <p class="hint">{% trans "الفترة:" %} <span dir="ltr">{{ start|date:"Y-m-d" }} → {{ end|date:"Y-m-d" }}</span> · {% trans "المقارنة بالفترة اللي قبلها بنفس الطول" %}</p>
+    {# 🌍 أساس الاستحقاق = المعيار المحاسبي العالمي (IFRS/GAAP)؛ النقدي = حركة الفلوس الفعلية #}
+    <div class="bar" style="margin-bottom:6px;">
+        <span class="muted" style="font-size:12px;">{% trans "أساس الحساب:" %}</span>
+        <a class="tab {% if basis == 'accrual' %}on{% endif %}" href="?{{ qs_nobasis }}">📘 {% trans "استحقاق (المعيار العالمي)" %}</a>
+        <a class="tab {% if basis == 'cash' %}on{% endif %}" href="?{{ qs_nobasis }}{% if qs_nobasis %}&{% endif %}basis=cash">💵 {% trans "نقدي (حركة الفلوس)" %}</a>
+    </div>
+    <p class="hint">{% trans "الفترة:" %} <span dir="ltr">{{ start|date:"Y-m-d" }} → {{ end|date:"Y-m-d" }}</span> · {% trans "المقارنة بالفترة اللي قبلها بنفس الطول" %} ·
+        {% if basis == 'accrual' %}{% trans "الاشتراك بيتوزّع على شهوره، والمصروف اللي ليه فترة بيتوزّع على أيامها." %}{% else %}{% trans "كل مبلغ في تاريخ دفعه." %}{% endif %}</p>
 
     {# الكروت الرئيسية #}
     <div class="cards">
@@ -108,6 +115,7 @@
                 {% for g in groups %}{% if g.key != 'cogs' %}
                 <tr class="indent"><td>− {{ g.label }}</td><td class="num">{{ g.total|amount }}</td><td class="num muted">{{ g.prev|amount }}</td></tr>
                 {% endif %}{% endfor %}
+                <tr class="indent"><td class="muted">{% trans "المصروفات التشغيلية ÷ الإيراد" %}</td><td class="num muted">{% if pnl.opex_ratio is not None %}{{ pnl.opex_ratio }}%{% else %}—{% endif %}</td><td class="num muted">{% if prev.opex_ratio is not None %}{{ prev.opex_ratio }}%{% else %}—{% endif %}</td></tr>
                 <tr class="sum"><td>{% trans "صافي الربح / الخسارة" %}</td><td class="num {% if pnl.net_profit < 0 %}down{% else %}up{% endif %}">{{ pnl.net_profit|amount }}</td><td class="num muted">{{ prev.net_profit|amount }}</td></tr>
             </table>
             {% if pnl.revenue.financing %}<p class="hint">💼 {% trans "تمويل/استثمار دخل في الفترة (مش محسوب إيراد):" %} {{ pnl.revenue.financing|amount }}</p>{% endif %}
@@ -142,20 +150,39 @@
         </div>
     </div>
 
-    {# مؤشرات SaaS #}
+    {# مؤشرات SaaS — نفس اللي المستثمرين والشركات العالمية بتقيسه #}
     <div class="panel">
-        <h3>🚀 {% trans "مؤشرات زي الشركات العالمية" %}</h3>
+        <h3>🚀 {% trans "مؤشرات SaaS (Unit Economics)" %} <span class="hint">{% trans "آخر ٩٠ يوم — أهدى من شهر واحد" %}</span></h3>
         <div class="cards" style="margin-bottom:8px;">
-            <div class="card"><div class="lbl">MRR — {% trans "الإيراد الشهري المتكرر" %}</div><div class="val">{{ kpis.mrr|amount }}</div><div class="hint">ARR: {{ kpis.arr|amount }}</div></div>
-            <div class="card"><div class="lbl">Burn — {% trans "المصروف الشهري (متوسط ٣ شهور)" %}</div><div class="val">{{ kpis.burn|amount }}</div>
+            <div class="card"><div class="lbl">MRR — {% trans "الإيراد الشهري المتكرر" %}</div><div class="val">{{ kpis.mrr|amount }}</div>
+                <div class="hint">ARR: {{ kpis.arr|amount }}{% if kpis.mrr_growth is not None %} · <span class="{% if kpis.mrr_growth >= 0 %}up{% else %}down{% endif %}" dir="ltr">{% if kpis.mrr_growth >= 0 %}▲{% else %}▼{% endif %} {{ kpis.mrr_growth }}%</span> {% trans "عن الشهر اللي فات" %}{% endif %}</div></div>
+            <div class="card"><div class="lbl">{% trans "عملاء بيدفعوا دلوقتي" %}</div><div class="val">{{ kpis.active_customers }}</div>
+                <div class="hint">ARPA — {% trans "متوسط الإيراد للعميل:" %} {% if kpis.arpa is not None %}{{ kpis.arpa|amount }}{% else %}—{% endif %}</div></div>
+            <div class="card"><div class="lbl">Churn — {% trans "معدل الإلغاء الشهري" %}</div><div class="val {% if kpis.churn %}down{% endif %}">{% if kpis.churn is not None %}{{ kpis.churn }}%{% else %}—{% endif %}</div>
+                <div class="hint">{% blocktrans with n=kpis.lost_customers %}{{ n }} عميل ماجدّدش آخر ٣٠ يوم{% endblocktrans %}</div></div>
+            <div class="card"><div class="lbl">{% trans "هامش مجمل الربح" %}</div><div class="val">{% if kpis.gross_margin is not None %}{{ kpis.gross_margin }}%{% else %}—{% endif %}</div>
+                <div class="hint">{% trans "المعيار في SaaS: ٧٠٪ أو أكتر" %}</div></div>
+            <div class="card"><div class="lbl">CAC — {% trans "تكلفة جلب عميل جديد" %}</div><div class="val">{% if kpis.cac is not None %}{{ kpis.cac|amount }}{% else %}—{% endif %}</div>
+                <div class="hint">{% blocktrans with m=kpis.sm_spend p=kpis.new_customers s=kpis.new_signups %}تسويق ومبيعات {{ m }} · {{ p }} عميل جديد دفع · {{ s }} سجّلوا الشهر ده{% endblocktrans %}</div></div>
+            <div class="card"><div class="lbl">LTV — {% trans "قيمة العميل طول عمره" %}</div><div class="val">{% if kpis.ltv is not None %}{{ kpis.ltv|amount }}{% else %}—{% endif %}</div>
+                <div class="hint">LTV:CAC = {% if kpis.ltv_cac is not None %}<b class="{% if kpis.ltv_cac >= 3 %}up{% else %}down{% endif %}">{{ kpis.ltv_cac }}x</b>{% else %}—{% endif %} · {% trans "المعيار ٣x أو أكتر" %}</div></div>
+            <div class="card"><div class="lbl">{% trans "فترة استرداد تكلفة العميل" %}</div><div class="val">{% if kpis.payback_months is not None %}{{ kpis.payback_months }} {% trans "شهر" %}{% else %}—{% endif %}</div>
+                <div class="hint">{% trans "المعيار: أقل من ١٢ شهر" %}</div></div>
+            <div class="card"><div class="lbl">{% trans "قاعدة الـ 40" %}</div><div class="val {% if kpis.rule_of_40 is not None and kpis.rule_of_40 >= 40 %}up{% endif %}">{% if kpis.rule_of_40 is not None %}{{ kpis.rule_of_40 }}%{% else %}—{% endif %}</div>
+                <div class="hint">{% trans "نمو سنوي % + هامش الربح % — فوق ٤٠ = شركة صحية" %}</div></div>
+            <div class="card"><div class="lbl">Burn — {% trans "المصروف الشهري الفعلي" %}</div><div class="val">{{ kpis.burn|amount }}</div>
                 <div class="hint">{% trans "صافي الحرق (مصروف − إيراد):" %} <b class="{% if kpis.net_burn > 0 %}down{% else %}up{% endif %}">{{ kpis.net_burn|amount }}</b></div></div>
-            <div class="card"><div class="lbl">CAC — {% trans "تكلفة العميل الجديد (الشهر ده)" %}</div><div class="val">{% if kpis.cac is not None %}{{ kpis.cac|amount }}{% else %}—{% endif %}</div>
-                <div class="hint">{% blocktrans with m=kpis.marketing_this_month p=kpis.new_paying s=kpis.new_signups %}تسويق {{ m }} · {{ p }} دفعوا · {{ s }} سجّلوا{% endblocktrans %}</div></div>
             <div class="card"><div class="lbl">Runway — {% trans "الفلوس تكفّي كام شهر" %}</div>
                 <div class="val">{% if kpis.runway_months is not None %}{{ kpis.runway_months }} {% trans "شهر" %}{% elif cash is not None %}∞{% else %}—{% endif %}</div>
                 <form method="get" style="display:flex;gap:6px;margin-top:6px;">{% for k, v in request.GET.items %}{% if k != 'cash' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
                     <input name="cash" value="{{ cash|default_if_none:'' }}" placeholder="{% trans 'الرصيد الحالي' %}" style="width:100%;padding:6px;border:1px solid #E6E1D8;border-radius:8px;">
                     <button class="btn btn-ghost">{% trans "احسب" %}</button></form></div>
+        </div>
+        <div class="cards" style="margin:0;">
+            <div class="card"><div class="lbl">📥 {% trans "إيراد مؤجّل (التزام)" %}</div><div class="val">{{ balance.deferred_revenue|amount }}</div>
+                <div class="hint">{% trans "اشتراكات اتدفعت عن شهور لسه ماجتش — هتتحوّل إيراد شهر بشهر" %}</div></div>
+            <div class="card"><div class="lbl">📤 {% trans "مصروفات مدفوعة مقدّماً (أصل)" %}</div><div class="val">{{ balance.prepaid_expenses|amount }}</div>
+                <div class="hint">{% trans "اتدفعت عن فترة لسه ماجتش — هتتحوّل مصروف شهر بشهر" %}</div></div>
         </div>
     </div>
 
@@ -164,7 +191,7 @@
         <h3>➖ {% trans "سجّل مصروف" %}</h3>
         <form class="entry" method="post" action="{% url 'saas_platform_expense_add' %}" enctype="multipart/form-data">{% csrf_token %}
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
-            <label>{% trans "التاريخ" %}<input type="date" name="date" value="{{ today|date:'Y-m-d' }}" required></label>
+            <label>{% trans "تاريخ الدفع" %}<input type="date" name="date" value="{{ today|date:'Y-m-d' }}" required></label>
             <label>{% trans "البند" %}<select name="category" required><option value="">—</option>
                 {% for glabel, items in grouped_categories %}<optgroup label="{{ glabel }}">{% for k, l in items %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</optgroup>{% endfor %}</select></label>
             <label>{% trans "البيان" %}<input name="description" required placeholder="{% trans 'مثال: سيرفر DigitalOcean نوفمبر' %}"></label>
@@ -174,7 +201,17 @@
             <label class="js-rate" style="display:none;">{% trans "سعر الصرف (بالجنيه)" %}<input name="exchange_rate" type="number" step="0.0001" min="0.0001"><span class="hint js-egp"></span></label>
             <label>{% trans "طريقة الدفع" %}<select name="payment_method">{% for k, l in payment_methods %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></label>
             <label>{% trans "الإيصال (صورة/PDF)" %}<input type="file" name="receipt" accept="image/*,application/pdf"></label>
-            <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="is_recurring" value="1" style="width:auto;"> {% trans "بيتكرر كل شهر" %}</label>
+            <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" name="is_recurring" value="1" style="width:auto;" class="js-rec"> {% trans "بيتكرر كل شهر" %}</label>
+            <label class="js-rec-until" style="display:none;">{% trans "التكرار لحد (اختياري)" %}<input type="date" name="recurring_until"></label>
+            {# 📅 مصروف بيغطي فترة (اشتراك سنة مقدّم، مصاريف فترة الإطلاق…) — بيتوزّع على شهورها #}
+            <fieldset style="grid-column:1/-1;border:1px dashed #E6E1D8;border-radius:10px;padding:10px;">
+                <legend style="font-size:12px;font-weight:800;color:#1E2A57;padding:0 6px;">📅 {% trans "المصروف ده بيغطي فترة؟ (اختياري)" %}</legend>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+                    <label>{% trans "من" %}<input type="date" name="period_start"></label>
+                    <label>{% trans "لحد" %}<input type="date" name="period_end"></label>
+                </div>
+                <p class="hint" style="margin:6px 0 0;">{% trans "زي الشركات العالمية: المبلغ بيتوزّع بالتساوي على أيام الفترة في قايمة الدخل (مثلاً مصاريف فترة الإطلاق، أو سيرفر سنة اندفع مرة واحدة). تاريخ الدفع فوق بيفضل للتدفق النقدي." %}</p>
+            </fieldset>
             <label style="grid-column:1/-1;">{% trans "ملاحظات" %}<textarea name="notes" rows="2"></textarea></label>
             <div><button class="btn btn-red">{% trans "سجّل المصروف" %}</button></div>
         </form>
@@ -192,6 +229,8 @@
             <label>{% trans "المبلغ" %}<input name="amount" type="number" step="0.01" min="0.01" required></label>
             <label>{% trans "العملة" %}<select name="currency" class="js-cur">{% for k, l in currencies %}<option value="{{ k }}">{{ k }} — {{ l }}</option>{% endfor %}</select></label>
             <label class="js-rate" style="display:none;">{% trans "سعر الصرف (بالجنيه)" %}<input name="exchange_rate" type="number" step="0.0001" min="0.0001"><span class="hint js-egp"></span></label>
+            <label>{% trans "بيغطي من (اختياري)" %}<input type="date" name="period_start"></label>
+            <label>{% trans "لحد" %}<input type="date" name="period_end"></label>
             <div><button class="btn btn-green">{% trans "سجّل الإيراد" %}</button></div>
         </form>
     </div>
@@ -200,16 +239,17 @@
     <div class="panel" id="expenses">
         <h3>💸 {% trans "المصروفات" %} {% if cat %}<a class="pill" href="?{{ qs_nocat }}#expenses">✕ {% trans "كل البنود" %}</a>{% endif %}</h3>
         <div class="mt-table-scroll"><table>
-            <tr><th>{% trans "التاريخ" %}</th><th>{% trans "البند" %}</th><th>{% trans "البيان" %}</th><th>{% trans "المورّد" %}</th>
-                <th class="num">{% trans "المبلغ" %}</th><th class="num">{% trans "بالجنيه" %}</th><th></th></tr>
-            {% for e in expenses %}
+            <tr><th>{% trans "تاريخ الدفع" %}</th><th>{% trans "البند" %}</th><th>{% trans "البيان" %}</th><th>{% trans "المورّد" %}</th>
+                <th class="num">{% trans "المبلغ" %}</th><th class="num">{% trans "بالجنيه" %}</th><th class="num">{% trans "نصيب الفترة دي" %}</th><th></th></tr>
+            {% for row in expenses %}{% with e=row.e %}
             <tr>
                 <td><span dir="ltr">{{ e.date|date:"Y-m-d" }}</span></td>
                 <td>{{ e.get_category_display }}{% if e.is_recurring or e.recurring_source_id %} <span class="pill" title="{% trans 'بيتكرر كل شهر' %}">🔁</span>{% endif %}</td>
-                <td>{{ e.description }}{% if e.notes %}<div class="hint">{{ e.notes|truncatechars:80 }}</div>{% endif %}</td>
+                <td>{{ e.description }}{% if e.is_spread %}<div class="hint">📅 {% trans "بيغطي" %} <span dir="ltr">{{ e.period_start|date:"Y-m-d" }} → {{ e.period_end|date:"Y-m-d" }}</span></div>{% endif %}{% if e.notes %}<div class="hint">{{ e.notes|truncatechars:80 }}</div>{% endif %}</td>
                 <td>{{ e.vendor|default:"—" }}</td>
                 <td class="num">{{ e.amount|amount }} {{ e.currency }}{% if e.currency != 'EGP' %}<div class="hint" dir="ltr">× {{ e.exchange_rate|floatformat:2 }}</div>{% endif %}</td>
-                <td class="num"><b>{{ e.amount_egp|amount }}</b></td>
+                <td class="num">{{ e.amount_egp|amount }}</td>
+                <td class="num"><b>{{ row.in_period|amount }}</b></td>
                 <td style="white-space:nowrap;">
                     {% if e.receipt %}<a href="{% url 'saas_platform_expense_receipt' e.id %}" target="_blank" rel="noopener" title="{% trans 'الإيصال' %}">🧾</a>{% endif %}
                     {% if e.is_recurring or e.recurring_source_id %}
@@ -221,7 +261,8 @@
                         <button class="btn btn-ghost" style="padding:2px 8px;" title="{% trans 'مسح' %}">🗑</button></form>
                 </td>
             </tr>
-            {% empty %}<tr><td colspan="7" class="muted">{% trans "مفيش مصروفات في الفترة دي." %}</td></tr>{% endfor %}
+            {% endwith %}
+            {% empty %}<tr><td colspan="8" class="muted">{% trans "مفيش مصروفات في الفترة دي." %}</td></tr>{% endfor %}
         </table></div>
     </div>
 
@@ -232,7 +273,7 @@
         <div class="mt-table-scroll"><table>
             <tr><th>{% trans "التاريخ" %}</th><th>{% trans "النوع" %}</th><th>{% trans "البيان" %}</th><th>{% trans "من" %}</th><th class="num">{% trans "بالجنيه" %}</th><th></th></tr>
             {% for i in incomes %}
-            <tr><td><span dir="ltr">{{ i.date|date:"Y-m-d" }}</span></td><td>{{ i.get_category_display }}</td><td>{{ i.description }}</td><td>{{ i.source|default:"—" }}</td>
+            <tr><td><span dir="ltr">{{ i.date|date:"Y-m-d" }}</span></td><td>{{ i.get_category_display }}</td><td>{{ i.description }}{% if i.is_spread %}<div class="hint">📅 <span dir="ltr">{{ i.period_start|date:"Y-m-d" }} → {{ i.period_end|date:"Y-m-d" }}</span></div>{% endif %}</td><td>{{ i.source|default:"—" }}</td>
                 <td class="num"><b>{{ i.amount_egp|amount }}</b>{% if i.currency != 'EGP' %}<div class="hint">{{ i.amount|amount }} {{ i.currency }}</div>{% endif %}</td>
                 <td><form method="post" action="{% url 'saas_platform_entry_delete' 'income' i.id %}" onsubmit="return confirm('{% trans "تمسح الإيراد ده؟" %}')">{% csrf_token %}
                     <input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-ghost" style="padding:2px 8px;">🗑</button></form></td></tr>
@@ -263,6 +304,11 @@
         cur.addEventListener('change', function () { rate.value = ''; sync(); });
         rate.addEventListener('input', calc); amt.addEventListener('input', calc);
         sync();
+    });
+    document.querySelectorAll('.js-rec').forEach(function (cb) {
+        var until = cb.closest('form').querySelector('.js-rec-until');
+        function t() { until.style.display = cb.checked ? '' : 'none'; }
+        cb.addEventListener('change', t); t();
     });
 })();
 </script>
