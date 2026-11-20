@@ -440,6 +440,9 @@ operations = [
 | 9 | `printing/admin.py` | 2348 | **65** | 9 (نفس تقسيمة الموديلات + `_common`) | ✅ Done (Nov 2026) |
 | 10 | `clients/views/saas_admin_views.py` | 3323 | **68** | 7 (plans/team/analytics/tenants/monitoring/marketplace/broadcast + `_common`) | ✅ Done (Nov 2026) |
 | 11 | `clients/views/admin_views.py` | 1702 | **46** | 6 (dashboard/marketplace_customers/gifts/impersonation/parts_refunds/print_requests + `_common`) | ✅ Done (Nov 2026) |
+| 12 | `robot/views.py` | 2134 | **105** | 9 (device/scanning/speech/conversation/attendance/selling/motion/inventory + `_common`) — SEAMS (ADR-005) | ✅ Done (Nov 2026) |
+| 13 | `robot/services.py` | 2003 | **112** | 9 (catalog/device/ai/pos/offline/diagnostics/learning/intake/stock_take) — SEAMS (ADR-005) | ✅ Done (Nov 2026) |
+| 14 | `hr/views.py` | 1273 | **37** | 5 (attendance/self_service/designs/manager/admin_tools + `_common`) | ✅ Done (Nov 2026) |
 
 **Cumulative shrinkage:** 20,451 سطر في الـ entry files → **2,270 سطر** (-89%). 45 domain submodule جديد.
 
@@ -539,12 +542,28 @@ test patches = مخاطرة. لازم scan قبل.
 2. الاستيراد بين موديولات نفس الحزمة: فوق لو مايعملش دائرة، وإلا **جوه الدالة**
    بتعليق «استيراد محلي لتفادي الدائرية». الـ FK بيستخدم الكلاس من موديول اتحمّل قبله.
 3. الاختبارات اللي بتعمل `mock.patch` بتشاور على الموديول اللي فيه الدالة فعلاً
-   (ADR-003) — عشان كده `robot/views.py` و`robot/services.py` و`hr/views.py`
-   (أكتر من ٥٠ patch لكل واحد) لسه مااتقسموش: تقسيمهم محتاج تعديل الـ patches معاهم.
+   (ADR-003) — والحزم اللي اختباراتها بتعمل patch على الحزمة نفسها ليها SEAMS (ADR-005).
 4. `erp_core/tests/test_codebase_structure.py` بيتأكد إن كل موديول في الحزم المقسومة بيتحمّل،
    كل استيراد نسبي سليم، كل `from <حزمة> import X` في المشروع لاقي X، ومافيش ملف جديد يعدّي ١٢٠٠ سطر.
 5. `manage.py db_map` بيولّد `docs/DATABASE.md`، و`tenancy/tests/test_db_map.py` بيتأكد إنه متحدّث
    وإن مافيش جدول في `public` بيعمل FK لجدول جوه schema شركة.
+
+### ADR-005 — SEAMS في `robot/views/` و`robot/services/` (2026-11-20)
+**المشكلة:** اختبارات الروبوت (~١٢٠ موضع) بتعمل `mock.patch.object(services, "ai_reply")` و
+`mock.patch.object(views, "_device_or_401")`. لما الملف يتقسم، الـ patch على الحزمة مابيوصلش
+للدالة اللي بتنادي `ai_reply(...)` مباشرة جوه موديول تاني (ADR-003).
+
+**القرار:** كل حزمة منهم فيها `SEAMS = (...)` بالأسماء اللي الاختبارات بتعمل لها patch، وجوه
+الحزمة الأسماء دي بتتنادى **عن طريق الحزمة** (`services.ai_reply(...)`، `views.RobotCommand.objects…`)
+— نفس الأسلوب اللي باقي الروبوت بيستخدمه أصلاً (`services.find_product`). كده الاختبارات
+فضلت زي ما هي، والـ patch بيوصل لكل اللي بينادوا الاسم.
+
+**الحراسة:** `SeamTests` في `erp_core/tests/test_codebase_structure.py`: أي نداء مباشر لاسم من
+SEAMS جوه الحزمة بيوقّع الاختبار، وأي `patch.object(services|views, "X")` جديد في اختبارات
+الروبوت لازم X يكون في SEAMS.
+
+**أسماء الموديولات:** في `robot/views/` الموديولات اسمها مختلف عن الـ endpoints
+(`scanning`/`speech`/`attendance`/`selling`) عشان `views.scan` و`views.voice` يفضلوا الدوال.
 
 ---
 
