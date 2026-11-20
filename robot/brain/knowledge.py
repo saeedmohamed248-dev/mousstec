@@ -3,8 +3,8 @@ retail prices, and the answers the server would give.
 
 The catalog is the server's own retail-only snapshot (/sync/pull/), kept on
 disk, so the robot knows the stock from the moment it starts — net or not.
-The matching and the sentences are the server's (robot/services.py
-`inventory_answer` + `match_part_in_sentence`, robot/views.py `_handle_voice`,
+The matching and the sentences are the server's (robot/services/
+`inventory_answer` + `match_part_in_sentence`, robot/views `_handle_voice`,
 robot/wakename.py), ported line for line: robot/tests/test_brain_offline_db.py
 asks both the same questions and expects the same words — follow-ups too
 («التانية», «وبكام؟», «عليه ضمان؟»: talk.py, the server's own rules). What
@@ -161,7 +161,7 @@ def staff_question(text: str):
     return next((kind for kind, said in _BOOKS if said.search(t)), None)
 
 
-# ---- robot/services.py
+# ---- robot/services/
 _ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
 _ARTICLES = ("وال", "بال", "فال", "لل", "ال")
 _QUESTION_WORDS = frozenset("""

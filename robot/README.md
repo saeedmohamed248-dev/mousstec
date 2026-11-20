@@ -29,10 +29,10 @@ coordinate only through the backend.
 |------|------|
 | `models.py` | `RobotDevice`, `RobotScanEvent`, `RobotVoiceInteraction`, `RobotAccessLog`, `ProcurementSignal`, `MotorCommandLog` — audit trail + hardware↔ERP bridge |
 | `pricing.py` | **Retail-only guard** — the single audited gate for every price the robot sees |
-| `services.py` | Inventory lookup, dynamic scrap pricing, invoice creation, procurement trigger, DTC + ECU lookup |
+| `services/` | Inventory lookup, dynamic scrap pricing, invoice creation, procurement trigger, DTC + ECU lookup — one module per area (catalog, device, ai, pos, offline, diagnostics, learning, intake, stock_take); see its `__init__.py` for the map and the test **SEAMS** |
 | `security.py` | Device-token auth + facial recognition (via `hr.Employee.face_encoding`) + attendance |
 | `vision.py` | Pluggable part-ID + scrap-condition (deterministic stub → real model via env) |
-| `views.py` / `urls.py` | DRF API the ESP32 calls (`/api/robot/v1/*`) |
+| `views/` / `urls.py` | DRF API the ESP32 calls (`/api/robot/v1/*`) — one module per area (device, scanning, speech, conversation, attendance, selling, motion, inventory); see its `__init__.py` |
 | `firmware/` | Arduino Mega + ESP32 bridge + ESP32-CAM sketches, and **`WIRING.md`** (full pinout) |
 | `tests/` | Wholesale-leak guard + dynamic-pricing tests (run with no DB) |
 

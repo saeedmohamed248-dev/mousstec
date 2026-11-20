@@ -26,6 +26,9 @@ SPLIT_PACKAGES = (
     'printing.admin',
     'clients.views.saas_admin_views',
     'clients.views.admin_views',
+    'robot.views',
+    'robot.services',
+    'hr.views',
     'inventory.models',
     'inventory.admin',
     'inventory.views_lightning',
@@ -46,13 +49,10 @@ LEGACY_GIANTS = {
     'erp_core/ai/design_engine/__init__.py': 2971,
     'erp_core/ai/design_views.py': 1271,
     'erp_core/settings.py': 1385,
-    'hr/views.py': 1273,
     'inventory/admin/dashboard.py': 1367,
     'inventory/services/accounting_service.py': 1234,
     'inventory/views/reports.py': 1377,
     'robot/brain/loop.py': 1334,
-    'robot/services.py': 2003,
-    'robot/views.py': 2134,
 }
 
 _SKIP_DIRS = {'.git', 'node_modules', 'venv', '.venv', 'staticfiles', 'migrations', 'tests', '__pycache__'}
@@ -135,6 +135,46 @@ class SplitPackagesTests(SimpleTestCase):
                 names.add(line.split('saas_admin_views.')[1].split(',')[0].split(')')[0].strip())
         self.assertTrue(names)
         self.assertEqual(sorted(n for n in names if not hasattr(saas_admin_views, n)), [])
+
+
+# حزم ليها SEAMS: أسماء الاختبارات بتعمل لها mock.patch.object(<الحزمة>, "X")، فجوه الحزمة
+# لازم تتنادى `<alias>.X` (عن طريق الحزمة) — نداء `X(...)` مباشر مش هيشوف الـ patch.
+SEAM_PACKAGES = {'robot.services': 'services', 'robot.views': 'views'}
+
+
+class SeamTests(SimpleTestCase):
+
+    def test_seams_are_only_used_through_the_package(self):
+        bad = []
+        for pkg in SEAM_PACKAGES:
+            seams = set(importlib.import_module(pkg).SEAMS)
+            for path in _package_dir(pkg).glob('*.py'):
+                if path.stem == '__init__':
+                    continue
+                for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
+                    if isinstance(node, ast.Name) and node.id in seams and isinstance(node.ctx, ast.Load):
+                        bad.append(f'{pkg}/{path.name}:{node.lineno} {node.id}')
+        self.assertEqual(bad, [], 'نادِ الاسم ده كـ <alias>.X عشان الـ patch يوصل له')
+
+    def test_every_patched_name_is_a_declared_seam(self):
+        """`mock.patch.object(services, "X")` في الاختبارات ⇒ X لازم يكون في services.SEAMS."""
+        missing = []
+        for rel in _project_py_files(include_tests=True):
+            if 'tests' not in rel.parts and not rel.name.startswith('test_'):
+                continue
+            for node in ast.walk(ast.parse((ROOT / rel).read_text(encoding='utf-8'))):
+                if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                        and node.func.attr == 'object' and len(node.args) >= 2):
+                    continue
+                target, name = node.args[0], node.args[1]
+                if not (isinstance(name, ast.Constant) and isinstance(name.value, str)):
+                    continue
+                alias = target.attr if isinstance(target, ast.Attribute) else getattr(target, 'id', None)
+                for pkg, pkg_alias in SEAM_PACKAGES.items():
+                    if alias == pkg_alias and rel.parts[0] == pkg.split('.')[0]:
+                        if name.value not in importlib.import_module(pkg).SEAMS:
+                            missing.append(f'{rel}:{node.lineno} {pkg}.{name.value}')
+        self.assertEqual(missing, [], 'ضيف الاسم لـ SEAMS في __init__ الحزمة ونادِه كـ <alias>.X')
 
 
 class FileSizeRatchetTests(SimpleTestCase):

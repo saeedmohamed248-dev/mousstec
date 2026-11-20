@@ -24,8 +24,8 @@
 | 🛒 السوق B2B / C2C | `marketplace_b2b/`، `marketplace_c2c/`، `clients/models/marketplace_*.py`، `clients/views/{b2b,parts_marketplace,marketplace_core,merchant_parts}_views.py` | [clients/views/README.md](../clients/views/README.md) | `make test-app APP=marketplace_b2b` |
 | 🤖 الذكاء الاصطناعي | `erp_core/ai/`، `ai_rooms/`، `design_store/`، `clients/views/design_store_views/`، `omnichannel/`، `messenger_bot/`، `social_ads/` | `erp_core/ai/` | `make test-app APP=design_store` |
 | 🚗 التشخيص والسيارات | `smart_diagnostics/`، `bmw_ecu/`، `repair_atlas/`، `diagnostics_catalog/` | `bmw_ecu/` / `smart_diagnostics/services/` | `make test-app APP=bmw_ecu` |
-| 🦾 الروبوت والكشك (IoT) | `robot/` (Django)، `smart_robot/` (FastAPI منفصل بـ pytest) | `robot/README.md` | `make test-app APP=robot` + `cd smart_robot && pytest` |
-| 👥 الموارد البشرية | `hr/` | `hr/services/` | `make test-app APP=hr` |
+| 🦾 الروبوت والكشك (IoT) | `robot/` (Django — `views/` و`services/` مقسومين بالمجال)، `smart_robot/` (FastAPI منفصل بـ pytest) | `robot/README.md` + جدول الموديولات وSEAMS في `robot/views/__init__.py` | `make test-app APP=robot` + `cd smart_robot && pytest` |
+| 👥 الموارد البشرية | `hr/` (`views/` مقسومة: الحضور، طلبات الموظف، التصميمات، المدير، أدوات الأدمن) | `hr/views/__init__.py` + `hr/services/` | `make test-app APP=hr` |
 | 🎨 الواجهة والترجمة | `templates/`، `<app>/templates/`، `static/`، `locale/`، `tailwind.config.js` | [I18N.md](I18N.md) | `make lint` + `make css-check` + `make e2e` |
 | 📱 الموبايل | `mobile_api/` (REST `/api/mobile/v1/`)، `mobile_app/` (Flutter) | `mobile_app/README.md` | `make test-app APP=mobile_api` |
 | 🚀 DevOps | `deploy/`، `Dockerfile`، `docker-compose.yml`، `.github/workflows/` | [DEPLOY_RUNBOOK.md](DEPLOY_RUNBOOK.md) | CI على الـ PR |

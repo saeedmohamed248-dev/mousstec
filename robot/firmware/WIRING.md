@@ -239,7 +239,7 @@ One **ACS712-20A** per motor, in series with the motor's common lead:
 | VCC / GND | 5V / GND | | |
 
 Zero is calibrated at boot with all motors off. Tune the limits in both
-`arduino_mega_motor_control.ino` (`CUR_LIMIT_A`) and `robot/services.py`
+`arduino_mega_motor_control.ino` (`CUR_LIMIT_A`) and `robot/services/device.py`
 (`MOTOR_CURRENT_LIMIT_A`) to your motors.
 
 ## 8) Bridge ESP32 extras
