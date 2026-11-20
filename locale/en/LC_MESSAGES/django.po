@@ -28711,3 +28711,111 @@ msgstr "This year"
 
 msgid "السنة اللي فاتت"
 msgstr "Last year"
+
+msgid "{{ n }} عميل ماجدّدش آخر ٣٠ يوم"
+msgstr "{{ n }} customers didn't renew in the last 30 days"
+
+msgid "آخر ٩٠ يوم — أهدى من شهر واحد"
+msgstr "Last 90 days — steadier than a single month"
+
+msgid "أساس الحساب:"
+msgstr "Accounting basis:"
+
+msgid "إيراد مؤجّل (التزام)"
+msgstr "Deferred revenue (liability)"
+
+msgid "اتدفعت عن فترة لسه ماجتش — هتتحوّل مصروف شهر بشهر"
+msgstr "Paid for a period not yet reached — expensed month by month"
+
+msgid "استحقاق (المعيار العالمي)"
+msgstr "Accrual (global standard)"
+
+msgid "اشتراكات اتدفعت عن شهور لسه ماجتش — هتتحوّل إيراد شهر بشهر"
+msgstr "Subscriptions paid for future months — recognised month by month"
+
+msgid "الاشتراك بيتوزّع على شهوره، والمصروف اللي ليه فترة بيتوزّع على أيامها."
+msgstr "Subscriptions are recognised over their months, and expenses with a period are spread over its days."
+
+msgid "التكرار لحد (اختياري)"
+msgstr "Repeat until (optional)"
+
+msgid "المصروف الشهري الفعلي"
+msgstr "Actual monthly spend"
+
+msgid "المصروف ده بيغطي فترة؟ (اختياري)"
+msgstr "Does this expense cover a period? (optional)"
+
+msgid "المصروفات التشغيلية ÷ الإيراد"
+msgstr "Operating expenses ÷ revenue"
+
+msgid "المعيار في SaaS: ٧٠٪ أو أكتر"
+msgstr "SaaS benchmark: 70% or more"
+
+msgid "المعيار ٣x أو أكتر"
+msgstr "benchmark 3x or more"
+
+msgid "المعيار: أقل من ١٢ شهر"
+msgstr "Benchmark: under 12 months"
+
+msgid "بيغطي"
+msgstr "Covers"
+
+msgid "بيغطي من (اختياري)"
+msgstr "Covers from (optional)"
+
+msgid "تسويق ومبيعات {{ m }} · {{ p }} عميل جديد دفع · {{ s }} سجّلوا الشهر ده"
+msgstr "Sales & marketing {{ m }} · {{ p }} new paying customers · {{ s }} signed up this month"
+
+msgid "تكلفة جلب عميل جديد"
+msgstr "Customer acquisition cost"
+
+msgid "زي الشركات العالمية: المبلغ بيتوزّع بالتساوي على أيام الفترة في قايمة الدخل (مثلاً مصاريف فترة الإطلاق، أو سيرفر سنة اندفع مرة واحدة). تاريخ الدفع فوق بيفضل للتدفق النقدي."
+msgstr "Like global companies: the amount is spread evenly over the period in the P&L (e.g. launch costs, or a year of hosting paid at once). The payment date above stays for cash flow."
+
+msgid "عملاء بيدفعوا دلوقتي"
+msgstr "Paying customers now"
+
+msgid "عن الشهر اللي فات"
+msgstr "vs last month"
+
+msgid "فترة استرداد تكلفة العميل"
+msgstr "CAC payback period"
+
+msgid "قاعدة الـ 40"
+msgstr "Rule of 40"
+
+msgid "قيمة العميل طول عمره"
+msgstr "Customer lifetime value"
+
+msgid "كل مبلغ في تاريخ دفعه."
+msgstr "Every amount on its payment date."
+
+msgid "مؤشرات SaaS (Unit Economics)"
+msgstr "SaaS metrics (unit economics)"
+
+msgid "متوسط الإيراد للعميل:"
+msgstr "Average revenue per account:"
+
+msgid "مصروفات مدفوعة مقدّماً (أصل)"
+msgstr "Prepaid expenses (asset)"
+
+msgid "معدل الإلغاء الشهري"
+msgstr "Monthly churn rate"
+
+msgid "نصيب الفترة دي"
+msgstr "This period’s share"
+
+msgid "نقدي (حركة الفلوس)"
+msgstr "Cash (money movement)"
+
+msgid "نمو سنوي % + هامش الربح % — فوق ٤٠ = شركة صحية"
+msgstr "Annual growth % + profit margin % — above 40 = healthy"
+
+msgid "هامش مجمل الربح"
+msgstr "Gross margin"
+
+msgid "تأسيس وما قبل الإطلاق"
+msgstr "Setup & pre-launch"
+
+msgid "تأمينات"
+msgstr "Insurance"

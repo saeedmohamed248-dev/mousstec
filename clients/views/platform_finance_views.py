@@ -66,24 +66,29 @@ def _dec(value):
 def finance_dashboard(request):
     pf.generate_recurring(timezone.localdate())
     key, start, end = _period(request)
-    pnl = pf.profit_and_loss(start, end)
+    # أساس الاستحقاق هو المعيار العالمي (الافتراضي)؛ النقدي للتدفق النقدي
+    basis = pf.CASH if request.GET.get('basis') == pf.CASH else pf.ACCRUAL
+    pnl = pf.profit_and_loss(start, end, basis)
     p_start, p_end = pf.previous_period(start, end)
-    prev = pf.profit_and_loss(p_start, p_end)
+    prev = pf.profit_and_loss(p_start, p_end, basis)
     cash = _dec(request.GET.get('cash'))
-    series = pf.monthly_series(12, timezone.localdate())
+    series = pf.monthly_series(12, timezone.localdate(), basis)
     peak = max([max(m['revenue'], m['expenses']) for m in series] + [Decimal('1')])
     for m in series:
         m['rev_h'] = int(m['revenue'] * 100 / peak)
         m['exp_h'] = int(m['expenses'] * 100 / peak)
 
-    exp_qs = PlatformExpense.objects.filter(date__gte=start, date__lte=end).select_related('created_by')
+    # الجدول بيعرض اللي اندفع في الفترة + اللي فترة تغطيته بتتقاطع معاها
+    exp_qs = pf._overlapping(PlatformExpense.objects.all(), start, end).select_related('created_by')
     cat = request.GET.get('cat') or ''
     if cat:
         exp_qs = exp_qs.filter(category=cat)
-    inc_qs = PlatformIncome.objects.filter(date__gte=start, date__lte=end)
+    inc_qs = pf._overlapping(PlatformIncome.objects.all(), start, end)
 
     from inventory.report_export import export_report
-    resp = export_report(request, f'mousstec-pnl-{start}-{end}', 'حسابات Mouss Tec', f'{start} → {end}', [
+    basis_label = 'أساس الاستحقاق' if basis == pf.ACCRUAL else 'أساس نقدي'
+    resp = export_report(request, f'mousstec-pnl-{start}-{end}', 'حسابات Mouss Tec',
+                         f'{start} → {end} · {basis_label}', [
         {'name': 'قايمة الدخل', 'columns': ['البند', 'المبلغ (ج.م)'], 'rows': [
             ['اشتراكات الشركات', pnl['revenue']['subscriptions']],
             ['عمولات سوق القطع', pnl['revenue']['commissions']],
@@ -94,10 +99,12 @@ def finance_dashboard(request):
             ['مصروفات تشغيلية', pnl['opex']],
             ['صافي الربح', pnl['net_profit']],
         ]},
-        {'name': 'المصروفات', 'columns': ['التاريخ', 'البند', 'البيان', 'المورّد', 'المبلغ', 'العملة',
-                                           'سعر الصرف', 'بالجنيه'],
-         'rows': [[e.date, e.get_category_display(), e.description, e.vendor, e.amount, e.currency,
-                   e.exchange_rate, e.amount_egp] for e in exp_qs]},
+        {'name': 'المصروفات', 'columns': ['تاريخ الدفع', 'البند', 'البيان', 'المورّد', 'بيغطي من', 'لحد',
+                                           'المبلغ', 'العملة', 'سعر الصرف', 'بالجنيه', 'نصيب الفترة'],
+         'rows': [[e.date, e.get_category_display(), e.description, e.vendor, e.period_start or '',
+                   e.period_end or '', e.amount, e.currency, e.exchange_rate, e.amount_egp,
+                   (pf._share(e.amount_egp, *e.coverage, start, end) if basis == pf.ACCRUAL
+                    else e.amount_egp if start <= e.date <= end else 0)] for e in exp_qs]},
         {'name': 'إيرادات يدوية', 'columns': ['التاريخ', 'النوع', 'البيان', 'من', 'بالجنيه'],
          'rows': [[i.date, i.get_category_display(), i.description, i.source, i.amount_egp] for i in inc_qs]},
     ])
@@ -108,20 +115,26 @@ def finance_dashboard(request):
                'prev': prev['expenses']['by_group'][g],
                'items': [c for c in pnl['expenses']['by_category'] if c['group'] == g]}
               for g, lbl in EXPENSE_GROUPS]
+    expenses_view = []
+    for e in exp_qs[:300]:
+        in_period = (pf._share(e.amount_egp, *e.coverage, start, end) if basis == pf.ACCRUAL
+                     else (e.amount_egp if start <= e.date <= end else Decimal('0')))
+        expenses_view.append({'e': e, 'in_period': in_period.quantize(Decimal('0.01'))})
     return render(request, 'clients/saas_admin/platform_finance.html', {
+        'basis': basis, 'balance': pf.balance_items(timezone.localdate()),
         'period': key, 'periods': PERIODS, 'start': start, 'end': end, 'pnl': pnl, 'prev': prev,
         'changes': {k: pf.change_pct(pnl[k] if k != 'revenue' else pnl['revenue']['total'],
                                      prev[k] if k != 'revenue' else prev['revenue']['total'])
                     for k in ('revenue', 'gross_profit', 'net_profit')},
         'expense_change': pf.change_pct(pnl['expenses']['total'], prev['expenses']['total']),
         'groups': groups, 'series': series, 'kpis': pf.kpis(timezone.localdate(), cash), 'cash': cash,
-        'expenses': exp_qs[:300], 'incomes': inc_qs[:100], 'cat': cat,
+        'expenses': expenses_view, 'incomes': inc_qs[:100], 'cat': cat,
         'categories': [(k, lbl) for k, lbl, _g in EXPENSE_CATEGORIES],
         'grouped_categories': [(lbl, [(k, cl) for k, cl, cg in EXPENSE_CATEGORIES if cg == g])
                                for g, lbl in EXPENSE_GROUPS],
         'currencies': CURRENCY_CHOICES, 'payment_methods': PAYMENT_METHODS, 'income_categories': INCOME_CATEGORIES,
         'today': timezone.localdate(), 'qs': request.GET.urlencode(),
-        'qs_nocat': _qs_without(request, 'cat'),
+        'qs_nocat': _qs_without(request, 'cat'), 'qs_nobasis': _qs_without(request, 'basis', 'cat'),
         'last_rates': {e['currency']: e['exchange_rate'] for e in PlatformExpense.objects.exclude(currency='EGP')
                        .order_by('currency', '-date', '-id').distinct('currency').values('currency', 'exchange_rate')},
     })
@@ -152,9 +165,21 @@ def _money_fields(request):
         return None, 'العملة غلط.'
     if rate is None or rate <= 0:
         return None, 'اكتب سعر الصرف بالجنيه وقت الدفع.'
+    p_start, p_end = _date(request.POST.get('period_start')), _date(request.POST.get('period_end'))
+    if bool(p_start) != bool(p_end):
+        return None, 'اكتب بداية ونهاية الفترة الاتنين (أو سيبهم فاضيين).'
+    if p_start and p_start > p_end:
+        return None, 'بداية الفترة لازم تبقى قبل نهايتها.'
     return {'date': date, 'description': description, 'amount': amount, 'currency': currency,
             'exchange_rate': rate, 'notes': (request.POST.get('notes') or '').strip()[:2000],
-            'created_by': request.user}, None
+            'period_start': p_start, 'period_end': p_end, 'created_by': request.user}, None
+
+
+def _date(value):
+    try:
+        return datetime.date.fromisoformat((value or '').strip())
+    except ValueError:
+        return None
 
 
 def _back(request):
@@ -182,7 +207,8 @@ def expense_add(request):
     PlatformExpense.objects.create(
         category=category, vendor=(request.POST.get('vendor') or '').strip()[:120],
         payment_method=method if method in dict(PAYMENT_METHODS) else 'other',
-        receipt=receipt, is_recurring=request.POST.get('is_recurring') == '1', **data)
+        receipt=receipt, is_recurring=request.POST.get('is_recurring') == '1',
+        recurring_until=_date(request.POST.get('recurring_until')), **data)
     messages.success(request, 'المصروف اتسجّل ✅')
     return _back(request)
 

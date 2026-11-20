@@ -57,6 +57,8 @@ EXPENSE_CATEGORIES = (
     ('office', _('مكتب وإيجار ومرافق'), 'ga'),
     ('domains', _('دومينات وشهادات'), 'ga'),
     ('legal_accounting', _('قانوني ومحاسبة'), 'ga'),
+    ('prelaunch', _('تأسيس وما قبل الإطلاق'), 'ga'),
+    ('insurance', _('تأمينات'), 'ga'),
     ('taxes', _('ضرائب ورسوم حكومية'), 'ga'),
     ('bank_fees', _('مصاريف بنكية'), 'ga'),
     ('transport', _('مواصلات وسفر'), 'ga'),
@@ -96,6 +98,11 @@ class _Money(models.Model):
                                         verbose_name=_("سعر الصرف (بالجنيه)"))
     amount_egp = models.DecimalField(max_digits=16, decimal_places=2, editable=False, default=Decimal('0'),
                                      verbose_name=_("المبلغ بالجنيه"))
+    # 📅 الفترة اللي المبلغ بيغطيها (اختياري) — زي الشركات العالمية (أساس الاستحقاق): مصروف اندفع مرة
+    #    واحدة عن ٦ شهور (أو مصاريف فترة الإطلاق) بيتوزّع على شهوره بالتساوي في قايمة الدخل،
+    #    وتاريخ الدفع (date) بيفضل للتدفق النقدي. فاضي = المبلغ كله في تاريخ الدفع.
+    period_start = models.DateField(null=True, blank=True, verbose_name=_("بيغطي من"))
+    period_end = models.DateField(null=True, blank=True, verbose_name=_("لحد"))
     notes = models.TextField(blank=True, default='', verbose_name=_("ملاحظات"))
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
                                    related_name='+')
@@ -105,7 +112,22 @@ class _Money(models.Model):
         abstract = True
         ordering = ['-date', '-id']
 
+    @property
+    def coverage(self):
+        """(من، لحد) — الفترة اللي المبلغ بيتوزّع عليها (تاريخ الدفع لو مفيش فترة)."""
+        if self.period_start and self.period_end:
+            return self.period_start, self.period_end
+        return self.date, self.date
+
+    @property
+    def is_spread(self):
+        return bool(self.period_start and self.period_end and self.period_end > self.period_start)
+
     def save(self, *args, **kwargs):
+        if not (self.period_start and self.period_end):
+            self.period_start = self.period_end = None
+        elif self.period_start > self.period_end:
+            self.period_start, self.period_end = self.period_end, self.period_start
         if self.currency == 'EGP':
             self.exchange_rate = Decimal('1')
         self.amount_egp = (Decimal(self.amount) * Decimal(self.exchange_rate)).quantize(_CENT, ROUND_HALF_UP)
@@ -120,6 +142,7 @@ class PlatformExpense(_Money):
                                       verbose_name=_("طريقة الدفع"))
     receipt = models.FileField(upload_to='platform_finance/', blank=True, null=True, verbose_name=_("الإيصال"))
     is_recurring = models.BooleanField(default=False, verbose_name=_("بيتكرر كل شهر"))
+    recurring_until = models.DateField(null=True, blank=True, verbose_name=_("التكرار لحد"))
     # المصروف المتكرر بيتنسخ شهرياً — النسخة بتشاور على الأصل (ومابيتكررش تاني لنفس الشهر)
     recurring_source = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL,
                                          related_name='copies')

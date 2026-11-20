@@ -1,12 +1,16 @@
 """
-📒 قايمة الدخل (P&L) لمنصة Mouss Tec — زي شركات SaaS العالمية.
+📒 قايمة الدخل (P&L) ومؤشرات منصة Mouss Tec — بنفس معايير شركات SaaS العالمية.
 
-الإيراد (أوتوماتيك من السيستم + اليدوي):
-  * اشتراكات الشركات: فواتير PlatformInvoice المدفوعة (بتاريخ الدفع).
-  * عمولات سوق القطع: PartOrder اللي اتفرج عنها للبائع (بتاريخ الإفراج).
-  * إيرادات يدوية (PlatformIncome) — ماعدا «تمويل/استثمار» لأنه مش إيراد تشغيل.
-المصروف: PlatformExpense بالجنيه (amount_egp متثبّت بسعر الصرف وقت الدفع).
+أساسين للحساب (زي أي ERP عالمي):
+  * الاستحقاق (accrual — الافتراضي، المعيار المحاسبي GAAP/IFRS):
+      - الاشتراك بيتحسب إيراد على شهور الفترة اللي بيغطيها (IFRS 15 / ASC 606) — اشتراك سنوي
+        مدفوع مقدّم مش «إيراد الشهر ده كله»؛ الجزء اللي لسه ماتقدّمش = إيراد مؤجّل (التزام).
+      - المصروف اللي ليه فترة (من/لحد) بيتوزّع على أيامها بالتساوي — اللي اندفع مقدّم = مصروف
+        مدفوع مقدّماً (أصل) لحد ما فترته تيجي. من غير فترة = في تاريخ الدفع.
+  * النقدي (cash): كل حاجة في تاريخ الدفع — للتدفق النقدي ومعدل الحرق والـ runway.
 
+الإيراد: اشتراكات (PlatformInvoice المدفوعة) + عمولات سوق القطع (PartOrder اتفرج عنها) + يدوي
+(PlatformIncome) — التمويل/الاستثمار مش إيراد تشغيل (بيتعرض لوحده).
 الترتيب: إيراد ← تكلفة تشغيل الخدمة (COGS) ← مجمل الربح ← مصروفات تشغيلية ← صافي الربح.
 """
 import calendar
@@ -14,87 +18,19 @@ import datetime
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
-from django.db.models import Sum
-from django.db.models.functions import TruncMonth
+from django.db.models import Min, Q, Sum
 
 from clients.models.platform_finance import (
     CATEGORY_GROUP, EXPENSE_CATEGORIES, EXPENSE_GROUPS, PlatformExpense, PlatformIncome,
 )
 
 ZERO = Decimal('0')
+CENT = Decimal('0.01')
 NON_OPERATING_INCOME = ('investment',)
+ACCRUAL, CASH = 'accrual', 'cash'
 
 
-def _sum(qs, field):
-    return qs.aggregate(s=Sum(field))['s'] or ZERO
-
-
-def _subscriptions(start, end):
-    from clients.models import PlatformInvoice
-    return PlatformInvoice.objects.filter(status='paid', paid_at__date__gte=start, paid_at__date__lte=end)
-
-
-def _commissions(start, end):
-    from clients.models import PartOrder
-    return PartOrder.objects.filter(status='released', released_at__date__gte=start, released_at__date__lte=end)
-
-
-def revenue(start, end):
-    """{'subscriptions', 'commissions', 'manual', 'total'} + التمويل (برّه الإيراد)."""
-    manual_qs = PlatformIncome.objects.filter(date__gte=start, date__lte=end)
-    subs = _sum(_subscriptions(start, end), 'total')
-    comm = _sum(_commissions(start, end), 'commission_amount')
-    manual = _sum(manual_qs.exclude(category__in=NON_OPERATING_INCOME), 'amount_egp')
-    return {'subscriptions': subs, 'commissions': comm, 'manual': manual, 'total': subs + comm + manual,
-            'financing': _sum(manual_qs.filter(category__in=NON_OPERATING_INCOME), 'amount_egp')}
-
-
-def expenses(start, end):
-    """المصروفات بالمجموعة والبند (الأكبر الأول)."""
-    rows = (PlatformExpense.objects.filter(date__gte=start, date__lte=end)
-            .values('category').annotate(s=Sum('amount_egp')).order_by('-s'))
-    labels = {k: str(lbl) for k, lbl, _g in EXPENSE_CATEGORIES}
-    by_group = {g: ZERO for g, _l in EXPENSE_GROUPS}
-    by_category = []
-    for r in rows:
-        g = CATEGORY_GROUP.get(r['category'], 'ga')
-        by_group[g] += r['s']
-        by_category.append({'key': r['category'], 'label': labels.get(r['category'], r['category']),
-                            'group': g, 'total': r['s']})
-    total = sum(by_group.values(), ZERO)
-    for c in by_category:
-        c['pct'] = round(float(c['total'] * 100 / total), 1) if total else 0
-    return {'by_group': by_group, 'by_category': by_category, 'total': total}
-
-
-def _pct(part, whole):
-    return round(float(part * 100 / whole), 1) if whole else None
-
-
-def profit_and_loss(start, end):
-    rev = revenue(start, end)
-    exp = expenses(start, end)
-    cogs = exp['by_group']['cogs']
-    gross = rev['total'] - cogs
-    opex = exp['total'] - cogs
-    net = rev['total'] - exp['total']
-    return {'start': start, 'end': end, 'revenue': rev, 'expenses': exp,
-            'cogs': cogs, 'gross_profit': gross, 'gross_margin': _pct(gross, rev['total']),
-            'opex': opex, 'net_profit': net, 'net_margin': _pct(net, rev['total'])}
-
-
-def change_pct(now, before):
-    if not before:
-        return None
-    return round(float((now - before) * 100 / abs(before)), 1)
-
-
-def previous_period(start, end):
-    days = (end - start).days + 1
-    prev_end = start - datetime.timedelta(days=1)
-    return prev_end - datetime.timedelta(days=days - 1), prev_end
-
-
+# ─────────────────────────────── أدوات تاريخ ───────────────────────────────
 def month_bounds(d):
     return d.replace(day=1), d.replace(day=calendar.monthrange(d.year, d.month)[1])
 
@@ -105,80 +41,235 @@ def add_months(d, n):
     return d.replace(year=y, month=m, day=min(d.day, calendar.monthrange(y, m)[1]))
 
 
-def monthly_series(months=12, today=None):
+def previous_period(start, end):
+    days = (end - start).days + 1
+    prev_end = start - datetime.timedelta(days=1)
+    return prev_end - datetime.timedelta(days=days - 1), prev_end
+
+
+def _share(amount, cov_start, cov_end, start, end):
+    """نصيب [start, end] من مبلغ متوزّع بالتساوي على أيام [cov_start, cov_end]."""
+    lo, hi = max(cov_start, start), min(cov_end, end)
+    if hi < lo:
+        return ZERO
+    total_days = (cov_end - cov_start).days + 1
+    return Decimal(amount) * Decimal((hi - lo).days + 1) / Decimal(total_days)
+
+
+def _overlapping(qs, start, end):
+    """صفوف تاريخ دفعها في الفترة أو فترة تغطيتها بتتقاطع معاها."""
+    return qs.filter(Q(period_start__isnull=True, date__gte=start, date__lte=end)
+                     | Q(period_start__lte=end, period_end__gte=start))
+
+
+def _sum(qs, field):
+    return qs.aggregate(s=Sum(field))['s'] or ZERO
+
+
+# ─────────────────────────────── الإيراد ───────────────────────────────
+def _paid_invoices():
+    from clients.models import PlatformInvoice
+    return PlatformInvoice.objects.filter(status='paid', paid_at__isnull=False)
+
+
+def _invoice_cover(inv):
+    if inv.period_start and inv.period_end and inv.period_end >= inv.period_start:
+        return inv.period_start, inv.period_end
+    d = inv.paid_at.date()
+    return d, d
+
+
+def subscription_revenue(start, end, basis=ACCRUAL):
+    if basis == CASH:
+        return _sum(_paid_invoices().filter(paid_at__date__gte=start, paid_at__date__lte=end), 'total')
+    total = ZERO
+    for inv in _paid_invoices().filter(Q(period_start__lte=end, period_end__gte=start)
+                                       | Q(paid_at__date__gte=start, paid_at__date__lte=end)).only(
+            'total', 'period_start', 'period_end', 'paid_at'):
+        total += _share(inv.total, *_invoice_cover(inv), start, end)
+    return total
+
+
+def commission_revenue(start, end):
+    from clients.models import PartOrder
+    return _sum(PartOrder.objects.filter(status='released', released_at__date__gte=start,
+                                         released_at__date__lte=end), 'commission_amount')
+
+
+def _money_rows(model, start, end, basis, **filters):
+    qs = model.objects.filter(**filters)
+    if basis == CASH:
+        return [(r, r.amount_egp) for r in qs.filter(date__gte=start, date__lte=end)]
+    return [(r, _share(r.amount_egp, *r.coverage, start, end)) for r in _overlapping(qs, start, end)]
+
+
+def revenue(start, end, basis=ACCRUAL):
+    manual = financing = ZERO
+    for row, amount in _money_rows(PlatformIncome, start, end, basis):
+        if row.category in NON_OPERATING_INCOME:
+            financing += amount
+        else:
+            manual += amount
+    subs = subscription_revenue(start, end, basis)
+    comm = commission_revenue(start, end)
+    return {'subscriptions': subs.quantize(CENT), 'commissions': comm, 'manual': manual.quantize(CENT),
+            'total': (subs + comm + manual).quantize(CENT), 'financing': financing.quantize(CENT)}
+
+
+# ─────────────────────────────── المصروف ───────────────────────────────
+def expenses(start, end, basis=ACCRUAL):
+    """المصروفات بالمجموعة والبند (الأكبر الأول)."""
+    labels = {k: str(lbl) for k, lbl, _g in EXPENSE_CATEGORIES}
+    per_cat = {}
+    for row, amount in _money_rows(PlatformExpense, start, end, basis):
+        per_cat[row.category] = per_cat.get(row.category, ZERO) + amount
+    by_group = {g: ZERO for g, _l in EXPENSE_GROUPS}
+    by_category = []
+    for key, amount in sorted(per_cat.items(), key=lambda kv: -kv[1]):
+        amount = amount.quantize(CENT)
+        if not amount:
+            continue
+        g = CATEGORY_GROUP.get(key, 'ga')
+        by_group[g] += amount
+        by_category.append({'key': key, 'label': labels.get(key, key), 'group': g, 'total': amount})
+    total = sum(by_group.values(), ZERO)
+    for c in by_category:
+        c['pct'] = round(float(c['total'] * 100 / total), 1) if total else 0
+    return {'by_group': by_group, 'by_category': by_category, 'total': total}
+
+
+# ─────────────────────────────── قايمة الدخل ───────────────────────────────
+def _pct(part, whole):
+    return round(float(part * 100 / whole), 1) if whole else None
+
+
+def change_pct(now, before):
+    if not before:
+        return None
+    return round(float((now - before) * 100 / abs(before)), 1)
+
+
+def profit_and_loss(start, end, basis=ACCRUAL):
+    rev = revenue(start, end, basis)
+    exp = expenses(start, end, basis)
+    cogs = exp['by_group']['cogs']
+    gross = rev['total'] - cogs
+    opex = exp['total'] - cogs
+    net = rev['total'] - exp['total']
+    return {'start': start, 'end': end, 'basis': basis, 'revenue': rev, 'expenses': exp,
+            'cogs': cogs, 'gross_profit': gross, 'gross_margin': _pct(gross, rev['total']),
+            'opex': opex, 'opex_ratio': _pct(opex, rev['total']),
+            'net_profit': net, 'net_margin': _pct(net, rev['total'])}
+
+
+def monthly_series(months=12, today=None, basis=ACCRUAL):
     """آخر N شهر: [{'month', 'revenue', 'expenses', 'net'}] — للرسم."""
     today = today or datetime.date.today()
-    first = add_months(today.replace(day=1), -(months - 1))
-    last = month_bounds(today)[1]
-    buckets = {add_months(first, i): {'revenue': ZERO, 'expenses': ZERO} for i in range(months)}
+    out = []
+    for i in range(months - 1, -1, -1):
+        m_start, m_end = month_bounds(add_months(today.replace(day=1), -i))
+        rev = revenue(m_start, m_end, basis)['total']
+        exp = expenses(m_start, m_end, basis)['total']
+        out.append({'month': m_start, 'revenue': rev, 'expenses': exp, 'net': rev - exp})
+    return out
 
-    def _add(rows, key):
-        for r in rows:
-            m = r['m'].date() if hasattr(r['m'], 'date') else r['m']
-            if m in buckets:
-                buckets[m][key] += r['s'] or ZERO
 
-    _add(_subscriptions(first, last).annotate(m=TruncMonth('paid_at')).values('m').annotate(s=Sum('total')), 'revenue')
-    _add(_commissions(first, last).annotate(m=TruncMonth('released_at')).values('m')
-         .annotate(s=Sum('commission_amount')), 'revenue')
-    _add(PlatformIncome.objects.filter(date__gte=first, date__lte=last).exclude(category__in=NON_OPERATING_INCOME)
-         .annotate(m=TruncMonth('date')).values('m').annotate(s=Sum('amount_egp')), 'revenue')
-    _add(PlatformExpense.objects.filter(date__gte=first, date__lte=last)
-         .annotate(m=TruncMonth('date')).values('m').annotate(s=Sum('amount_egp')), 'expenses')
-    return [{'month': m, 'revenue': v['revenue'], 'expenses': v['expenses'], 'net': v['revenue'] - v['expenses']}
-            for m, v in sorted(buckets.items())]
+# ─────────────────────────────── الميزانية المختصرة ───────────────────────────────
+def balance_items(today=None):
+    """إيراد مؤجّل (اشتراكات اتدفعت عن فترة لسه ماجتش) ومصروفات مدفوعة مقدّماً."""
+    today = today or datetime.date.today()
+    tomorrow = today + datetime.timedelta(days=1)
+    far = datetime.date(9999, 12, 31)
+    deferred = sum((_share(inv.total, *_invoice_cover(inv), tomorrow, far)
+                    for inv in _paid_invoices().filter(period_end__gt=today, paid_at__date__lte=today)), ZERO)
+    prepaid = sum((_share(e.amount_egp, *e.coverage, tomorrow, far)
+                   for e in PlatformExpense.objects.filter(period_end__gt=today, date__lte=today)), ZERO)
+    return {'deferred_revenue': deferred.quantize(CENT), 'prepaid_expenses': prepaid.quantize(CENT)}
+
+
+# ─────────────────────────────── مؤشرات SaaS ───────────────────────────────
+def _monthly_by_tenant(day):
+    """{tenant_id: إيراد شهري} للشركات اللي عندها اشتراك مدفوع بيغطي اليوم ده (أحدث فاتورة لكل شركة)."""
+    out = {}
+    for inv in (_paid_invoices().filter(period_start__lte=day, period_end__gte=day)
+                .order_by('period_start').only('tenant_id', 'total', 'billing_cycle_months')):
+        out[inv.tenant_id] = Decimal(inv.total) / max(inv.billing_cycle_months or 1, 1)
+    return out
 
 
 def kpis(today=None, cash_balance=None):
-    """مؤشرات SaaS: MRR، معدل الحرق، تكلفة العميل الجديد، والمدة اللي الفلوس تكفّيها."""
+    """Unit economics زي ما المستثمرين والشركات العالمية بتقيس:
+    MRR/ARR ونموّه، العملاء النشطين، ARPA، معدل الإلغاء (churn)، LTV، CAC، LTV:CAC، فترة استرداد
+    CAC، Burn وصافيه، Runway، وقاعدة الـ 40."""
     from clients.models import Client
     today = today or datetime.date.today()
-    # آخر ٣ شهور كاملة ⇒ متوسط شهري (أهدى من شهر واحد)
-    this_month_start = today.replace(day=1)
-    start3 = add_months(this_month_start, -3)
-    end3 = this_month_start - datetime.timedelta(days=1)
-    exp3 = _sum(PlatformExpense.objects.filter(date__gte=start3, date__lte=end3), 'amount_egp')
-    rev3 = revenue(start3, end3)['total']
-    burn = (exp3 / 3).quantize(Decimal('0.01'))
-    net_burn = ((exp3 - rev3) / 3).quantize(Decimal('0.01'))
+    now = _monthly_by_tenant(today)
+    month_ago = _monthly_by_tenant(today - datetime.timedelta(days=30))
+    mrr = sum(now.values(), ZERO).quantize(CENT)
+    mrr_prev = sum(month_ago.values(), ZERO).quantize(CENT)
+    active = len(now)
+    arpa = (mrr / active).quantize(CENT) if active else None
+    lost = [t for t in month_ago if t not in now]
+    churn = round(len(lost) * 100 / len(month_ago), 1) if month_ago else None
+    mrr_growth = change_pct(mrr, mrr_prev)
 
-    mrr = ZERO
-    for inv in _subscriptions(add_months(today, -12), today).only('total', 'billing_cycle_months', 'period_end'):
-        if inv.period_end and inv.period_end >= today:
-            mrr += inv.total / max(inv.billing_cycle_months or 1, 1)
-    mrr = mrr.quantize(Decimal('0.01'))
+    # آخر ٩٠ يوم (٣ شهور) — أهدى من شهر واحد
+    t_start = today - datetime.timedelta(days=89)
+    pnl3 = profit_and_loss(t_start, today, ACCRUAL)
+    gm = (pnl3['gross_margin'] or 0) / 100
+    cash_out = _sum(PlatformExpense.objects.filter(date__gte=t_start, date__lte=today), 'amount_egp')
+    cash_in = revenue(t_start, today, CASH)['total']
+    burn = (cash_out / 3).quantize(CENT)
+    net_burn = ((cash_out - cash_in) / 3).quantize(CENT)
 
-    month_start, month_end = month_bounds(today)
-    ads = _sum(PlatformExpense.objects.filter(date__gte=month_start, date__lte=month_end,
-                                              category__in=('ads', 'content', 'sales_commission', 'events')),
-               'amount_egp')
-    new_paying = (_subscriptions(month_start, month_end).values('tenant_id').distinct().count())
-    new_signups = Client.objects.exclude(schema_name='public').filter(
-        created_on__gte=month_start, created_on__lte=month_end).count() if hasattr(Client, 'created_on') else 0
+    # CAC = مصروف التسويق والمبيعات ÷ العملاء الجداد (أول فاتورة مدفوعة ليهم) في نفس الـ ٩٠ يوم
+    sm_spend = pnl3['expenses']['by_group']['marketing']
+    first_paid = (_paid_invoices().values('tenant_id').annotate(first=Min('paid_at'))
+                  .filter(first__date__gte=t_start, first__date__lte=today))
+    new_customers = first_paid.count()
+    cac = (sm_spend / new_customers).quantize(CENT) if new_customers else None
+    ltv = None
+    if arpa and churn:
+        ltv = (arpa * Decimal(str(gm)) / Decimal(str(churn / 100))).quantize(CENT)
+    ltv_cac = round(float(ltv / cac), 1) if (ltv and cac) else None
+    payback = round(float(cac / (arpa * Decimal(str(gm)))), 1) if (cac and arpa and gm > 0) else None
 
     runway = None
     if cash_balance is not None and net_burn > 0:
         runway = round(float(Decimal(cash_balance) / net_burn), 1)
-    return {'mrr': mrr, 'arr': mrr * 12, 'burn': burn, 'net_burn': net_burn,
-            'marketing_this_month': ads, 'new_signups': new_signups, 'new_paying': new_paying,
-            'cac': (ads / new_paying).quantize(Decimal('0.01')) if new_paying else None,
-            'runway_months': runway}
+    rule_of_40 = None
+    if mrr_growth is not None and pnl3['net_margin'] is not None:
+        yearly_growth = ((1 + mrr_growth / 100) ** 12 - 1) * 100
+        rule_of_40 = round(yearly_growth + pnl3['net_margin'], 1)
+    month_start, month_end = month_bounds(today)
+    return {
+        'mrr': mrr, 'arr': mrr * 12, 'mrr_prev': mrr_prev, 'mrr_growth': mrr_growth,
+        'active_customers': active, 'arpa': arpa, 'churn': churn, 'lost_customers': len(lost),
+        'gross_margin': pnl3['gross_margin'], 'ltv': ltv, 'cac': cac, 'ltv_cac': ltv_cac,
+        'payback_months': payback, 'sm_spend': sm_spend, 'new_customers': new_customers,
+        'new_signups': Client.objects.exclude(schema_name='public').filter(
+            created_on__gte=month_start, created_on__lte=month_end).count(),
+        'burn': burn, 'net_burn': net_burn, 'runway_months': runway, 'rule_of_40': rule_of_40,
+    }
 
 
+# ─────────────────────────────── المتكرر ───────────────────────────────
 def generate_recurring(today=None):
     """ينسخ المصروفات المتكررة لكل شهر فات من غير نسخة لحد الشهر الحالي (مرة واحدة لكل شهر).
 
     بيشتغل كل ما صفحة الحسابات تتفتح — فلو الصفحة ماتفتحتش شهرين، الشهرين بيتسجّلوا.
+    `recurring_until` بيوقف التكرار عند تاريخ معيّن (مثلاً عقد ٦ شهور).
     """
     today = today or datetime.date.today()
     created = 0
     for src in PlatformExpense.objects.filter(is_recurring=True, recurring_source__isnull=True,
                                               date__lt=today.replace(day=1)):
+        stop = min(today, src.recurring_until) if src.recurring_until else today
         month = add_months(src.date.replace(day=1), 1)
-        while month <= today:
+        while month <= stop:
             day = min(src.date.day, calendar.monthrange(month.year, month.month)[1])
             target = month.replace(day=day)
-            if target > today:
+            if target > stop:
                 break
             try:
                 with transaction.atomic():
