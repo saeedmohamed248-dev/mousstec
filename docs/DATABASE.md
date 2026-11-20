@@ -25,6 +25,7 @@
 | `hr` | جوه schema كل شركة | 13 |
 | `inventory` | جوه schema كل شركة | 70 |
 | `messenger_bot` | public (مشتركة للمنصة) | 2 |
+| `mobile_api` | جوه schema كل شركة | 1 |
 | `omnichannel` | public (مشتركة للمنصة) | 3 |
 | `print_market` | public (مشتركة للمنصة) | 9 |
 | `printing` | جوه schema كل شركة | 33 |
@@ -262,6 +263,12 @@
 |---|---|---|
 | `ConversationLog` | `messenger_bot_conversationlog` | — |
 | `SystemUpdate` | `messenger_bot_systemupdate` | — |
+
+### `mobile_api` — جوه schema كل شركة
+
+| الموديل | الجدول | علاقات بتطبيقات تانية |
+|---|---|---|
+| `MobileDevice` | `mobile_api_mobiledevice` | auth.User |
 
 ### `omnichannel` — public (مشتركة للمنصة)
 
