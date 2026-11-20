@@ -98,8 +98,12 @@ class RobotDevice(models.Model):
     # After being called, follow-up sentences within this window need no name.
     listening_until = models.DateTimeField(null=True, blank=True)
 
-    def desired_push_interval_ms(self, *, fast=200, idle=1500) -> int:
-        """Frame-push cadence the camera should use right now."""
+    def desired_push_interval_ms(self, *, fast=200, idle=4000) -> int:
+        """Frame-push cadence the camera should use right now.
+
+        🐛 [FIX]: الكاميرا كانت بترفع صورة كل 1.5 ثانية طول اليوم (~13KB/ث) على نفس راوتر الـ 4G بتاع
+        «مخ موس»: من لوج المحل، أول ما الكاميرا اشتغلت رد الروبوت (79KB) بقى ياخد 9 ثواني والسوكت بيقع.
+        وهي فاضية بقت كل 4 ثواني — ولما حد يتفرج أو الراس تتابع بتسرّع زي الأول."""
         if self.stream_until and self.stream_until > timezone.now():
             return fast
         return idle
@@ -803,6 +807,14 @@ class RobotEntry(models.Model):
         ("purchase", _("فاتورة شراء")),
         ("expense", _("مصروف")),
         ("stock", _("إضافة مخزون")),
+        ("collection", _("تحصيل من عميل")),
+        ("vendor_pay", _("دفعة لمورد")),
+        ("advance", _("سلفة موظف")),
+        ("return", _("مرتجع بيع")),
+        ("transfer", _("تحويل بين خزن")),
+        ("payroll", _("صرف مرتبات")),
+        ("quote", _("عرض سعر")),
+        ("pur_return", _("مرتجع مشتريات")),
     ]
     STATUS = [
         ("pending", _("مستني الفرع")),

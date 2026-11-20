@@ -64,6 +64,7 @@ from .service import *  # noqa: F401, F403
 from .stock_ops import *  # noqa: F401, F403
 from .vehicles import *  # noqa: F401, F403
 from .webhooks import *  # noqa: F401, F403
+from .b2b_requests import b2b_request_create, b2b_requests_page, b2b_request_respond  # noqa: F401
 
 # Underscore-prefixed helpers skipped by `import *`.
 from .webhooks import _verify_webhook_hmac  # noqa: F401

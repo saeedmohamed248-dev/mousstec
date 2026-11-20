@@ -38,6 +38,8 @@ from ._common import (
     _post_sale_to_ledger,
     _record_invoice_payments,
     _resolve_customer,
+    _resolve_salesperson,
+    _salesperson_context,
 )
 
 
@@ -56,6 +58,7 @@ def lightning_pos(request):
         "branch": branch,
         "branches": Branch.objects.all() if branch is None else None,
         "treasuries": treasury_qs,
+        **_salesperson_context(request),
     })
 
 
@@ -139,6 +142,11 @@ def lightning_pos_checkout(request):
     items = payload.get("items") or []
     if not items:
         return _json_response_safe({"error": "السلة فارغة."}, status=400)
+
+    # 🧑‍💼 البائع اللي الكاشير اختاره — بياخد عمولة المبيعات على سطور الفاتورة
+    salesperson, sp_err = _resolve_salesperson(payload)
+    if sp_err:
+        return _json_response_safe({"error": sp_err}, status=400)
 
     branch = _get_branch_for_user(request.user)
     if branch is None:
@@ -269,6 +277,7 @@ def lightning_pos_checkout(request):
                     unit_price=price,
                     discount=line_disc,
                     cost_at_sale=product.average_cost or Decimal("0.00"),
+                    salesperson=salesperson,
                 )
                 before = inv.quantity
                 inv.quantity = before - qty

@@ -146,6 +146,24 @@ class ImageStudioServiceTests(ERPTenantTestCase):
         self.assertFalse(self.product.image_ai_bg_applied)
         self.assertEqual(self.product.image_ai_bg_preset, '')
 
+    def test_apply_and_revert_sync_primary_gallery_image(self):
+        """🐛 [FIX]: الصورة الأساسية في معرض الصور كانت بتفضل القديمة بعد تنظيف الخلفية."""
+        from inventory.models import ProductImage
+        primary = ProductImage.objects.create(
+            product=self.product, image=ContentFile(_png_bytes(), name='g.png'), is_primary=True)
+        extra = ProductImage.objects.create(
+            product=self.product, image=ContentFile(_png_bytes(), name='g2.png'), sort_order=2)
+        extra_name = extra.image.name
+        gen = studio.generate_preview(self.product, 'studio_white')
+        studio.apply_preview(self.product, gen['preview_path'], 'studio_white')
+        self.product.refresh_from_db(); primary.refresh_from_db(); extra.refresh_from_db()
+        self.assertEqual(primary.image.name, self.product.image.name)
+        self.assertEqual(extra.image.name, extra_name)  # الصور الإضافية ما تتلمسش
+        studio.revert(self.product)
+        self.product.refresh_from_db(); primary.refresh_from_db()
+        self.assertEqual(primary.image.name, self.product.image.name)
+        self.assertIn('_restored_', primary.image.name)
+
     def test_revert_without_backup(self):
         res = studio.revert(self.product)
         self.assertFalse(res['ok'])

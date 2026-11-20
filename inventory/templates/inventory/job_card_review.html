@@ -45,6 +45,13 @@ body {
     display: grid; grid-template-columns: 1fr 320px; gap: 18px;
 }
 @media (max-width: 1024px) { .layout { grid-template-columns: 1fr; } }
+/* 🐛 [FIX]: على الموبايل جداول المراجعة كانت بتطلّع الصفحة برّا الشاشة (خصوصاً بالإنجليزي) —
+   الكارت بينكمش والجدول بيتسحب جواه. */
+.layout > * { min-width: 0; }
+@media (max-width: 640px) {
+  .card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .billing-table { min-width: 30rem; }
+}
 
 .card {
     background: rgba(30, 41, 59, 0.6);
@@ -326,6 +333,8 @@ body {
 <body>
 <div class="shell">
 
+    {# 🐛 [FIX]: الصفحة مستقلة من غير قائمة ولا زرار رجوع — على الموبايل المراجع كان بيتحبس فيها #}
+    <a href="{% url 'inventory:sale_invoice_list' %}?type=maintenance" style="display:inline-block;margin-bottom:10px;color:#93c5fd;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-arrow-right"></i> {% trans "رجوع للفواتير" %}</a>
     <div class="topbar">
         <h1>
             🧮 {% trans "مراجعة بطاقة العميل" %} #{{ invoice.id }}
@@ -528,13 +537,13 @@ body {
                         <tr>
                             <th style="width:50px;">{% trans "يُحاسب؟" %}</th>
                             <th>{% trans "الخدمة" %}</th>
-                            <th style="width:130px;">{% trans "الفني" %}</th>
+                            <th style="width:150px;">{% trans "الفني" %}</th>
                             <th style="width:110px;">{% trans "السعر" %}</th>
                             <th style="width:220px;">{% trans "ملاحظة المحاسب" %}</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for svc in invoice.service_items.all %}
+                        {% for row in service_rows %}{% with svc=row.svc %}
                             <tr class="{% if svc.is_billable %}billable{% else %}excluded{% endif %}">
                                 <td>
                                     <label class="row-toggle">
@@ -545,7 +554,13 @@ body {
                                 </td>
                                 <td><strong>{{ svc.service.name }}</strong></td>
                                 <td>
-                                    {% if svc.technician %}
+                                    {# 🔧 المدير يحدد الفني المنفّذ (صاحب عمولة الخدمة) — بيتقفل بعد ما العمولة تتحسب #}
+                                    {% if can_assign_tech and not row.tech_locked %}
+                                        <select name="svc_{{ svc.id }}_tech" style="width:100%;padding:6px;border-radius:8px;background:rgba(15,23,42,.7);color:#e2e8f0;border:1px solid #334155;font-family:inherit;font-size:12px;">
+                                            <option value="">{% trans "— بدون فني —" %}</option>
+                                            {% for t in technicians %}<option value="{{ t.pk|stringformat:'d' }}" {% if t.pk == row.selected_tech_id %}selected{% endif %}>{{ t.user.get_full_name|default:t.user.username }}</option>{% endfor %}
+                                        </select>
+                                    {% elif svc.technician %}
                                         {{ svc.technician.user.get_full_name|default:svc.technician.user.username }}
                                     {% else %}
                                         —
@@ -558,7 +573,7 @@ body {
                                            placeholder="{% trans 'ملاحظة اختيارية...' %}">
                                 </td>
                             </tr>
-                        {% endfor %}
+                        {% endwith %}{% endfor %}
                     </tbody>
                 </table>
                 {% else %}

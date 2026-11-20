@@ -52,6 +52,8 @@ MOST_LINES = entries.MOST_LINES
 
 # 🐛 [FIX]: from the shop's log — «تعملي فاتورة مبيع» was asked «مبيعات ولا مشتريات؟».
 _SALE = re.compile(r"فاتور[هة]\s+(?:ال)?(?:مبيعات|مبيع|بيع)|(?:اعمل|اعملي|نعمل|تعمل|تعملي)\s+(?:عمليه|عملية)?\s*بيع\b")
+# «اعملي عرض سعر»: the invoice as a draft — no stock taken, no money (entries.record_quote).
+_QUOTE = re.compile(r"(?:^|\s)عرض\s+(?:ال)?(?:سعر|اسعار)(?:\s|$)")
 _PURCHASE = re.compile(r"فاتور[هة]\s+(?:ال)?(?:مشتريات|مشتري|شرا|شراء)")
 _EXPENSE = re.compile(r"(?:^|\s)(?:مصروف|مصاريف)(?:\s|$)")
 # «عايز أعمل فاتورة» — which one isn't said: asked. Vosk often drops the alef («عايز عمل فاتورة»).
@@ -280,6 +282,12 @@ def _not_a_name(name: str) -> bool:
 def _kind_of(text: str, expense: bool = True):
     """'sale', 'purchase', 'expense', '' (an invoice, which one not said) or None."""
     said = wakename.normalize(text or "")
+    # «رجّع فاتورة مشتريات رقم 12» names an invoice to return (robot/money.py), not a new one.
+    from . import money
+    if (money.parse(text) or {}).get("kind") in ("return", "pur_return"):
+        return None
+    if _QUOTE.search(said):
+        return "quote"
     if _PURCHASE.search(said):
         return "purchase"
     if _SALE.search(said):
@@ -305,6 +313,8 @@ def start(text: str, device, employee, via: str = "robot"):
         _put(device, {"kind": "", "action": "", "lines": [], "step": "kind", "via": via})
         return "تمام، فاتورة إيه؟ مبيعات ولا مشتريات؟", {"action": "wizard_kind"}
     state = {"kind": kind, "action": _ACTION.get(kind, kind), "lines": [], "step": "", "via": via}
+    if kind == "quote":
+        state.update(kind="sale", action="sale", quote=True)
     if kind == "stock":
         state["first"] = _stock_rest(text)              # «ضيف 5 فلتر زيت للمخزون»: the part, said at once
         state["new"] = bool(_NEW.search(wakename.normalize(text or "")))
@@ -354,7 +364,27 @@ def _staff(device, employee):
     return Employee.objects.filter(pk=emp_id).select_related("user").first()
 
 
+def known_staff(device):
+    """The employee who said their PIN here lately (STAFF_S), or None."""
+    return _staff(device, None)
+
+
+def hold(text: str, device, via: str = "robot"):
+    """Something only staff may ask («سجل مصروف 200 بنزين», «بعنا كام النهارده؟»), from someone
+    the robot doesn't know: their PIN is asked, and what they said is done once it's right
+    (views._answer_voice). None when PINs are locked out here — the refusal stands."""
+    if _pin_locked(device):
+        return None
+    _put(device, {"kind": "ask", "action": "", "lines": [], "step": "pin", "via": via,
+                  "replay": (text or "")[:300]})
+    return ("ده للموظفين بس. قولي الرقم السري بتاعك (بتاع صفحة الكاشير)؟",
+            {"action": "wizard_pin", "kind": "ask"})
+
+
 def _begin(device, state: dict, staff):
+    if state.get("kind") == "ask":
+        cache.delete(_key(device))                    # (not _end: what's said next is no secret)
+        return "", {"action": "wizard_replay", "replay": state.get("replay", "")}
     if not permissions.employee_can(staff, state["action"]):
         _end(device)
         return permissions.denial_message(state["action"]), {"action": "denied"}
@@ -363,7 +393,8 @@ def _begin(device, state: dict, staff):
     if kind == "sale":
         state["step"] = "customer"
         _put(device, state)
-        return "تمام، فاتورة مبيعات. اسم العميل إيه؟ ولو نقدي قول «نقدي».", {"action": "wizard_customer"}
+        what = "عرض سعر" if state.get("quote") else "فاتورة مبيعات"
+        return f"تمام، {what}. اسم العميل إيه؟ ولو نقدي قول «نقدي».", {"action": "wizard_customer"}
     if kind == "purchase":
         state["step"] = "vendor"
         _put(device, state)
@@ -450,6 +481,9 @@ def _on_kind(text, device, state, employee):
     said = wakename.normalize(text or "")
     if _KIND_PURCHASE.search(said):
         kind = "purchase"
+    elif _QUOTE.search(said):
+        kind = "sale"
+        state["quote"] = True
     elif _KIND_SALE.search(said):
         kind = "sale"
     elif _EXPENSE.search(said):
@@ -483,13 +517,19 @@ def _pin_digits(text: str) -> str:
 
 def _on_pin(text, device, state, employee):
     pin = _pin_digits(text)
+    if len(pin) < 4 and state.get("kind") == "ask":
+        # A PIN asked of whoever said «شغّل قرآن» or «بعنا كام؟» — and they (or the next customer)
+        # said something else: that's answered, nobody is held at «مستني الرقم السري».
+        cache.delete(_key(device))
+        return None
     if len(pin) < 4:
         # 🐛 [FIX]: «طرق مبيع» (a misheard «فاتورة مبيعات») counted as a wrong PIN: three of those
         # and the invoice was off before the PIN was ever said. Words with no number aren't a try.
         state["pin_misses"] = state.get("pin_misses", 0) + 1
         if state["pin_misses"] >= PIN_TRIES:
             _end(device)
-            return ("ماشي، لغيت الفاتورة. لما تحب قول «فاتورة مبيعات» تاني.",
+            return (("ماشي، لغيت. لما تحب قولها تاني." if state.get("kind") == "ask"
+                     else "ماشي، لغيت الفاتورة. لما تحب قول «فاتورة مبيعات» تاني."),
                     {"action": "wizard_cancelled"})
         _put(device, state)
         return ("مستني الرقم السري بس: قوله رقم رقم، أربع أرقام أو أكتر. ولو عايز تلغي قول «الغي».",
@@ -769,7 +809,7 @@ def _on_more(text, device, state, employee):
 
 
 def _payment_question(device, state):
-    if state["kind"] == "stock":
+    if state["kind"] == "stock" or state.get("quote"):
         return _hand_over(device, state, False)      # no money changes hands: the branch next
     state["step"] = "payment"
     _put(device, state)
@@ -814,6 +854,14 @@ def _hand_over(device, state, credit: bool):
                                   "vendor_id": state["vendor_id"], "cash": not credit})
         return reply, {"action": "entry_ask_branch", "kind": "purchase", "lines": len(lines)}
     who = state.get("customer_name") or state.get("walk_in_name") or ""
+    if state.get("quote"):
+        summary = f"عرض سعر {' و'.join(said)}{f' لـ{who}' if who else ''} بإجمالي {services.spoken_price(total)}"
+        reply = entries.ask(device, kind="quote", summary=summary, amount=total, employee=staff,
+                            data={"lines": [{"product_id": line["product_id"], "quantity": line["quantity"],
+                                             "unit_price": line["price"]} for line in lines],
+                                  "customer_id": state.get("customer_id"),
+                                  "walk_in_name": state.get("walk_in_name", "")})
+        return reply, {"action": "entry_ask_branch", "kind": "quote", "lines": len(lines)}
     summary = (f"بيع {' و'.join(said)}{f' لـ{who}' if who else ''} بإجمالي {services.spoken_price(total)} "
                + ("آجل" if credit else "كاش"))
     reply = entries.ask(device, kind="sale", summary=summary, amount=total, employee=staff,

@@ -1,0 +1,77 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🛠️ {% trans "الخدمات والمصنعيات" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-amber-400"><i class="fas fa-tools"></i></span>
+    {% trans "الخدمات والمصنعيات" %}
+  </h1>
+  <a href="{% url 'inventory:job_card_create' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700"><i class="fas fa-clipboard-list ml-1"></i> {% trans "أمر شغل جديد" %}</a>
+</header>
+
+<p class="text-sm text-slate-400 mb-4">{% trans "الخدمات دي بتظهر في «أمر الشغل» بسعرها، ونسبة عمولة الفني بتتحسب له لما الفاتورة تتقفل." %}</p>
+
+{% if ok %}
+<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 text-sm font-bold">
+  <i class="fas fa-circle-check text-emerald-400"></i>
+  {% if ok == 'added' %}{% trans "اتضافت الخدمة." %}{% elif ok == 'edited' %}{% trans "اتعدّلت الخدمة." %}{% else %}{% trans "اتمسحت الخدمة." %}{% endif %}
+</div>
+{% elif err %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 text-sm font-bold">
+  <i class="fas fa-triangle-exclamation text-red-400"></i>
+  {% if err == 'name' %}{% trans "اكتب اسم الخدمة." %}{% elif err == 'used' %}{% trans "الخدمة دي اتباعت في فواتير قبل كده — مش هتتمسح عشان التقارير والعمولات. عدّل اسمها أو سعرها بدل المسح." %}{% elif err == 'notfound' %}{% trans "الخدمة مش موجودة." %}{% else %}{% trans "السعر والساعات والعمولة لازم يكونوا أرقام صحيحة (العمولة من ٠ لـ ١٠٠)." %}{% endif %}
+</div>
+{% endif %}
+
+<form method="post" class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4 mb-5 grid grid-cols-2 md:grid-cols-5 gap-3 items-end">{% csrf_token %}
+  <input type="hidden" name="action" value="add">
+  <label class="col-span-2 text-xs text-slate-400 font-bold">{% trans "اسم الخدمة" %}
+    <input name="name" required maxlength="200" placeholder="{% trans 'مثال: تغيير زيت + فلتر' %}" class="mt-1 w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+  </label>
+  <label class="text-xs text-slate-400 font-bold">{% trans "سعر المصنعية" %}
+    <input name="labor_price" type="number" min="0" step="0.01" required class="mt-1 w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+  </label>
+  <label class="text-xs text-slate-400 font-bold">{% trans "الوقت (ساعات)" %}
+    <input name="estimated_hours" type="number" min="0" max="999.9" step="0.1" value="1" class="mt-1 w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+  </label>
+  <label class="text-xs text-slate-400 font-bold">{% trans "عمولة الفني %" %}
+    <input name="tech_commission_percent" type="number" min="0" max="100" step="0.01" value="0" class="mt-1 w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+  </label>
+  <button class="col-span-2 md:col-span-5 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black"><i class="fas fa-plus"></i> {% trans "إضافة خدمة" %}</button>
+</form>
+
+<div class="overflow-x-auto bg-slate-800/60 rounded-2xl border border-slate-700/50">
+  <table class="w-full text-sm">
+    <thead><tr class="text-slate-400 text-xs">
+      <th class="p-3 text-right">{% trans "الخدمة" %}</th><th class="p-3 text-center">{% trans "سعر المصنعية" %}</th>
+      <th class="p-3 text-center">{% trans "الوقت (ساعات)" %}</th><th class="p-3 text-center">{% trans "عمولة الفني %" %}</th>
+      <th class="p-3 text-center">{% trans "اتباعت" %}</th><th class="p-3"></th>
+    </tr></thead>
+    <tbody>
+    {% for s in services %}{% with sid=s.pk|stringformat:'d' %}
+      <tr class="border-t border-slate-700/50">
+        <td class="p-2"><input form="svc-{{ sid }}" name="name" value="{{ s.name }}" required maxlength="200" class="w-full min-w-[10rem] bg-slate-900 text-white px-2 py-1 rounded border border-slate-700"></td>
+        <td class="p-2 text-center"><input form="svc-{{ sid }}" name="labor_price" type="number" min="0" step="0.01" value="{{ s.labor_price|stringformat:'s' }}" class="w-24 bg-slate-900 text-white px-2 py-1 rounded border border-slate-700 text-center"></td>
+        <td class="p-2 text-center"><input form="svc-{{ sid }}" name="estimated_hours" type="number" min="0" max="999.9" step="0.1" value="{{ s.estimated_hours|stringformat:'s' }}" class="w-20 bg-slate-900 text-white px-2 py-1 rounded border border-slate-700 text-center"></td>
+        <td class="p-2 text-center"><input form="svc-{{ sid }}" name="tech_commission_percent" type="number" min="0" max="100" step="0.01" value="{{ s.tech_commission_percent|stringformat:'s' }}" class="w-20 bg-slate-900 text-white px-2 py-1 rounded border border-slate-700 text-center"></td>
+        <td class="p-2 text-center text-slate-400">{{ s.times_used }}</td>
+        <td class="p-2 whitespace-nowrap">
+          <form id="svc-{{ sid }}" method="post" class="inline">{% csrf_token %}<input type="hidden" name="pk" value="{{ sid }}"><input type="hidden" name="action" value="edit">
+            <button class="text-xs font-bold px-3 py-1 rounded-lg bg-sky-700 hover:bg-sky-600 text-white"><i class="fas fa-floppy-disk"></i> {% trans "حفظ" %}</button>
+          </form>
+          {% if not s.times_used %}
+          <form method="post" class="inline" data-msg="{% trans 'تمسح الخدمة؟' %}" onsubmit="return confirm(this.dataset.msg)">{% csrf_token %}<input type="hidden" name="pk" value="{{ sid }}"><input type="hidden" name="action" value="delete">
+            <button class="text-xs font-bold px-3 py-1 rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-600 hover:text-white"><i class="fas fa-trash"></i></button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endwith %}{% empty %}
+      <tr><td colspan="6" class="p-6 text-center text-slate-400">{% trans "لسه مفيش خدمات — ضيف أول خدمة من فوق." %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

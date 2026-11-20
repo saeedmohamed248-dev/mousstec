@@ -80,6 +80,16 @@
                     <i class="fas fa-circle-play text-blue-400"></i> {% trans "اتعلّم السيستم بالفيديو" %}
                 </a>
             </div>
+            {# 🐛 [FIX]: الإعلان بيقول «يبدأ من 249ج» والصفحة مكانش فيها ولا سعر ⇒ اللي جاي من الإعلان #}
+            {#    كان بيدوّر على السعر ومش لاقيه. السعر من جدول الباقات نفسه (نفس صفحة الأسعار، وبالدرهم للإمارات). #}
+            {% landing_plans 'automotive' as auto_plans %}
+            {% if auto_plans %}
+            <a href="#plans" class="inline-flex items-baseline gap-2 mt-6 text-slate-300 hover:text-white transition">
+                <span class="text-sm font-bold">{% trans "يبدأ من" %}</span>
+                {% with cheapest=auto_plans|dictsort:"price"|first %}<span class="text-3xl font-black text-cyan-400">{{ cheapest.price|num:"-2" }}</span>{% endwith %}
+                <span class="text-sm text-slate-400">{{ tenant_currency_symbol|default:'ج.م' }}/{% trans "شهر" %}</span>
+            </a>
+            {% endif %}
         </div>
 
         <!-- Stats -->
@@ -199,6 +209,31 @@
         </div>
     </div>
 </section>
+
+<!-- 💎 الباقات بأسعارها — 🐛 [FIX]: الصفحة كانت بتقارن الباقات من غير ولا سعر (زي صفحة المطابع دلوقتي) -->
+{% if auto_plans %}
+<section id="plans" class="py-20">
+    <div class="container mx-auto px-6">
+        <h2 class="text-3xl font-black text-white text-center mb-4">{% trans "باقات السيارات والورش" %}</h2>
+        <p class="text-slate-500 text-center mb-14 max-w-xl mx-auto">{% trans "اختار الباقة المناسبة لحجم شغلك." %}</p>
+        <div class="grid {% if auto_plans|length >= 4 %}md:grid-cols-2 xl:grid-cols-4 max-w-7xl{% else %}md:grid-cols-3 max-w-4xl{% endif %} gap-6 mx-auto">
+            {% for plan in auto_plans %}
+            <div class="{% if plan.is_popular %}bg-gradient-to-b from-blue-900/20 to-slate-800/60 border-blue-500/30 relative{% else %}bg-slate-800/50 border-slate-700/50{% endif %} border rounded-2xl p-8 card-hover text-center">
+                {% if plan.is_popular %}<div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-full">{% trans "الأكثر طلبا" %}</div>{% endif %}
+                <div class="text-blue-400 font-bold text-sm mb-2">{{ plan.name }}</div>
+                <div class="text-4xl font-black text-white mb-6">{{ plan.price|num:"-2" }} <span class="text-lg text-slate-500">{{ tenant_currency_symbol|default:'ج.م' }}/{% trans "شهر" %}</span></div>
+                <ul class="text-right text-sm text-slate-400 space-y-3 mb-8">
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> {% blocktrans with b=plan.max_branches t=plan.max_treasuries %}{{ b }} فرع · {{ t }} خزينة{% endblocktrans %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> {% blocktrans with u=plan.max_users %}{{ u }} مستخدم{% endblocktrans %}</li>
+                    {% for line in plan.features %}<li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> {{ line }}</li>{% endfor %}
+                </ul>
+                <a href="{% url 'saas_customer_signup' %}?industry=automotive" class="block {% if plan.is_popular %}btn-blue text-white{% else %}bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-600 hover:text-white transition{% endif %} font-bold py-3 rounded-xl">{% trans "ابدأ مجانا" %}</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
 
 <!-- 📚 كل المميزات + جدول المقارنة (من كتالوج صفحة المميزات) -->
 {% sector_features 'automotive' %}

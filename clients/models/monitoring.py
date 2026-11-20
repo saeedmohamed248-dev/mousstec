@@ -38,6 +38,12 @@ class VisitorLog(models.Model):
         null=True, blank=True, related_name='+',
     )
     tenant_schema = models.CharField(max_length=100, blank=True, db_index=True)
+    # 🧭 عميل السوق (بيدخل بكوكي mp_session مش بحساب Django) — عشان نعرض «رحلة العميل»
+    #    في السوبر أدمن: دخل فين، راح فين، ووقف فين.
+    marketplace_customer = models.ForeignKey(
+        'clients.MarketplaceCustomer', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='visits',
+    )
     user_agent = models.TextField(blank=True)
     referer = models.URLField(max_length=1000, blank=True)
     device_type = models.CharField(max_length=20, blank=True)
@@ -51,10 +57,53 @@ class VisitorLog(models.Model):
         indexes = [
             models.Index(fields=['-timestamp', 'tenant_schema']),
             models.Index(fields=['ip_address', '-timestamp']),
+            models.Index(fields=['marketplace_customer', 'timestamp']),
         ]
 
     def __str__(self):
         return f"{self.ip_address} → {self.path} ({self.timestamp:%H:%M})"
+
+
+class ScreenSession(models.Model):
+    """🎥 تسجيل شاشة جلسة موظف شركة (rrweb) — صاحب المنصة يتفرّج عليها لايف أو بعدين.
+
+    * السكريبت بيتحقن في صفحات الشركات بس (مش الدومين الرئيسي)، وبيتقفل من لوحة الشركة
+      (Client.screen_recording_enabled).
+    * كلمات السر والخانات المعلّمة بـ rr-mask / rr-block مابتتسجّلش.
+    * بيتمسح تلقائياً بعد SCREEN_RECORDING_RETENTION_DAYS (افتراضي ٧ أيام).
+    """
+    session_key = models.UUIDField(unique=True)
+    tenant_schema = models.CharField(max_length=100, db_index=True)
+    username = models.CharField(max_length=150, blank=True)
+    user_display = models.CharField(max_length=200, blank=True)
+    first_path = models.CharField(max_length=500, blank=True)
+    last_path = models.CharField(max_length=500, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True)
+    started_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    last_event_at = models.DateTimeField(db_index=True)
+    chunks_count = models.PositiveIntegerField(default=0)
+    bytes_total = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = _("تسجيل شاشة")
+        verbose_name_plural = _("تسجيلات الشاشة")
+        ordering = ['-last_event_at']
+        indexes = [models.Index(fields=['tenant_schema', '-last_event_at'])]
+
+    def __str__(self):
+        return f"{self.tenant_schema} · {self.username} · {self.started_at:%Y-%m-%d %H:%M}"
+
+
+class ScreenChunk(models.Model):
+    """دفعة أحداث rrweb (JSON مضغوط zlib) — بتتبعت من المتصفح كل كام ثانية."""
+    session = models.ForeignKey(ScreenSession, on_delete=models.CASCADE, related_name='chunks')
+    seq = models.PositiveIntegerField()
+    data = models.BinaryField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['session', 'seq']
+        unique_together = ('session', 'seq')
 
 
 class PlatformEvent(models.Model):

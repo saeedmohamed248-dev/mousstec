@@ -14,13 +14,16 @@ const IGNORED_CONSOLE = [
 /** @param {string} url @param {string} origin */
 const sameOrigin = (url, origin) => { try { return new URL(url).origin === origin; } catch { return false; } };
 
+/** لغة الـ project: «ar» / «en» أو «mobile-ar» / «mobile-en» (نفس اللغة على شاشة موبايل). */
+const projectLang = (testInfo) => testInfo.project.name.replace(/^mobile-/, '');
+
 const test = base.test.extend({
   /** المستخدم اللي الاختبار شغّال بيه (الافتراضي admin من الإعدادات) */
   asUser: [null, { option: true }],
   storageState: async ({ asUser, storageState }, use, testInfo) => {
-    await use(asUser ? path.join(__dirname, '..', '.auth', `${asUser}-${testInfo.project.name}.json`) : storageState);
+    await use(asUser ? path.join(__dirname, '..', '.auth', `${asUser}-${projectLang(testInfo)}.json`) : storageState);
   },
-  lang: async ({}, use, testInfo) => { await use(testInfo.project.name); },
+  lang: async ({}, use, testInfo) => { await use(projectLang(testInfo)); },
   pageErrors: [async ({ page, baseURL }, use) => {
     const errors = [];
     const origin = new URL(baseURL || 'http://localhost').origin;
@@ -55,6 +58,9 @@ async function expectHealthyPage(page, lang) {
   await base.expect(page.locator('html')).toHaveAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
   const text = await page.locator('body').innerText();
   base.expect(text, 'نص مكسور ظاهر في الصفحة').not.toMatch(/\bNaN\b|\bundefined\b|\[object Object\]/);
+  // 📱 الصفحة ماتتسحبش بالعرض (حقل أو زرار خارج برّا الشاشة) — اتمسكت يدوي على الموبايل قبل كده
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  base.expect(overflow, 'الصفحة أعرض من الشاشة (سكرول بالعرض)').toBeLessThanOrEqual(1);
 }
 
 module.exports = { test, expect: base.expect, expectHealthyPage };

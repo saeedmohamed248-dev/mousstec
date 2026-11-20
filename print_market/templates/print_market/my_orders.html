@@ -1,0 +1,8 @@
+{% extends "print_market/base.html" %}{% load i18n %}
+{% block title %}{% trans "طلباتي" %}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-3"><h1 class="fs-4 fw-bold m-0">{% trans "طلباتي" %}</h1>
+  <a href="{% url 'print_market:home' %}" class="pm-btn text-decoration-none ms-auto">{% trans "اطلب حاجة جديدة" %}</a></div>
+{% for o in orders %}{% include "print_market/_order_row.html" with who='customer' %}
+{% empty %}<div class="pm-card p-5 text-center pm-muted">{% trans "مفيش طلبات لسه — اختار منتج من السوق واطلب عرض سعر." %}</div>{% endfor %}
+{% endblock %}

@@ -127,7 +127,7 @@ def export_invoice_pdf(request, invoice_id):
         'pdf_mode': True,
     }
     _pdf_ctx.update(build_tax_invoice_context(invoice, getattr(request, 'tenant', None)))
-    html_string = render_to_string('inventory/invoice_print_a4.html', _pdf_ctx)
+    html_string = render_to_string('inventory/invoice_print_a4.html', _pdf_ctx, request=request)
 
     try:
         from weasyprint import HTML, CSS

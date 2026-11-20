@@ -506,6 +506,20 @@ class InventoryService:
         return retail if retail > 0 else (product.b2b_wholesale_price or 0)
 
     @staticmethod
+    def b2b_display_fields(product):
+        """🖼️ الموديلات + لينك الصورة اللي بيتعرضوا للعميل في سوق قطع الغيار العام."""
+        image_url = ''
+        try:
+            if getattr(product, 'image', None):
+                image_url = product.image.url
+        except Exception:  # noqa: BLE001 — صورة بايظة ماتوقّفش النشر
+            image_url = ''
+        return {
+            'car_model': (getattr(product, 'car_model', '') or '')[:150],
+            'image_url': image_url[:500],
+        }
+
+    @staticmethod
     def sync_product_to_b2b(product_instance, override_price=None):
         """
         Sync product data to GlobalB2BMarketplace in public schema.
@@ -522,6 +536,7 @@ class InventoryService:
         total_qty = product_instance.total_inventory_qty
         is_published = product_instance.is_b2b_published
         is_active = product_instance.is_active
+        display = InventoryService.b2b_display_fields(product_instance)
 
         try:
             from django.apps import apps
@@ -547,6 +562,7 @@ class InventoryService:
                             'brand': product_instance.brand,
                             'wholesale_price': wholesale,
                             'available_qty': total_qty,
+                            **display,
                         },
                     )
                 else:

@@ -492,16 +492,19 @@ def is_answer(device, text: str) -> bool:
     return match_branch(text, all_branches(), None) is not None
 
 
-def ask(device, *, kind: str, data: dict, summary: str, amount, employee=None) -> str:
-    """Hold a request until a branch is named; returns the spoken question."""
+def ask(device, *, kind: str, data: dict, summary: str, amount, employee=None, confirm: bool = False) -> str:
+    """Hold a request until a branch is named; returns the spoken question. `confirm`: its place
+    is known already (a return's invoice, the robot's own treasuries) — «أيوه» records it."""
     from .models import RobotEntry
     RobotEntry.objects.filter(device=device, status="pending").update(
         status="cancelled", completed_at=timezone.now(),
         message="اتلغت لما اتطلبت عملية جديدة")
     RobotEntry.objects.create(
-        device=device, kind=kind, data=data, summary=summary[:255],
+        device=device, kind=kind, data={**data, "confirm": True} if confirm else data, summary=summary[:255],
         amount=amount or 0, employee=employee,
     )
+    if confirm:
+        return f"تمام: {summary}. أسجله؟ قول «أيوه» أو «الغي»."
     return f"تمام: {summary}. {branch_question(device)}"
 
 
@@ -514,15 +517,20 @@ def answer(entry, text: str):
     if is_cancel(text):
         _finish(entry, "cancelled", message="اتلغت بالصوت")
         return "ماشي، لغيتها ومسجلتش حاجة.", {"action": "entry_cancelled", "entry_id": entry.pk}
-    branch = match_branch(text, all_branches(), entry.device.branch)
+    if entry.data.get("confirm") is True:
+        if not talk.just_yes(text):
+            return None
+        branch = branch_by_id(entry.data.get("branch_id")) or entry.device.branch
+    else:
+        branch = match_branch(text, all_branches(), entry.device.branch)
     if branch is None:
         return None
     try:
-        record(entry, branch)
+        said = record(entry, branch)
     except EntryError as exc:
         _finish(entry, "failed", branch=branch, message=str(exc))
         return str(exc), {"action": "entry_failed", "entry_id": entry.pk}
-    return (f"تمام، سجلت {entry.summary} على فرع {talk.branch_said(branch.name)}.",
+    return ((said if isinstance(said, str) else "") or f"تمام، سجلت {entry.summary} على فرع {talk.branch_said(branch.name)}.",
             {"action": "entry_done", "entry_id": entry.pk, "branch": branch.name})
 
 
@@ -540,7 +548,22 @@ def _finish(entry, status, *, branch=None, message="", **links):
 
 
 def record(entry, branch):
-    """Write the held request to the books on `branch` (raises EntryError)."""
+    """Write the held request to the books on `branch` (raises EntryError). Returns the words
+    to say when they aren't the usual «تمام، سجلت …» (an advance waiting for approval), else ''."""
+    from . import money
+
+    if entry.kind in money.KINDS:
+        said = money.record(entry, branch)
+        _finish(entry, "done", branch=branch, message=said[:255])
+        return said
+    if entry.kind == "quote":
+        invoice = record_quote(branch=branch, customer_id=entry.data.get("customer_id"),
+                               lines=[(line["product_id"], int(line["quantity"]), Decimal(str(line["unit_price"])))
+                                      for line in entry.data.get("lines") or []],
+                               walk_in_name=entry.data.get("walk_in_name") or "")
+        _finish(entry, "done", branch=branch, sale_invoice=invoice)
+        return (f"تمام، عملت عرض سعر رقم {invoice.pk} بإجمالي {invoice.total_amount:.0f} جنيه على فرع "
+                f"{talk.branch_said(branch.name)}. مفيش حاجة اتخصمت من المخزون ولا الخزنة.")
     if entry.kind == "expense":
         tx = record_expense(branch=branch, amount=Decimal(str(entry.data["amount"])),
                             description=entry.data.get("description", ""),
@@ -566,6 +589,7 @@ def record(entry, branch):
         _finish(entry, "done", branch=branch, sale_invoice=invoice)
     else:
         raise EntryError("النوع ده مش بيتسجل بالصوت.")
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -743,6 +767,39 @@ def record_sale(*, branch, customer_id, credit: bool, product_id=None, quantity:
         raise EntryError(f"مقدرتش أسجل البيع: {detail[0]}"[:250]) from exc
 
 
+def record_quote(*, branch, customer_id, lines, walk_in_name: str = ""):
+    """A quotation (عرض سعر): the invoice as a draft — retail prices, no stock taken, no money."""
+    from django.core.exceptions import ValidationError
+
+    from inventory.models import Customer, Product
+    from inventory.models.customers import WALK_IN_PHONE
+
+    from . import services
+
+    if not lines:
+        raise EntryError("مفيش أصناف في عرض السعر، فمعملتوش.")
+    try:
+        with transaction.atomic():
+            if customer_id:
+                customer = Customer.objects.get(pk=customer_id)
+            else:
+                customer, _new = Customer.get_or_create_by_phone(WALK_IN_PHONE, defaults={"name": "عميل نقدي"})
+            products = Product.objects.in_bulk([pid for pid, _q, _p in lines])
+            if len(products) < len({pid for pid, _q, _p in lines}):
+                raise EntryError("صنف من الأصناف اتشال من البرنامج، فمعملتش عرض السعر.")
+            invoice = services.create_robot_sale_lines(
+                lines=[(products[pid], qty, price) for pid, qty, price in lines], branch=branch,
+                customer=customer, payment="credit", post=False)
+            invoice.notes = "🤖 عرض سعر بالصوت من الروبوت"
+            if walk_in_name and customer.is_walk_in:
+                invoice.set_walk_in_name(walk_in_name)
+            invoice.save(update_fields=["notes"])
+            return invoice
+    except (ValueError, ValidationError, Customer.DoesNotExist) as exc:
+        detail = getattr(exc, "messages", None) or [str(exc)]
+        raise EntryError(f"مقدرتش أعمل عرض السعر: {detail[0]}"[:250]) from exc
+
+
 def log_sale(*, device, branch, invoice, employee=None, summary=""):
     """Record a /sale/ invoice as a robot entry (for the dashboard)."""
     from .models import RobotEntry
@@ -763,8 +820,13 @@ def voice_request(text: str, device, employee):
     Checks permission and validates everything that doesn't depend on the
     branch, so the branch answer only has to pick where it goes.
     """
-    from . import permissions, services
+    from . import money, permissions, services
 
+    # A collection, a vendor payment, an advance (robot/money.py) — before the expense, whose
+    # «دفعنا …» would take «دفعنا 1000 للمورد الأمل» for one.
+    paid = money.voice_request(text, device, employee)
+    if paid is not None:
+        return paid
     exp = parse_expense(text)
     if exp is not None:
         if not permissions.employee_can(employee, "expense"):

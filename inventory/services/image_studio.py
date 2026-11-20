@@ -292,6 +292,16 @@ def generate_preview(
     }
 
 
+def _sync_primary_gallery(product) -> None:
+    """🐛 [FIX]: الاستوديو كان بيغيّر Product.image بس، والصورة الأساسية في معرض الصور
+    (ProductImage.is_primary) فضلت القديمة — فصفحة تعديل القطعة/المعرض بتعرض الخلفية القديمة.
+    update() مباشرة عشان ما نعديش على save() بتاع ProductImage (بيعيد ضغط الصورة)."""
+    try:
+        product.images.filter(is_primary=True).update(image=product.image.name)
+    except Exception:  # noqa: BLE001 — المعرض تكميلي؛ فشله ما يوقفش العملية
+        logger.warning('[IMAGE STUDIO] primary gallery sync failed for #%s', product.pk)
+
+
 def apply_preview(product, preview_path: str, preset_key: str = '') -> dict[str, Any]:
     """يطبّق معاينة سبق توليدها كصورة رسمية للقطعة، مع نسخة احتياطية للأصل.
 
@@ -333,6 +343,7 @@ def apply_preview(product, preview_path: str, preset_key: str = '') -> dict[str,
         'image', 'image_original_backup', 'image_ai_bg_applied',
         'image_ai_bg_preset',
     ])
+    _sync_primary_gallery(product)
 
     # تنظيف ملف المعاينة بعد التطبيق (مش محتاجينه تاني).
     try:
@@ -362,4 +373,5 @@ def revert(product) -> dict[str, Any]:
     product.save(update_fields=[
         'image', 'image_ai_bg_applied', 'image_ai_bg_preset',
     ])
+    _sync_primary_gallery(product)
     return {'ok': True, 'image_url': product.image.url}

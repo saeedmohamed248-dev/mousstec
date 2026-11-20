@@ -17,6 +17,7 @@
         </div>
         <div class="badges">
             <span class="qty-pill">{% trans "كمية:" %} {{ rfq.quantity }}</span>
+            <button type="button" class="btn cancel-rfq-btn" data-rfq-id="{{ rfq.id }}" title="{% trans "إلغاء الطلب" %}"><i class="fa-solid fa-ban"></i> {% trans "إلغاء الطلب" %}</button>
             {% if rfq.job_card %}
                 <a class="jc-link" href="{% url 'inventory:job_card_review' rfq.job_card.id %}" target="_blank">
                     <i class="fa-solid fa-clipboard-list"></i> JC #{{ rfq.job_card.id }}

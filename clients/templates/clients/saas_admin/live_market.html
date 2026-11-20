@@ -1,0 +1,31 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% trans "لايف السوق" %} — Mouss Tec Super Admin</title>
+{% include "clients/saas_admin/_live_css.html" %}
+</head>
+<body>
+{% include "clients/saas_admin/_lang_switch.html" %}
+<div class="container">
+  <div class="breadcrumb"><a href="/superadmin/">{% trans "السوبر أدمن" %}</a> / {% trans "لايف السوق" %}</div>
+  <h1><span class="dot"></span> {% trans "لايف السوق" %}</h1>
+  <div class="sub">{% trans "بيتحدّث لوحده كل ١٥ ثانية · «أونلاين» = عمل حاجة في آخر ٥ دقايق · دوس على أي زائر تشوف رحلته كاملة" %}</div>
+  <div id="liveBody">{% include "clients/saas_admin/_live_body.html" %}</div>
+</div>
+<script>
+setInterval(function(){
+  if (document.hidden) return;
+  var a = document.activeElement;   // ماتقطعش على اللي بيكتب في البحث
+  if (a && (a.tagName === 'INPUT' || a.tagName === 'SELECT')) return;
+  var qs = new URLSearchParams(location.search); qs.set('partial', '1');
+  fetch('?' + qs.toString(), {credentials:'same-origin'}).then(function(r){ return r.ok ? r.text() : null; })
+    .then(function(html){ if (html) document.getElementById('liveBody').innerHTML = html; }).catch(function(){});
+}, 15000);
+</script>
+</body>
+</html>

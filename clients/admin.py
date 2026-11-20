@@ -1355,3 +1355,76 @@ class ImportAssistRequestAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
         if obj.status in ('done', 'rejected') and not obj.handled_at:
             obj.handled_at = timezone.now()
         super().save_model(request, obj, form, change)
+
+
+# 🛍️ كتالوج السوق (متاجر Mouss Tec) — تعديل المتاجر والمنتجات ورفع الصور (لصاحب المنصة بس)
+from .models import CatalogItem, CatalogQuoteRequest, CatalogStore  # noqa: E402
+
+
+class _CatalogItemInline(admin.TabularInline):
+    model = CatalogItem
+    extra = 0
+    fields = ('title', 'category', 'icon', 'image', 'min_qty', 'is_active', 'sort')
+    show_change_link = True
+
+
+@admin.register(CatalogStore)
+class CatalogStoreAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
+    # ⭐ اختيار Mouss Tec + تقييم Mouss Tec (رأي المنصة، بيتعرض باسمه منفصل عن تقييم العملاء)
+    # تقييم Mouss Tec: «ظاهر» ⇒ بيتعرض للعميل باسمه؛ «مخفي» ⇒ بيرتّب المتاجر بس من غير رقم
+    list_display = ('name', 'sector', 'city', 'is_featured', 'platform_score', 'show_platform_score', 'is_active', 'sort')
+    list_filter = ('sector', 'is_featured', 'show_platform_score', 'is_active')
+    list_editable = ('is_featured', 'platform_score', 'show_platform_score', 'is_active', 'sort')
+    search_fields = ('name', 'tagline', 'slug')
+    prepopulated_fields = {'slug': ('name',)}
+    inlines = [_CatalogItemInline]
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser
+
+
+@admin.register(CatalogItem)
+class CatalogItemAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ('title', 'store', 'category', 'car_make', 'has_image', 'is_active')
+    list_filter = ('store__sector', 'category', 'is_active', 'store')
+    list_editable = ('is_active',)
+    search_fields = ('title', 'description', 'car_make', 'car_models', 'store__name')
+    autocomplete_fields = ('store',)
+
+    @admin.display(boolean=True, description='صورة')
+    def has_image(self, obj):
+        return bool(obj.image)
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser
+
+
+@admin.register(CatalogQuoteRequest)
+class CatalogQuoteRequestAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ('item_title', 'name', 'phone', 'sector', 'status', 'created_at')
+    list_filter = ('status', 'sector')
+    search_fields = ('item_title', 'name', 'phone', 'details')
+    readonly_fields = ('item', 'customer', 'ip_address', 'created_at', 'updated_at')
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser
+
+
+
+from .models import CatalogReview  # noqa: E402
+
+
+@admin.register(CatalogReview)
+class CatalogReviewAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
+    """مراجعة تقييمات العملاء: تخفي سبام/إساءة بسبب — لكن النجوم والتعليق مابيتعدّلوش."""
+    list_display = ('store', 'rating', 'reviewer_name', 'comment', 'is_visible', 'hidden_reason', 'created_at')
+    list_filter = ('is_visible', 'rating', 'store__sector', 'store')
+    list_editable = ('is_visible', 'hidden_reason')
+    search_fields = ('comment', 'reviewer_name', 'store__name')
+    readonly_fields = ('quote_request', 'store', 'item', 'rating', 'comment', 'reviewer_name', 'created_at')
+
+    def has_add_permission(self, request):
+        return False   # التقييم بييجي من العميل بس
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser

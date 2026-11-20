@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load i18n %}<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -75,6 +75,14 @@
 <div id="toast" class="alert-toast"></div>
 
 <div class="container-main">
+    {% if new_accepted_ids %}
+    {# 🐛 [FIX]: التاجر ماكانش بيعرف إن عرضه اتقبل — دلوقتي تنبيه أول ما يفتح الصفحة #}
+    <div id="acceptedBanner" style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.4); border-radius:14px; padding:14px 16px; margin-bottom:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <i class="fas fa-handshake" style="color:#10b981; font-size:1.4rem;"></i>
+        <strong style="flex:1;">{% blocktrans count n=new_accepted_ids|length %}عميل قبل عرضك! بياناته في «عروضي» — كلّمه عشان تقفل الصفقة.{% plural %}{{ n }} عملاء قبلوا عروضك! بياناتهم في «عروضي» — كلّمهم عشان تقفل الصفقات.{% endblocktrans %}</strong>
+        <button class="btn btn-sm btn-success" onclick="showTab('myoffers', document.querySelector('.tab-btn[onclick*=myoffers]'))">{% trans "افتح عروضي" %}</button>
+    </div>
+    {% endif %}
 
     <div class="tabs" style="justify-content:space-between;align-items:center;">
         <div style="display:flex;gap:8px;">
@@ -113,7 +121,7 @@
     <div id="tab-requests">
         {% if requests %}
         {% for req in requests %}
-        <div class="request-card">
+        <div class="request-card" id="req-{{ req.request_code }}">
             <div class="request-title">{{ req.title }}</div>
             <div class="request-desc">{{ req.description|truncatechars:200 }}</div>
             <div class="request-tags">
@@ -202,7 +210,7 @@
     <div id="tab-myoffers" style="display:none;">
         {% if my_offers %}
         {% for offer in my_offers %}
-        <div class="my-offer-card">
+        <div class="my-offer-card"{% if offer.pk in new_accepted_ids %} style="border-color:#10b981; box-shadow:0 0 0 2px rgba(16,185,129,0.35);"{% endif %}>
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <strong>{{ offer.service_request.title|truncatechars:60 }}</strong>
@@ -446,6 +454,21 @@ document.getElementById('b2bForm')?.addEventListener('submit', async function(e)
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-bullhorn"></i> انشر الطلب';
     }
+});
+
+// 🛍️ جاي من زرار «قدّم عرض» في صفحة السوق العامة (?req=<كود الطلب>) ⇒ ننزل على الطلب ونفتح فورم العرض
+document.addEventListener('DOMContentLoaded', function () {
+    const code = new URLSearchParams(window.location.search).get('req');
+    if (!code || !/^[0-9a-f-]{36}$/i.test(code)) return;
+    const card = document.getElementById('req-' + code);
+    if (!card) {
+        toast('الطلب ده مش متاح ليك دلوقتي — يا إما قدّمت عليه قبل كده، أو اتقفل، أو تبع قطاع تاني.', 'error');
+        return;
+    }
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.style.outline = '2px solid var(--warn, #f59e0b)';
+    const btn = card.querySelector('.btn-offer');
+    if (btn) setTimeout(function () { btn.click(); }, 350);
 });
 </script>
 

@@ -74,6 +74,12 @@ def fixit_order_webhook(request):
             f"الدفع: {order.get('payment', 'cod')} — الإجمالي بالموقع: {order.get('total', '?')} {_sym()}",
             f"العنوان: {customer_data.get('city', '')} {customer_data.get('address', '')}".strip(),
         ]
+        # 💵 «عربون والباقي عند الاستلام»: الكاشير لازم يعرف هيحصّل كام من المندوب
+        if order.get('payment') == 'deposit':
+            note_lines.append(
+                f"💵 عربون {order.get('deposit', '?')} {_sym()} (تحويل) — "
+                f"الباقي {order.get('balanceDue', '?')} {_sym()} كاش عند الاستلام"
+            )
         if order.get('coupon'):
             note_lines.append(f"كوبون: {order['coupon']} (خصم {order.get('discount', 0)} {_sym()})")
         if order.get('notes'):

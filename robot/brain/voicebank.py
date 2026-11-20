@@ -78,7 +78,7 @@ class VoiceBank:
         return np.concatenate(pieces).astype(np.int16), rate
 
     def prefetch(self, texts: Iterable[str], fetch: Callable[[str], Optional[bytes]], *,
-                 stop: threading.Event, pace: float = 1.0, budget: int = 0, log=None) -> int:
+                 stop: threading.Event, pace: float = 1.0, budget: int = 0, log=None, hold=None) -> int:
         """Fetch the clips not on disk yet, one every `pace` seconds (the shop's
         line is shared with the cashier). Stops on `stop`, after `budget`
         requests (0 = all), or at the first failure (offline: try again
@@ -86,6 +86,9 @@ class VoiceBank:
         REFUSED_RETRY_S — it used to be re-requested every round, forever."""
         done = asked = 0
         for text in self.missing_now(texts):
+            # `hold()`: someone's talking to the robot — the line is theirs, the clips wait.
+            while hold is not None and hold() and not stop.is_set():
+                stop.wait(1.0)
             if stop.is_set() or (budget and asked >= budget):
                 break
             asked += 1

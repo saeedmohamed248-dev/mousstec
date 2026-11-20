@@ -1,0 +1,12 @@
+{% load i18n numfmt %}
+{# side="seller" ⇒ طلبات جاتلي (الطرف التاني = المشتري) · side="buyer" ⇒ طلباتي (الطرف التاني = التاجر) #}
+<div class="space-y-3">
+{% for r in rows %}
+  {% include "inventory/_b2b_request_card.html" with other=r.other %}
+{% empty %}
+  <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-6 text-center text-slate-400 text-sm">
+    {% if side == "seller" %}{% trans "مفيش طلبات شراء جاتلك لسه — أصنافك المنشورة في السوق هي اللي بيطلبوها." %}
+    {% else %}{% trans "لسه ماطلبتش حاجة — دوّر على الصنف في سوق B2B ودوس «اطلب من التاجر»." %}{% endif %}
+  </div>
+{% endfor %}
+</div>

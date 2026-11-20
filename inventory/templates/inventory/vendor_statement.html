@@ -9,7 +9,11 @@
     {{ vendor.name }}
     {% if vendor.phone %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300"><span dir="ltr">{{ vendor.phone }}</span></span>{% endif %}
   </h1>
-  <a href="{% url 'inventory:vendors_payables' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-arrow-right ml-1"></i> {% trans "كل الموردين" %}</a>
+  {# 🐛 [FIX]: صفحة التحصيل/السداد ماكانش فيها طريق للكشف المطبوع — العميل/المورد بيطلب الكشف ورق #}
+  <div class="flex items-center gap-2 flex-wrap">
+    <a href="{% url 'inventory:vendor_statement_print' vendor.pk %}" target="_blank" rel="noopener" class="text-sm font-bold px-4 py-2 rounded-lg bg-sky-500/10 border border-sky-500/40 text-sky-300 hover:bg-sky-600 hover:text-white transition"><i class="fas fa-print ml-1"></i> {% trans "طباعة كشف الحساب" %}</a>
+    <a href="{% url 'inventory:vendors_payables' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-arrow-right ml-1"></i> {% trans "كل الموردين" %}</a>
+  </div>
 </header>
 
 {% if flash %}

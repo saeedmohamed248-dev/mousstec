@@ -135,11 +135,24 @@ def _ask(url: str, key: str, model: str, messages: list, *, json_out: bool, time
         resp = requests.post(url, headers={"Authorization": f"Bearer {key}"}, json=payload, timeout=timeout)
     except (requests.RequestException, UnicodeError) as exc:   # UnicodeError: مفتاح/هيدر مش ASCII
         logger.warning("robot backup model %s: unreachable: %s", model, type(exc).__name__)
+        _note(False, "timeout" if isinstance(exc, requests.Timeout) else "network")
         return ""
     if resp.status_code != 200:                 # (the key never logged: only the code and the reason)
         logger.warning("robot backup model %s answered %s: %s", model, resp.status_code, resp.text[:200])
+        _note(False, str(resp.status_code))
         return ""
+    _note(True)
     try:
         return resp.json()["choices"][0]["message"]["content"] or ""
     except (ValueError, KeyError, IndexError, TypeError):
         return ""
+
+
+def _note(ok: bool, code: str = "") -> None:
+    """For the status line («المخ الاحتياطي ✓» / «✗ 401»): the shop sees its backup is dead before
+    the day Gemini is busy (from the shop's log: «no AI answered in 25 ms» — no key, said nowhere)."""
+    try:
+        from . import health
+        health.note("backup", ok, code=code or None)
+    except Exception:
+        pass

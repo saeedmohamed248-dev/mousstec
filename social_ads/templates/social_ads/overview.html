@@ -54,7 +54,7 @@
         <a href="{{ studio_url }}" class="inline-block text-white font-bold px-6 py-3 rounded-xl btn-primary">
           <i class="fas fa-gauge-high ml-1"></i> افتح الاستوديو
         </a>
-        <a href="{{ settings_url }}" class="block mt-2 text-sm text-[#16457a] underline">إدارة الإعدادات</a>
+        {% if settings_url %}<a href="{{ settings_url }}" class="block mt-2 text-sm text-[#16457a] underline">إدارة الإعدادات</a>{% endif %}
       {% else %}
         <form method="post" action="{{ subscribe_url }}">
           {% csrf_token %}

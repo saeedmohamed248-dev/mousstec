@@ -141,8 +141,17 @@ def parts_feed(request):
 
     listings = listings[:60]
 
+    # 🐛 [FIX]: أصناف الشركات (طلبات «نشر في سوق التجار») اللي الإدارة وافقت عليها
+    #    ماكانتش بتظهر هنا خالص — دلوقتي ليها قسم «من مخازن التجار».
+    from clients.services import parts_stock_orders as stock_svc
+    stock_items = stock_svc.filter_stock_items(
+        stock_svc.public_stock_items(), q=q, make=selected_make,
+        condition=condition if condition in dict(PartListing.CONDITION_CHOICES) else '', sort=sort,
+    )[:60]
+
     customer = _marketplace_auth(request)
     return render(request, 'clients/marketplace/parts_feed.html', {
+        'stock_items': stock_items,
         'makes': makes,
         'selected_make': selected_make,
         'selected_make_slug': selected_make_slug,
@@ -150,6 +159,37 @@ def parts_feed(request):
         'q': q, 'condition': condition, 'sort': sort,
         'customer': customer,
         'condition_choices': PartListing.CONDITION_CHOICES,
+    })
+
+
+def parts_stock_detail(request, item_id):
+    """🏬 صفحة صنف من مخازن التجار + «اطلب القطعة» (فاتورة عرض سعر عند الشركة)."""
+    if getattr(connection, 'schema_name', 'public') != 'public':
+        return HttpResponseForbidden('Access from main site only')
+    from clients.services import parts_stock_orders as stock_svc
+    item = get_object_or_404(stock_svc.public_stock_items(), pk=item_id)
+    customer = _marketplace_auth(request)
+    error = ''
+    placed = None
+    qty = 1
+    note = ''
+    if request.method == 'POST':
+        if customer is None:
+            from clients.views.marketplace_core_views import marketplace_login_page_url
+            return redirect(marketplace_login_page_url(request, request.path))
+        qty = _parse_int(request.POST.get('quantity'), 0)
+        note = (request.POST.get('note') or '')[:stock_svc.MAX_NOTE_LEN]
+        try:
+            placed = stock_svc.place_order(item, customer, qty, note)
+        except stock_svc.StockOrderError as exc:
+            error = str(exc)
+        except Exception:  # noqa: BLE001 — مشكلة في سيستم الشركة ماتطلعش 500 للعميل
+            logger.exception("[PARTS STOCK] order failed for item %s", item.pk)
+            error = 'حصلت مشكلة وإحنا بنبعت طلبك للمحل — جرّب تاني بعد شوية.'
+    return render(request, 'clients/marketplace/parts_stock_detail.html', {
+        'item': item, 'customer': customer, 'error': error, 'placed': placed,
+        'qty': qty or 1, 'note': note,
+        'max_qty': min(item.available_qty, 999),
     })
 
 
@@ -1173,7 +1213,9 @@ def parts_wanted_create(request):
     """Buyer posts a 'Part Wanted' request."""
     customer = _marketplace_auth(request)
     if not customer:
-        return redirect('/marketplace/login/?next=/marketplace/parts/wanted/new/')
+        # 🐛 [FIX]: كان بيودّي لتبويب «دخول» — واللي جاي من إعلان «اكتب طلبك» غالباً عميل جديد
+        #    ملوش حساب. صفحة سوق السيارات بتفتح على «حساب جديد» وفيها تبويب الدخول، وبعدها يرجع هنا.
+        return redirect('/marketplace/automotive/?next=/marketplace/parts/wanted/new/')
     if customer.sector != 'automotive':
         return JsonResponse({'error': 'هذا الطلب مخصص لقطاع السيارات.'}, status=403)
 
@@ -1239,9 +1281,22 @@ def parts_wanted_create(request):
     message = 'تم نشر الطلب. هتوصلك عروض البائعين قريباً.'
     if matches:
         message = f'تم نشر الطلب — ولقينا {len(matches)} قطعة معروضة ممكن تناسبك دلوقتي.'
+
+    # 📣 طلب قطعة اتنشر ⇒ حدث «Lead» لفيسبوك (السيرفر هنا + المتصفح بنفس الـ id في القالب)
+    #    عشان حملة «سوق قطع الغيار» تتحسّن على ناس بتطلب فعلاً مش مجرد زيارات.
+    pixel_event_id = f'pw-{req.request_code}'
+    try:
+        from clients.services import meta_capi
+        meta_capi.send_contact('Lead', event_id=pixel_event_id, email=customer.email or '',
+                               phone=customer.phone or '', external_id=f'mpc-{customer.pk}',
+                               request=request, source_url=request.build_absolute_uri())
+    except Exception:
+        logger.exception("[META_CAPI] wanted-request Lead failed for %s", req.pk)
+
     return JsonResponse({
         'ok': True,
         'message': message,
+        'pixel_event_id': pixel_event_id,
         'request_code': str(req.request_code),
         'redirect': '/marketplace/parts/wanted/mine/',
         'matches': [

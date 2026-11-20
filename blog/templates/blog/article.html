@@ -1,0 +1,49 @@
+{% extends "blog/base.html" %}{% load i18n %}
+{% block title %}{{ a.title }}{% endblock %}
+{% block meta_description %}{{ a.description }}{% endblock %}
+{% block seo_head %}{% if not a.is_live %}<meta name="robots" content="noindex">{% endif %}
+<meta property="og:type" content="article">
+{% if a.cover %}<meta property="og:image" content="{{ a.cover.url }}">{% endif %}
+{{ seo_jsonld }}{% endblock %}
+{% block extra_head %}<style>
+.layout { display:grid; gap:1.2rem; grid-template-columns:1fr 280px; align-items:start; }
+@media (max-width: 900px) { .layout { grid-template-columns:1fr; } .toc { display:none; } }
+article.card { padding:1.6rem; }
+article h1 { font-size:1.7rem; line-height:1.5; margin:0 0 .4rem; }
+.art h2 { font-size:1.3rem; margin:1.6rem 0 .5rem; }
+.art h3 { font-size:1.1rem; margin:1.2rem 0 .4rem; }
+.art p, .art li { font-size:1.05rem; }
+.art ul { padding-inline-start:1.3rem; }
+.art .tbl { overflow-x:auto; }
+.art table { border-collapse:collapse; width:100%; margin:.6rem 0; }
+.art th, .art td { border:1px solid #e9e3ff; padding:.5rem .7rem; text-align:start; }
+.art th { background:#f4f0ff; }
+.crumbs { font-size:.85rem; margin-bottom:.6rem; } .crumbs a { text-decoration:none; }
+.cta { background:linear-gradient(135deg,#7c3aed,#db2777); color:#fff; border-radius:16px; padding:1.3rem; margin-top:1.6rem; }
+.cta h2 { margin:0 0 .3rem; font-size:1.2rem; } .cta p { margin:0 0 .8rem; opacity:.95; }
+.cta .btn { background:#fff; color:var(--pm); }
+.toc { padding:1rem 1.1rem; position:sticky; top:1rem; }
+.toc a { display:block; text-decoration:none; color:var(--ink); font-size:.9rem; padding:.2rem 0; }
+.rel a { display:block; padding:.6rem 0; border-top:1px solid #f0ecfb; text-decoration:none; color:var(--ink); font-weight:700; }
+</style>{% endblock %}
+{% block content %}
+<nav class="crumbs"><a href="/">Mouss Tec</a> › <a href="{% url 'blog:index' %}">{% trans "المقالات" %}</a> › <span>{{ a.title }}</span></nav>
+<div class="layout">
+  <article class="card">
+    <h1>{{ a.title }}</h1>
+    <div class="muted" style="font-size:.85rem;margin-bottom:1rem"><span dir="ltr">{{ a.published_at|date:"Y-m-d" }}</span> · {% blocktrans count m=a.reading_minutes %}دقيقة قراءة{% plural %}{{ m }} دقايق قراءة{% endblocktrans %}</div>
+    {% if a.cover %}<img src="{{ a.cover.url }}" alt="{{ a.title }}" style="width:100%;border-radius:12px;margin-bottom:1rem">{% endif %}
+    <div class="art">{{ body }}</div>
+    <div class="cta">
+      <h2>{% trans "عايز تطبع؟ خلّي المطابع تتنافس على طلبك" %}</h2>
+      <p>{% trans "اكتب طلبك مرة واحدة والمطابع تبعتلك عروضها — قارن بالسعر والتقييم واختار." %}</p>
+      <a class="btn" href="/marketplace/dashboard/?new=1">{% trans "اكتب طلبك دلوقتي" %}</a>
+      {% if service %} <a class="btn" style="background:rgba(255,255,255,.18);color:#fff" href="{% url 'print_seo:service' service.slug %}">{{ service.h1 }}</a>{% endif %}
+    </div>
+  </article>
+  <aside>
+    {% if toc %}<div class="card toc"><b>{% trans "في المقال ده" %}</b>{% for id, t in toc %}<a href="#{{ id }}">{{ t }}</a>{% endfor %}</div>{% endif %}
+    {% if related %}<div class="card toc rel" style="margin-top:1rem"><b>{% trans "مقالات تانية" %}</b>{% for r in related %}<a href="{{ r.get_absolute_url }}">{{ r.title }}</a>{% endfor %}</div>{% endif %}
+  </aside>
+</div>
+{% endblock %}

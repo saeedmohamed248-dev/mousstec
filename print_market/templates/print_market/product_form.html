@@ -1,0 +1,30 @@
+{% extends "print_market/base.html" %}{% load i18n l10n %}
+{% block title %}{% trans "منتج" %}{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-md-8 col-lg-6"><div class="pm-card p-4">
+  <h1 class="fs-5 fw-bold">{% if product.pk %}{% trans "تعديل منتج" %}{% else %}{% trans "منتج جديد" %}{% endif %}</h1>
+  <div class="pm-rule mb-3">{% trans "ممنوع تكتب موبايل أو لينك أو واتساب — العميل بيكلّمك من جوه المنصة." %}</div>
+  <form method="post" enctype="multipart/form-data">{% csrf_token %}
+    <label class="form-label">{% trans "اسم المنتج" %}</label>
+    <input name="title" value="{{ product.title }}" class="form-control mb-2" required maxlength="150">
+    <label class="form-label">{% trans "القسم" %}</label>
+    <select name="category" class="form-select mb-2">{% for k, v in categories %}<option value="{{ k }}" {% if k == product.category %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+    <div class="row g-2">
+      <div class="col-6"><label class="form-label">{% trans "السعر يبدأ من (اختياري)" %}</label>
+        <input name="price_from" type="number" step="0.01" min="0" value="{{ product.price_from|default_if_none:''|unlocalize }}" class="form-control mb-2" dir="ltr"></div>
+      <div class="col-6"><label class="form-label">{% trans "الوحدة" %}</label>
+        <input name="unit" value="{{ product.unit }}" class="form-control mb-2" maxlength="40" placeholder="{% trans 'مثال: ١٠٠٠ كارت' %}"></div>
+    </div>
+    <label class="form-label">{% trans "الوصف" %}</label>
+    <textarea name="description" class="form-control mb-2" rows="4" maxlength="2000">{{ product.description }}</textarea>
+    <label class="form-label">{% trans "صورة" %}</label>
+    <input name="image" type="file" accept="image/*" class="form-control mb-2">
+    <div class="form-check mb-3"><input type="hidden" name="is_active" value="off">
+      <input class="form-check-input" type="checkbox" name="is_active" value="on" id="act" {% if product.is_active %}checked{% endif %}>
+      <label class="form-check-label" for="act">{% trans "ظاهر في السوق" %}</label></div>
+    <button class="pm-btn w-100">{% trans "حفظ" %}</button>
+  </form>
+  {% if product.pk %}{% trans "متأكد؟" as sure %}<form method="post" action="{% url 'print_market:product_delete' product.pk %}" class="mt-2" onsubmit="return confirm('{{ sure|escapejs }}')">{% csrf_token %}
+    <button class="btn btn-link text-danger w-100">{% trans "شيل المنتج" %}</button></form>{% endif %}
+</div></div></div>
+{% endblock %}

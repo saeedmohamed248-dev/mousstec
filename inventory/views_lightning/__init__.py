@@ -204,6 +204,8 @@ from .stock_from_photo import (  # noqa: F401
     inventory_import_extract,
     inventory_import_save,
 )
+from .services_catalog import services_catalog  # noqa: F401
+from .invoice_sequence import invoice_sequence_report  # noqa: F401
 from .reports import (  # noqa: F401
     _sales_invoices,
     customer_statement,

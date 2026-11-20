@@ -85,6 +85,28 @@ def collect_from_customer(*, user, customer_id, amount, treasury, order_id=None,
     return txn
 
 
+def settle_open_orders_from_credit(*, user, customer):
+    """💳 سدّد فواتير العميل المفتوحة (الأقدم الأول) من رصيده المقدّم. بيرجّع (المبلغ، عدد الفواتير).
+
+    🐛 [FIX — دورة ناقصة]: رصيد العميل اللي «ليه» (دفعة على الحساب/زيادة) كان بيفضل جنب
+    فواتيره المفتوحة من غير ما يتسدّد عليها إلا من صفحة الطلب في الأدمن واحدة واحدة — وشاشة
+    التحصيل السريع بتعرض «باقي» على الفاتورة فالكاشير بيحصّل تاني من عميل ليه فلوس.
+    """
+    from printing.models import PrintCreditAllocation, PrintCustomer
+
+    total, count = Decimal('0'), 0
+    with transaction.atomic():
+        # قفل العميل: ضغطتين ورا بعض مايصرفوش نفس الرصيد مرتين (التسديد نفسه بيقفل برضه)
+        customer = PrintCustomer.objects.select_for_update().get(pk=customer.pk)
+        for order in open_orders(customer):
+            amount = PrintCreditAllocation.apply_available(order, user=user)
+            if amount <= 0:
+                break   # الرصيد خلص
+            total += amount
+            count += 1
+    return total, count
+
+
 # ─────────────────────────────────────────────────────────────────────
 # 🛒 فاتورة شراء خامات
 # ─────────────────────────────────────────────────────────────────────

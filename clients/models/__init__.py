@@ -30,6 +30,7 @@ from .support import *  # noqa: F401, F403
 from .diagnostics import *  # noqa: F401, F403
 from .billing import *  # noqa: F401, F403
 from .marketing import *  # noqa: F401, F403
+from .catalog import *  # noqa: F401, F403
 
 
 # OBD device identity & secrets — defined in a separate module for clarity.

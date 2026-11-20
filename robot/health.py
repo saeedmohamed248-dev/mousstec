@@ -19,7 +19,7 @@ from typing import Optional
 
 from django.utils.translation import gettext as _
 
-SERVICES = ("azure_stt", "azure_tts", "google_stt", "gemini")
+SERVICES = ("azure_stt", "azure_tts", "google_stt", "gemini", "backup")
 KEEP_S = 24 * 3600
 # The same news every call isn't news: written again only when it changes, or
 # this long after (so «last seen» stays fresh) — not on every sentence.
@@ -98,13 +98,17 @@ def ready(service: str) -> bool:
                     and os.getenv("ROBOT_AZURE_SPEECH_REGION", "").strip())
     if service == "google_stt":
         return bool(os.getenv("ROBOT_GOOGLE_STT_KEY", "").strip())
+    if service == "backup":
+        from . import llm
+        return llm.has_backup()
     from .audio import gemini_key
     return bool(gemini_key())
 
 
 def label(service: str) -> str:
     return {"azure_stt": _("Azure — السمع"), "azure_tts": _("Azure — الصوت"),
-            "google_stt": _("Google — السمع"), "gemini": "Gemini"}[service]
+            "google_stt": _("Google — السمع"), "gemini": "Gemini",
+            "backup": _("المخ الاحتياطي")}[service]
 
 
 def remedy(service: str, code) -> str:
@@ -131,6 +135,11 @@ def remedy(service: str, code) -> str:
             return _("مفتاح Gemini غلط أو مقفول: راجع GEMINI_API_KEY في .env على السيرفر.")
         if code.startswith("5") or code == "timeout":
             return _("Gemini زحمة دلوقتي: السيرفر بيجرّب موديل تاني لوحده.")
+    elif service == "backup":
+        if code in ("401", "403"):
+            return _("مفتاح المخ الاحتياطي غلط أو اتلغى: راجع OPENAI_API_KEY في .env على السيرفر.")
+        if code == "429":
+            return _("رصيد المخ الاحتياطي (OpenAI) خلص أو طلبات كتير: اشحن الرصيد من platform.openai.com.")
     if code == "timeout":
         return _("مبيردش في الوقت: الخدمة زحمة أو النت عند السيرفر بطيء.")
     if code == "network":
@@ -165,7 +174,10 @@ def report() -> list:
             "service": service, "label": label(service), "ready": ready(service),
             "ok": ok, "code": code,
             "remedy": remedy(service, code) if ok is False else
-            ("" if ready(service) else _("مش متظبطة على السيرفر (المفتاح ناقص).")),
+            ("" if ready(service) else
+             _("مش متظبط: لما Gemini يبقى زحمة أو حصته تخلص الروبوت بيرد بالقواعد بس. حط OPENAI_API_KEY "
+               "في .env على السيرفر.") if service == "backup" else
+             _("مش متظبطة على السيرفر (المفتاح ناقص).")),
             "at": (seen or {}).get("at", ""), "minutes_left": left,
             "whole_minutes_left": int(left) if left is not None else None,   # never shown as more
         })

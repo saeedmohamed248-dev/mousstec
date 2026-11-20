@@ -120,3 +120,19 @@ class SuperAdminB2BPageTests(TestCase):
         with patch.object(svc, 'approve_many') as many:
             c.post(URL + 'approve-bulk/', {'all': '1'})
         many.assert_not_called()
+
+    def test_approving_zero_stock_warns_instead_of_silent_success(self):
+        """🐛 الموافقة على صنف رصيده صفر كانت بتقول «تم» والصنف مابيظهرش في السوق من غير ولا كلمة."""
+        tenant = type('T', (), {'name': 'فيكست', 'schema_name': 'acme'})()
+
+        def fake_decide(*a, info=None, **kw):
+            info['stock'] = 0
+            return tenant, 'طرمبة'
+        with patch.object(svc, 'decide', side_effect=fake_decide):
+            r = self.c.post('/superadmin/b2b/listing-requests/acme/7/decide/', {'action': 'approve'}, follow=True)
+        self.assertContains(r, 'رصيده صفر')
+
+        with patch.object(svc, 'approve_many', return_value={'approved': 3, 'skipped': 0, 'failed': 0,
+                                                              'no_stock': 2, 'tenants': {'فيكست'}}):
+            r = self.c.post(URL + 'approve-bulk/', {'all': '1'}, follow=True)
+        self.assertContains(r, 'منهم 2 رصيده صفر')

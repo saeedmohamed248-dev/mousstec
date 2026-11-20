@@ -243,7 +243,7 @@ class Designer(models.Model):
 
     def get_month_stats(self, month=None, year=None):
         """إحصائيات الشهر: عدد الأعمال، متوسط التقييم، إجمالي الساعات"""
-        today = timezone.now().date()
+        today = timezone.localdate()
         m = month or today.month
         y = year or today.year
         logs = self.work_logs.filter(date__month=m, date__year=y)
@@ -1374,7 +1374,7 @@ class PriceQuotation(models.Model):
     def is_expired(self):
         if not self.valid_until:
             return False
-        return timezone.now().date() > self.valid_until
+        return timezone.localdate() > self.valid_until
 
     @property
     def tax_amount(self):
@@ -1394,7 +1394,7 @@ class PriceQuotation(models.Model):
     def save(self, *args, **kwargs):
         if not self.valid_until:
             from datetime import timedelta as _td
-            self.valid_until = timezone.now().date() + _td(days=7)
+            self.valid_until = timezone.localdate() + _td(days=7)
         if self.quote_number:
             return super().save(*args, **kwargs)
         # 🐛 [FIX]: عرضين في نفس اللحظة كانوا بياخدوا نفس الرقم فالتاني يقع
@@ -1914,6 +1914,11 @@ class PrintProof(models.Model):
                 raise ValidationError(_("البروفة دي اترد عليها قبل كده."))
             if not proof.is_latest:
                 raise ValidationError(_("فيه نسخة أحدث من البروفة دي — افتح الرابط الجديد."))
+            # 🐛 [FIX]: رابط بروفة قديم كان بيشتغل حتى بعد ما الطلب اتلغى أو اتسلّم — «موافقة»
+            #    بتنقل المهمة لـ «طباعة» على طلب مقفول وبتسجّل رد على شغل مابقاش موجود.
+            order_status = PrintOrder.objects.filter(jobs__pk=proof.job_id).values_list('status', flat=True).first()
+            if order_status in ('cancelled', 'delivered'):
+                raise ValidationError(_("الطلب ده اتقفل — البروفة مابقتش مستنية رد."))
             proof.status = 'approved' if action == 'approve' else 'changes_requested'
             proof.customer_comment = (comment or '').strip()[:2000]
             proof.responded_at = timezone.now()

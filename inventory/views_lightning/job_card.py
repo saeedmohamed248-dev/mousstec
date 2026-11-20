@@ -29,6 +29,7 @@ from inventory.views import (
     tenant_required,
 )
 from inventory.views.utils import module_required
+from .services_catalog import can_manage_services
 from ._common import (
     _RollbackWith,
     _WALK_IN_CREDIT_ERROR,
@@ -41,6 +42,8 @@ from ._common import (
     _post_sale_to_ledger,
     _record_invoice_payments,
     _resolve_customer,
+    _resolve_salesperson,
+    _salesperson_context,
 )
 
 
@@ -62,7 +65,9 @@ def job_card_create(request):
         "branch": branch,
         "branches": Branch.objects.all() if branch is None else None,
         "services": ServiceCatalog.objects.all().order_by("name"),
+        "can_manage_services": can_manage_services(request.user),
         "treasuries": treasury_qs,
+        **_salesperson_context(request),
     })
 
 
@@ -125,6 +130,11 @@ def job_card_save(request):
     if not items and not services:
         return _json_response_safe({"error": "أضف قطعاً أو خدمات قبل الحفظ."}, status=400)
 
+    # 🧑‍💼 البائع اللي اتختار في الشاشة — بياخد عمولة المبيعات على قطع أمر الشغل
+    salesperson, sp_err = _resolve_salesperson(payload)
+    if sp_err:
+        return _json_response_safe({"error": sp_err}, status=400)
+
     def _dec(key, default="0"):
         try:
             return Decimal(str(payload.get(key) or default))
@@ -154,14 +164,40 @@ def job_card_save(request):
             if veh_id:
                 vehicle = Vehicle.objects.filter(id=veh_id, customer=customer).first()
             elif payload.get("vehicle_chassis"):
-                chassis = payload["vehicle_chassis"].strip().upper()
+                chassis = str(payload["vehicle_chassis"]).strip().upper()
+                # 🐛 [FIX]: رقم شاسيه أطول من ١٧ حرف (الـ VIN العالمي ١٧) كان بيوقّع الحفظ كله
+                #    بـ 500 «فشل حفظ أمر الشغل» من الداتابيز بدل رسالة واضحة.
+                if len(chassis) > 17:
+                    raise _RollbackWith(_json_response_safe(
+                        {"error": "رقم الشاسيه (VIN) أقصاه ١٧ حرف — راجعه."}, status=400))
                 vehicle = Vehicle.objects.filter(chassis_number=chassis).first()
+                if vehicle is not None and vehicle.customer_id != customer.pk and not _is_walk_in(customer):
+                    # 🐛 [FIX]: شاسيه عربية مسجّلة على عميل تاني كان بيتربط بأمر الشغل في صمت —
+                    #    تاريخ صيانتها وتذكيراتها بيروحوا لصاحبها القديم والعميل الجديد مايشوفهاش.
+                    #    زي أنظمة الـ DMS العالمية: نسأل — نقل ملكية (اتباعت) ولا تفضل باسم صاحبها
+                    #    (سواق/قريب جايبها). العميل النقدي مابياخدش ملكية — العربية بتفضل لصاحبها.
+                    choice = payload.get("vehicle_owner")
+                    if choice == "transfer":
+                        old_owner = vehicle.customer.name if vehicle.customer_id else ""
+                        Vehicle.objects.filter(pk=vehicle.pk).update(customer=customer)
+                        vehicle.customer = customer
+                        note = f"🚗 نقل ملكية العربية {chassis} من «{old_owner}»"
+                        payload["notes"] = (note + " — " + (payload.get("notes") or "")).strip(" —")
+                    elif choice != "keep":
+                        owner = vehicle.customer.name if vehicle.customer_id else "—"
+                        raise _RollbackWith(_json_response_safe({
+                            "error": f"العربية دي (شاسيه {chassis}) مسجّلة باسم «{owner}».",
+                            "code": "vehicle_owner_mismatch",
+                            "owner": owner,
+                        }, status=409))
                 if vehicle is None:
                     vehicle = Vehicle.objects.create(
                         customer=customer,
                         chassis_number=chassis,
                         car_plate=(payload.get("vehicle_plate") or "").strip() or None,
-                        brand=(payload.get("vehicle_brand") or "BMW").strip(),
+                        # 🐛 [FIX]: الماركة كانت متعبّية «BMW» في الفورم وفي الحفظ — أي عربية تويوتا أو
+                        #    هيونداي العميل مكتبش ماركتها كانت بتتسجّل BMW (من أيام مراكز BMW بس).
+                        brand=(payload.get("vehicle_brand") or "").strip(),
                         model_name=(payload.get("vehicle_model") or "").strip() or None,
                     )
 
@@ -198,7 +234,12 @@ def job_card_save(request):
             # --- Services: validate before writing ---------------------------
             svc_specs = []
             for svc in services:
-                service = ServiceCatalog.objects.filter(id=int(svc.get("service_id"))).first()
+                # 🐛 [FIX]: خدمة من غير id (أو id مش رقم) كانت بتطلّع 500 بدل رسالة
+                try:
+                    service_id = int(svc.get("service_id"))
+                except (TypeError, ValueError, AttributeError):
+                    raise _RollbackWith(_json_response_safe({"error": "خدمة غير صالحة."}, status=400))
+                service = ServiceCatalog.objects.filter(id=service_id).first()
                 if service is None:
                     continue
                 price = svc.get("price")
@@ -286,6 +327,7 @@ def job_card_save(request):
                     invoice=invoice, product=product, quantity=qty,
                     unit_price=price,
                     cost_at_sale=product.average_cost or Decimal("0.00"),
+                    salesperson=salesperson,
                 )
                 before = inv.quantity
                 inv.quantity = before - qty

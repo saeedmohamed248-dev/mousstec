@@ -47,7 +47,7 @@
                 </form>
             </div>
             <h1 class="text-3xl font-black text-white mb-2">{% if is_instapay %}{% trans "إتمام الدفع بـ InstaPay" %}{% else %}{% trans "إتمام الدفع بفودافون كاش" %}{% endif %}</h1>
-            <p class="text-slate-400 text-sm">{% if is_instapay %}{% trans "حوّل المبلغ على عنوان إنستاباي اللي تحت، وارفع سكرين شوت للتحويل عشان نأكدلك التفعيل" %}{% else %}{% trans "حوّل المبلغ على الرقم اللي تحت، وارفع سكرين شوت للتحويل عشان نأكدلك التفعيل" %}{% endif %}</p>
+            <p class="text-slate-400 text-sm">{% if is_order %}{% trans "حوّل المبلغ وارفع سكرين شوت التحويل — الفلوس بتفضل محجوزة عند المنصة لحد ما تستلم القطعة وتتأكد منها." %}{% elif is_instapay %}{% trans "حوّل المبلغ على عنوان إنستاباي اللي تحت، وارفع سكرين شوت للتحويل عشان نأكدلك التفعيل" %}{% else %}{% trans "حوّل المبلغ على الرقم اللي تحت، وارفع سكرين شوت للتحويل عشان نأكدلك التفعيل" %}{% endif %}</p>
         </div>
 
         <!-- Amount -->
@@ -204,7 +204,7 @@
 
                 <p class="text-center text-slate-500 text-xs">
                     <i class="fas fa-shield-halved me-1"></i>
-                    {% trans "بعد إرسال الإيصال، فريقنا بيراجعه خلال دقائق ويفعّل الخدمة تلقائياً." %}
+                    {% if is_order %}{% trans "بعد إرسال الإيصال، فريقنا بيراجعه خلال دقائق ويبلّغ البائع يشحن." %}{% else %}{% trans "بعد إرسال الإيصال، فريقنا بيراجعه خلال دقائق ويفعّل الخدمة تلقائياً." %}{% endif %}
                 </p>
             </form>
         </div>
@@ -225,7 +225,7 @@
                 <i class="fas fa-check text-4xl text-emerald-400"></i>
             </div>
             <h3 class="text-2xl font-black text-white mb-2">{% trans "تم استلام الإيصال ✅" %}</h3>
-            <p class="text-slate-400 mb-6" id="successMsg">{% trans "هيتم التفعيل خلال دقائق بعد المراجعة." %}</p>
+            <p class="text-slate-400 mb-6" id="successMsg">{% if is_order %}{% trans "هنأكد الدفع خلال دقائق ونبلّغ البائع يشحن." %}{% else %}{% trans "هيتم التفعيل خلال دقائق بعد المراجعة." %}{% endif %}</p>
             <a href="{{ back_url }}" id="successLink" class="inline-block bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition">
                 {% trans "تمام" %}
             </a>
@@ -239,7 +239,7 @@
         sending: '{% filter escapejs %}{% trans "جاري الإرسال..." %}{% endfilter %}',
         send: '{% filter escapejs %}{% trans "أرسل الإيصال للمراجعة" %}{% endfilter %}',
         unexpected: '{% filter escapejs %}{% trans "خطأ غير متوقع" %}{% endfilter %}',
-        soon: '{% filter escapejs %}{% trans "هيتم التفعيل خلال دقائق بعد المراجعة." %}{% endfilter %}',
+        soon: '{% filter escapejs %}{% if is_order %}{% trans "هنأكد الدفع خلال دقائق ونبلّغ البائع يشحن." %}{% else %}{% trans "هيتم التفعيل خلال دقائق بعد المراجعة." %}{% endif %}{% endfilter %}',
         failed: '{% filter escapejs %}{% trans "فشل الإرسال — حاول تاني." %}{% endfilter %}',
     };
     function copyNumber(num, btn) {

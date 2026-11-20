@@ -101,7 +101,7 @@ class OfflineLearnsFromOnlineTests(ERPTenantTestCase):
         # Vosk, sure of every word, and wrong: «سلطة الزيت» for «فلتر زيت».
         self.brain = loop.Brain(self.cfg, ears=_Ears("يا موس عندك سلطة الزيت"), server=self.client,
                                 mic=None, speaker=mock.Mock(), log=self.lines.append)
-        self.brain._ask = lambda **kwargs: self.client.voice(**kwargs)   # not on a thread: the test's DB
+        self.brain._ask = lambda fill=True, **kwargs: self.client.voice(**kwargs)   # not on a thread: the test's DB
         self.brain._check = lambda *args: None                            # the server's check after: likewise
         self.refresh()
 

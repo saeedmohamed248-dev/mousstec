@@ -38,6 +38,10 @@ class GlobalB2BMarketplace(models.Model):
     
     wholesale_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر الجملة للمراكز"))
     available_qty = models.IntegerField(default=0, verbose_name=_("الكمية المتاحة"))
+    # 🐛 [FIX]: أصناف الشركات المعتمدة ماكانتش بتظهر في سوق قطع الغيار العام خالص —
+    #    الصورة والموديلات بتتنسخ من الصنف عشان تتعرض للعميل في «من مخازن التجار».
+    car_model = models.CharField(max_length=150, blank=True, default='', verbose_name=_("الموديلات المتوافقة"))
+    image_url = models.CharField(max_length=500, blank=True, default='', verbose_name=_("صورة الصنف"))
     
     ai_quality_confidence = models.IntegerField(default=95, verbose_name=_("مؤشر جودة AI"), help_text="مؤشر ذكاء اصطناعي لجودة هذا الصنف من هذا التاجر")
     
@@ -240,6 +244,51 @@ class BidOffer(models.Model):
 
     def __str__(self):
         return f"Offer by {self.seller.name} for Bid #{self.bidding_request.id} - {self.offer_price} EGP"
+
+class B2BPurchaseRequest(models.Model):
+    """🛒 طلب شراء مباشر من تاجر في سوق B2B (مش مزاد).
+
+    🐛 [FIX — دورة ناقصة]: البحث في السوق كان بيوري السعر والرصيد ومفيش أي زرار يتعامل بيه
+    مع التاجر غير «طلب تسعير» أعمى. دلوقتي المشتري يطلب الكمية من التاجر ده بسعره المنشور،
+    والتاجر يوافق أو يعتذر — بعد الموافقة كل واحد بيشوف بيانات تواصل التاني ويكملوا البيع
+    والتسليم بينهم (فاتورة عادية عند البائع). الفلوس مابتعدّيش على المنصة هنا.
+    """
+    STATUS_CHOICES = (
+        ('pending', _('مستني رد التاجر')),
+        ('accepted', _('التاجر وافق')),
+        ('rejected', _('التاجر اعتذر')),
+        ('cancelled', _('اتلغى')),
+    )
+    buyer = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='b2b_requests_sent',
+                              verbose_name=_("الشركة الطالبة"))
+    seller = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='b2b_requests_received',
+                               verbose_name=_("التاجر"))
+    listing = models.ForeignKey(GlobalB2BMarketplace, on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='purchase_requests', verbose_name=_("الصنف المنشور"))
+    # نسخة من بيانات الصنف وقت الطلب — التاجر ممكن يغيّر سعره أو يشيل الصنف بعدين
+    part_number = models.CharField(max_length=100, verbose_name=_("رقم القطعة"))
+    product_name = models.CharField(max_length=255, blank=True, verbose_name=_("اسم الصنف"))
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("سعر الجملة"))
+    quantity = models.PositiveIntegerField(verbose_name=_("الكمية"))
+    note = models.CharField(max_length=500, blank=True, verbose_name=_("ملاحظة المشتري"))
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', db_index=True,
+                              verbose_name=_("الحالة"))
+    seller_reply = models.CharField(max_length=500, blank=True, verbose_name=_("رد التاجر"))
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("طلب شراء B2B")
+        verbose_name_plural = _("🛒 طلبات الشراء المباشر B2B")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"B2B-{self.pk} {self.part_number} × {self.quantity} ({self.buyer} ← {self.seller})"
+
+    @property
+    def total(self):
+        return (self.unit_price * self.quantity).quantize(Decimal('0.01'))
+
 
 # =====================================================================
 # 🏦 6. دفتر الأستاذ المالي (Immutable Escrow Ledger)
@@ -768,24 +817,35 @@ class PartOrder(SoftDeleteMixin, models.Model):
             return False
         if self.warranty_ends_at and timezone.now() < self.warranty_ends_at:
             return False
-        # Conditional update — a dispute or refund request opened while the
-        # sweep was running must win; never release a frozen order.
+        # 🐛 [FIX — فلوس البائع بتضيع]: الطلب كان بيتقلب «released» الأول وبعدين تحرير الـ Escrow
+        #    في خطوة منفصلة جوه try/except بيكتب لوج بس — لو التحرير وقع، الطلب يبان «اتحرّر»
+        #    والـ hold يفضل «held» ومفيش تحويل متسجّل للبائع: الفلوس تختفي من محفظته (مش في
+        #    الـ Escrow ولا مستنية تحويل) والـ sweep مابيرجعلهاش تاني لأنه بيدوّر على «delivered» بس.
+        #    دلوقتي الاتنين في transaction واحدة: يا الاتنين يحصلوا، يا الطلب يفضل «delivered»
+        #    والـ sweep الجاي يحاول تاني.
+        from clients.services import escrow as escrow_svc
         now = timezone.now()
-        if not type(self).objects.filter(pk=self.pk, status='delivered').update(
-            status='released', released_at=now,
-        ):
+        try:
+            with transaction.atomic():
+                # Conditional update — a dispute or refund request opened while the
+                # sweep was running must win; never release a frozen order.
+                if not type(self).objects.filter(pk=self.pk, status='delivered').update(
+                    status='released', released_at=now,
+                ):
+                    return False
+                hold_status = EscrowHold.objects.filter(order_id=self.pk).values_list(
+                    'status', flat=True).first()
+                if hold_status in (None, 'held'):
+                    escrow_svc.release_to_seller(self, by_user=by_user, reason='warranty period elapsed')
+                elif hold_status != 'released_to_seller':
+                    # الفلوس اتسوّت للمشتري (أو اتقسمت) — الطلب مايتقفلش «اتحرّر للبائع».
+                    raise ValidationError(f"escrow hold already settled as '{hold_status}'")
+        except Exception:
+            logger.exception("[ESCROW] release_to_seller failed for order %s — order kept 'delivered'",
+                             self.order_code)
             return False
         self.status = 'released'
         self.released_at = now
-        # Update escrow ledger — the financial record must reflect the release.
-        try:
-            from clients.services import escrow as escrow_svc
-            escrow_svc.release_to_seller(self, by_user=by_user, reason='warranty period elapsed')
-        except Exception:
-            import logging
-            logging.getLogger('mouss_tec_core').exception(
-                "[ESCROW] release_to_seller failed for order %s", self.order_code
-            )
         # The seller is notified by the payout service (queued inside
         # escrow_svc.release_to_seller) — with the real amount and where it
         # will be sent. The old "💰 تم تحويل أموالك" message here claimed the

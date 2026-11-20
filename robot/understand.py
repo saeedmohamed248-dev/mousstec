@@ -58,7 +58,8 @@ LESSONS_MOST = 400
 LESSONS_KEEP_S = 600
 HINTS_MOST = 40                    # part names sent with the sentence
 
-INTENTS = frozenset({"part", "car", "stock", "sale", "purchase", "expense", "answer", "yes", "no", "cancel",
+INTENTS = frozenset({"part", "car", "stock", "sale", "purchase", "expense", "collect", "vendor_pay", "advance",
+                     "quote", "return", "transfer", "payroll", "answer", "yes", "no", "cancel",
                      "thanks", "greeting", "chat", "workshop", "staff", "other", "unclear"})
 # What can be learned whatever came before it (never an answer to a step's question).
 _LEARNABLE = frozenset({"part", "car", "stock", "sale", "purchase", "cancel", "thanks", "greeting", "chat",
@@ -85,6 +86,8 @@ _PROMPT = """\
 - meant: الجملة اللي اتقالت فعلاً، مصححة، بالعامية المصرية.
 - intent واحد من: part (سؤال عن قطعة: موجودة؟ بكام؟ فين؟ تركب على إيه؟)، car (العربية أو الموتور بس)،
   stock (إضافة للمخزون)، sale (فاتورة مبيعات)، purchase (فاتورة مشتريات)، expense (مصروف)،
+  collect (تحصيل فلوس من عميل آجل)، vendor_pay (دفع فلوس لمورد)، advance (سلفة لموظف)،
+  quote (عرض سعر)، return (مرتجع بيع)، transfer (تحويل بين خزن)، payroll (حساب أو صرف المرتبات)،
   answer (إجابة على سؤال الروبوت المستني)، yes، no، cancel (إلغاء)، thanks، greeting،
   chat (دردشة أو مناقشة عامة في أي موضوع: كورة، الجو، الشغل، رأيه في عربية)،
   workshop (سؤال فني: صيانة، وايرنج، فيشة كمبيوتر، كود عطل، عطل، تركيب)، staff (سؤال إداري: مبيعات النهارده، النواقص)،
@@ -95,6 +98,15 @@ _PROMPT = """\
   • مخزون: «ضيف <العدد> <القطعة> للمخزون»؛ صنف جديد: «ضيف منتج جديد اسمه <الاسم> للمخزون»
     (من غير اسم: «ضيف منتج جديد للمخزون»؛ من غير عدد: سيب العدد).
   • «اعمل فاتورة مبيعات»، «اعمل فاتورة مشتريات»، «سجل مصروف <المبلغ> <على إيه>».
+  • تحصيل: «حصل <المبلغ> جنيه من <اسم العميل>»؛ دفع لمورد: «ادفع <المبلغ> جنيه للمورد <اسم المورد>»؛
+    سلفة: «سجل سلفة <المبلغ> جنيه للموظف <اسم الموظف>». المبلغ بالأرقام، والاسم زي ما اتقال بالظبط.
+  • عرض سعر: «اعمل عرض سعر»؛ مرتجع: «رجع فاتورة رقم <الرقم>» أو «رجع <العدد> <القطعة> من فاتورة رقم <الرقم>»؛
+    تحويل: «حول <المبلغ> جنيه من خزنة <الاسم> لخزنة <الاسم>»؛
+    مرتجع مشتريات: «رجع فاتورة مشتريات رقم <الرقم>»؛ حضور: «سجل حضوري» أو «سجل انصرافي»؛ ملخص: «قفل اليوم».
+    مرتبات: «احسب مرتبات شهر <رقم الشهر>» أو «اصرف مرتبات شهر <رقم الشهر>» (من غير شهر: «احسب مرتبات الشهر ده»).
+  • سؤال إداري (staff) بالشكل ده: «بعنا كام النهارده»، «مبيعات امبارح»، «مبيعات الشهر ده»،
+    «صرفنا كام النهارده»، «رصيد الخزنة كام»، «حساب العميل <الاسم>»، «حساب المورد <الاسم>»،
+    «مين حاضر النهارده»، «مين غايب النهارده»، «ايه النواقص».
   • سؤال فني: السؤال نفسه مصحح وكامل، وكود العطل مكتوب زي ما بيتكتب (بي زيرو تلاتة زيرو واحد → P0301)،
     واسم الكمبيوتر بحروف إنجليزي (DME، FRM، CAS)، وضيف العربية لو معروفة.
   • chat: الجملة نفسها مصححة، علشان الروبوت يكمّل المناقشة.
@@ -361,6 +373,29 @@ def dataset_rows():
     return (RobotUnderstanding.objects.filter(source="gemini").order_by("created_at")
             .values("heard", "teacher_text", "step", "question", "intent", "meant", "command", "needs_context",
                     "confidence", "created_at"))
+
+
+FINETUNE_SYSTEM = ("إنت «مخ الفهم» لروبوت «موس» في محل قطع غيار BMW و MINI في مصر. هتاخد JSON فيه اللي اتسمع "
+                   "(hearings) والخطوة اللي الروبوت مستنيها (waiting_for). رجّع JSON بس: "
+                   '{"meant", "intent", "command", "needs_context", "confidence"}.')
+FINETUNE_SURE = 0.8
+
+
+def finetune_rows():
+    """The same sentences as chat examples, the way OpenAI's fine-tuning reads them (JSONL of
+    {"messages": [system, user, assistant]}) — only what Gemini was sure of. For a model of the
+    shop's own, trained once there's enough (a few hundred lines)."""
+    for row in dataset_rows().iterator():
+        if (row["confidence"] or 0) < FINETUNE_SURE or not row["command"] or row["intent"] == "unclear":
+            continue
+        hearings = [h for h in dict.fromkeys([row["heard"], row["teacher_text"]]) if h]
+        waiting = {"step": row["step"], "question": row["question"]} if row["step"] else None
+        answer = {"meant": row["meant"], "intent": row["intent"], "command": row["command"],
+                  "needs_context": bool(row["needs_context"]), "confidence": round(row["confidence"] or 0, 2)}
+        yield {"messages": [
+            {"role": "system", "content": FINETUNE_SYSTEM},
+            {"role": "user", "content": json.dumps({"hearings": hearings, "waiting_for": waiting}, ensure_ascii=False)},
+            {"role": "assistant", "content": json.dumps(answer, ensure_ascii=False)}]}
 
 
 def summary() -> dict:

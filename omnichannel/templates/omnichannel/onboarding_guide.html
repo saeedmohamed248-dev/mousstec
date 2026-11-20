@@ -189,7 +189,7 @@
         <p class="text-sm font-bold mb-1">Callback URL (رابط الاستدعاء):</p>
         <div class="copybox rounded-xl p-3 mono text-sm flex items-center justify-between gap-3">
           <span id="wh-url" class="break-all">{{ webhook_url }}</span>
-          <button onclick="copyVal('wh-url')" class="bg-white/15 hover:bg-white/25 px-3 py-1 rounded-lg text-xs shrink-0">نسخ</button>
+          <button onclick="copyVal('wh-url', this)" class="bg-white/15 hover:bg-white/25 px-3 py-1 rounded-lg text-xs shrink-0">نسخ</button>
         </div>
       </div>
 
@@ -197,7 +197,7 @@
         <p class="text-sm font-bold mb-1">Verify Token (رمز التحقق):</p>
         <div class="copybox rounded-xl p-3 mono text-sm flex items-center justify-between gap-3">
           <span id="wh-token" class="break-all">{{ platform_verify_token }}</span>
-          <button onclick="copyVal('wh-token')" class="bg-white/15 hover:bg-white/25 px-3 py-1 rounded-lg text-xs shrink-0">نسخ</button>
+          <button onclick="copyVal('wh-token', this)" class="bg-white/15 hover:bg-white/25 px-3 py-1 rounded-lg text-xs shrink-0">نسخ</button>
         </div>
         <p class="text-xs text-slate-500 mt-1">يمكنك بدلاً من ذلك اختيار رمز تحقق خاص بك من شاشة الإعدادات ولصقه هنا.</p>
       </div>
@@ -278,12 +278,14 @@
 </main>
 
 <script>
-  function copyVal(id){
+  // 🐛 [FIX]: كان بيستخدم event.target جوه الـ promise — «event» مش موجود هناك فزرار «نسخ»
+  //    كان بيوقع خطأ JavaScript ومايبيّنش «تم النسخ». الزرار بيتبعت للدالة دلوقتي.
+  function copyVal(id, b){
     var el = document.getElementById(id);
     var txt = (el && el.textContent || '').trim();
-    if(!txt) return;
+    if(!txt || !b) return;
     navigator.clipboard.writeText(txt).then(function(){
-      var b = event.target; var old = b.textContent; b.textContent = 'تم النسخ ✓';
+      var old = b.textContent; b.textContent = 'تم النسخ ✓';
       setTimeout(function(){ b.textContent = old; }, 1500);
     });
   }

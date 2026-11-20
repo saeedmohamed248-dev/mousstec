@@ -36,7 +36,8 @@
 
     <div class="header">
         <h1>{% if entity_type == 'customer' %}{% trans "كشف حساب عميل" %}{% else %}{% trans "كشف حساب مورد" %}{% endif %}</h1>
-        <div class="subtitle">Mouss Tec Enterprise ERP — Statement of Account</div>
+        {# 🐛 [FIX]: الكشف اللي بيتسلّم للعميل كان مكتوب عليه اسم المنصة بس — مش اسم المحل #}
+        <div class="subtitle">{% firstof request.tenant.name "Mouss Tec" %} — {% trans "كشف حساب" %}</div>
     </div>
 
     <div class="info-grid">

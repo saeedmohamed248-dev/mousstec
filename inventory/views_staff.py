@@ -225,6 +225,19 @@ def _can_manage(actor, target):
     return True
 
 
+
+def _parse_commission_rate(raw, errors, fallback):
+    """نسبة عمولة المبيعات (0–100، كسور مسموحة). غلط ⇒ رسالة + القيمة القديمة."""
+    try:
+        rate = Decimal((raw or '0').strip() or '0')
+        if not rate.is_finite() or rate < 0 or rate > 100:
+            raise InvalidOperation
+        return rate.quantize(Decimal('0.01'))
+    except (InvalidOperation, ValueError):
+        errors.append('نسبة العمولة لازم تكون رقم بين 0 و 100.')
+        return fallback
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
@@ -260,6 +273,8 @@ def add_employee(request):
         except (InvalidOperation, ValueError):
             errors.append('نسبة الخصم لازم تكون رقم بين 0 و 100.')
             max_discount = Decimal('0')
+        commission_rate = _parse_commission_rate(
+            request.POST.get('commission_rate_pct'), errors, Decimal('0'))
 
         if errors:
             ctx.update({'errors': errors, 'form': request.POST})
@@ -279,6 +294,7 @@ def add_employee(request):
         prof.role = role
         prof.can_see_costs = can_see_costs
         prof.max_discount_pct = max_discount
+        prof.commission_rate_pct = commission_rate
         if branch_id.isdigit():
             prof.branch_id = int(branch_id)
         prof.save()
@@ -386,6 +402,17 @@ def edit_employee(request, user_id):
         except (InvalidOperation, ValueError):
             errors.append('نسبة الخصم لازم تكون رقم بين 0 و 100.')
             max_discount = prof.max_discount_pct
+        # 💰 نسبة عمولة المبيعات — كانت بتتعدّل من لوحة المالك بس. الموظف مايغيّرش
+        #    نسبة نفسه (إلا الأدمن/المالك) عشان مايزوّدش عمولته بإيده.
+        commission_rate = prof.commission_rate_pct
+        if 'commission_rate_pct' in request.POST:
+            new_rate = _parse_commission_rate(
+                request.POST.get('commission_rate_pct'), errors, prof.commission_rate_pct)
+            if new_rate != prof.commission_rate_pct:
+                if user.id == request.user.id and not _is_admin_actor(request.user):
+                    errors.append('مش ممكن تغيّر نسبة عمولتك بنفسك — اطلبها من الأدمن.')
+                else:
+                    commission_rate = new_rate
 
         # 🛡️ لا تسمح للمدير إنه يوقف/ينزّل دور نفسه (يقفل على نفسه بالغلط)
         if user.id == request.user.id and not is_active:
@@ -406,6 +433,7 @@ def edit_employee(request, user_id):
         prof.role = role
         prof.can_see_costs = can_see_costs
         prof.max_discount_pct = max_discount
+        prof.commission_rate_pct = commission_rate
         prof.branch_id = int(branch_id) if branch_id.isdigit() else None
 
         # 🧩 الوحدات الظاهرة: نقرأ الشيك-بوكس المفعّلة ونقيّدها ضمن حدود الدور.

@@ -76,7 +76,8 @@
         {% trans "بدون سبب" as no_reason_txt %}
         {% for t in tenants %}
             <tr>
-                <td><strong>{{ t.name }}</strong><br><small style="color:#6B6F76;">{{ t.schema_name }}</small></td>
+                {# 🐛 [FIX]: مفيش طريقة توصل لصفحة 360° (رحلة الشركة + تسجيلات الشاشة) من هنا #}
+                <td><a href="{% url 'saas_tenant_360' t.id %}" style="color:inherit;"><strong>{{ t.name }}</strong></a><br><small style="color:#6B6F76;">{{ t.schema_name }}</small></td>
                 <td>{{ t.owner_name }}<br><small style="color:#6B6F76;">{{ t.phone }}</small></td>
                 <td>{{ t.get_industry_display }}</td>
                 <td>{{ t.get_plan_display }}</td>
@@ -96,6 +97,7 @@
                         </form>
                         <button class="btn btn-danger" onclick="openForce({{ t.id|unlocalize }}, '{{ t.name|escapejs }}')">💀 Force Delete</button>
                     {% else %}
+                        <a class="btn btn-ok" href="{% url 'saas_tenant_360' t.id %}" style="text-decoration:none;">🎥 360° · {% trans "رحلة وتسجيلات" %}</a>
                         <button class="btn btn-warn" onclick="openSoft({{ t.id|unlocalize }}, '{{ t.name|escapejs }}')">🗑️ {% trans "حذف آمن" %}</button>
                     {% endif %}
                 </td>

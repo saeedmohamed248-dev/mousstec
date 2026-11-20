@@ -12,6 +12,7 @@ Provides the shared infrastructure for all agents (bots) in the pipeline:
 All primitives are stateless classes backed by Redis so they work correctly
 in multi-process / multi-worker Celery deployments.
 """
+import hashlib
 import json
 import time
 import functools
@@ -152,22 +153,47 @@ class DeadLetterQueue:
     """
 
     MAX_SIZE = 1000
+    STATE_TTL = 7 * 24 * 3600   # عمر عدّاد المحاولات/علامة «في الطابور» لكل مهمة
 
     def __init__(self, queue_name: str = "mas_dlq"):
         self._key = f"dlq:{queue_name}"
 
+    @staticmethod
+    def fingerprint(agent_name: str, payload: dict) -> str:
+        raw = json.dumps({"a": agent_name, "p": payload}, sort_keys=True, default=str)
+        return hashlib.sha1(raw.encode()).hexdigest()
+
+    def _pending_key(self, fp: str) -> str:
+        return f"{self._key}:pending:{fp}"
+
+    def _attempts_key(self, fp: str) -> str:
+        return f"{self._key}:attempts:{fp}"
+
     # ------------------------------------------------------------------
     def push(self, agent_name: str, payload: dict, error: str, schema: str = "public"):
-        entry = json.dumps({
-            "agent":       agent_name,
-            "schema":      schema,
-            "payload":     payload,
-            "error":       str(error)[:800],
-            "timestamp":   datetime.utcnow().isoformat(),
-            "retry_count": 0,
-        })
+        # 🐛 [FIX]: كل فشل كان بيعمل entry جديد بـ retry_count=0 — مهمة بـ max_retries=2
+        #    بتحط ٣ نسخ في الطابور، والـ worker بيعيد الـ ٣ وكل واحدة تفشل تحط ٣ تانيين،
+        #    وحد «٣ محاولات» عمره ما بيوصل. دلوقتي: نسخة واحدة لكل (وكيل + payload) في
+        #    الطابور، وعدد المحاولات محفوظ بره الـ entry فبيعدّي من إعادة للتانية.
+        fp = self.fingerprint(agent_name, payload)
         try:
             raw_client = cache.client.get_client()
+            if not raw_client.set(self._pending_key(fp), 1, nx=True, ex=self.STATE_TTL):
+                logger.warning(
+                    f"📬 [DLQ] '{agent_name}' (schema: {schema}) failed again — already queued. "
+                    f"Error: {str(error)[:120]}"
+                )
+                return
+            retry_count = int(raw_client.get(self._attempts_key(fp)) or 0)
+            entry = json.dumps({
+                "agent":       agent_name,
+                "schema":      schema,
+                "payload":     payload,
+                "error":       str(error)[:800],
+                "timestamp":   datetime.utcnow().isoformat(),
+                "retry_count": retry_count,
+                "fp":          fp,
+            })
             raw_client.lpush(self._key, entry)
             raw_client.ltrim(self._key, 0, self.MAX_SIZE - 1)
             logger.error(
@@ -198,10 +224,23 @@ class DeadLetterQueue:
         try:
             raw_client = cache.client.get_client()
             raw = raw_client.rpop(self._key)
-            return json.loads(raw) if raw else None
+            if not raw:
+                return None
+            entry = json.loads(raw)
+            fp = entry.get("fp") or self.fingerprint(entry.get("agent", ""), entry.get("payload", {}))
+            raw_client.delete(self._pending_key(fp))   # خرجت من الطابور ⇒ فشلها الجاي يدخل تاني
+            return entry
         except Exception as exc:
             logger.error(f"🔴 [DLQ ERROR] Could not pop from DLQ: {exc}")
             return None
+
+    def mark_redispatched(self, agent_name: str, payload: dict, attempt: int):
+        """الـ worker بيعيد المهمة للمرة رقم ``attempt`` — الفشل الجاي يتسجّل بالرقم ده."""
+        try:
+            cache.client.get_client().set(
+                self._attempts_key(self.fingerprint(agent_name, payload)), int(attempt), ex=self.STATE_TTL)
+        except Exception as exc:
+            logger.error(f"🔴 [DLQ ERROR] Could not persist retry count: {exc}")
 
 
 # Singleton DLQ used by all agents

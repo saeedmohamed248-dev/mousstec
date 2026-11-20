@@ -218,6 +218,20 @@ def _notify_merchants_of_new_request(svc_request, exclude_tenant=None):
             },
         )
         logger.info(f"[MARKETPLACE NOTIFY] Notified {count} merchants of request {svc_request.request_code}")
+        # 🐛 [FIX]: الدالة كانت بتسجّل حدث بس — الشركات ماكانش بيوصلها أي حاجة، وكانت بتعرف بالطلب
+        #    بس لو فتحت لوحتها بالصدفة. دلوقتي إيميل + واتساب لكل شركة في القطاع (في الخلفية).
+        ids = list(eligible_merchants.values_list('pk', flat=True))
+        if ids:
+            from django.db import transaction
+            from clients.tasks import notify_merchants_new_request
+            code = str(svc_request.request_code)
+
+            def _dispatch():
+                try:
+                    notify_merchants_new_request.delay(code, ids)
+                except Exception:  # noqa: BLE001 — من غير Celery/Redis نبعت على طول
+                    notify_merchants_new_request(code, ids)
+            transaction.on_commit(_dispatch)
     except Exception as e:
         logger.error(f"[MARKETPLACE NOTIFY] Failed: {e}")
 

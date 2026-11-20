@@ -1,0 +1,228 @@
+# كل كود محتاج كام صورة عشان كل متجر ياخد صورة لوحده (مفيش صورة متكررة في شركة تانية)
+# الأسماء: p109.webp ثم p109-2.webp ، p109-3.webp … لحد عدد المتاجر
+# الإجمالي: 1048 صورة · موجود: 83 · ناقص: 965
+# الكود	المتاجر	موجود	ناقص	المنتج
+a001	7	0	7	Iridium spark plugs
+a002	6	0	6	Standard (nickel) spark plugs
+a003	8	0	8	Ignition coil
+a004	6	0	6	Alternator
+a005	11	0	11	Starter motor
+a006	5	0	5	Sensors (O2 / crank / cam)
+a007	6	0	6	Front brake pads
+a008	8	0	8	Rear brake pads
+a009	6	0	6	Brake discs (rotors)
+a010	7	0	7	DOT4 brake fluid
+a011	6	0	6	Front shock absorbers
+a012	7	0	7	Rear shock absorbers
+a013	2	0	2	Control arms & bushes
+a014	4	0	4	Wheel bearings
+a015	8	0	8	Stabiliser links & anti-roll bar
+a016	8	0	8	Oil filter
+a017	7	0	7	Air filter
+a018	3	0	3	Cabin (A/C) filter
+a019	11	0	11	Fuel filter
+a020	8	0	8	Full synthetic engine oil
+a021	10	0	10	Automatic transmission fluid
+a022	7	0	7	Car tyres
+a023	6	0	6	Sport rims
+a024	8	0	8	Spare wheel & tool kit
+a025	6	0	6	Battery
+a026	9	0	9	AGM battery for start-stop cars
+a027	4	0	4	Radiator
+a028	8	0	8	Water pump
+a029	6	0	6	A/C compressor
+a030	6	0	6	Radiator fan & thermostat
+a031	9	0	9	Radiator coolant
+a032	7	0	7	Timing belt kit
+a033	6	0	6	Accessory belt (alternator/A/C)
+a034	4	0	4	Timing chain kit
+a035	4	0	4	Head gasket & gasket set
+a036	4	0	4	Engine & gearbox mounts
+a037	5	0	5	Fuel pump
+a038	7	0	7	Injectors
+a039	11	0	11	Headlight
+a040	11	0	11	Tail light
+a041	8	0	8	LED & xenon bulbs
+a042	10	0	10	Fog lights
+a043	7	0	7	Front & rear bumpers
+a044	7	0	7	Side mirrors
+a045	9	0	9	Wiper blades
+a046	9	0	9	Floor mats & seat covers
+a047	4	0	4	Android screen & rear camera
+p001	6	1	5	Business cards, 350gsm coated
+p002	6	1	5	Business cards with spot UV
+p003	6	0	6	Embossed business cards
+p004	6	1	5	Foil business cards (gold/silver)
+p005	6	0	6	Clear plastic business cards
+p006	4	0	4	Loyalty & discount cards
+p007	9	0	9	A5 flyers, double-sided
+p008	9	0	9	Tri-fold brochure
+p009	7	0	7	Laminated restaurant menu
+p010	7	0	7	Delivery menu (light paper)
+p011	8	0	8	Stapled product catalog
+p012	10	0	10	A3 and A2 posters
+p013	6	0	6	Spiral notebook with your logo cover
+p014	4	0	4	Leather planner with company name
+p015	7	0	7	Small A6 gift notebooks
+p016	6	0	6	Wall & desk calendars with your design
+p017	6	0	6	Carbon invoice & receipt books
+p018	5	0	5	Kids colouring & activity books
+p019	1	0	1	Printed white ceramic mug
+p020	3	1	2	Magic colour-changing mug
+p021	3	0	3	Mug with coloured handle and inside
+p022	3	0	3	Laser-engraved stainless tumbler
+p023	3	0	3	Frosted glass mug
+p024	3	0	3	Gift mug set in a box
+p025	3	0	3	Plastic promo pens with logo
+p026	3	0	3	Laser-engraved metal pens
+p027	3	0	3	Pen & keychain gift set
+p028	3	0	3	Whiteboard markers & highlighters with your name
+p029	3	0	3	Stylus touch pen
+p030	11	1	10	Leather & acrylic keychains
+p031	10	0	10	Branded power bank
+p032	10	0	10	USB flash drives with your name
+p033	10	0	10	Award shields & certificates
+p034	11	0	11	Corporate gift box
+p035	10	0	10	Printed mouse pad
+p036	11	0	11	Embroidered caps
+p037	9	0	9	Printed cotton tote bags
+p038	10	0	10	Laser engraving on wood & leather
+p039	6	0	6	DTF printed cotton T-shirts
+p040	5	1	4	Restaurant & cafe uniforms
+p041	6	0	6	Corporate polo uniforms
+p042	5	0	5	Medical scrubs & uniforms
+p043	5	0	5	Sweatshirts & hoodies with your design
+p044	6	0	6	School & nursery uniforms
+p045	4	1	3	Event & marathon T-shirts
+p046	6	0	6	Printed reflective safety vests
+p047	5	0	5	Roll-up banner stand
+p048	3	0	3	Flex banner for shops
+p049	5	0	5	Illuminated shop sign
+p050	4	0	4	Vinyl stickers for cars & storefronts
+p051	4	0	4	Directional signs for offices & clinics
+p052	4	0	4	Backdrop for conferences & photos
+p053	10	0	10	Die-cut logo stickers
+p054	11	0	11	Product labels (on a roll)
+p055	12	0	12	Kids & educational stickers
+p056	10	0	10	Security seal stickers (hologram)
+p057	6	0	6	Printed cardboard product boxes
+p058	4	0	4	Kraft paper bags with logo
+p059	6	0	6	Printed pizza & food boxes
+p060	5	1	4	Rigid magnetic gift boxes
+p061	4	0	4	Printed plastic bags
+p062	3	0	3	Professional logo design
+p063	4	0	4	Full brand identity
+p064	2	0	2	Packaging & product box design
+p065	4	0	4	Restaurant or cafe menu design
+p066	3	0	3	Redraw an old logo as vector
+p067	3	0	3	Monthly social media design package
+p068	2	0	2	Facebook cover & profile picture
+p069	3	0	3	Story & reels templates
+p070	2	0	2	Sponsored ad design
+p071	3	1	2	Wedding invitations
+p072	3	0	3	Engagement, katb ketab & aqiqah invitations
+p073	2	0	2	Event giveaways & tags
+p074	3	0	3	Conference badges & lanyard cards
+p075	5	0	5	Letterhead & envelopes
+p076	6	0	6	Clinic prescriptions & appointment cards
+p077	6	0	6	Pocket folders
+p078	4	0	4	Warranty cards & product certificates
+p079	5	0	5	Self-inking company stamps
+p080	5	1	4	Kraft paper business cards
+p081	3	1	2	Thick 600gsm cards with painted edges
+p082	5	0	5	Laser die-cut shaped cards
+p083	4	0	4	Smart NFC tap cards
+p084	3	0	3	Thank-you cards for online orders
+p085	2	0	2	Gift cards & vouchers
+p087	5	1	4	Salon appointment cards
+p088	3	1	2	Budget handout flyers
+p089	4	1	3	Bi-fold brochure
+p090	2	1	1	Company profile booklet
+p091	4	1	3	Door hangers
+p092	3	0	3	Large promo posters
+p093	4	0	4	Shelf price & offer tags
+p094	4	1	3	Numbered discount coupons
+p095	3	1	2	Dated annual planner with your brand
+p096	2	1	1	Notepads & sticky notes
+p097	3	1	2	Numbered job & delivery books
+p098	3	1	2	Desk calendar on a wooden base
+p099	3	1	2	Engraved leather-cover notebook
+p100	1	1	0	Tall printed latte mug
+p101	1	1	0	Mug with bamboo lid & spoon
+p102	1	1	0	Printed sports water bottle
+p103	2	1	1	Travel mug with lid
+p104	1	1	0	Family name mugs
+p105	3	1	2	Eco bamboo pens
+p106	1	3	0	Luxury pens in a gift box
+p108	1	2	0	Stylus pen with mini torch
+p109	6	3	3	Printed fridge magnets
+p110	3	2	1	Branded wall clocks
+p111	5	2	3	Printed umbrellas
+p112	7	2	5	Branded phone & laptop stands
+p113	7	2	5	Printed photo cushions
+p114	3	1	2	Custom photo puzzle
+p115	7	1	6	Printed acrylic photo keychains
+p116	9	1	8	Button pin badges
+p117	4	1	3	Branded laptop backpacks
+p118	7	1	6	Sports trophies & medals
+p119	2	0	2	Embroidered polo shirts
+p120	4	0	4	Printed aprons & chef jackets
+p121	3	0	3	Matching family & trip T-shirts
+p122	4	1	3	Embroidered winter jackets & blazers
+p123	1	1	0	Dri-fit sports T-shirts
+p124	5	1	4	Winter beanies
+p125	2	1	1	X-banner stand
+p126	2	1	1	Feather beach flag
+p127	2	1	1	Acrylic & metal 3D letters
+p128	1	1	0	Custom LED neon sign
+p129	2	1	1	Floor & stair graphics
+p130	2	1	1	Cardboard display stand
+p131	3	1	2	Acrylic door plates
+p132	7	1	6	Clear jar & container labels
+p133	4	1	3	Laptop & phone stickers
+p134	3	1	2	Sticker sheets
+p135	6	1	5	Packaging seal stickers
+p136	6	1	5	Barcode & price labels
+p137	4	1	3	Frosted glass window film
+p138	2	1	1	Printed mailer boxes
+p139	4	1	3	Sweets & chocolate boxes
+p140	5	1	4	Perfume & cosmetics boxes
+p141	1	1	0	Printed wrapping & tissue paper
+p142	5	1	4	Non-woven bags
+p143	2	1	1	Printed packing tape
+p144	2	1	1	Stand-up zipper pouches
+p147	3	1	2	Company profile design
+p148	3	0	3	Product label design
+p149	1	1	0	Shop sign & facade design
+p150	1	1	0	Ramadan & holiday posts
+p151	1	1	0	Motion graphics & short reels
+p152	1	1	0	Instagram highlight covers
+p153	3	1	2	Baby shower & newborn invitations
+p154	1	1	0	Kids birthday invitations
+p155	1	1	0	Thank-you & greeting cards
+p156	3	1	2	Wedding & engagement backdrops
+p157	1	1	0	Graduation & honour certificates
+p158	2	1	1	Wax & branding iron stamps
+p159	5	1	4	PVC employee ID cards
+p160	4	1	3	Printed envelopes in all sizes
+p161	2	1	1	Receipt & payment voucher books
+p162	3	0	3	Patient files & medical report forms
+p163	2	0	2	Stretched canvas prints
+p164	2	0	2	Framed photo prints
+p165	1	0	1	Acrylic photo prints
+p166	2	0	2	Multi-panel wall art (3 pieces)
+p167	2	0	2	Photo prints in all sizes
+p168	1	0	1	Printed photo book
+p169	2	0	2	Polaroid-style prints with string lights
+p170	3	0	3	Photo prints on wood
+p171	1	0	1	School exercise books with school logo
+p172	1	0	1	Report cards & school certificates
+p173	1	0	1	Student ID cards with photo
+p174	1	0	1	Name labels for school bags & lunch boxes
+p176	1	0	1	Classroom educational charts
+p177	2	0	2	Graduation projects & theses
+p178	1	0	1	School event backdrops
+p182	1	0	1	Printed paper napkins
+p183	1	0	1	Cup sleeves & carriers
+p185	2	0	2	Printed burger & sandwich wrap
+p188	2	0	2	Printed paper food containers

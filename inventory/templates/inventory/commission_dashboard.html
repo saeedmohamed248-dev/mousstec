@@ -1,8 +1,9 @@
 {% extends "inventory/_base_portal.html" %}
 {% load i18n %}
 {% block title %}{% trans "صرف العمولات" %} | Mouss Tec{% endblock %}
+{% block portal_messages %}{% endblock %}{# الصفحة بتعرض رسائلها بنفسها تحت #}
 {% block content %}
-<main class="container mx-auto px-4 py-6 flex-1 space-y-6">
+<div class="container mx-auto px-4 py-6 flex-1 space-y-6">
 
     {# ── Header ────────────────────────────────────────────────────── #}
     <div class="flex items-center justify-between gap-4 flex-wrap">
@@ -155,7 +156,7 @@
         <p class="text-sm text-slate-500 mt-2">{% trans "كل الموظفين رصيد عمولتهم = 0. لما تتراكم عمولات على فاتورة بيع، هتبان هنا." %}</p>
     </div>
     {% endif %}
-</main>
+</div>
 
 <script>
     const totalsByRow = {

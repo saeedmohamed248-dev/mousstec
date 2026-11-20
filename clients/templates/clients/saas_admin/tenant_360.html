@@ -262,6 +262,107 @@
                 {% endif %}
             </div>
 
+            <!-- 🎥 تسجيلات الشاشة -->
+            <div class="card" id="screen-rec">
+                <h3>
+                    <i class="fas fa-video"></i> {% trans "تسجيلات الشاشة" %}
+                    <span class="more">
+                        {% if tenant.screen_recording_enabled %}<span class="pill pill-resolved">{% trans "شغّال" %}</span>{% else %}<span class="pill pill-open">{% trans "مقفول" %}</span>{% endif %}
+                        {% if is_owner %}
+                        <form method="post" action="{% url 'screen_rec_toggle' tenant.pk %}" style="display:inline;">{% csrf_token %}
+                            <button type="submit" style="border:1px solid #D9D2C5; background:#fff; border-radius:8px; padding:2px 10px; cursor:pointer;">{% if tenant.screen_recording_enabled %}{% trans "إيقاف التسجيل" %}{% else %}{% trans "تشغيل التسجيل" %}{% endif %}</button>
+                        </form>
+                        {% endif %}
+                    </span>
+                </h3>
+                <p style="color:#6B6F76; font-size:12.5px; margin:0 0 8px;">{% blocktrans with days=screen_retention_days %}الموظفين بيشوفوا تنبيه إن الجلسة بتتسجّل، وكلمات السر مابتتسجّلش. التسجيلات بتتمسح بعد {{ days }} أيام.{% endblocktrans %}</p>
+                {% if screen_sessions %}
+                <table>
+                    <thead><tr><th>{% trans "الموظف" %}</th><th>{% trans "بدأت" %}</th><th>{% trans "آخر صفحة" %}</th><th></th></tr></thead>
+                    <tbody>
+                    {% for ss in screen_sessions %}
+                        <tr>
+                            <td>{{ ss.user_display|default:ss.username }}</td>
+                            <td class="ts"><span dir="ltr">{{ ss.started_at|date:"m-d H:i" }}</span>
+                                <div style="color:#6B6F76; font-size:12px;">{% if ss.duration_seconds >= 60 %}{% widthratio ss.duration_seconds 60 1 %} {% trans "دقيقة" %}{% else %}{{ ss.duration_seconds }} {% trans "ثانية" %}{% endif %}</div></td>
+                            <td><span dir="ltr" style="color:#6B6F76;">{{ ss.last_path|truncatechars:50 }}</span></td>
+                            <td>{% if is_owner %}<a href="{% url 'screen_session_player' ss.pk %}" target="_blank" rel="noopener" style="font-weight:800; color:{% if ss.is_live %}#b91c1c{% else %}#1E2A57{% endif %};">{% if ss.is_live %}🔴 {% trans "شاهد لايف" %}{% else %}▶ {% trans "شاهد" %}{% endif %}</a>{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    <div class="empty">{% trans "مفيش تسجيلات لسه." %}</div>
+                {% endif %}
+            </div>
+
+            <!-- 🧭 رحلة الشركة -->
+            <div class="card" id="journey">
+                <h3>
+                    <i class="fas fa-route"></i> {% trans "رحلة الشركة على السيستم" %}
+                    {% if journey.online %}<span class="pill pill-resolved">🟢 {% trans "أونلاين دلوقتي" %}</span>{% endif %}
+                    <span class="more">
+                        <a href="?journey_days=1#journey" style="color:#1E2A57;{% if journey.days == 1 %}font-weight:900;{% endif %}">{% trans "النهاردة" %}</a> ·
+                        <a href="?journey_days=7#journey" style="color:#1E2A57;{% if journey.days == 7 %}font-weight:900;{% endif %}">{% trans "٧ أيام" %}</a> ·
+                        <a href="?journey_days=30#journey" style="color:#1E2A57;{% if journey.days == 30 %}font-weight:900;{% endif %}">{% trans "٣٠ يوم" %}</a>
+                    </span>
+                </h3>
+                {% if journey.last_page %}
+                <div style="background:#EEF4FF; border:1px solid #C9D8F5; border-radius:10px; padding:10px 12px; margin-bottom:12px; font-size:13px;">
+                    🛑 <strong>{% trans "آخر صفحة وقفت عندها:" %}</strong>
+                    {{ journey.last_page.label|default:journey.last_page.path }}
+                    <span style="color:#6B6F76;" dir="ltr">{{ journey.last_page.path|truncatechars:70 }}</span>
+                    — <span dir="ltr">{{ journey.last_page.time|date:"Y-m-d H:i" }}</span>
+                </div>
+                {% endif %}
+
+                {% if journey.actions %}
+                <h4 style="font-size:14px; font-weight:800; margin:6px 0;">✍️ {% trans "مين عمل إيه (سجل العمليات)" %}</h4>
+                <table>
+                    <thead><tr><th>{% trans "الوقت" %}</th><th>{% trans "الموظف" %}</th><th>{% trans "العملية" %}</th></tr></thead>
+                    <tbody>
+                    {% for a in journey.actions %}
+                        <tr>
+                            <td class="ts"><span dir="ltr">{{ a.time|date:"m-d H:i" }}</span></td>
+                            <td>{{ a.user|default:"—" }}</td>
+                            <td style="{% if a.is_delete %}color:#b91c1c;{% endif %}">{{ a.verb }} {{ a.model }}: <strong>{{ a.object|truncatechars:60 }}</strong>
+                                {% if a.details %}<div style="color:#6B6F76; font-size:12px;">{{ a.details|truncatechars:120 }}</div>{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+
+                {% if journey.sessions %}
+                <h4 style="font-size:14px; font-weight:800; margin:14px 0 6px;">🗺️ {% trans "الزيارات والصفحات بالترتيب" %} <span style="color:#6B6F76; font-weight:400;">({{ journey.sessions|length }} · {{ journey.total_pages }})</span></h4>
+                <div style="max-height:520px; overflow-y:auto;">
+                {% for s in journey.sessions %}
+                    <details {% if forloop.first %}open{% endif %} style="border:1px solid #E6E1D8; border-radius:10px; padding:8px 10px; margin-bottom:8px;">
+                        <summary style="cursor:pointer; font-size:13px;">
+                            <strong>{% trans "زيارة" %} <span dir="ltr">{{ s.start|date:"Y-m-d H:i" }}</span></strong>
+                            <span style="color:#6B6F76;">· {{ s.page_count }} {% trans "صفحة" %} · {{ s.action_count }} {% trans "عملية" %} ·
+                                {% if s.duration_seconds >= 60 %}{% widthratio s.duration_seconds 60 1 %} {% trans "دقيقة" %}{% else %}{{ s.duration_seconds }} {% trans "ثانية" %}{% endif %}
+                                · {% if s.device == 'mobile' %}📱{% else %}💻{% endif %}{% if s.ip %} <span dir="ltr">{{ s.ip }}</span>{% endif %}</span>
+                        </summary>
+                        <ol style="margin:6px 0 0; padding-inline-start:18px; font-size:12.5px;">
+                        {% for p in s.pages %}
+                            <li style="{% if p.is_error %}color:#b91c1c;{% elif p.is_action %}color:#b45309; font-weight:700;{% endif %}">
+                                <span dir="ltr" style="color:#6B6F76;">{{ p.time|date:"H:i:s" }}</span>
+                                {% if p.is_action %}⚡{% endif %}{{ p.label|default:"" }}
+                                <span dir="ltr" style="color:#9AA0A6;">{{ p.method }} {{ p.path|truncatechars:70 }}</span>
+                                {% if p.is_error %}❌ {{ p.status }}{% endif %}
+                                {% if p.seconds %}<span style="color:#6B6F76;">· {% if p.seconds >= 60 %}{% widthratio p.seconds 60 1 %}{% trans "د" %}{% else %}{{ p.seconds }}{% trans "ث" %}{% endif %}</span>{% endif %}
+                            </li>
+                        {% endfor %}
+                        </ol>
+                    </details>
+                {% endfor %}
+                </div>
+                {% else %}
+                    <div class="empty">{% trans "مفيش زيارات متسجّلة للشركة في الفترة دي." %}</div>
+                {% endif %}
+            </div>
+
             <!-- Errors -->
             <div class="card">
                 <h3>

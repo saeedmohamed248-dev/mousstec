@@ -74,9 +74,10 @@ def can_manage_company(user) -> bool:
 def manager_forbidden(request):
     """صفحة 403 للموظف العادي اللي فتح شاشة إدارة (من غير ما يطلّعه برّه السيستم)."""
     from django.shortcuts import render
-    role = getattr(getattr(request.user, 'employee_profile', None), 'role', None) or '—'
+    from inventory.views.utils import role_labels
+    role = getattr(getattr(request.user, 'employee_profile', None), 'role', None)
     return render(request, 'inventory/forbidden.html', {
-        'allowed_roles': ('owner', 'admin', 'manager', 'supervisor'),
-        'current_role': role,
+        'allowed_roles': role_labels(('owner', 'admin', 'manager', 'supervisor')),
+        'current_role': (role_labels([role]) or ['—'])[0],
         'message': '🔒 الشاشة دي للمالك والمديرين بس.',
     }, status=403)

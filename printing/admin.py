@@ -845,8 +845,15 @@ def _proof_links(proof):
     if number.startswith('0'):
         number = '2' + number
     from urllib.parse import quote as _urlquote
-    msg = _urlquote(f"بروفة «{proof.job.description[:60]}» — راجعها ووافق أو اطلب تعديل: "
-                    f"/printing/proof/{proof.share_token}/")
+    from django.conf import settings as _s
+    # 🐛 [FIX]: رسالة الواتساب كان فيها رابط من غير دومين («/printing/proof/…») — العميل بيستلم
+    #    رابط مايتفتحش. دلوقتي الرابط كامل على دومين المطبعة (زي رابط عرض السعر).
+    path = f"/printing/proof/{proof.share_token}/"
+    try:
+        link = f"{'http' if _s.DEBUG else 'https'}://{connection.tenant.get_primary_domain().domain}{path}"
+    except Exception:
+        link = path
+    msg = _urlquote(f"بروفة «{proof.job.description[:60]}» — راجعها ووافق أو اطلب تعديل: {link}")
     return format_html(
         '<a href="/printing/proof/{}/" target="_blank" style="font-weight:700;">🔗 {}</a> · '
         '<a href="https://wa.me/{}?text={}" target="_blank" style="color:#16a34a;font-weight:700;">{}</a>',

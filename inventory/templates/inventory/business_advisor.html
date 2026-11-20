@@ -49,11 +49,13 @@
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
   <div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 p-4">
     <h3 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-chart-column text-sky-400"></i> {% trans "المبيعات والأرباح — آخر 12 شهر" %}</h3>
-    <div class="relative h-60"><canvas id="trendChart"></canvas></div>
+    {% if trend %}<div class="relative h-60"><canvas id="trendChart"></canvas></div>
+    {% else %}<div class="h-60 flex flex-col items-center justify-center text-center text-sm text-slate-400 gap-2" id="trend-empty"><i class="fas fa-receipt text-2xl"></i>{% trans "لسه مفيش مبيعات — أول فاتورة بيع هتظهر هنا." %}</div>{% endif %}
   </div>
   <div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 p-4">
     <h3 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-ranking-star text-emerald-400"></i> {% trans "أعلى المنتجات بالإيراد" %}</h3>
-    <div class="relative h-60"><canvas id="topChart"></canvas></div>
+    {% if snap.top_products %}<div class="relative h-60"><canvas id="topChart"></canvas></div>
+    {% else %}<div class="h-60 flex flex-col items-center justify-center text-center text-sm text-slate-400 gap-2" id="top-empty"><i class="fas fa-box-open text-2xl"></i>{% trans "مفيش مبيعات في الفترة دي — غيّر المدة من فوق أو اعمل أول فاتورة." %}</div>{% endif %}
   </div>
 </div>
 
@@ -97,7 +99,8 @@
       {% else %}
       <div class="text-sm text-slate-400 bg-slate-900/50 rounded-xl p-4">
         <i class="fas fa-circle-info text-sky-400"></i>
-        {% trans "المحرّك النصّي للمستشار غير مُفعّل. المؤشرات والتوصيات فوق شغّالة بالكامل. لتفعيل التحليل السردي والشات مجاناً: فعّل ENABLE_AI_PREDICTIONS وأضف مفتاح Google AI Studio المجاني (AI_VISION_API_KEY) في إعدادات البيئة." %}
+        {# 🐛 [FIX]: كانت بتعرض للعميل أسماء متغيرات السيرفر — التفعيل من ناحية المنصة: ENABLE_AI_PREDICTIONS + مفتاح الـ AI #}
+        {% trans "التحليل المكتوب مش متاح دلوقتي. المؤشرات والتوصيات اللي فوق شغّالة بالكامل من بياناتك." %}
       </div>
       {% endif %}
     </div>

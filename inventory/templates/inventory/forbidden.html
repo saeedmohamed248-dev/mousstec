@@ -2,7 +2,7 @@
 {% load i18n %}
 {% block title %}{% trans "صلاحية مرفوضة" %} | Mouss Tec{% endblock %}
 {% block content %}
-<main class="container mx-auto px-4 py-12 flex-1 flex items-center justify-center">
+<div class="container mx-auto px-4 py-12 flex-1 flex items-center justify-center">
     <div class="max-w-md w-full bg-slate-900/70 border border-rose-500/30 rounded-2xl p-8 text-center space-y-4">
         <div class="w-16 h-16 mx-auto rounded-2xl bg-rose-500/15 text-rose-400 flex items-center justify-center text-3xl">
             <i class="fas fa-lock"></i>
@@ -10,6 +10,9 @@
         <h1 class="text-xl font-black text-white">🔒 {% trans "ليس لديك صلاحية للوصول" %}</h1>
         {% if message %}
         <p class="text-sm text-slate-300 font-bold">{{ message }}</p>
+        {% elif not allowed_roles %}
+        {# 🐛 [FIX]: الشاشة المخفية عن الموظف كانت بتقول «هذه الصفحة مخصصة لـ .» من غير أدوار #}
+        <p class="text-sm text-slate-400">{% trans "الشاشة دي مش ظاهرة لحسابك." %} {% trans "دورك الحالي:" %} <span class="text-slate-200 font-bold">{{ current_role }}</span>. {% trans "تواصل مع المدير لتغيير صلاحياتك." %}</p>
         {% else %}
         <p class="text-sm text-slate-400">
             {% trans "هذه الصفحة مخصصة لـ" %}
@@ -28,5 +31,5 @@
             </a>
         </div>
     </div>
-</main>
+</div>
 {% endblock %}

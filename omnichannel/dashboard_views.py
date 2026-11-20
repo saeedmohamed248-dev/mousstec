@@ -96,10 +96,12 @@ def settings_screen(request):
 
 @login_required
 def onboarding_guide(request):
+    from erp_core.decorators import can_manage_company
     context = {
         "webhook_url": _webhook_url(request),
         "platform_verify_token": getattr(settings, "OMNICHANNEL_VERIFY_TOKEN", ""),
-        "settings_url": reverse("omnichannel_settings"),
+        # 🐛 [FIX]: الموظف العادي كان بيدوس «الإعدادات» من الدليل ويقع على 403 — نرجّعه للصفحة الرئيسية للإضافة.
+        "settings_url": reverse("omnichannel_settings") if can_manage_company(request.user) else reverse("omnichannel_overview"),
         "overview_url": reverse("omnichannel_overview"),
     }
     return render(request, "omnichannel/onboarding_guide.html", context)
@@ -136,6 +138,9 @@ def overview(request):
         return redirect("/")
 
     config, _created = TenantChannelConfig.objects.get_or_create(tenant=tenant)
+    # 🐛 [FIX]: لينك «الإعدادات» كان ظاهر لأي موظف ويوديه على صفحة 403 — بيظهر للمدير بس.
+    from erp_core.decorators import can_manage_company
+    _can_manage_company = can_manage_company(request.user)
     context = {
         "config": config,
         "tenant": tenant,
@@ -143,7 +148,7 @@ def overview(request):
         "free_conversations": 1000,
         "wallet_balance": getattr(tenant, "wallet_balance", Decimal("0")),
         "currency": _currency(tenant),
-        "settings_url": reverse("omnichannel_settings"),
+        "settings_url": reverse("omnichannel_settings") if _can_manage_company else "",
         "guide_url": reverse("omnichannel_guide"),
         "subscribe_url": reverse("omnichannel_subscribe"),
         "pay_url": reverse("omnichannel_pay"),

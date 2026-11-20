@@ -9,6 +9,8 @@ from django.db.models import F, Min, Sum
 from clients.models import Client
 import logging
 
+from django.conf import settings
+
 from erp_core.orchestrator import run_agent_safely, AgentEventBus, AgentHealthMonitor, dlq
 from clients.services.modules import skip_if_disabled
 
@@ -44,11 +46,17 @@ def async_welcome_bot_task(self, client_name, client_phone, business_type, full_
             msg += f"🔑 كلمة المرور المؤقتة: {secret_credential}\n"
             
         msg += "\nنتمنى لك أرباحاً هائلة والتفوق على منافسيك!"
-        
-        # 💡 [مكان دمج بوابة WhatsApp API (مثل Twilio/Ultramsg) أو البريد الإلكتروني]
-        # example: twilio_client.messages.create(body=msg, from_='+123', to=client_phone)
-        
-        logger.info(f"📨 [AI WELCOME BOT]: Secure onboarding message dispatched to {client_name} ({client_phone}).")
+
+        # 🐛 [FIX — دورة ناقصة]: البوت كان «stub» — بيكتب «dispatched» في اللوج ومابيبعتش حاجة.
+        #    دلوقتي واتساب من رقم المنصة (نفس تذكير التجديد) — قالب WHATSAPP_WELCOME_TEMPLATE لو
+        #    متظبط ({{1}} الشركة، {{2}} رابط الدخول)، وإلا رسالة نصية. الإيميل بيوصل من شاشة التسجيل.
+        from django.conf import settings as _s
+        from clients.services.whatsapp_notify import send_platform_whatsapp
+        tpl = getattr(_s, 'WHATSAPP_WELCOME_TEMPLATE', '')
+        sent = bool(client_phone) and send_platform_whatsapp(
+            client_phone, template=tpl, params=(client_name, full_login_url), text='' if tpl else msg)
+        logger.info("📨 [AI WELCOME BOT]: onboarding message for %s — whatsapp %s.",
+                    client_name, 'sent' if sent else 'not sent')
         # print(msg) # مفيد للعرض أثناء الـ Local Development
         
     except Exception as exc:
@@ -398,6 +406,16 @@ def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
                 # are still active) may ever appear in the shared market.
                 'publishable':   bool(product.is_b2b_published and product.is_active),
             }
+            from inventory.services.inventory_service import InventoryService as _InvSvc
+            display = _InvSvc.b2b_display_fields(product)
+            # 🐛 [FIX]: صنف اتوافق عليه ورصيده خلص كان بيتشال من السوق ومايرجعش تاني لما
+            #    المخزون يرجع (كان محتاج طلب نشر وموافقة من الأول). آخر سعر معتمد من
+            #    الإدارة = إذن إنه يرجع لوحده بنفس السعر.
+            requests_rel = getattr(product, 'b2b_listing_requests', None)
+            last_approved = (requests_rel.filter(status='approved')
+                             .exclude(approved_price__isnull=True)
+                             .order_by('-reviewed_at', '-pk').values_list('approved_price', flat=True).first()
+                             if requests_rel is not None else None)
 
         # 2. الكتابة في سكيما السوق المركزي (public)
         # 🐛 [FIX]: المهمة كانت بتقرأ product.sale_price (حقل مش موجود) فكانت
@@ -424,10 +442,27 @@ def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
                     product_name=listing_data['name'][:200],
                     brand=listing_data['brand'][:100],
                     available_qty=listing_data['available_qty'],
+                    **display,
                 )
                 # Not listed yet → publishing needs the admin approval flow
-                # (B2BListingRequest), never an automatic stock event.
-                action = 'updated' if updated else 'skipped'
+                # (B2BListingRequest), never an automatic stock event —
+                # except a product the admin already approved before (restock).
+                if updated:
+                    action = 'updated'
+                elif last_approved and last_approved > 0:
+                    GlobalB2BMarketplace.objects.create(
+                        tenant=tenant,
+                        part_number=listing_data['part_number'],
+                        condition=listing_data['condition'],
+                        product_name=listing_data['name'][:200],
+                        brand=listing_data['brand'][:100],
+                        wholesale_price=last_approved,
+                        available_qty=listing_data['available_qty'],
+                        **display,
+                    )
+                    action = 'relisted'
+                else:
+                    action = 'skipped'
 
         AgentEventBus.set_agent_state(
             'b2b_marketplace_sync_task', schema=schema_name,
@@ -437,6 +472,7 @@ def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
             f"🌐 [B2B SYNC TASK] P/N {listing_data['part_number']} "
             f"{action} in global market. Schema: {schema_name}"
         )
+        return action
 
     try:
         return run_agent_safely(
@@ -741,6 +777,26 @@ def expire_stale_parts_orders():
     return result
 
 
+@shared_task(name='clients.tasks.close_stale_tender_requests')
+def close_stale_tender_requests():
+    """🛍️ السوق المفتوح: يقفل الطلبات اللي مدتها خلصت، ويفكّر العميل يقيّم التاجر، ويقفل
+    الطلبات المقبولة القديمة «مكتمل». كل ساعة.
+
+    🐛 [FIX — دورة ناقصة]: انتهاء الطلبات المفتوحة كان بيحصل بس لما حد يفتح صفحة السوق،
+    والطلب المقبول من غير تقييم كان بيفضل «مقبول» للأبد.
+    """
+    try:
+        from clients.views.marketplace_core_views import _expire_overdue_requests
+        from marketplace_c2c.services.tenders import close_stale_accepted_requests
+        expired = _expire_overdue_requests()
+        result = close_stale_accepted_requests()
+    except Exception as exc:
+        logger.error(f"🔴 [TENDERS] failed: {exc}", exc_info=True)
+        return {'error': str(exc)}
+    result['expired'] = expired
+    return result
+
+
 # ─────────────────────────────────────────────────────────────────────
 # 🎨 Design persistence — async fallback when inline persist fails
 # ─────────────────────────────────────────────────────────────────────
@@ -1012,4 +1068,88 @@ def send_trial_end_offers():
         except Exception:   # noqa: BLE001 — شركة واحدة مابتوقفش الباقي
             logger.exception('[TRIAL OFFER] failed for %s', tenant.schema_name)
     logger.info('[TRIAL OFFER] sent %s', sent)
+    return sent
+
+
+@shared_task(name='clients.tasks.purge_screen_recordings')
+def purge_screen_recordings():
+    """🎥 مسح تسجيلات الشاشة الأقدم من مدة الحفظ (يومياً)."""
+    from clients.views.screen_recording_views import purge_old_sessions
+    return purge_old_sessions()
+
+
+def _tenant_link(tenant, path):
+    dom = next((d.domain for d in tenant.domains.all() if d.is_primary), None) or \
+        next((d.domain for d in tenant.domains.all()), None)
+    return f'https://{dom}{path}' if dom else ''
+
+
+def _notify_tenant(tenant, subject, line, link, tpl_setting='MARKETPLACE_REQUEST_WHATSAPP_TEMPLATE'):
+    """إيميل + واتساب (من رقم المنصة) لشركة مشتركة — مابيوقّعش المهمة لو فشل."""
+    from django.core.mail import send_mail
+
+    from clients.services.whatsapp_notify import send_platform_whatsapp
+    if tenant.email:
+        try:
+            send_mail(subject, f'أهلاً {tenant.name}،\n\n{line}\n\n{link}\n\n— السوق المفتوح | Mouss Tec',
+                      settings.DEFAULT_FROM_EMAIL, [tenant.email], fail_silently=True)
+        except Exception:  # noqa: BLE001
+            logger.exception('[MARKETPLACE NOTIFY] email failed for %s', tenant.schema_name)
+    if tenant.phone and getattr(settings, 'WHATSAPP_ACCESS_TOKEN', '') and \
+            getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', ''):
+        tpl = getattr(settings, tpl_setting, '')
+        send_platform_whatsapp(tenant.phone, template=tpl, params=(tenant.name, line, link),
+                               text='' if tpl else f'🛒 Mouss Tec\n{tenant.name}، {line}\n{link}')
+
+
+@shared_task(ignore_result=True)
+def notify_merchant_offer_accepted(offer_id):
+    """✅ العميل قبل عرض الشركة ⇒ إيميل + واتساب فوراً عشان تكلّمه (العميل بيتقاله «التاجر هيتواصل معاك»)."""
+    from clients.models import TenderOffer
+    offer = (TenderOffer.objects.select_related('merchant', 'service_request', 'service_request__customer')
+             .prefetch_related('merchant__domains').filter(pk=offer_id, status='accepted').first())
+    if offer is None:
+        return False
+    req, cust = offer.service_request, offer.service_request.customer
+    who = cust.company_name or cust.full_name
+    line = (f'🎉 {who} قبل عرضك ({offer.price:g} ج.م) على «{req.title[:100]}» — '
+            f'كلّمه دلوقتي على {cust.phone} عشان تقفلوا الصفقة.')
+    link = _tenant_link(offer.merchant, '/marketplace/merchant/feed/')
+    _notify_tenant(offer.merchant, f'Mouss Tec — عرضك اتقبل: {req.title[:80]}', line, link)
+    return True
+
+
+@shared_task(ignore_result=True)
+def notify_merchants_new_request(request_code, tenant_ids):
+    """🔔 طلب عميل اتنشر في السوق المفتوح ⇒ إيميل + واتساب لكل شركة في القطاع، بلينك يفتح فورم العرض."""
+    from django.core.mail import send_mail
+
+    from clients.models import Client, ServiceRequest
+    from clients.services.whatsapp_notify import send_platform_whatsapp
+
+    req = ServiceRequest.objects.filter(request_code=request_code, status='open').first()
+    if req is None:
+        return 0
+    budget = f" — الميزانية حتى {req.max_budget:g} ج.م" if req.max_budget else ''
+    line = f'طلب جديد في السوق المفتوح: «{req.title[:120]}»{budget} — قدّم عرضك قبل غيرك.'
+    has_wa = bool(getattr(settings, 'WHATSAPP_ACCESS_TOKEN', '') and getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', ''))
+    tpl = getattr(settings, 'MARKETPLACE_REQUEST_WHATSAPP_TEMPLATE', '')
+    sent = 0
+    for tenant in Client.objects.filter(pk__in=tenant_ids, is_active=True).prefetch_related('domains'):
+        dom = next((d.domain for d in tenant.domains.all() if d.is_primary), None) or \
+            next((d.domain for d in tenant.domains.all()), None)
+        if not dom:
+            continue
+        link = f'https://{dom}/marketplace/merchant/feed/?req={req.request_code}'
+        if tenant.email:
+            try:
+                send_mail(f'Mouss Tec — طلب جديد: {req.title[:80]}',
+                          f'أهلاً {tenant.name}،\n\n{line}\n\nافتح الطلب وقدّم عرضك: {link}\n\n— السوق المفتوح | Mouss Tec',
+                          settings.DEFAULT_FROM_EMAIL, [tenant.email], fail_silently=True)
+            except Exception:  # noqa: BLE001
+                logger.exception('[MARKETPLACE NOTIFY] email failed for %s', tenant.schema_name)
+        if has_wa and tenant.phone:
+            send_platform_whatsapp(tenant.phone, template=tpl, params=(tenant.name, line, link),
+                                   text='' if tpl else f'🛒 Mouss Tec\n{tenant.name}، {line}\n{link}')
+        sent += 1
     return sent

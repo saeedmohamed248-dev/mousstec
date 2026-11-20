@@ -1054,7 +1054,7 @@ class AIDesignSubscription(models.Model):
         """هل الاشتراك نشط ولم ينتهِ؟"""
         if self.status != 'active':
             return False
-        today = timezone.now().date()
+        today = timezone.localdate()
         if self.end_date and today > self.end_date:
             return False
         # فحص حد الاستخدام
@@ -1067,7 +1067,7 @@ class AIDesignSubscription(models.Model):
         """الأيام المتبقية."""
         if not self.end_date:
             return 0
-        remaining = (self.end_date - timezone.now().date()).days
+        remaining = (self.end_date - timezone.localdate()).days
         return max(0, remaining)
 
     @property

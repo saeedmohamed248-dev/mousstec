@@ -11,7 +11,7 @@
   </h1>
   <a href="{% url 'inventory:purchase_order_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300">{% trans "كل الأوامر" %}</a>
 </header>
-{% if request.GET.err %}<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 text-sm font-bold">{% if request.GET.err == 'perm' %}{% trans "مالكش صلاحية على الفرع ده." %}{% else %}{% trans "الأمر مش في حالة تسمح بالإجراء ده." %}{% endif %}</div>{% endif %}
+{% if request.GET.err %}<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 text-sm font-bold">{% if request.GET.err == 'perm' %}{% trans "مالكش صلاحية على الفرع ده." %}{% elif request.GET.err == 'product' %}{% trans "مفيش صنف بالرقم أو الباركود ده." %}{% elif request.GET.err == 'empty' %}{% trans "ضيف صنف واحد على الأقل قبل ما تبعت الأمر للمورد." %}{% elif request.GET.err == 'number' %}{% trans "الكمية لازم تبقى أكبر من صفر والسعر مش بالسالب." %}{% else %}{% trans "الأمر مش في حالة تسمح بالإجراء ده." %}{% endif %}</div>{% endif %}
 
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 text-sm">
   <div class="bg-slate-800/60 rounded-xl p-3"><span class="text-slate-400">{% trans "المورد" %}</span><div class="text-white font-bold">{{ po.vendor.name }}</div></div>
@@ -20,6 +20,31 @@
 </div>
 {% if po.notes %}<p class="text-sm text-slate-300 mb-4">{{ po.notes }}</p>{% endif %}
 
+{% if can_edit and po.status == 'draft' %}
+{# ✏️ المسودة بتتعدّل: كميات وأسعار + إضافة صنف + شيل سطر (views_purchase_orders.po_lines) #}
+<form method="post" action="{% url 'inventory:purchase_order_lines' po.pk %}" class="overflow-x-auto bg-slate-800/60 rounded-2xl border border-slate-700/50 mb-4">{% csrf_token %}
+  <table class="w-full text-sm">
+    <thead><tr class="text-slate-400 text-xs"><th class="p-3 text-right">{% trans "الصنف" %}</th><th class="p-3 text-center">{% trans "الكمية" %}</th><th class="p-3 text-center">{% trans "السعر" %}</th><th class="p-3 text-center">{% trans "الإجمالي" %}</th><th class="p-3"></th></tr></thead>
+    <tbody>{% for it in items %}{% with iid=it.pk|stringformat:'d' %}
+      <tr class="border-t border-slate-700/50"><td class="p-3 text-white">{{ it.product.name }} <span class="text-xs text-slate-400" dir="ltr">{{ it.product.part_number }}</span></td>
+        <td class="p-3 text-center"><input type="number" min="1" name="qty_{{ iid }}" value="{{ it.quantity|stringformat:'d' }}" class="w-20 bg-slate-900 text-white px-2 py-1 rounded border border-slate-700 text-center"></td>
+        <td class="p-3 text-center"><input type="number" min="0" step="0.01" name="cost_{{ iid }}" value="{{ it.unit_cost|stringformat:'s' }}" class="w-24 bg-slate-900 text-white px-2 py-1 rounded border border-slate-700 text-center"></td>
+        <td class="p-3 text-center">{{ it.line_total|amount }}</td>
+        <td class="p-3 text-center"><button name="remove" value="{{ iid }}" formnovalidate class="text-red-300 hover:text-red-200" title="{% trans 'شيل' %}"><i class="fas fa-trash"></i></button></td></tr>
+    {% endwith %}{% empty %}
+      <tr><td colspan="5" class="p-4 text-center text-slate-400">{% trans "الأمر فاضي — ضيف أصناف من تحت." %}</td></tr>
+    {% endfor %}
+      <tr class="border-t border-slate-700/50 bg-slate-900/40">
+        <td class="p-3"><input name="new_code" placeholder="{% trans 'رقم القطعة أو الباركود' %}" dir="ltr" class="w-full bg-slate-900 text-white px-2 py-1 rounded border border-slate-700"></td>
+        <td class="p-3 text-center"><input type="number" min="1" name="new_qty" value="1" class="w-20 bg-slate-900 text-white px-2 py-1 rounded border border-slate-700 text-center"></td>
+        <td class="p-3 text-center"><input type="number" min="0" step="0.01" name="new_cost" placeholder="{% trans 'آخر سعر' %}" class="w-24 bg-slate-900 text-white px-2 py-1 rounded border border-slate-700 text-center"></td>
+        <td class="p-3" colspan="2"></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="p-3"><button class="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black"><i class="fas fa-floppy-disk"></i> {% trans "حفظ التعديلات" %}</button></div>
+</form>
+{% else %}
 <div class="overflow-x-auto bg-slate-800/60 rounded-2xl border border-slate-700/50 mb-4">
   <table class="w-full text-sm">
     <thead><tr class="text-slate-400 text-xs"><th class="p-3 text-right">{% trans "الصنف" %}</th><th class="p-3 text-center">{% trans "الكمية" %}</th><th class="p-3 text-center">{% trans "السعر" %}</th><th class="p-3 text-center">{% trans "الإجمالي" %}</th></tr></thead>
@@ -28,6 +53,7 @@
     {% endfor %}</tbody>
   </table>
 </div>
+{% endif %}
 
 {% if po.purchase_invoice %}
 <p class="text-sm text-emerald-300 mb-4"><i class="fas fa-circle-check"></i> {% trans "اتستلم على فاتورة شراء" %} <a class="underline" href="{% url 'inventory:purchase_edit' po.purchase_invoice.pk %}"><span dir="ltr">#{{ po.purchase_invoice.pk }}</span></a></p>

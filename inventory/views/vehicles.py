@@ -133,7 +133,7 @@ def fleet_contract_balance_api(request, contract_code):
         "contract_value": float(contract.total_value),
         "consumed_value": float(consumed),
         "remaining_balance": float(remaining),
-        "is_valid": remaining > 0 and contract.end_date >= timezone.now().date(),
+        "is_valid": remaining > 0 and contract.end_date >= timezone.localdate(),
     })
 
 

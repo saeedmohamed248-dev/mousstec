@@ -1,0 +1,31 @@
+{% extends "print_market/base.html" %}{% load i18n %}
+{% block title %}{{ shop.name }}{% endblock %}
+{% block meta_description %}{% if shop.about %}{{ shop.about|truncatechars:150 }}{% else %}{% blocktrans with n=shop.name c=shop.city %}{{ n }} — مطبعة في {{ c }} على سوق المطابع: اطلب عرض سعر، شوف البروفة قبل الطباعة وادفع بأمان.{% endblocktrans %}{% endif %}{% endblock %}
+{% block seo_head %}{{ seo_jsonld }}{% endblock %}
+{% block content %}
+<div class="pm-card p-4 mb-4 d-flex gap-3 align-items-center flex-wrap">
+  {% if shop.logo %}<img src="{{ shop.logo.url }}" alt="" style="width:72px;height:72px;border-radius:16px;object-fit:cover">{% endif %}
+  <div class="flex-grow-1">
+    <h1 class="fs-4 fw-bold mb-1">{{ shop.name }}</h1>
+    <div class="pm-muted small">{% if shop.city %}<i class="fas fa-map-marker-alt me-1"></i>{{ shop.city }} · {% endif %}{% include "print_market/_stars.html" with avg=shop.rating_avg n=shop.rating_n %}</div>
+    {% if shop.about %}<p class="mb-0 mt-2" style="white-space:pre-wrap">{{ shop.about }}</p>{% endif %}
+  </div>
+  {% if not account or not account.is_shop %}<a href="{% url 'print_market:order_new' shop.pk %}" class="pm-btn text-decoration-none">{% trans "اطلب طلب خاص" %}</a>{% endif %}
+</div>
+<div class="row g-3">
+  {% for p in products %}{% include "print_market/_product_card.html" %}
+  {% empty %}<div class="col-12 text-center pm-muted py-4">{% trans "المطبعة لسه مانزّلتش منتجات — تقدر تبعتلها طلب خاص." %}</div>{% endfor %}
+</div>
+{% if reviews %}
+<h2 class="fs-5 fw-bold mt-4 mb-2">{% trans "آراء العملاء" %}</h2>
+<div class="row g-3">
+  {% for r in reviews %}
+  <div class="col-md-6"><div class="pm-card p-3 h-100">
+    <div class="d-flex justify-content-between"><b>{{ r.customer.name }}</b><span class="pm-stars">{% for i in "12345" %}{% if forloop.counter <= r.rating %}<i class="fas fa-star"></i>{% else %}<i class="far fa-star"></i>{% endif %}{% endfor %}</span></div>
+    <div class="small pm-muted">{{ r.order.title }} · <span dir="ltr">{{ r.created_at|date:"Y-m-d" }}</span></div>
+    {% if r.comment %}<p class="mb-0 mt-2" style="white-space:pre-wrap">{{ r.comment }}</p>{% endif %}
+  </div></div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

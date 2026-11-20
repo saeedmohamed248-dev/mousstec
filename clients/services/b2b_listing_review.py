@@ -91,8 +91,12 @@ class ReviewError(Exception):
     pass
 
 
-def decide(schema_name, request_id, action, *, reviewer_label='', price=None, notes=''):
-    """موافقة/رفض طلب نشر جوه schema الشركة. بيرجّع (tenant, اسم الصنف)."""
+def decide(schema_name, request_id, action, *, reviewer_label='', price=None, notes='', info=None):
+    """موافقة/رفض طلب نشر جوه schema الشركة. بيرجّع (tenant, اسم الصنف).
+
+    info: dict اختياري بيتملى بـ ``stock`` (رصيد الصنف وقت الموافقة) — عشان الصفحة
+    تقول للأدمن إن الصنف مش هيظهر في السوق غير لما يدخله مخزون.
+    """
     from django_tenants.utils import schema_context
     from clients.models import Client
     from inventory.models import B2BListingRequest
@@ -129,6 +133,8 @@ def decide(schema_name, request_id, action, *, reviewer_label='', price=None, no
         InventoryService.approve_b2b_listing(req, approved, None)
         req.review_notes = '\n'.join(x for x in (notes.strip(), sign) if x)
         req.save(update_fields=['review_notes'])
+        if info is not None:
+            info['stock'] = req.product.total_inventory_qty
         return tenant, name
 
 
@@ -141,7 +147,7 @@ def approve_many(items, *, reviewer_label=''):
     """
     if items is None:
         items = [(r['schema'], r['id']) for r in collect_requests(status='pending', limit=5000)]
-    result = {'approved': 0, 'skipped': 0, 'failed': 0, 'tenants': set()}
+    result = {'approved': 0, 'skipped': 0, 'failed': 0, 'no_stock': 0, 'tenants': set()}
     seen = set()
     for schema_name, request_id in items:
         key = (schema_name, int(request_id))
@@ -149,7 +155,8 @@ def approve_many(items, *, reviewer_label=''):
             continue
         seen.add(key)
         try:
-            tenant, _name = decide(schema_name, key[1], 'approve', reviewer_label=reviewer_label)
+            info = {}
+            tenant, _name = decide(schema_name, key[1], 'approve', reviewer_label=reviewer_label, info=info)
         except ReviewError:
             result['skipped'] += 1
             continue
@@ -158,5 +165,7 @@ def approve_many(items, *, reviewer_label=''):
             result['failed'] += 1
             continue
         result['approved'] += 1
+        if info.get('stock', 1) <= 0:
+            result['no_stock'] += 1
         result['tenants'].add(tenant.name)
     return result

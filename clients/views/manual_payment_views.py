@@ -172,9 +172,13 @@ def manual_payment_upload(request, receipt_code):
                     receipt.receipt_code, receipt.purchase_type,
                     receipt.purchase_id, receipt.amount)
 
+        # 🐛 [FIX]: شراء قطعة مش «تفعيل» — المشتري كان بيقرا «هيتم التفعيل» بعد ما دفع تمن قطعة.
+        done_msg = (_('✅ تم استلام الإيصال — هنأكد الدفع خلال دقائق ونبلّغ البائع يشحن.')
+                    if receipt.purchase_type == 'parts'
+                    else _('✅ تم استلام الإيصال — هيتم التفعيل خلال دقائق بعد التأكيد.'))
         return JsonResponse({
             'ok': True,
-            'message': _('✅ تم استلام الإيصال — هيتم التفعيل خلال دقائق بعد التأكيد.'),
+            'message': done_msg,
             'redirect': _after_payment_url(receipt, request),
         })
 
@@ -184,6 +188,7 @@ def manual_payment_upload(request, receipt_code):
         'receipt':            receipt,
         'purchase':           purchase,
         'is_instapay':        receipt.payment_method == 'instapay',
+        'is_order':           receipt.purchase_type == 'parts',
         'back_url':           _back_url(receipt, request),
         'vodafone_number':    VODAFONE_CASH_NUMBER,
         'instapay_handle':    INSTAPAY_HANDLE,
@@ -556,7 +561,8 @@ def admin_review_receipt(request, receipt_code):
         logger.info("[MANUAL PAY] Receipt %s CONFIRMED by %s", receipt.receipt_code, request.user)
         return JsonResponse({
             'ok': True,
-            'message': '✅ تم التأكيد وتفعيل الخدمة للعميل.',
+            'message': ('✅ تم التأكيد — الفلوس في الـ Escrow والبائع اتبلّغ يشحن.'
+                        if receipt.purchase_type == 'parts' else '✅ تم التأكيد وتفعيل الخدمة للعميل.'),
             'status': 'confirmed',
         })
     elif action == 'reject':

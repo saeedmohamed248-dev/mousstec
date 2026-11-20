@@ -193,10 +193,9 @@ def pull_orders(conn, *, limit: int = 50) -> dict:
                     matched = _add_order_lines(order, inv, Product, SaleInvoiceItem)
                     summary['unmatched_lines'] += matched['unmatched']
                     if matched['matched'] == 0:
-                        # مفيش أي سطر اتطابق — نلغي الفاتورة عشان متبقاش فاضية
-                        inv.delete()
-                        summary['skipped'] += 1
-                        continue
+                        # مفيش أي سطر اتطابق — نرجّع كل حاجة (rollback) عشان متبقاش فاضية.
+                        # 🐛 [FIX]: كانت بتتعمل وتتمسح ⇒ رقم فاتورة بيضيع (فجوة في الترقيم).
+                        raise _NoMatchedLines()
                     inv.refresh_from_db()
                     try:
                         with transaction.atomic():
@@ -208,6 +207,8 @@ def pull_orders(conn, *, limit: int = 50) -> dict:
                         SaleInvoice.objects.filter(pk=inv.pk).update(
                             status='quotation', notes=f"{inv.notes or ''}\n⚠️ مااتعتمدتش تلقائي: {msg}"[:2000])
                 summary['imported'] += 1
+            except _NoMatchedLines:
+                summary['skipped'] += 1
             except Exception as exc:
                 summary['errors'] += 1
                 logger.warning('[WIX pull] order %s failed: %s', oid, exc)
@@ -217,6 +218,10 @@ def pull_orders(conn, *, limit: int = 50) -> dict:
     conn.save(update_fields=['orders_imported', 'last_order_sync_at', 'updated_at'])
     logger.info('[WIX pull] tenant=%s %s', tenant.schema_name, summary)
     return summary
+
+
+class _NoMatchedLines(Exception):
+    """طلب Wix مفيهوش ولا صنف متطابق — بيرجّع الـ transaction كلها."""
 
 
 def _resolve_wix_customer(order, Customer):

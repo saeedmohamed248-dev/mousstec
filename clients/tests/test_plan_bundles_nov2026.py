@@ -69,10 +69,13 @@ class PlanMatrixTests(TestCase):
         self.assertEqual(Plan.objects.get(slug="auto-lite").monthly_diagnostics_bot_quota, 5)
 
     def test_compare_table_shows_cars_and_unlimited(self):
+        from django.utils import translation
         from clients.services.plan_compare import compare_table
         plans = list(Plan.objects.filter(slug__in=["auto-lite", "auto-silver", "auto-gold", "auto-empire"])
                      .order_by("monthly_price"))
-        rows = {r["label"]: r["cells"] for r in compare_table(plans, {"social_studio": "studio"})["rows"]}
+        # 🐛 [FIX]: العناوين بتتترجم ⇒ الاختبار يثبّت العربي بدل ما يعتمد على اللغة اللي سابها اختبار قبله
+        with translation.override("ar"):
+            rows = {r["label"]: r["cells"] for r in compare_table(plans, {"social_studio": "studio"})["rows"]}
         self.assertEqual([c.get("n") for c in rows["عربيات كشف الأعطال في الشهر"]], [20, 60, 200, 600])
         # بوستات إمباير من غير حد ⇒ «غير محدود» مش ✓ (السطر فيه أرقام)
         self.assertEqual(rows["studio"][-1], {"unlimited": True})

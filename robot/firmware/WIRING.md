@@ -4,6 +4,9 @@ Hardware bridge between the **ESP32** (brain-stem: Wi-Fi/API/audio), the
 **ESP32-CAM** (vision/faces), the **Arduino Mega 2560** (motor logic), and the
 **8-channel 5V relay** board driving the recycled BMW/MINI motors.
 
+> بالعربي، لتركيبة المحل (المخ على البي سي، ريليهين وموتور مساحات واحد للراس):
+> [WIRING_PC_AR.md](WIRING_PC_AR.md).
+
 ```
                     ┌─────────────────────┐
    INMP441 mic ───► │                     │        ┌──────────────────┐

@@ -1,0 +1,47 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n numfmt %}
+{% block title %}🛒 {% trans "طلبات الشراء B2B" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-pink-400"><i class="fas fa-cart-flatbed"></i></span>
+    {% trans "طلبات الشراء B2B" %}
+  </h1>
+  <a href="{% url 'inventory:b2b_marketplace' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700"><i class="fas fa-store ml-1"></i> {% trans "سوق B2B" %}</a>
+</header>
+
+<p class="text-sm text-slate-400 mb-4">{% trans "طلبات الشراء المباشر بين الشركات في السوق. بعد ما التاجر يوافق، كل طرف بيشوف بيانات تواصل التاني ويكملوا البيع والتسليم بينهم (البائع يعمل فاتورة عادية)." %}</p>
+
+<div class="flex gap-2 mb-4">
+  <a href="?tab=in" class="px-4 py-2 rounded-xl text-sm font-bold {% if tab == 'in' %}bg-pink-600 text-white{% else %}bg-slate-800 text-slate-300 border border-slate-700{% endif %}">
+    {% trans "طلبات جاتلي" %}{% if incoming_pending %} <span class="mr-1 px-2 rounded-full bg-white/20">{{ incoming_pending }}</span>{% endif %}</a>
+  <a href="?tab=out" class="px-4 py-2 rounded-xl text-sm font-bold {% if tab == 'out' %}bg-pink-600 text-white{% else %}bg-slate-800 text-slate-300 border border-slate-700{% endif %}">{% trans "طلباتي" %}</a>
+</div>
+
+{% if tab == 'in' %}{% with rows=incoming %}{% include "inventory/_b2b_request_rows.html" with side="seller" %}{% endwith %}
+{% else %}{% with rows=outgoing %}{% include "inventory/_b2b_request_rows.html" with side="buyer" %}{% endwith %}{% endif %}
+
+<script>
+async function b2bRespond(pk, action, btn) {
+  let reply = '';
+  if (action === 'accept' || action === 'reject') {
+    const box = document.getElementById('reply-' + pk);
+    reply = box ? box.value : '';
+  } else if (!confirm(btn.dataset.confirm)) {
+    return;
+  }
+  btn.disabled = true;
+  const body = new FormData();
+  body.append('action', action);
+  body.append('reply', reply);
+  const csrf = (document.cookie.match('(^|;)\\s*mt_csrf=([^;]*)') || [])[2] || '';
+  try {
+    const r = await fetch(btn.dataset.url, {method: 'POST', body, headers: {'X-CSRFToken': decodeURIComponent(csrf)}});
+    const data = await r.json().catch(() => ({error: btn.dataset.err}));
+    if (data.error) { alert(data.error); btn.disabled = false; return; }
+    location.reload();
+  } catch (e) { alert(btn.dataset.err); btn.disabled = false; }
+}
+</script>
+{% endblock %}

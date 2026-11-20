@@ -223,10 +223,173 @@ class BrainWithTheServerTests(unittest.TestCase):
         self.assertEqual(self.speaker.play.call_count, 1)                  # «ثانية واحدة» from the bank
         self.assertEqual(self.speaker.play_wav.call_count, 1)              # then the answer
 
+    def test_a_longer_wait_says_it_is_still_there_another_sentence_each_time(self):
+        # From the shop: one short «ثانية واحدة», then up to 30 s of silence on a slow line.
+        def slow(**_kwargs):
+            time.sleep(0.5)
+            return server.Answer(wav=None, reply="تمام.", transcript="", addressed=True)
+        self.server.voice.side_effect = slow
+        for words in loop.HOLD_ONS + loop.STILL_HERE:
+            self.brain.bank.put(words, _clip(5, 160))
+        with mock.patch.object(loop, "HOLD_ON_S", 0.05), mock.patch.object(loop, "STILL_HERE_S", 0.1):
+            self.say("يا موس فيه حاجة للميني")
+            self.say("يا موس فيه حاجة للميني تاني")
+        said = [line.split("🔊 ")[1].split(" (the server")[0] for line in self.lines
+                if line.startswith("[VOICE] 🔊") and "taking long" in line]
+        firsts = [w for w in said if w in loop.HOLD_ONS]
+        self.assertEqual(len(firsts), 2)
+        self.assertNotEqual(firsts[0], firsts[1])                          # not the same sentence twice running
+        self.assertTrue(any(w in loop.STILL_HERE for w in said), said)     # «لسه معاك…» while it went on
+        self.assertLessEqual(len(said), 2 * (1 + loop.STILL_HERE_MOST))
+
+    def _fillers(self):
+        return [line for line in self.lines if line.startswith("[VOICE] 🔊") and "taking long" in line]
+
+    def _slow(self, addressed, reply=""):
+        def slow(**_kwargs):
+            time.sleep(0.4)
+            return server.Answer(wav=None, reply=reply, transcript="", addressed=addressed)
+        self.server.voice.side_effect = slow
+
+    def test_people_talking_to_each_other_get_no_hold_on(self):
+        # 🐛 Every sentence heard goes to the server, which says whose it is. On a slow line the robot
+        # said «ثانية واحدة يا فندم…» and up to three «معلش على التأخير…» to people who never called it.
+        self._slow(addressed=False)
+        with mock.patch.object(loop, "HOLD_ON_S", 0.05), mock.patch.object(loop, "STILL_HERE_S", 0.1):
+            self.say("الجو حر النهارده يا عم احمد")
+        self.assertEqual(self._fillers(), [])
+        self.speaker.play.assert_not_called()
+        self.assertTrue(any("not addressed to me" in line for line in self.lines), self.lines)
+
+    def test_a_follow_up_without_the_name_still_gets_its_hold_on(self):
+        self.server.voice.return_value = server.Answer(wav=None, reply="تمام.", transcript="", addressed=True)
+        self.say("يا موس فيه حاجة للميني")                  # a conversation's on now
+        self._slow(addressed=True, reply="تمام.")
+        with mock.patch.object(loop, "HOLD_ON_S", 0.05):
+            self.say("وفيه حاجة للبي ام")
+        self.assertEqual(len(self._fillers()), 1, self.lines)
+
+    def test_the_server_listening_gets_no_hold_on_for_chatter_either(self):
+        self.cfg.ears_use = "offline"                      # the server hears: no words here to go by
+        self._slow(addressed=False)
+        with mock.patch.object(loop, "HOLD_ON_S", 0.05), mock.patch.object(loop, "STILL_HERE_S", 0.1):
+            self.say("")
+        self.assertEqual(self._fillers(), [])
+        self.brain._talked("تمام.")                        # …and in a conversation it does
+        self._slow(addressed=True, reply="تمام.")
+        with mock.patch.object(loop, "HOLD_ON_S", 0.05):
+            self.say("")
+        self.assertEqual(len(self._fillers()), 1, self.lines)
+
+    def test_the_offline_clips_wait_for_the_first_question_too(self):
+        # 🐛 The clips only waited once a conversation was on — after the first answer. The first
+        # question itself («يا موس عندك…») still shared the 4G line with them.
+        busy = []
+
+        def slow(**_kwargs):
+            busy.append(self.brain._line_busy())
+            return server.Answer(wav=None, reply="", transcript="", addressed=False)
+        self.server.voice.side_effect = slow
+        self.assertFalse(self.brain._line_busy())
+        self.say("يا موس فيه حاجة للميني")
+        self.assertEqual(busy, [True])
+        self.assertFalse(self.brain._line_busy())          # not addressed: no conversation, the clips go on
+
+    def test_online_a_near_miss_is_not_kept_as_an_offer_nobody_heard(self):
+        # 🐛 Online the server answers a misheard part; this computer worked out «تقصد خرطوم علوي…؟»
+        # all the same, kept it as offered, and «تمام» after could be answered with that part's price.
+        self.cfg.answer_here = True
+        self.server.voice.return_value = server.Answer(wav=None, reply="ملقتش القطعة دي.", transcript="",
+                                                       addressed=True)
+        self.say("يا موس بكام الخلطوم")
+        self.assertEqual(self.brain.knowledge._choices, [])
+        self.assertFalse(any(line.startswith("[HERE] 🔊") for line in self.lines), self.lines)
+        self.say("تمام")
+        self.assertFalse(any("[HERE] 🔊" in line and "خرطوم" in line for line in self.lines), self.lines)
+
+    def test_offline_the_near_miss_is_still_offered(self):
+        self.brain.online = False
+        self.say("يا موس بكام الخلطوم")
+        self.assertTrue(any(line.startswith("[OFFLINE] 🔊 تقصد خرطوم علوي") for line in self.lines), self.lines)
+        self.say("أيوه")                                   # …and priced once they say yes
+        self.assertTrue(any(line.startswith("[OFFLINE] 🔊") and "567 جنيه" in line for line in self.lines),
+                        self.lines)
+
+    def test_the_greeting_at_its_name_is_not_a_question_about_a_part(self):
+        self.assertFalse(loop.Brain._asks(loop.AT_YOUR_SERVICE))
+        self.assertTrue(loop.Brain._asks("تقصد أنهي؟"))
+
     def test_a_quick_answer_has_no_hold_on(self):
         self.server.voice.return_value = server.Answer(wav=None, reply="تمام.", transcript="", addressed=True)
         self.say("يا موس فيه حاجة للميني")
         self.assertFalse(any(loop.HOLD_ON in line for line in self.lines))
+
+
+class UpdatedBrainTests(unittest.TestCase):
+    """A newer brain unzipped over the folder takes over by itself on a robot PC (run_windows.bat
+    robotpc): «close the brain's window and it comes back» closed the watcher with it."""
+
+    def setUp(self):
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.lines = []
+        self.brain = loop.Brain(config.Config(api_base="x", token="y", home=Path(self.tmp.name)),
+                                ears=_Ears(""), server=mock.Mock(), mic=None, speaker=mock.Mock(),
+                                log=self.lines.append)
+
+    def _disk(self, version, size=1000):
+        return mock.patch.object(loop.Brain, "_on_disk", staticmethod(lambda: (version, size)))
+
+    def test_the_folder_as_it_is_now_is_this_brain(self):
+        version, size = loop.Brain._on_disk()
+        self.assertEqual(version, loop.VERSION)
+        self.assertGreater(size, 100_000)
+        self.assertFalse(self.brain.updated())
+
+    def test_a_newer_brain_on_disk_restarts_a_watched_robot_once_it_is_all_there(self):
+        with mock.patch.object(loop, "watched", return_value=True):
+            with self._disk("brain-9.9.9", 1000):
+                self.assertFalse(self.brain.updated())      # seen once: maybe still being unzipped
+            with self._disk("brain-9.9.9", 2000):
+                self.assertFalse(self.brain.updated())      # it grew: it was
+            with self._disk("brain-9.9.9", 2000):
+                self.assertTrue(self.brain.updated())
+        self.assertEqual(sum("[UPDATE]" in line for line in self.lines), 1)
+
+    def test_never_in_the_middle_of_a_conversation(self):
+        with mock.patch.object(loop, "watched", return_value=True), self._disk("brain-9.9.9"):
+            self.brain.updated()
+            self.brain._talked("تمام.")
+            self.assertFalse(self.brain.updated())
+            self.brain._talking_until = 0.0
+            self.brain._asking = 1                          # a question on its way to the server
+            self.assertFalse(self.brain.updated())
+            self.brain._asking = 0
+            self.assertTrue(self.brain.updated())
+
+    def test_nobody_to_start_it_again_it_only_says_so(self):
+        with mock.patch.object(loop, "watched", return_value=False), self._disk("brain-9.9.9"):
+            self.assertFalse(self.brain.updated())
+            self.assertFalse(self.brain.updated())
+            self.assertFalse(self.brain.updated())
+        said = [line for line in self.lines if "[UPDATE]" in line]
+        self.assertEqual(len(said), 1)
+        self.assertIn("start it again", said[0])
+
+    def test_restart_stops_the_way_ctrl_c_does(self):
+        with mock.patch("_thread.interrupt_main") as interrupt, mock.patch.object(loop.threading, "Timer") as timer:
+            self.brain.restart()
+        interrupt.assert_called_once()
+        self.assertTrue(self.brain._stop.is_set())
+        timer.assert_called_once()                          # and for sure 8 s later, if the mic's loop hung
+
+    def test_watched_by_the_environment_or_the_watchers_window(self):
+        with mock.patch.dict(loop.os.environ, {loop.WATCHED: "1"}):
+            self.assertTrue(loop.watched())
+        with mock.patch.dict(loop.os.environ, {loop.WATCHED: ""}):
+            self.assertFalse(loop.watched())                # (no Windows console here)
+        self.assertIn(f"title {loop.WATCH_TITLE}",
+                      (Path(loop.__file__).parent / "run_windows.bat").read_text(encoding="utf-8"))
 
 
 class TimeoutTests(unittest.TestCase):
@@ -257,7 +420,7 @@ class AzureVoiceTests(unittest.TestCase):
         with mock.patch.dict(os.environ, AZURE), \
                 mock.patch("requests.post", return_value=mock.Mock(status_code=200, content=pcm)) as post, \
                 mock.patch.object(audio, "_synthesize_with") as edge:
-            self.assertEqual(audio._voiced_pcm("أيوه، تحت أمرك.", "ar", 16000), (pcm, "azure"))
+            self.assertEqual(audio._voiced_pcm("أهلاً بحضرتك، أقدر أساعدك إزاي؟", "ar", 16000), (pcm, "azure"))
         edge.assert_not_called()
         call = post.call_args
         self.assertIn("westeurope.tts.speech.microsoft.com", call.args[0])

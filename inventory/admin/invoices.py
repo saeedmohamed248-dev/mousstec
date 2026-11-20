@@ -78,7 +78,7 @@ class SaleInvoiceItemInline(admin.TabularInline):
 
     def warranty_tracker(self, obj):
         if not obj.pk or not obj.warranty_end_date: return "-"
-        if obj.warranty_end_date >= timezone.now().date():
+        if obj.warranty_end_date >= timezone.localdate():
             return format_html('<span style="color: #28a745; font-weight: bold; font-size:11px;">✅ ساري (حتى {})</span>', obj.warranty_end_date.strftime("%Y-%m-%d"))
         return format_html('<span style="color: #dc3545; font-weight: bold; font-size:11px;">❌ منتهي</span>')
     warranty_tracker.short_description = "حالة الضمان"
@@ -291,6 +291,9 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     def channel_badge(self, obj):
         if obj.sales_channel == 'website':
             return format_html('<span style="color:#8b5cf6; font-weight:700;">🛒 الموقع</span>')
+        # 🐛 [FIX]: طلبات «من مخازن التجار» في سوق Mouss Tec كانت هتظهر «المحل» في عمود القناة
+        if obj.sales_channel == 'marketplace':
+            return format_html('<span style="color:#f59e0b; font-weight:700;">🏬 سوق Mouss Tec</span>')
         return format_html('<span style="color:#64748b;">🏪 المحل</span>')
     channel_badge.short_description = 'القناة'
 

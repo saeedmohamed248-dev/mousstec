@@ -51,6 +51,9 @@
                 </form>
                 {% else %}
                 <span class="pb-wait">⏳ {% trans "مستنية موافقة العميل على البروفة" %}</span>
+                {# 🐛 [FIX — دورة ناقصة]: المهمة كانت بتقف هنا من غير أي زرار — المستخدم مش عارف يرفع البروفة منين ولا يتخطاها لو العميل وافق بالتليفون #}
+                <small><a href="{% url 'admin:printing_printproof_add' %}?job={{ job.pk }}">📤 {% trans "ارفع البروفة وابعتها للعميل" %}</a></small>
+                <small><a href="{% url 'admin:printing_printjob_change' job.pk %}">⏭ {% trans "العميل وافق؟ علّم «مش محتاجة بروفة»" %}</a></small>
                 {% endif %}
             {% endif %}
         </div>

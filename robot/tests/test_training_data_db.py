@@ -63,7 +63,8 @@ class TrainingDataTests(ERPTenantTestCase):
         zf = self.download(client)
         self.assertEqual(sorted(zf.namelist()), sorted(["README.md", f"audio/{first.pk}.wav",
                                                         f"audio/{second.pk}.wav", "metadata.csv",
-                                                        "understanding.jsonl"]))     # «🧠 مخ الفهم»'s too
+                                                        "understanding.jsonl",       # «🧠 مخ الفهم»'s too
+                                                        "finetune_openai.jsonl"]))
         rows = list(csv.DictReader(io.StringIO(zf.read("metadata.csv").decode("utf-8"))))
         self.assertEqual([(r["file_name"], r["transcription"], r["robot_heard"], r["teacher"]) for r in rows],
                          [(f"audio/{first.pk}.wav", "عندك فلتر زيت", "عندك سلطه الزيت", "azure"),

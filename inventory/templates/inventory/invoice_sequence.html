@@ -1,0 +1,69 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🔢 {% trans "تسلسل أرقام الفواتير" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-sky-400"><i class="fas fa-list-ol"></i></span>
+    {% trans "تسلسل أرقام الفواتير" %}
+  </h1>
+  <a href="{% url 'inventory:sale_invoice_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700"><i class="fas fa-file-invoice ml-1"></i> {% trans "الفواتير" %}</a>
+</header>
+
+<p class="text-sm text-slate-400 mb-4">{% trans "كل رقم فاتورة (بيع، مرتجع، أمر شغل، عرض سعر) بيتاخد بالترتيب ومابيضيعش لو الحفظ وقع. الصفحة دي بتوريك أي رقم ناقص وسببه — عشان المراجع أو الضرايب." %}</p>
+
+<div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
+  <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4">
+    <div class="text-xs text-slate-400 font-bold">{% trans "آخر رقم" %}</div>
+    <div class="text-2xl font-black text-white mt-1">{{ last_number }}</div>
+  </div>
+  <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4">
+    <div class="text-xs text-slate-400 font-bold">{% trans "مستندات موجودة" %}</div>
+    <div class="text-2xl font-black text-white mt-1">{{ invoices_count }}</div>
+  </div>
+  <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4 col-span-2 md:col-span-1">
+    <div class="text-xs text-slate-400 font-bold">{% trans "أرقام ناقصة" %}</div>
+    <div class="text-2xl font-black mt-1 {% if unknown_count %}text-red-400{% else %}text-white{% endif %}">{{ total_missing }}</div>
+  </div>
+</div>
+
+{% if not total_missing %}
+<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 text-sm font-bold">
+  <i class="fas fa-circle-check text-emerald-400"></i> {% trans "التسلسل كامل — مفيش ولا رقم ناقص." %}
+</div>
+{% else %}
+{% if unknown_count %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 text-sm font-bold">
+  <i class="fas fa-triangle-exclamation text-red-400"></i> {% trans "فيه أرقام ناقصة من غير سبب مسجّل — كلّم الدعم." %}
+</div>
+{% endif %}
+{% if total_missing > listed_limit %}
+<p class="text-xs text-slate-400 mb-2">{% blocktrans with n=listed_limit %}معروض آخر {{ n }} رقم ناقص بس.{% endblocktrans %}</p>
+{% endif %}
+<div class="overflow-x-auto bg-slate-800/60 rounded-2xl border border-slate-700/50">
+  <table class="w-full text-sm">
+    <thead><tr class="text-slate-400 text-xs">
+      <th class="p-3 text-right">{% trans "الرقم" %}</th><th class="p-3 text-right">{% trans "السبب" %}</th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="border-t border-slate-700/50">
+        <td class="p-3 font-black text-white whitespace-nowrap" dir="ltr">{% if r.count > 1 %}#{{ r.low }} → #{{ r.number }} <span class="text-xs text-slate-400 font-bold">({{ r.count }})</span>{% else %}#{{ r.number }}{% endif %}</td>
+        <td class="p-3">
+          {% if r.kind == 'deleted' %}
+            <span class="text-amber-300 font-bold"><i class="fas fa-trash"></i> {% trans "اتمسحت" %}</span>
+            <span class="text-slate-400">— <span dir="ltr">{{ r.log.timestamp|date:"d/m/Y H:i" }}</span>{% if r.log.user %} · {{ r.log.user.get_full_name|default:r.log.user.username }}{% endif %}{% if r.log.object_repr %} · {{ r.log.object_repr }}{% endif %}</span>
+          {% elif r.kind == 'legacy' %}
+            <span class="text-slate-400"><i class="fas fa-clock-rotate-left"></i> {% trans "فجوة قديمة (قبل تفعيل الترقيم المتسلسل)" %}</span>
+          {% else %}
+            <span class="text-red-300 font-bold"><i class="fas fa-circle-question"></i> {% trans "مفيش سبب مسجّل" %}</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

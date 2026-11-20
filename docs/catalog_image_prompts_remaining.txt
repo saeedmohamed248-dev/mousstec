@@ -1,0 +1,321 @@
+# الصور الناقصة لمنتجات المطابع (79 منتج — 20 دفعة). انسخ كل دفعة لوحدها في Gemini.
+# الملف ده بيتولّد من الصور الناقصة في clients/catalog_photos — الدفعات اللي خلصت امسحها.
+
+===================== دفعة 1 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p012-a3-and-a2-posters.png — Two large posters (A3 and A2) leaning against a wall with bold abstract colorful graphics
+p013-spiral-notebook-with-your-logo-cover.png — A spiral-bound notebook with a colorful printed abstract cover, next to a pen on a desk
+p014-leather-planner-with-company-name.png — A premium brown leather planner with an elastic strap and a subtle debossed abstract emblem on the cover
+p015-small-a6-gift-notebooks.png — A small stack of A6 pocket notebooks in assorted pastel covers with simple abstract shapes
+
+
+===================== دفعة 2 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p016-wall-desk-calendars-with-your-design.png — A wall calendar and a small desk tent calendar with colorful abstract photos, on a clean desk
+p017-carbon-invoice-receipt-books.png — Carbon-copy invoice and receipt books, pink white and yellow sheets visible at the edge, with a pen
+p018-kids-colouring-activity-books.png — Kids coloring and activity books with cheerful abstract cartoon-style shapes, crayons around them
+p019-printed-white-ceramic-mug.png — A glossy white ceramic coffee mug with a colorful abstract wraparound print, steam rising
+
+
+===================== دفعة 3 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p021-mug-with-coloured-handle-and-inside.png — A white ceramic mug with a bright colored handle and colored interior, several color variants in a row
+p022-laser-engraved-stainless-tumbler.png — A sleek stainless steel insulated tumbler with a laser-engraved minimal abstract emblem, condensation droplets
+p023-frosted-glass-mug.png — A frosted glass mug with a soft printed abstract design, warm drink inside
+p024-gift-mug-set-in-a-box.png — A gift box set of two printed ceramic mugs nested in a branded-looking box with tissue paper (no text)
+
+
+===================== دفعة 4 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p025-plastic-promo-pens-with-logo.png — A pile of colorful plastic promotional ballpoint pens in many colors
+p026-laser-engraved-metal-pens.png — Two heavy metal pens with laser-engraved minimal patterns on a dark slate surface
+p027-pen-keychain-gift-set.png — An open gift box containing a metal pen and a matching keychain on satin
+p028-whiteboard-markers-highlighters-with-your-name.png — A row of whiteboard markers and highlighters in bright colors with blank clip areas
+
+
+===================== دفعة 5 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p029-stylus-touch-pen.png — A stylus touch pen resting on a smartphone screen
+p031-branded-power-bank.png — A slim power bank with a minimal abstract print, a cable plugged in, on a desk
+p032-usb-flash-drives-with-your-name.png — Wooden and card-shaped USB flash drives laid out neatly
+p033-award-shields-certificates.png — An acrylic award shield and a wooden plaque with an engraved abstract emblem on a stand
+
+
+===================== دفعة 6 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p034-corporate-gift-box.png — An open corporate gift box with a notebook, pen, mug and keychain arranged inside
+p035-printed-mouse-pad.png — A printed mouse pad with a colorful abstract design next to a computer mouse
+p036-embroidered-caps.png — A few embroidered baseball caps in navy, black and white with a small abstract embroidered emblem
+p037-printed-cotton-tote-bags.png — Natural cotton tote bags hanging and folded, with a simple printed abstract shape
+
+
+===================== دفعة 7 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p038-laser-engraving-on-wood-leather.png — Laser engraving on a wooden board and leather patch with a detailed abstract pattern, a laser beam glow
+p039-dtf-printed-cotton-t-shirts.png — Folded and flat 100% cotton t-shirts in several colors with a bold abstract DTF print
+p041-corporate-polo-uniforms.png — Corporate pique polo shirts in navy and white with a small embroidered abstract emblem on the chest
+p042-medical-scrubs-uniforms.png — Medical scrubs in teal and navy, folded, with a small embroidered abstract emblem
+
+
+===================== دفعة 8 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p043-sweatshirts-hoodies-with-your-design.png — Heavy cotton hoodies and sweatshirts in grey and black with a large abstract print
+p044-school-nursery-uniforms.png — A school uniform set: shirt, trousers and sweater with a small embroidered abstract crest
+p046-printed-reflective-safety-vests.png — High-visibility reflective safety vests in orange and yellow with reflective strips
+p047-roll-up-banner-stand.png — A roll-up banner stand standing in an exhibition hall with bold abstract graphics
+
+
+===================== دفعة 9 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p048-flex-banner-for-shops.png — A large vinyl flex banner with metal eyelets hanging on a shop front, abstract colorful design
+p049-illuminated-shop-sign.png — An illuminated shop sign with glowing LED light box and raised 3D shapes at night
+p050-vinyl-stickers-for-cars-storefronts.png — A car partially wrapped with a colorful abstract vinyl design, and a glass storefront with frosted vinyl
+p051-directional-signs-for-offices-clinics.png — Acrylic office door signs and arrow wayfinding signs on a clean wall, abstract icons only
+
+
+===================== دفعة 10 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p052-backdrop-for-conferences-photos.png — A large backdrop wall with a repeated abstract pattern at a conference, spotlight lighting
+p053-die-cut-logo-stickers.png — Die-cut vinyl stickers in fun abstract shapes, glossy, scattered on a laptop
+p054-product-labels-on-a-roll.png — A roll of printed product labels next to small jars with blank colorful labels applied
+p055-kids-educational-stickers.png — Sheets of colorful kids reward stickers with simple stars, hearts and animals
+
+
+===================== دفعة 11 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p056-security-seal-stickers-hologram.png — Holographic tamper-evident security seal stickers on a sealed cardboard box, rainbow shimmer
+p057-printed-cardboard-product-boxes.png — Printed cardboard product boxes in vibrant colors with abstract graphics, stacked
+p058-kraft-paper-bags-with-logo.png — Kraft paper shopping bags with twisted handles and a simple abstract print
+p059-printed-pizza-food-boxes.png — Printed pizza boxes and burger boxes stacked with simple abstract graphics
+
+
+===================== دفعة 12 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p061-printed-plastic-bags.png — Printed plastic shopping bags with colorful abstract graphics
+p062-professional-logo-design.png — A designer desk with a tablet showing several abstract logo concept sketches and color swatches
+p063-full-brand-identity.png — A brand identity mockup flat lay: business card, letterhead, envelope, and color palette swatches, abstract emblem
+p064-packaging-product-box-design.png — Product packaging design concepts: boxes and labels in matching colors on a design desk
+
+
+===================== دفعة 13 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p065-restaurant-or-cafe-menu-design.png — A menu design spread on a cafe table next to a coffee cup, abstract food blocks
+p066-redraw-an-old-logo-as-vector.png — A computer screen showing a crisp vector logo with bezier handles visible, abstract shape
+p067-monthly-social-media-design-package.png — A smartphone grid of colorful social media post designs (abstract), flat lay with plants
+p068-facebook-cover-profile-picture.png — A laptop showing a social media profile page with a cover banner and profile picture (abstract)
+
+
+===================== دفعة 14 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p069-story-reels-templates.png — A smartphone showing vertical story templates with bold abstract graphics
+p070-sponsored-ad-design.png — A smartphone showing an eye-catching sponsored ad design with abstract product imagery
+p072-engagement-katb-ketab-aqiqah-invitations.png — Engagement and celebration invitation cards with soft pastel floral patterns and ribbons
+p073-event-giveaways-tags.png — Wedding favor tags and small chocolate boxes with satin ribbon, pastel colors
+
+
+===================== دفعة 15 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p074-conference-badges-lanyard-cards.png — Conference name badges with lanyards on a table, blank name areas
+p075-letterhead-envelopes.png — Letterhead paper and matching envelopes with a minimal abstract emblem on a desk
+p076-clinic-prescriptions-appointment-cards.png — A prescription pad and appointment cards on a doctor desk with a stethoscope
+p077-pocket-folders.png — Glossy presentation pocket folders with documents inside, abstract design
+
+
+===================== دفعة 16 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p078-warranty-cards-product-certificates.png — Numbered warranty cards and quality certificates with a guilloche border pattern (no readable text)
+p079-self-inking-company-stamps.png — A self-inking office stamp and an ink impression of an abstract round seal on paper
+p082-laser-die-cut-shaped-cards.png — Die-cut business cards in unusual shapes (circle, leaf, rounded) scattered on a light surface
+p083-smart-nfc-tap-cards.png — A matte black smart NFC card being tapped against a smartphone, soft glow between them
+
+
+===================== دفعة 17 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p084-thank-you-cards-for-online-orders.png — Small thank-you cards tucked into an open kraft shipping box with tissue paper
+p085-gift-cards-vouchers.png — Elegant gift voucher cards with abstract patterns, inside small envelopes tied with ribbon
+p092-large-promo-posters.png — A large bold abstract poster pasted on a city wall with a second poster rolled beside it
+p093-shelf-price-offer-tags.png — Bright shelf talker price tags clipped to supermarket shelves with colorful products (no text)
+
+
+===================== دفعة 18 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p119-embroidered-polo-shirts.png — Folded navy cotton polo shirts with a small embroidered abstract emblem on the chest
+p120-printed-aprons-chef-jackets.png — A black canvas kitchen apron with a small emblem hanging next to a white chef jacket
+p121-matching-family-trip-t-shirts.png — A row of matching colorful T-shirts in different sizes laid flat, playful abstract print
+p146-business-card-design.png — Several elegant business card design mockups laid out on a designer desk with color swatches
+
+
+===================== دفعة 19 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p148-product-label-design.png — Product bottles and jars with fresh abstract label designs, color swatches on the table
+p164-framed-photo-prints.png — A gallery wall of black and natural wood frames with abstract photo prints
+p166-multi-panel-wall-art-3-pieces.png — A three-panel canvas wall art triptych with a flowing abstract design above a console table
+p167-photo-prints-in-all-sizes.png — A scattered stack of glossy photo prints with colorful abstract scenes, some instant-style
+
+
+===================== دفعة 20 =====================
+You are a professional product photographer. Create 4 photorealistic product photos for an online print-shop catalog.
+
+RULES:
+- One separate image per item, landscape 4:3.
+- Photorealistic e-commerce product photography, studio lighting, soft shadow, sharp focus, clean light warm-grey background.
+- VERY IMPORTANT: do NOT write the file name, the code (like p012) or ANY text, letters, numbers, names, emails, phone numbers or logos on the image or on the products. Designs on the products must be abstract shapes and colors only.
+- No brand names anywhere in the scene: no color swatch fans or color guide cards with printed names, no branded pens, no readable screens, labels or packaging. Props must be plain and unbranded.
+- Give me 4 separate images (NOT one grid image) in this order:
+
+p168-printed-photo-book.png — An open hardcover photo book with glossy pages showing abstract photo layouts
+p169-polaroid-style-prints-with-string-lights.png — Polaroid-style photo prints clipped with wooden pegs on a warm LED fairy light string
+p172-report-cards-school-certificates.png — School report cards and certificates with decorative borders and a gold seal on a desk
+

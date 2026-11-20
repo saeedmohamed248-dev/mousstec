@@ -377,35 +377,7 @@ class InvoiceService:
                 instance.customer.save(update_fields=['balance'])
 
             # --- 3. Vehicle telemetry (skip for returns) ---
-            if not is_return and hasattr(instance, 'vehicle') and instance.vehicle:
-                vehicle_updates = {}
-                if instance.mileage and instance.mileage > instance.vehicle.last_mileage:
-                    vehicle_updates['last_mileage'] = instance.mileage
-
-                    days_to_add = 90
-                    if instance.invoice_type == 'maintenance':
-                        services_text = " ".join(
-                            [s.service.name.lower() for s in instance.service_items.select_related('service').all()]
-                        )
-                        if any(kw in services_text for kw in ('سير', 'كاتينة', 'محرك')):
-                            days_to_add = 365
-                        elif any(kw in services_text for kw in ('بوجيه', 'فلتر')):
-                            days_to_add = 180
-
-                    vehicle_updates['estimated_next_visit'] = (
-                        timezone.now().date() + timedelta(days=days_to_add)
-                    )
-
-                if instance.invoice_type == 'maintenance':
-                    instance.vehicle.ai_health_score = min(
-                        instance.vehicle.ai_health_score + 15, 100
-                    )
-                    vehicle_updates['ai_health_score'] = instance.vehicle.ai_health_score
-
-                if vehicle_updates:
-                    for key, val in vehicle_updates.items():
-                        setattr(instance.vehicle, key, val)
-                    instance.vehicle.save(update_fields=list(vehicle_updates.keys()))
+            InvoiceService.update_vehicle_telemetry(instance)
 
             # --- 4. Loyalty points — only for billable revenue, not free/warranty work ---
             InvoiceService.recalc_loyalty_points([instance.customer_id])
@@ -494,6 +466,45 @@ class InvoiceService:
                 state={'last_inv_id': instance.pk, 'status': 'completed'},
             )
             logger.info("[SALE] INV #%s executed successfully.", instance.id)
+
+    @staticmethod
+    def update_vehicle_telemetry(instance):
+        """🚗 آخر عداد + موعد الصيانة الجاية + مؤشر الصحة للعربية وقت ما الفاتورة تتسلّم.
+
+        🐛 [FIX — دورة ناقصة]: الكود ده كان جوه execute_sale بس — وأمر الشغل (الطريق الأساسي
+        للورشة) بيتحفظ «مُطبّق» فـ execute_sale مابيشتغلش عليه خالص. النتيجة: عداد العربية
+        وموعد زيارتها الجاية عمرهم ما اتحدّثوا من كروت الصيانة، فتذكير الصيانة اليومي ومحرك
+        التنبيهات بالكيلومترات (workshop.predictive_engine) شغالين على عداد قديم/صفر.
+        بيتنادى من execute_sale ومن تسليم أمر الشغل (signals.execute_sale_posting).
+        """
+        if getattr(instance, 'is_return', False) or not getattr(instance, 'vehicle_id', None):
+            return
+        vehicle = instance.vehicle
+        vehicle_updates = {}
+        if instance.mileage and instance.mileage > (vehicle.last_mileage or 0):
+            vehicle_updates['last_mileage'] = instance.mileage
+
+            days_to_add = 90
+            if instance.invoice_type == 'maintenance':
+                services_text = " ".join(
+                    [s.service.name.lower() for s in instance.service_items.select_related('service').all()]
+                )
+                if any(kw in services_text for kw in ('سير', 'كاتينة', 'محرك')):
+                    days_to_add = 365
+                elif any(kw in services_text for kw in ('بوجيه', 'فلتر')):
+                    days_to_add = 180
+
+            vehicle_updates['estimated_next_visit'] = (
+                timezone.localdate() + timedelta(days=days_to_add)
+            )
+
+        if instance.invoice_type == 'maintenance':
+            vehicle_updates['ai_health_score'] = min((vehicle.ai_health_score or 0) + 15, 100)
+
+        if vehicle_updates:
+            for key, val in vehicle_updates.items():
+                setattr(vehicle, key, val)
+            vehicle.save(update_fields=list(vehicle_updates.keys()))
 
     @staticmethod
     def recalc_loyalty_points(customer_ids=None):
