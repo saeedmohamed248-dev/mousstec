@@ -60,17 +60,9 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            Align(
-              alignment: AlignmentDirectional.topEnd,
-              child: TextButton.icon(
-                onPressed: () => lang.set(lang.isEnglish ? 'ar' : 'en'),
-                icon: const Icon(Icons.language),
-                label: Text(lang.isEnglish ? 'العربية' : 'English'),
-              ),
-            ),
             Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -147,6 +139,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
+              ),
+            ),
+            // زرار اللغة فوق المحتوى عشان مايتغطّاش لما الفورم تطول
+            Align(
+              alignment: AlignmentDirectional.topEnd,
+              child: TextButton.icon(
+                onPressed: () => lang.set(lang.isEnglish ? 'ar' : 'en'),
+                icon: const Icon(Icons.language),
+                label: Text(lang.isEnglish ? 'العربية' : 'English'),
               ),
             ),
           ],
