@@ -106,6 +106,17 @@ class LiveMarketTests(_TenantDomainMixin, TestCase):
         self.assertEqual(row['pages'], 2)                          # الصفحتين بس، مش الـ polling ولا الـ POST
         self.assertEqual(row['path'], '/marketplace/request/abc/')  # آخر صفحة فعلية
 
+    def test_vulnerability_scanners_are_not_visitors(self):
+        # 🐛 [FIX]: بوت بيجرّب /wp-admin/install.php كان بيظهر «زائر أونلاين» في لايف السوق
+        before = len(snapshot()['online'])
+        for path in ('/wp-admin/install.php', '/.env', '/blog/wp-login.php?x=1'):
+            VisitorLog.objects.create(ip_address='172.71.5.5', path=path, status_code=403, device_type='desktop')
+        cache.clear()
+        cache.set('pm_online_ip:197.3.3.3', self.pm.pk, 600)
+        online = snapshot()['online']
+        self.assertEqual(len(online), before)
+        self.assertFalse(any(r['ip'] == '172.71.5.5' for r in online))
+
     def test_middleware_keeps_ad_marker(self):
         VisitorLog.objects.all().delete()
         HttpClient().get('/marketplace/?fbclid=abc123&x=1')
