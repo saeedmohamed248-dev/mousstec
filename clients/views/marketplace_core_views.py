@@ -863,6 +863,9 @@ def marketplace_rate_offer(request, offer_code):
         data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({"error": "بيانات غير صالحة"}, status=400)
+    # 🐛 [FIX]: body زي `[1]` كان بيوقع الصفحة بـ 500 (data.get على list).
+    if not isinstance(data, dict):
+        return JsonResponse({"error": "بيانات غير صالحة"}, status=400)
 
     offer = get_object_or_404(TenderOffer, offer_code=offer_code, status='accepted')
     if offer.service_request.customer != customer:
