@@ -49,6 +49,7 @@ from .products import (  # noqa: F401
     bulk_product_entry,
     product_bulk_images,
     product_edit,
+    product_detail,
     product_gallery,
     product_gallery_upload,
     product_image_delete,

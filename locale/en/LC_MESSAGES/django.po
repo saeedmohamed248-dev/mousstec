@@ -28531,3 +28531,36 @@ msgstr "Entered stock from"
 
 msgid "دخل:"
 msgstr "In:"
+
+msgid "مؤرشفة"
+msgstr "Archived"
+
+msgid "الصور والأسعار"
+msgstr "Photos & prices"
+
+msgid "ارفع صور للقطعة"
+msgstr "Upload part photos"
+
+msgid "بيانات القطعة"
+msgstr "Part details"
+
+msgid "{{ n }} شهر"
+msgstr "{{ n }} months"
+
+msgid "التكلفة (متوسط)"
+msgstr "Cost (average)"
+
+msgid "الربح للقطعة"
+msgstr "Profit per unit"
+
+msgid "مفيش رصيد مسجّل للقطعة دي."
+msgstr "No stock recorded for this part."
+
+msgid "آخر حركات المخزون"
+msgstr "Recent stock movements"
+
+msgid "الرصيد بعدها"
+msgstr "Balance after"
+
+msgid "مفيش حركات لسه."
+msgstr "No movements yet."

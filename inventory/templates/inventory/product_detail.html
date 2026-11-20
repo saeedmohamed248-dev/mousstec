@@ -1,0 +1,141 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🔎 {{ product.name }}{% endblock %}
+
+{% block content %}
+{# 🔎 صفحة القطعة — بتتفتح من أي بند في قائمة القطع (الصور، الحالة، الأسعار، الرصيد، الحركات) #}
+<header class="flex items-start justify-between mb-5 flex-wrap gap-3">
+  <div>
+    <h1 class="text-2xl sm:text-3xl font-black text-white">{{ product.name }}</h1>
+    <p class="text-sm text-slate-400 mt-1">
+      <span class="font-mono" dir="ltr">{{ product.part_number }}</span>
+      {% if not product.is_active %}<span class="mr-2 text-xs font-bold px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">🗄️ {% trans "مؤرشفة" %}</span>{% endif %}
+      {% if branch %}<span class="mr-2 text-xs font-bold bg-slate-800 px-2 py-0.5 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+    </p>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <a href="{% url 'inventory:product_edit' product.id %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white"><i class="fas fa-pen ml-1"></i>{% trans "تعديل" %}</a>
+    <a href="{% url 'inventory:product_gallery' product.id %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/60 border border-slate-600/40 text-slate-200 hover:bg-slate-600"><i class="fas fa-images ml-1"></i>{% trans "الصور والأسعار" %}</a>
+    <a href="{% url 'inventory:product_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600"><i class="fas fa-list ml-1"></i>{% trans "كل القطع" %}</a>
+  </div>
+</header>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  {# 📸 الصور #}
+  <section class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
+    {% if main_image %}
+      <img id="pd-main" src="{{ main_image.url }}" alt="{{ product.name }}" class="w-full aspect-square object-contain rounded-xl bg-white">
+      {% if images|length > 1 %}
+      <div class="grid grid-cols-4 gap-2 mt-3">
+        {% for img in images %}
+        <button type="button" data-src="{{ img.image.url }}" onclick="document.getElementById('pd-main').src=this.dataset.src" class="aspect-square rounded-lg overflow-hidden border {% if img.is_primary %}border-amber-400{% else %}border-slate-700{% endif %} bg-white">
+          <img src="{{ img.image.url }}" alt="" class="w-full h-full object-cover">
+        </button>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% else %}
+      <div class="aspect-square rounded-xl bg-slate-900 flex flex-col items-center justify-center text-slate-500 gap-2">
+        <i class="fas fa-image text-4xl"></i>
+        <a href="{% url 'inventory:product_gallery' product.id %}" class="text-sm font-bold text-sky-400 underline">{% trans "ارفع صور للقطعة" %}</a>
+      </div>
+    {% endif %}
+  </section>
+
+  {# 📋 البيانات والحالة #}
+  <section class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50 lg:col-span-2">
+    <h2 class="text-sm font-black text-slate-300 mb-3"><i class="fas fa-circle-info text-sky-400 ml-1"></i>{% trans "بيانات القطعة" %}</h2>
+    <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 text-sm">
+      <div><dt class="text-xs text-slate-500">{% trans "الحالة" %}</dt><dd class="font-bold text-white">{{ product.get_condition_display }}</dd></div>
+      <div><dt class="text-xs text-slate-500">{% trans "التصنيف" %}</dt><dd class="font-bold text-white">{{ product.get_part_category_display|default:"—" }}</dd></div>
+      <div><dt class="text-xs text-slate-500">{% trans "الماركة" %}</dt><dd class="font-bold text-white">{{ product.brand|default:"—" }}</dd></div>
+      <div><dt class="text-xs text-slate-500">{% trans "التوافق (موديل/شاسيه)" %}</dt><dd class="font-bold text-white">{{ product.car_model|default:"—" }}</dd></div>
+      <div><dt class="text-xs text-slate-500">{% trans "سنة الصنع" %}</dt><dd class="font-bold text-white">{{ product.car_year|default:"—" }}</dd></div>
+      {% if product.engine_code %}<div><dt class="text-xs text-slate-500">{% trans "كود المحرك" %}</dt><dd class="font-bold text-white">{{ product.engine_code }}</dd></div>{% endif %}
+      <div><dt class="text-xs text-slate-500">{% trans "الباركود" %}</dt><dd class="font-bold text-white font-mono" dir="ltr">{{ product.barcode|default:"—" }}</dd></div>
+      {% if product.warranty_months %}<div><dt class="text-xs text-slate-500">{% trans "الضمان" %}</dt><dd class="font-bold text-white">{% blocktrans with n=product.warranty_months %}{{ n }} شهر{% endblocktrans %}</dd></div>{% endif %}
+      <div><dt class="text-xs text-slate-500">{% trans "حد التنبيه" %}</dt><dd class="font-bold text-white">{{ product.min_stock_level }}</dd></div>
+    </dl>
+    {% if part_numbers %}
+    <div class="mt-4"><p class="text-xs text-slate-500 mb-1">{% trans "بارت نمبرات إضافية" %}</p>
+      <div class="flex flex-wrap gap-1.5">{% for n in part_numbers %}<span class="font-mono text-xs px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200" dir="ltr">{{ n }}</span>{% endfor %}</div>
+    </div>
+    {% endif %}
+    {% if product.description %}
+    <div class="mt-4"><p class="text-xs text-slate-500 mb-1">{% trans "وصف المنتج" %}</p><p class="text-sm text-slate-200 whitespace-pre-line">{{ product.description }}</p></div>
+    {% endif %}
+  </section>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+  {# 💰 الأسعار — حسب صلاحية الموظف زي القائمة #}
+  {% if show_cost or show_sale %}
+  <section class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
+    <h2 class="text-sm font-black text-slate-300 mb-3"><i class="fas fa-tags text-amber-400 ml-1"></i>{% trans "الأسعار" %}</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+      {% if show_cost %}
+      <div class="bg-slate-900/60 rounded-xl p-3"><p class="text-xs text-slate-500">{% trans "التكلفة (متوسط)" %}</p><p class="font-black text-white tabular-nums">{{ unit_cost|amount }}</p></div>
+      <div class="bg-slate-900/60 rounded-xl p-3"><p class="text-xs text-slate-500">{% trans "آخر شراء" %}</p><p class="font-black text-white tabular-nums">{{ product.purchase_price|amount }}</p></div>
+      {% endif %}
+      {% if show_sale %}
+      <div class="bg-slate-900/60 rounded-xl p-3"><p class="text-xs text-slate-500">{% trans "سعر البيع" %}</p><p class="font-black text-emerald-300 tabular-nums">{{ product.retail_price|amount }}</p></div>
+      <div class="bg-slate-900/60 rounded-xl p-3"><p class="text-xs text-slate-500">{% trans "سعر الجملة" %}</p><p class="font-black text-white tabular-nums">{{ product.b2b_wholesale_price|amount }}</p></div>
+      <div class="bg-slate-900/60 rounded-xl p-3"><p class="text-xs text-slate-500">{% trans "سعر الهالك" %}</p><p class="font-black text-white tabular-nums">{{ product.damaged_price|amount }}</p></div>
+      <div class="bg-slate-900/60 rounded-xl p-3"><p class="text-xs text-slate-500">{% trans "سعر الخردة" %}</p><p class="font-black text-white tabular-nums">{{ product.scrap_price|amount }}</p></div>
+      {% endif %}
+      {% if show_cost and show_sale %}
+      <div class="bg-slate-900/60 rounded-xl p-3"><p class="text-xs text-slate-500">{% trans "الربح للقطعة" %}</p><p class="font-black tabular-nums {% if profit < 0 %}text-red-400{% else %}text-emerald-400{% endif %}">{{ profit|amount }}{% if margin is not None %} <span class="text-xs font-bold">({{ margin }}%)</span>{% endif %}</p></div>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  {# 📦 الرصيد #}
+  <section class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
+    <h2 class="text-sm font-black text-slate-300 mb-3"><i class="fas fa-warehouse text-emerald-400 ml-1"></i>{% trans "الرصيد" %}
+      <span class="mr-2 text-xs font-bold px-3 py-1 rounded-full {% if total_stock <= 0 %}bg-red-500/15 text-red-300{% elif is_low %}bg-amber-500/15 text-amber-300{% else %}bg-emerald-500/15 text-emerald-300{% endif %}">{{ total_stock }}</span></h2>
+    {% if stock_rows %}
+    <table class="w-full text-sm">
+      <thead class="text-xs text-slate-500"><tr><th class="text-start py-1">{% trans "الفرع" %}</th><th class="text-center py-1">{% trans "الكمية" %}</th><th class="text-start py-1">{% trans "مكان الرف" %}</th></tr></thead>
+      <tbody>
+      {% for r in stock_rows %}
+        <tr class="border-t border-slate-700/30"><td class="py-2 text-white">{{ r.branch.name }}</td><td class="py-2 text-center font-bold text-white">{{ r.quantity }}</td><td class="py-2 text-slate-400">{{ r.shelf_location|default:"—" }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-sm text-slate-500">{% trans "مفيش رصيد مسجّل للقطعة دي." %}</p>
+    {% endif %}
+  </section>
+</div>
+
+{# 🧾 آخر حركات المخزون #}
+<section class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50 mt-4">
+  <h2 class="text-sm font-black text-slate-300 mb-3"><i class="fas fa-clock-rotate-left text-purple-400 ml-1"></i>{% trans "آخر حركات المخزون" %}</h2>
+  {% if movements %}
+  <div class="overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="text-xs text-slate-500"><tr>
+      <th class="text-start py-1 px-2">{% trans "التاريخ" %}</th><th class="text-start py-1 px-2">{% trans "الحركة" %}</th>
+      <th class="text-center py-1 px-2">{% trans "الكمية" %}</th><th class="text-center py-1 px-2">{% trans "الرصيد بعدها" %}</th>
+      <th class="text-start py-1 px-2">{% trans "الفرع" %}</th><th class="text-start py-1 px-2">{% trans "ملاحظة" %}</th>
+    </tr></thead>
+    <tbody>
+    {% for m in movements %}
+      <tr class="border-t border-slate-700/30">
+        <td class="py-2 px-2 text-slate-300 whitespace-nowrap"><span dir="ltr">{{ m.created_at|date:"Y-m-d H:i" }}</span></td>
+        <td class="py-2 px-2 text-white">{{ m.get_reason_display }}</td>
+        <td class="py-2 px-2 text-center font-bold tabular-nums {% if m.quantity_change > 0 %}text-emerald-400{% else %}text-red-400{% endif %}" dir="ltr">{% if m.quantity_change > 0 %}+{% endif %}{{ m.quantity_change }}</td>
+        <td class="py-2 px-2 text-center text-slate-300 tabular-nums">{{ m.quantity_after }}</td>
+        <td class="py-2 px-2 text-slate-400">{{ m.branch.name }}</td>
+        <td class="py-2 px-2 text-slate-500 text-xs">{{ m.note|default:"" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="text-sm text-slate-500">{% trans "مفيش حركات لسه." %}</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -187,10 +187,11 @@
       </thead>
       <tbody>
         {% for row in rows %}
-        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
+        {# 🔎 البند كله بيفتح صفحة القطعة (ما عدا الأزرار/الاختيار) #}
+        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition cursor-pointer" data-href="{% url 'inventory:product_detail' row.product.id %}">
           <td class="py-3 px-3 text-center"><input type="checkbox" class="sel-prod" value="{{ row.product.id|stringformat:'d' }}"></td>
           <td class="py-3 px-4 font-mono text-xs text-slate-300">{{ row.product.part_number }}</td>
-          <td class="py-3 px-4"><b class="text-white">{{ row.product.name }}</b>{% if row.product.engine_code %}<br><span class="text-xs text-slate-500">{{ row.product.engine_code }}</span>{% endif %}{% if row.entered %}<br><span class="text-[11px] text-sky-300">📅 {% trans "دخل:" %} <span dir="ltr">{{ row.entered|date:"Y-m-d H:i" }}</span></span>{% endif %}</td>
+          <td class="py-3 px-4"><a href="{% url 'inventory:product_detail' row.product.id %}" class="font-bold text-white hover:text-amber-300 hover:underline">{{ row.product.name }}</a>{% if row.product.engine_code %}<br><span class="text-xs text-slate-500">{{ row.product.engine_code }}</span>{% endif %}{% if row.entered %}<br><span class="text-[11px] text-sky-300">📅 {% trans "دخل:" %} <span dir="ltr">{{ row.entered|date:"Y-m-d H:i" }}</span></span>{% endif %}</td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ row.product.brand }} · {{ row.product.car_model }}</td>
           {% if show_cost %}<td class="py-3 px-4 text-end whitespace-nowrap"><div class="font-bold text-slate-100 tabular-nums">{{ row.unit_cost|amount }}</div>{% if row.expense_share > 0 %}<div class="text-[11px] text-slate-500 tabular-nums">{% trans "شراء" %} {{ row.goods_cost|amount }} · {% trans "مصاريف" %} {{ row.expense_share|amount }}</div>{% elif row.unit_cost != row.product.purchase_price %}<div class="text-[11px] text-slate-500 tabular-nums">{% trans "آخر شراء" %} {{ row.product.purchase_price|amount }}</div>{% endif %}</td>{% endif %}
           {% if show_sale %}<td class="py-3 px-4 text-end whitespace-nowrap"><div class="font-bold tabular-nums {% if show_cost and row.product.retail_price < row.unit_cost %}text-red-400{% else %}text-slate-100{% endif %}">{{ row.product.retail_price|amount }}</div>{% if row.product.b2b_wholesale_price %}<div class="text-[11px] text-slate-500 tabular-nums">{% trans "جملة" %} {{ row.product.b2b_wholesale_price|amount }}</div>{% endif %}</td>{% endif %}
@@ -294,6 +295,12 @@
 </div>
 
 <script>
+document.addEventListener('click', (e) => {
+  const tr = e.target.closest('tr[data-href]');
+  if (!tr || e.target.closest('a, button, input, label, select, form')) return;
+  window.location = tr.dataset.href;
+});
+
 (function () {
   const boxes = [...document.querySelectorAll('.sel-prod')];
   const page = document.getElementById('sel-page');

@@ -77,6 +77,7 @@ urlpatterns = [
     path('inventory/import/extract/', views_lightning.inventory_import_extract, name='inventory_import_extract'),
     path('inventory/import/save/', views_lightning.inventory_import_save, name='inventory_import_save'),
     # 📸 معرض صور المنتج
+    path('products/<int:pk>/', views_lightning.product_detail, name='product_detail'),
     path('products/<int:pk>/edit/', views_lightning.product_edit, name='product_edit'),
     path('products/bulk-images/', views_lightning.product_bulk_images, name='product_bulk_images'),
     # 📸🤖 رفع صور بالترتيب + مراجعة بالذكاء الاصطناعي (بدون تسمية بأرقام القطع)
