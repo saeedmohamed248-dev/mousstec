@@ -45,6 +45,30 @@ class LoginLandingByIndustryTests(ERPTenantTestCase):
         self.assertEqual(r['Location'], '/system/dashboard/')
         self.assertEqual(c.get('/system/dashboard/', HTTP_HOST=self.host).status_code, 200)
 
+    def test_automotive_owner_on_secure_portal_goes_to_quick_access_until_full_panel_opened(self):
+        """🐛 صاحب شركة السيارات كان بيدخل من /secure-portal/login/ (أو أيقونة التطبيق/التحقق بخطوتين)
+        على لوحة Django بدل «الوصول السريع»."""
+        c = Client()
+        c.force_login(self.owner)
+        r = c.get('/secure-portal/', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], '/system/dashboard/')
+        # دخول بالباسورد من صفحة دخول اللوحة ⇒ برضه الوصول السريع
+        r = Client().post('/secure-portal/login/?next=/secure-portal/',
+                          {'username': 'landing_owner', 'password': 'x'}, HTTP_HOST=self.host, follow=True)
+        self.assertEqual(r.redirect_chain[-1][0], '/system/dashboard/')
+        # زرار «لوحة التحكم الكاملة» بيفتحها، وتفضل مفتوحة باقي الجلسة
+        self.assertEqual(c.get('/secure-portal/?full=1', HTTP_HOST=self.host).status_code, 200)
+        self.assertEqual(c.get('/secure-portal/', HTTP_HOST=self.host).status_code, 200)
+        html = c.get('/system/dashboard/', HTTP_HOST=self.host).content.decode()
+        self.assertIn('href="/secure-portal/?full=1"', html)
+
+    def test_printing_owner_still_gets_the_admin_panel(self):
+        self._set_industry('printing')
+        c = Client()
+        c.force_login(self.owner)
+        self.assertEqual(c.get('/secure-portal/', HTTP_HOST=self.host).status_code, 200)
+
     def test_next_is_still_honoured_and_unsafe_next_falls_back_per_industry(self):
         self._set_industry('printing')
         self.assertEqual(self._auto_login('/hr/manager/')[1]['Location'], '/hr/manager/')

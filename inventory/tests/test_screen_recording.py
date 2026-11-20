@@ -53,7 +53,7 @@ class ScreenRecordingTests(ERPTenantTestCase):
 
     # ── الحقن ─────────────────────────────────────────────
     def test_script_injected_for_logged_in_employee_only(self):
-        html = self.c.get('/secure-portal/').content.decode()
+        html = self.c.get('/secure-portal/', follow=True).content.decode()   # ⇒ الوصول السريع
         self.assertIn('rrweb-record-1.1.3.min.js', html)
         self.assertIn('js/screen-rec.js', html)
         anon = HttpClient(HTTP_HOST=self.host).get('/secure-portal/login/').content.decode()
@@ -61,12 +61,12 @@ class ScreenRecordingTests(ERPTenantTestCase):
 
     def test_not_injected_when_disabled_or_platform_owner_entered(self):
         Client.objects.filter(pk=self.tenant.pk).update(screen_recording_enabled=False)
-        self.assertNotIn('rrweb-record', self.c.get('/secure-portal/').content.decode())
+        self.assertNotIn('rrweb-record', self.c.get('/secure-portal/', follow=True).content.decode())
         Client.objects.filter(pk=self.tenant.pk).update(screen_recording_enabled=True)
         s = self.c.session
         s['platform_owner_entered'] = True
         s.save()
-        self.assertNotIn('rrweb-record', self.c.get('/secure-portal/').content.decode())
+        self.assertNotIn('rrweb-record', self.c.get('/secure-portal/', follow=True).content.decode())
 
     # ── الاستقبال ─────────────────────────────────────────
     def test_ingest_stores_compressed_chunk_and_ignores_duplicates(self):

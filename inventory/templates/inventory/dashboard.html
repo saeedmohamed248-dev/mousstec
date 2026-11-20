@@ -38,7 +38,7 @@
                 <p class="text-xs text-amber-200/70">{% trans "لديك صلاحية الوصول للوحة التحكم الكاملة وكل الجداول." %}</p>
             </div>
         </div>
-        <a href="/secure-portal/" class="text-xs font-black text-amber-100 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 px-4 py-2.5 rounded-xl transition">
+        <a href="/secure-portal/?full=1" class="text-xs font-black text-amber-100 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 px-4 py-2.5 rounded-xl transition">
             <i class="fas fa-toolbox ml-1"></i>{% trans "لوحة التحكم الكاملة (Django Admin)" %}
         </a>
     </div>
@@ -431,7 +431,7 @@
             {% endif %}
 
             {% if is_super %}
-            <a href="/secure-portal/" class="card-hover bg-gradient-to-b from-amber-900/40 to-slate-900/60 border border-amber-500/40 hover:border-amber-400/70 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
+            <a href="/secure-portal/?full=1" class="card-hover bg-gradient-to-b from-amber-900/40 to-slate-900/60 border border-amber-500/40 hover:border-amber-400/70 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
                 <div class="w-12 h-12 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-300 text-xl"><i class="fas fa-toolbox"></i></div>
                 <span class="text-xs font-black text-amber-200">{% trans "لوحة التحكم الكاملة" %}</span>
             </a>
