@@ -188,3 +188,60 @@ class OwnerSeesReportsTests(_PublicDomainMixin, TestCase):
         r = self.c.get('/superadmin/support/')
         self.assertContains(r, 'جديد')
         self.assertContains(r, '📎1')
+
+
+@override_settings(ALLOWED_HOSTS=['*'], MEDIA_ROOT=_MEDIA, OWNER_NOTIFY_SYNC=True,
+                   SUPPORT_INBOX_EMAIL='owner@plat.test', CATALOG_NOTIFY_EMAIL='',
+                   WHATSAPP_ACCESS_TOKEN='t', WHATSAPP_PHONE_NUMBER_ID='p',
+                   EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class OwnerNotifiedOfEveryMessageTests(_PublicDomainMixin, TestCase):
+    """🐛 دورات ناقصة: رسايل الشات المباشر مالهاش أي إشعار، و«اتصل بنا» ورد العميل إيميل بس،
+    وتنبيه اللوحة كان في صفحتين بس."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.owner = User.objects.create_user('owner@plat.test', password='x', is_superuser=True, is_staff=True)
+        self.c = HttpClient()
+        self.c.force_login(self.owner)
+
+    def test_live_chat_message_notifies_owner_once_and_shows_in_alerts(self):
+        from unittest import mock
+        from clients.models import ChatSession
+        visitor = HttpClient()
+        with mock.patch('clients.views.chat_views.is_business_hours', return_value=True), \
+                mock.patch('clients.services.whatsapp_notify.send_platform_whatsapp', return_value=True) as wa, \
+                self.captureOnCommitCallbacks(execute=True):
+            sid = visitor.post('/chat/open/', {'name': 'منى'}).json()['session_id']
+            visitor.post(f'/chat/{sid}/send/', {'body': 'عايزة أسأل عن الباقات'})
+            visitor.post(f'/chat/{sid}/send/', {'body': 'حد هنا؟'})        # نفس الجلسة ⇒ مفيش إشعار تاني
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('منى', mail.outbox[0].subject)
+        self.assertIn(f'/superadmin/chat/{sid}/', mail.outbox[0].body)
+        self.assertEqual(wa.call_count, 1)
+        data = self.c.get('/superadmin/api/support/new/').json()
+        self.assertEqual(data['chat_unread'], 1)
+        self.assertEqual((data['chats'][0]['id'], data['chats'][0]['name'], data['chats'][0]['unread']), (sid, 'منى', 2))
+        self.c.get(f'/superadmin/chat/{sid}/')                               # فتحها ⇒ اتقرت
+        self.assertEqual(self.c.get('/superadmin/api/support/new/').json()['chat_unread'], 0)
+        self.assertTrue(ChatSession.objects.filter(pk=sid).exists())
+
+    def test_contact_form_and_customer_reply_also_whatsapp_the_owner(self):
+        from unittest import mock
+        with mock.patch('clients.services.whatsapp_notify.send_platform_whatsapp', return_value=True) as wa:
+            r = HttpClient().post('/support/submit/', {'name': 'كريم', 'email': 'k@x.test', 'phone': '01011112222',
+                                                       'subject': 'استفسار', 'message': 'عندي ورشة'})
+        self.assertTrue(r.json()['ok'])
+        tid = r.json()['ticket_id']
+        self.assertEqual(wa.call_count, 1)
+        self.assertIn('كريم', wa.call_args.kwargs['text'])
+        self.assertIn(f'/superadmin/support/{tid}/', wa.call_args.kwargs['text'])
+        self.assertEqual(self.c.get('/superadmin/api/support/new/').json()['unseen'], 1)
+        # النص بيبان في القايمة من غير ما تفتح التذكرة
+        self.assertContains(self.c.get('/superadmin/support/'), 'عندي ورشة')
+
+    def test_alerts_script_is_on_every_owner_page(self):
+        for url in ('/superadmin/support/', '/superadmin/errors/', '/superadmin/chat/'):
+            html = self.c.get(url).content.decode()
+            self.assertIn('__mtSupportAlerts', html, url)
+            self.assertIn('Notification', html, url)

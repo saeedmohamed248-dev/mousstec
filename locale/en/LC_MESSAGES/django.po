@@ -28504,3 +28504,15 @@ msgstr "Background cleanup failed."
 
 msgid "✅ تم تنظيف خلفية الصورة الأساسية"
 msgstr "✅ Main photo background cleaned"
+
+msgid "رسالة/بلاغ جديد"
+msgstr "new message/report"
+
+msgid "شات مستني ردك"
+msgstr "chat waiting for your reply"
+
+msgid "افتح الشات"
+msgstr "Open chat"
+
+msgid "رسالة جديدة في Mouss Tec"
+msgstr "New message on Mouss Tec"

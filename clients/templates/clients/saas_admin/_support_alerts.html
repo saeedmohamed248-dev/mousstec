@@ -1,16 +1,24 @@
 {% load i18n %}
-{# 🆘 تنبيه لحظي ببلاغات الشركات الجديدة (زرار «مشكلة؟ كلّمنا») — بيسأل كل 20 ثانية #}
-<div id="mtSupportToast" style="display:none;position:fixed;bottom:18px;left:18px;z-index:99999;max-width:340px;background:#FFFFFF;border:2px solid #E8C3BC;border-radius:14px;padding:14px 16px;color:#1C2430;font-family:Cairo,sans-serif;box-shadow: 0 1px 2px rgba(60,45,20,.06);">
-    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
-        <b style="color:#A33A2A;">🆘 <span id="mtSupportCount">0</span> {% trans "بلاغ جديد من الشركات" %}</b>
-        <button type="button" onclick="document.getElementById('mtSupportToast').style.display='none'" style="background:none;border:0;color:#6B6F76;font-size:16px;cursor:pointer;">✕</button>
-    </div>
-    <div id="mtSupportLatest" style="font-size:12px;color:#3A4049;margin:8px 0;"></div>
-    <a href="{% url 'saas_support_inbox' %}" style="display:inline-block;background:#A33A2A;color:#fff;text-decoration:none;padding:7px 12px;border-radius:8px;font-weight:800;font-size:12px;">{% trans "افتح صندوق الدعم" %}</a>
-</div>
+{% comment %}
+  🆘 تنبيه لحظي برسايل الدعم والشات — بيسأل كل 20 ثانية.
+  🐛 [FIX — دورة ناقصة]: التنبيه كان في الرئيسية وصندوق الدعم بس، والشات المباشر مالوش تنبيه خالص —
+  لو صاحب المنصة في أي صفحة تانية (الأخطاء، 360، الشركات…) الرسالة ماكانتش بتبان. دلوقتي متضمّن في
+  ثيم كل صفحات اللوحة (_admin_theme.html) + إشعار سطح المكتب (Notification) + العدد في عنوان التاب.
+  السكريبت بيبني الصندوق بنفسه (ممكن يتضمّن جوه <head>) ومابيشتغلش مرتين في نفس الصفحة.
+{% endcomment %}
 <script>
 (function () {
-    var last = -1;
+    if (window.__mtSupportAlerts) return;
+    window.__mtSupportAlerts = true;
+    var URL_NEW = '{% url "saas_support_new" %}';
+    var T = {
+        reports: '{% trans "رسالة/بلاغ جديد" %}',
+        chats: '{% trans "شات مستني ردك" %}',
+        open: '{% trans "افتح صندوق الدعم" %}',
+        openChat: '{% trans "افتح الشات" %}',
+        title: '{% trans "رسالة جديدة في Mouss Tec" %}'
+    };
+    var last = -1, baseTitle = document.title;
     function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
     function beep() {
         try {
@@ -19,25 +27,81 @@
             o.start(); o.stop(ctx.currentTime + 0.25);
         } catch (e) { /* المتصفح مانع الصوت لحد أول تفاعل */ }
     }
+    function desktop(text, url) {
+        try {
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
+            var n = new Notification(T.title, { body: text, tag: 'mt-support', renotify: true });
+            n.onclick = function () { window.focus(); location.href = url; };
+        } catch (e) {}
+    }
+    function askPermissionOnce() {
+        try {
+            if ('Notification' in window && Notification.permission === 'default') {
+                document.addEventListener('click', function once() {
+                    document.removeEventListener('click', once);
+                    Notification.requestPermission();
+                });
+            }
+        } catch (e) {}
+    }
+    function box() {
+        var el = document.getElementById('mtSupportToast');
+        if (el) return el;
+        el = document.createElement('div');
+        el.id = 'mtSupportToast';
+        el.setAttribute('dir', 'rtl');
+        el.style.cssText = 'display:none;position:fixed;bottom:18px;left:18px;z-index:99999;max-width:340px;background:#FFFFFF;border:2px solid #E8C3BC;border-radius:14px;padding:14px 16px;color:#1C2430;font-family:Cairo,sans-serif;box-shadow:0 6px 24px rgba(60,45,20,.18);';
+        document.body.appendChild(el);
+        return el;
+    }
+    function render(d) {
+        var el = box(), html = '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">'
+            + '<b style="color:#A33A2A;">🔔 ' + (d.unseen + d.chat_unread) + '</b>'
+            + '<button type="button" id="mtSupportClose" style="background:none;border:0;color:#6B6F76;font-size:16px;cursor:pointer;">✕</button></div>';
+        if (d.unseen) {
+            html += '<div style="font-size:12px;font-weight:800;margin-top:8px;">🆘 ' + d.unseen + ' ' + T.reports + '</div>'
+                + d.latest.map(function (t) {
+                    return '<a href="/superadmin/support/' + t.id + '/" style="display:block;color:#1C2430;text-decoration:none;padding:3px 0;font-size:12px;">#' + t.id + ' · <b>' + esc(t.tenant) + '</b> — ' + esc(t.subject).slice(0, 60) + (t.attachments ? ' 📎' + t.attachments : '') + ' <span style="color:#6B6F76;" dir="ltr">' + esc(t.created_at) + '</span></a>';
+                }).join('')
+                + '<a href="/superadmin/support/" style="display:inline-block;margin-top:6px;background:#A33A2A;color:#fff;text-decoration:none;padding:6px 12px;border-radius:8px;font-weight:800;font-size:12px;">' + T.open + '</a>';
+        }
+        if (d.chat_unread) {
+            html += '<div style="font-size:12px;font-weight:800;margin-top:10px;">💬 ' + d.chat_unread + ' ' + T.chats + '</div>'
+                + d.chats.map(function (c) {
+                    return '<a href="/superadmin/chat/' + c.id + '/" style="display:block;color:#1C2430;text-decoration:none;padding:3px 0;font-size:12px;"><b>' + esc(c.name) + '</b>' + (c.tenant ? ' · ' + esc(c.tenant) : '') + ' (' + c.unread + ') <span style="color:#6B6F76;" dir="ltr">' + esc(c.at) + '</span></a>';
+                }).join('')
+                + '<a href="/superadmin/chat/" style="display:inline-block;margin-top:6px;background:#1E2A57;color:#fff;text-decoration:none;padding:6px 12px;border-radius:8px;font-weight:800;font-size:12px;">' + T.openChat + '</a>';
+        }
+        el.innerHTML = html;
+        document.getElementById('mtSupportClose').onclick = function () { el.style.display = 'none'; };
+    }
     function check() {
-        fetch('{% url "saas_support_new" %}', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+        fetch(URL_NEW, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (d) {
                 if (!d) return;
+                d.chat_unread = d.chat_unread || 0; d.chats = d.chats || [];
+                var total = d.unseen + d.chat_unread;
                 var badge = document.getElementById('mtSupportBadge');
                 if (badge) { badge.textContent = d.unseen; badge.style.display = d.unseen ? 'inline-block' : 'none'; }
-                if (d.unseen && d.unseen > last && last !== -1) beep();
-                if (d.unseen) {
-                    document.getElementById('mtSupportCount').textContent = d.unseen;
-                    document.getElementById('mtSupportLatest').innerHTML = d.latest.map(function (t) {
-                        return '<a href="/superadmin/support/' + t.id + '/" style="display:block;color:#1C2430;text-decoration:none;padding:3px 0;">#' + t.id + ' · <b>' + esc(t.tenant) + '</b> — ' + esc(t.subject).slice(0, 60) + (t.attachments ? ' 📎' + t.attachments : '') + ' <span style="color:#6B6F76;" dir="ltr">' + esc(t.created_at) + '</span></a>';
-                    }).join('');
-                    if (d.unseen > last) document.getElementById('mtSupportToast').style.display = 'block';
+                document.title = total ? '(' + total + ') ' + baseTitle : baseTitle;
+                if (total) {
+                    render(d);
+                    if (total > last) {
+                        box().style.display = 'block';
+                        if (last !== -1) {
+                            beep();
+                            var first = d.chat_unread && d.chats.length ? '💬 ' + d.chats[0].name : (d.latest.length ? '🆘 ' + d.latest[0].subject : '');
+                            desktop(first, d.chat_unread && d.chats.length ? '/superadmin/chat/' + d.chats[0].id + '/' : '/superadmin/support/');
+                        }
+                    }
+                } else if (document.getElementById('mtSupportToast')) {
+                    box().style.display = 'none';
                 }
-                last = d.unseen;
+                last = total;
             }).catch(function () {});
     }
-    check();
-    setInterval(check, 20000);
+    function start() { askPermissionOnce(); check(); setInterval(check, 20000); }
+    if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
 })();
 </script>

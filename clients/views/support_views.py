@@ -90,6 +90,10 @@ def submit_help_form(request):
         logger.exception("Help-form email failed for ticket #%s", ticket.id)
         with schema_context('public'):
             SupportTicket.objects.filter(pk=ticket.pk).update(email_error=str(e)[:255])
+    # 🐛 [FIX — دورة ناقصة]: رسالة «اتصل بنا» كانت بتبعت إيميل بس — لو الإيميل راح السبام/مش متظبط
+    #    صاحب المنصة مابيعرفش. واتساب + تنبيه اللوحة (التذكرة ماتشافتش ⇒ seen_at فاضي).
+    _whatsapp_owner(f"📨 رسالة جديدة #{ticket.id} من {name} — {phone or email}\n{subject}\n\n{message[:800]}",
+                    ticket.id)
 
     return JsonResponse({
         'ok': True,
@@ -315,6 +319,21 @@ def _notify_owner_of_customer_reply(ticket, tenant, body, n_files):
         msg.send(fail_silently=True)
     except Exception:  # noqa: BLE001
         logger.warning("[SUPPORT] reply notify failed for #%s", ticket.id)
+    # 🐛 [FIX — دورة ناقصة]: رد العميل كان إيميل بس (fail_silently) — واتساب كمان زي البلاغ الأول
+    _whatsapp_owner(text, ticket.id)
+
+
+def _whatsapp_owner(text, ticket_id):
+    """واتساب لصاحب المنصة (best-effort) — نفس الرقم بتاع باقي إشعارات المالك."""
+    to = getattr(settings, 'CATALOG_NOTIFY_WHATSAPP', '') or getattr(settings, 'SUPPORT_WHATSAPP', '')
+    if not to:
+        return
+    link = f"https://{getattr(settings, 'BASE_DOMAIN', 'mousstec.com')}/superadmin/support/{ticket_id}/"
+    try:
+        from clients.services.whatsapp_notify import send_platform_whatsapp
+        send_platform_whatsapp(to, text=f"{text}\n\n{link}"[:1500])
+    except Exception:  # noqa: BLE001
+        logger.warning("[SUPPORT] whatsapp notify failed for #%s", ticket_id)
 
 
 def my_ticket_attachment(request, attachment_id):
@@ -356,10 +375,19 @@ def support_new_reports(request):
     """للتنبيه اللحظي في لوحة المالك: البلاغات اللي لسه ماتشافتش."""
     qs = (SupportTicket.objects.filter(is_deleted=False, seen_at__isnull=True)
           .exclude(status='closed').select_related('tenant').order_by('-created_at'))
+    # 💬 🐛 [FIX]: رسايل الشات المباشر اللي لسه ماتقرتش ماكانتش بتنبّه خالص
+    from clients.models import ChatSession
+    chats = (ChatSession.objects.exclude(status='closed')
+             .filter(messages__sender='visitor', messages__is_read=False)
+             .select_related('tenant').annotate(n_unread=Count('messages')).order_by('-last_activity_at'))
     return JsonResponse({'unseen': qs.count(), 'latest': [
         {'id': t.id, 'subject': t.subject, 'tenant': t.tenant.name if t.tenant_id else t.name,
          'attachments': t.attachments.count(), 'created_at': timezone.localtime(t.created_at).strftime('%H:%M')}
-        for t in qs[:5]]})
+        for t in qs[:5]],
+        'chat_unread': chats.count(),
+        'chats': [{'id': c.id, 'name': c.visitor_name or c.visitor_email or 'زائر',
+                   'tenant': c.tenant.name if c.tenant_id else '', 'unread': c.n_unread,
+                   'at': timezone.localtime(c.last_activity_at).strftime('%H:%M')} for c in chats[:5]]})
 
 
 # ─────────────────────────────────────────────────────────────────────
