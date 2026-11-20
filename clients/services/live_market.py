@@ -19,6 +19,8 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from clients.services.error_insight import SCANNER_PATH
+
 ONLINE_WINDOW = timedelta(minutes=5)
 MAX_ROWS = 20000
 
@@ -308,6 +310,10 @@ def collect_visitors(since, now=None, max_rows=MAX_ROWS):
         lg['tenant_schema'] = lg['tenant_schema'] or 'public'
         if lg['tenant_schema'] == 'public' and lg['path'].startswith(_OWNER_PREFIXES):
             continue   # صاحب المنصة نفسه (السوبر أدمن / أدمن المنصة) مش زائر
+        # 🐛 [FIX]: سكانرات الثغرات (/wp-admin/install.php، /.env…) كانت بتظهر «زائر أونلاين» في لايف السوق
+        #    وبتشوّه عدد الزوار — دي بوتات مش ناس، ومكانها مركز الأمان مش لوحة الزوار.
+        if SCANNER_PATH.search(lg['path'].split('?', 1)[0]):
+            continue
         key = _visitor_key(lg)
         v = visitors.get(key)
         if v is None:
