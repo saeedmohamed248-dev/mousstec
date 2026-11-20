@@ -42,6 +42,8 @@ PRIVATE_PREFIXES = {
     #    العميل بيشوفها من لينك من غير دخول.)
     'print_projects/': ('printing.PrintOrder', ('project_file', 'project_file_2', 'project_file_3'), PRINT_FILES),
     'print_jobs/': ('printing.PrintJob', 'design_file', PRINT_FILES),
+    # 📒 إيصالات مصروفات المنصة نفسها — صاحب المنصة بس (على الدومين الرئيسي)
+    'platform_finance/': ('clients.PlatformExpense', 'receipt', None),
 }
 URL_PATTERN = r'^media/(?P<path>(?:%s).+)$' % '|'.join(re.escape(p) for p in PRIVATE_PREFIXES)
 
@@ -79,7 +81,10 @@ def private_media(request, path):
         raise Http404   # الملف مش بتاع الشركة دي (أو مش موجود)
 
     user = request.user
-    if model_label == 'clients.ManualPaymentReceipt':
+    if model_label == 'clients.PlatformExpense':
+        if not (user.is_superuser and connection.schema_name == 'public'):
+            raise Http404
+    elif model_label == 'clients.ManualPaymentReceipt':
         is_platform_owner = user.is_superuser and connection.schema_name == 'public'
         own_tenant = (row.tenant_id and row.tenant_id == getattr(connection.tenant, 'pk', None)
                       and (user.is_superuser or _role(user) in roles))

@@ -24,6 +24,7 @@ import logging
 
 from clients import views as client_views
 from clients.views import saas_admin_views as saas_admin_views
+from clients.views import platform_finance_views as platform_finance_views
 from clients.views import agent_api as agent_api_views
 from clients.views import screen_recording_views as screen_rec_views
 from clients.views import catalog_views as catalog_views
@@ -613,6 +614,14 @@ urlpatterns = [
     path('superadmin/marketing/', saas_admin_views.marketing_sources, name='saas_marketing'),
     path('superadmin/coupons/', saas_admin_views.coupons_list, name='saas_coupons'),
     path('superadmin/revenue/', saas_admin_views.revenue_dashboard, name='saas_revenue_dashboard'),
+    # 📒 حسابات المنصة: مصروفات/إيرادات Mouss Tec ككل + قايمة الدخل والمؤشرات
+    path('superadmin/finance/', platform_finance_views.finance_dashboard, name='saas_platform_finance'),
+    path('superadmin/finance/expense/add/', platform_finance_views.expense_add, name='saas_platform_expense_add'),
+    path('superadmin/finance/income/add/', platform_finance_views.income_add, name='saas_platform_income_add'),
+    path('superadmin/finance/<str:kind>/<int:pk>/delete/', platform_finance_views.entry_delete,
+         name='saas_platform_entry_delete'),
+    path('superadmin/finance/expense/<int:pk>/receipt/', platform_finance_views.expense_receipt,
+         name='saas_platform_expense_receipt'),
     path('superadmin/diagnostics-spend/', saas_admin_views.diagnostics_spend_dashboard, name='saas_diag_spend'),
 
     # 🏢 Tenants management (Soft Delete / Restore / Force Delete)
