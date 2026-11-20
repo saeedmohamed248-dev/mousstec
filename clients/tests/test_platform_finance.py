@@ -145,6 +145,41 @@ class SubscriptionAccrualAndUnitEconomicsTests(_PublicDomainMixin, TestCase):
         self.assertEqual(k['cac'], Decimal('300.00'))                          # ٦٠٠ تسويق ÷ ٢ عميل جديد
 
 
+class BuildCostsAndFixedCostsTests(TestCase):
+    """🏗️ تكلفة البناء = استثمار بيتوزّع على عمره تحت EBITDA؛ 📌 الثابت الشهري + نقطة التعادل."""
+
+    def test_build_cost_amortized_below_ebitda_not_in_cogs(self):
+        # ٣٦٠٠٠ اتصرفوا على البناء قبل الإطلاق — بيتوزّعوا على ٣٦ شهر من ١ نوفمبر
+        _exp(D(2026, 3, 1), '36000', 'dev_salaries', nature='capex',
+             period_start=D(2026, 11, 1), period_end=D(2029, 10, 31))
+        _exp(D(2026, 11, 3), '500', 'hosting')
+        PlatformIncome.objects.create(date=D(2026, 11, 10), category='services', description='x', amount=Decimal('2000'))
+        p = pf.profit_and_loss(D(2026, 11, 1), D(2026, 11, 30))
+        self.assertEqual((p['cogs'], p['gross_profit'], p['ebitda']), (Decimal('500'), Decimal('1500'), Decimal('1500')))
+        self.assertEqual(p['amortization'], Decimal('985.40'))                 # ٣٦٠٠٠ × ٣٠ ÷ ١٠٩٦ يوم
+        self.assertEqual(p['net_profit'], Decimal('514.60'))
+        self.assertEqual(pf.profit_and_loss(D(2026, 3, 1), D(2026, 3, 31))['all_expenses'], Decimal('0'))  # مش خسارة مارس
+        self.assertEqual(pf.expenses(D(2026, 3, 1), D(2026, 3, 31), pf.CASH)['amortization'], Decimal('36000.00'))
+        b = pf.balance_items(D(2026, 11, 30))
+        self.assertEqual((b['capex_total'], b['capex_amortized'], b['capex_net']),
+                         (Decimal('36000.00'), Decimal('985.40'), Decimal('35014.60')))
+        self.assertEqual(b['prepaid_expenses'], Decimal('0'))                  # البناء مش «مدفوع مقدّماً»
+
+    def test_fixed_monthly_costs_and_break_even(self):
+        _exp(D(2026, 9, 1), '24', 'hosting', currency='USD', rate='50', is_recurring=True)        # ١٢٠٠
+        _exp(D(2026, 9, 1), '8000', 'salaries', is_recurring=True)
+        _exp(D(2026, 9, 1), '300', 'dev_tools', is_recurring=True, recurring_until=D(2026, 10, 31))  # انتهى
+        _exp(D(2026, 11, 5), '1000', 'ads')                                    # متغيّر
+        PlatformIncome.objects.create(date=D(2026, 11, 6), category='services', description='x', amount=Decimal('5000'))
+        f = pf.fixed_costs(D(2026, 11, 20), {'arpa': Decimal('920'), 'mrr': Decimal('1840'), 'active_customers': 2})
+        self.assertEqual(f['total'], Decimal('9200.00'))
+        self.assertEqual(len(f['items']), 2)
+        self.assertEqual(f['contribution_margin'], 80.0)                       # (٥٠٠٠ − ١٠٠٠) ÷ ٥٠٠٠
+        self.assertEqual(f['break_even'], Decimal('11500.00'))                 # ٩٢٠٠ ÷ ٠٫٨
+        self.assertEqual(f['customers_needed'], 13)                            # ١١٥٠٠ ÷ ٩٢٠ ⇒ ١٢٫٥ ⇒ ١٣
+        self.assertEqual(f['covered_pct'], 20.0)
+
+
 @override_settings(ALLOWED_HOSTS=['*'], MEDIA_ROOT=_MEDIA)
 class PlatformFinancePageTests(_PublicDomainMixin, TestCase):
     @classmethod
@@ -184,6 +219,21 @@ class PlatformFinancePageTests(_PublicDomainMixin, TestCase):
             'date': today.isoformat(), 'category': 'ads', 'description': 'y', 'amount': '5', 'currency': 'EGP',
             'period_start': '2026-01-01'}, follow=True)
         self.assertContains(r, 'بداية ونهاية الفترة')
+        # 📌 شهري ثابت و🏗️ تكلفة بناء من نفس الفورم
+        self.c.post('/superadmin/finance/expense/add/', {
+            'kind': 'fixed', 'date': '2026-09-01', 'category': 'salaries', 'description': 'مرتب مطوّر',
+            'amount': '8000', 'currency': 'EGP', 'period_start': '2026-01-01', 'period_end': '2026-02-01'})
+        f = PlatformExpense.objects.get(description='مرتب مطوّر')
+        self.assertEqual((f.is_recurring, f.nature, f.period_start), (True, 'operating', None))
+        self.c.post('/superadmin/finance/expense/add/', {
+            'kind': 'capex', 'date': '2026-04-01', 'category': 'freelance', 'description': 'بناء السيستم',
+            'amount': '36000', 'currency': 'EGP', 'amortize_from': '2026-11-01', 'life_months': '36'})
+        b = PlatformExpense.objects.get(description='بناء السيستم')
+        self.assertEqual((b.nature, b.period_start, b.period_end), ('capex', D(2026, 11, 1), D(2029, 10, 31)))
+        page = self.c.get('/superadmin/finance/')
+        self.assertContains(page, 'مرتب مطوّر')
+        self.assertContains(page, '36,000.00')                                 # اتصرف على البناء
+        self.assertContains(page, 'EBITDA')
         x = self.c.get('/superadmin/finance/?export=xlsx')
         self.assertEqual(x.status_code, 200)
         self.assertIn('spreadsheet', x['Content-Type'])

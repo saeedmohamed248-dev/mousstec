@@ -28819,3 +28819,111 @@ msgstr "Setup & pre-launch"
 
 msgid "تأمينات"
 msgstr "Insurance"
+
+msgid "= {{ n }} عميل بيدفع بمتوسط {{ a }}"
+msgstr "= {{ n }} paying customers at an average of {{ a }}"
+
+msgid "إهلاك تكاليف البناء"
+msgstr "Amortization of build costs"
+
+msgid "اتحمّل مصروف لحد النهارده"
+msgstr "Expensed to date"
+
+msgid "اتصرف على البناء"
+msgstr "Spent on the build"
+
+msgid "الاشتراكات الحالية ({{ m }} من {{ n }} عميل) بتغطّي {{ p }}% من الثابت"
+msgstr "Current subscriptions ({{ m }} from {{ n }} customers) cover {{ p }}% of fixed costs"
+
+msgid "الباقي (قيمة الأصل)"
+msgstr "Remaining (asset value)"
+
+msgid "الثابت كل شهر"
+msgstr "Fixed every month"
+
+msgid "الربح التشغيلي"
+msgstr "Operating profit"
+
+msgid "الربح التشغيلي قبل الإهلاك"
+msgstr "Operating profit before amortization"
+
+msgid "اللي اتدفع في الفترة"
+msgstr "paid in the period"
+
+msgid "المبلغ الشهري"
+msgstr "Monthly amount"
+
+msgid "المصاريف الشهرية الثابتة"
+msgstr "Fixed monthly costs"
+
+msgid "بيتسجّل مرة ويتكرر لوحده كل شهر بنفس المبلغ — والسيستم بيجمع الثابت ويحسبلك نقطة التعادل. التاريخ = أول شهر."
+msgstr "Recorded once and repeated automatically every month — the system totals fixed costs and calculates break-even. The date is the first month."
+
+msgid "تكلفة بناء السيستم (اتصرفت خلاص)"
+msgstr "System build cost (already spent)"
+
+msgid "تكلفة بناء السيستم (استثمار)"
+msgstr "System build cost (investment)"
+
+msgid "تكلفة بناء — بتتوزّع على عمرها"
+msgstr "Build cost — spread over its useful life"
+
+msgid "توقف المصروف الثابت ده من الشهر الجاي؟ (اللي اتسجّل قبل كده بيفضل)"
+msgstr "Stop this fixed cost from next month? (past entries stay)"
+
+msgid "زي الشركات العالمية: فلوس بناء السيستم (تطوير، تصميم، أجهزة، فترة ما قبل الإطلاق) مش مصروف الشهر اللي اتدفعت فيه — دي استثمار بيتوزّع على عمره الافتراضي (غالباً ٣ سنين) كـ«إهلاك» تحت الربح التشغيلي. كده الشهر مايطلعش خسارة وهمية، وتعرف سيستمك بيكسب من تشغيله ولا لأ."
+msgstr "Like global companies: money spent building the system (development, design, devices, pre-launch) is not an expense of the month it was paid — it is an investment amortized over its useful life (usually 3 years) below operating profit. No fake monthly loss, and you see whether operations are profitable."
+
+msgid "سجّلها من «سجّل مصروف» ← «تكلفة بناء»."
+msgstr "Record it from “Record an expense” → “Build cost”."
+
+msgid "شهري ثابت (سيرفر، مرتب، اشتراك…)"
+msgstr "Fixed monthly (server, salary, subscription…)"
+
+msgid "شهرياً"
+msgstr "Monthly"
+
+msgid "على كام شهر (العمر الافتراضي)"
+msgstr "Over how many months (useful life)"
+
+msgid "فلوس اتصرفت على بناء السيستم — بتتوزّع على عمره الافتراضي كإهلاك تحت الربح التشغيلي. التاريخ = يوم ما اتدفعت (حتى لو قديم)."
+msgstr "Money spent building the system — amortized over its useful life below operating profit. The date is when it was paid (even if long ago)."
+
+msgid "في السنة:"
+msgstr "Per year:"
+
+msgid "متوسط أسعار الباقات"
+msgstr "average plan price"
+
+msgid "مصروف حصل مرة — لو بيغطي فترة (من/لحد) هيتوزّع عليها."
+msgstr "A one-off expense — if it covers a period (from/to) it is spread over it."
+
+msgid "مصروف شهري ثابت"
+msgstr "Fixed monthly cost"
+
+msgid "مصروف عادي"
+msgstr "Regular expense"
+
+msgid "مفيش مصاريف ثابتة متسجّلة — ضيف السيرفر والمرتبات والاشتراكات من «سجّل مصروف» ← «شهري ثابت»، والسيستم هيسجّلها لوحده كل شهر ويحسبلك نقطة التعادل."
+msgstr "No fixed costs yet — add servers, salaries and subscriptions from “Record an expense” → “Fixed monthly”; the system records them every month and calculates break-even."
+
+msgid "منها إهلاك تكاليف البناء:"
+msgstr "Of which build-cost amortization:"
+
+msgid "نقطة التعادل (إيراد شهري)"
+msgstr "Break-even (monthly revenue)"
+
+msgid "وقف"
+msgstr "Stop"
+
+msgid "يبدأ يتوزّع من (تاريخ الإطلاق)"
+msgstr "Amortize from (launch date)"
+
+msgid "تكلفة بناء (استثمار)"
+msgstr "Build cost (investment)"
+
+msgid "تشغيلي"
+msgstr "Operating"
+
+msgid "طبيعة المصروف"
+msgstr "Expense type"

@@ -97,6 +97,8 @@ def finance_dashboard(request):
             ['تكلفة تشغيل الخدمة', pnl['cogs']],
             ['مجمل الربح', pnl['gross_profit']],
             ['مصروفات تشغيلية', pnl['opex']],
+            ['الربح التشغيلي قبل الإهلاك (EBITDA)', pnl['ebitda']],
+            ['إهلاك تكاليف البناء', pnl['amortization']],
             ['صافي الربح', pnl['net_profit']],
         ]},
         {'name': 'المصروفات', 'columns': ['تاريخ الدفع', 'البند', 'البيان', 'المورّد', 'بيغطي من', 'لحد',
@@ -120,14 +122,16 @@ def finance_dashboard(request):
         in_period = (pf._share(e.amount_egp, *e.coverage, start, end) if basis == pf.ACCRUAL
                      else (e.amount_egp if start <= e.date <= end else Decimal('0')))
         expenses_view.append({'e': e, 'in_period': in_period.quantize(Decimal('0.01'))})
+    kpis = pf.kpis(timezone.localdate(), cash)
     return render(request, 'clients/saas_admin/platform_finance.html', {
         'basis': basis, 'balance': pf.balance_items(timezone.localdate()),
         'period': key, 'periods': PERIODS, 'start': start, 'end': end, 'pnl': pnl, 'prev': prev,
         'changes': {k: pf.change_pct(pnl[k] if k != 'revenue' else pnl['revenue']['total'],
                                      prev[k] if k != 'revenue' else prev['revenue']['total'])
                     for k in ('revenue', 'gross_profit', 'net_profit')},
-        'expense_change': pf.change_pct(pnl['expenses']['total'], prev['expenses']['total']),
-        'groups': groups, 'series': series, 'kpis': pf.kpis(timezone.localdate(), cash), 'cash': cash,
+        'expense_change': pf.change_pct(pnl['all_expenses'], prev['all_expenses']),
+        'groups': groups, 'series': series, 'kpis': kpis, 'cash': cash,
+        'fixed': pf.fixed_costs(timezone.localdate(), kpis),
         'expenses': expenses_view, 'incomes': inc_qs[:100], 'cat': cat,
         'categories': [(k, lbl) for k, lbl, _g in EXPENSE_CATEGORIES],
         'grouped_categories': [(lbl, [(k, cl) for k, cl, cg in EXPENSE_CATEGORIES if cg == g])
@@ -203,13 +207,33 @@ def expense_add(request):
     if err:
         messages.error(request, err)
         return _back(request)
+    # نوع المصروف: عادي / شهري ثابت / تكلفة بناء (اتصرفت على بناء السيستم وبتتوزّع على عمره)
+    kind = request.POST.get('kind') or 'normal'
+    extra = {'nature': 'operating', 'is_recurring': False, 'recurring_until': None}
+    if kind == 'fixed':
+        extra.update(is_recurring=True, recurring_until=_date(request.POST.get('recurring_until')))
+        data['period_start'] = data['period_end'] = None
+    elif kind == 'capex':
+        start = _date(request.POST.get('amortize_from')) or data['date']
+        try:
+            months = int(request.POST.get('life_months') or 36)
+        except ValueError:
+            months = 0
+        if not 1 <= months <= 120:
+            messages.error(request, 'العمر الافتراضي لازم يكون من شهر لـ ١٢٠ شهر.')
+            return _back(request)
+        extra['nature'] = 'capex'
+        data['period_start'] = start
+        data['period_end'] = pf.add_months(start, months) - datetime.timedelta(days=1)
+    elif request.POST.get('is_recurring') == '1':        # الفورم القديم
+        extra.update(is_recurring=True, recurring_until=_date(request.POST.get('recurring_until')))
     method = request.POST.get('payment_method') or 'card'
     PlatformExpense.objects.create(
         category=category, vendor=(request.POST.get('vendor') or '').strip()[:120],
         payment_method=method if method in dict(PAYMENT_METHODS) else 'other',
-        receipt=receipt, is_recurring=request.POST.get('is_recurring') == '1',
-        recurring_until=_date(request.POST.get('recurring_until')), **data)
-    messages.success(request, 'المصروف اتسجّل ✅')
+        receipt=receipt, **extra, **data)
+    messages.success(request, {'fixed': 'المصروف الشهري الثابت اتسجّل — هيتسجّل لوحده كل شهر ✅',
+                               'capex': 'تكلفة البناء اتسجّلت — هتتوزّع على عمرها ✅'}.get(kind, 'المصروف اتسجّل ✅'))
     return _back(request)
 
 

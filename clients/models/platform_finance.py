@@ -66,6 +66,16 @@ EXPENSE_CATEGORIES = (
 )
 CATEGORY_GROUP = {k: g for k, _l, g in EXPENSE_CATEGORIES}
 
+# طبيعة المصروف — زي الشركات العالمية:
+#  * تشغيلي: مصروف الفترة اللي اتصرف فيها (أو اللي بيغطيها).
+#  * تكلفة بناء (CapEx): فلوس اتصرفت على بناء السيستم نفسه — أصل مش مصروف الشهر ده (IAS 38 /
+#    ASC 350-40)، بيتوزّع على عمره الافتراضي كـ«إهلاك» تحت الربح التشغيلي (EBITDA) عشان
+#    مايبوّظش أرقام شهر بعينه، والمتبقّي منه بيبان أصل في الميزانية.
+EXPENSE_NATURES = (
+    ('operating', _('تشغيلي')),
+    ('capex', _('تكلفة بناء (استثمار)')),
+)
+
 PAYMENT_METHODS = (
     ('card', _('بطاقة بنكية')),
     ('bank', _('تحويل بنكي')),
@@ -141,6 +151,8 @@ class PlatformExpense(_Money):
     payment_method = models.CharField(max_length=10, choices=PAYMENT_METHODS, default='card',
                                       verbose_name=_("طريقة الدفع"))
     receipt = models.FileField(upload_to='platform_finance/', blank=True, null=True, verbose_name=_("الإيصال"))
+    nature = models.CharField(max_length=10, choices=EXPENSE_NATURES, default='operating', db_index=True,
+                              verbose_name=_("طبيعة المصروف"))
     is_recurring = models.BooleanField(default=False, verbose_name=_("بيتكرر كل شهر"))
     recurring_until = models.DateField(null=True, blank=True, verbose_name=_("التكرار لحد"))
     # المصروف المتكرر بيتنسخ شهرياً — النسخة بتشاور على الأصل (ومابيتكررش تاني لنفس الشهر)
@@ -157,6 +169,17 @@ class PlatformExpense(_Money):
     @property
     def group(self):
         return CATEGORY_GROUP.get(self.category, 'ga')
+
+    @property
+    def is_capex(self):
+        return self.nature == 'capex'
+
+    @property
+    def monthly_months(self):
+        """عمر تكلفة البناء بالشهور (للعرض)."""
+        if not self.is_spread:
+            return None
+        return round(((self.period_end - self.period_start).days + 1) / 30.4375)
 
     def __str__(self):
         return f"{self.date} — {self.get_category_display()} — {self.amount_egp} EGP"
