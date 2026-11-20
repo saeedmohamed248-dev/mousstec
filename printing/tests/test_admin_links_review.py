@@ -109,6 +109,6 @@ class AutomotiveSearchBoxTests(ERPTenantTestCase):
         boss = User.objects.create_superuser('car_search_owner', 'cs@x.com', 'x')
         c = Client()
         c.force_login(boss)
-        html = c.get('/secure-portal/', HTTP_HOST=self.domain.domain).content.decode()
+        html = c.get('/secure-portal/?full=1', HTTP_HOST=self.domain.domain).content.decode()   # اللوحة الكاملة من زرارها
         self.assertIn('action="/secure-portal/inventory/product/"', html)
         self.assertNotIn('action="/secure-portal/printing/printorder/"', html)
