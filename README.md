@@ -59,6 +59,8 @@ make run
 | `mobile_api` | API تطبيق الموبايل | `/api/mobile/v1/` |
 | `erp_core` | الإعدادات، الـ URLs، الـ middleware، أدوات الذكاء الاصطناعي المشتركة | — |
 
+**👥 مبرمج جديد؟ ابدأ من [docs/TEAM_GUIDE.md](docs/TEAM_GUIDE.md)** (كل تخصص يشتغل فين) · خريطة الجداول: [docs/DATABASE.md](docs/DATABASE.md)
+
 التفاصيل: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · الدورة المحاسبية:
 [docs/ACCOUNTING_CYCLE.md](docs/ACCOUNTING_CYCLE.md) · الترجمة: [docs/I18N.md](docs/I18N.md)
 
@@ -72,7 +74,7 @@ make run
 | زي CI | `make test-shard SHARD=1` (١ لـ ٤) | `scripts/test_shards.py` بيقسّم السويت |
 | كلها | `make test` | ~٢٣٠٠ اختبار — محتاج Redis وإلا كل كلاس بيستنى دقيقة |
 | المتصفح | `make e2e-server` ثم `make e2e` | عربي + إنجليزي — [e2e/README.md](e2e/README.md) |
-| لينت | `make lint` و `make check` | نفس اللي في CI |
+| لينت | `make lint` و `make check` | نفس اللي في CI (و`make check` بيتأكد إن خريطة الداتابيز متحدّثة — `make db-map`) |
 
 كل PR على `main` بيشغّل CI كامل (`.github/workflows/ci.yml`): لينت، مهاجرات، السويت
 كاملة على ٤ أجهزة، اختبارات المتصفح، واختبارات الكشك. **ماحدش ينشر غير لو CI أخضر.**

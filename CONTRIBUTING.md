@@ -1,5 +1,7 @@
 # 🤝 إزاي تشتغل على Mouss Tec
 
+> 👥 أول مرة؟ اقرا [docs/TEAM_GUIDE.md](docs/TEAM_GUIDE.md) — كل تخصص فولدراته فين وبيختبر إزاي.
+
 الدليل ده للي هيضيف كود. القواعد هنا مكتوبة بعد باجات وصلت للعميل فعلاً — كل
 قاعدة وراها حكاية.
 
@@ -60,6 +62,12 @@
 - ملف جديد بدل ما ملف ضخم يكبر. `inventory/views_lightning/` كان ملف واحد ~٧٠٠٠ سطر واتقسم
   موديول لكل مجال (`pos.py`، `purchases.py`، `treasuries.py`…) — الشاشة الجديدة في موديولها،
   والمساعد المشترك في `_common.py`. اختبار بيقفل أي موديول يعدّي ١٢٠٠ سطر.
+  نفس الكلام اتعمل لـ `printing/models/` و`printing/admin/` و`clients/views/saas_admin_views/`
+  و`clients/views/admin_views/` — و`erp_core/tests/test_codebase_structure.py` بيمنع **أي** ملف
+  بايثون جديد يعدّي ١٢٠٠ سطر (والقدام متسجّلين بحجمهم في `LEGACY_GIANTS` — مسموح يصغروا بس).
+- `mock.patch` في الاختبار يشاور على الموديول اللي فيه الدالة فعلاً
+  (`clients.views.saas_admin_views.monitoring._check_database`) مش على الحزمة.
+- غيّرت موديل؟ `makemigrations` + `make db-map` (خريطة `docs/DATABASE.md`) واعمل commit للاتنين.
 - مفيش أسرار في الريبو: كله في `.env` (والمثال في `.env.example` من غير قيم حقيقية).
 
 ## الاختبارات

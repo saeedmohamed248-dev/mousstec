@@ -1,7 +1,7 @@
 # Mousstec ERP — Architecture Guide
 
 > **Living Document** — يتحدّث كل ما يتم تعديل بنية النظام أو تنفيذ refactor.
-> آخر تحديث: 2026-06-13
+> آخر تحديث: 2026-11-20 — دليل التخصصات للمبرمجين: [TEAM_GUIDE.md](TEAM_GUIDE.md) · خريطة الجداول: [DATABASE.md](DATABASE.md)
 
 ---
 
@@ -53,6 +53,9 @@
 | `messenger_bot` | صغير | ~2 class | bot integration |
 
 ### 2.2 الـ Mega-Files (تقتل المراجعة)
+
+> 📸 لقطة يونيو ٢٠٢٦ (قبل Wave 1) — كلها اتقسمت. الملفات اللي لسه فوق ١٢٠٠ سطر متسجّلة
+> بحجمها في `LEGACY_GIANTS` جوه `erp_core/tests/test_codebase_structure.py` (مسموح تصغر بس).
 
 | File | Lines | Risk |
 |------|-------|------|
@@ -433,6 +436,10 @@ operations = [
 | 5 | `clients/views/design_store_views.py` | 2374 | **61** | 3 (navigation/generate/delivery) | ✅ Done |
 | 6 | `printing/views.py` | 2103 | **40** | 7 (utils/ai_design/copilot/catalog/ai_diagnostics/studio/finance) | ✅ Done |
 | 7 | `inventory/models.py` | 1612 | **29** | 7 (organization/catalog/customers/finance/invoices/operations/diagnostics) | ✅ Done |
+| 8 | `printing/models.py` | 2891 | **55** | 9 (customers/production/materials/treasury/staff/sales/purchasing/cheques/accounting + `_common`) | ✅ Done (Nov 2026) |
+| 9 | `printing/admin.py` | 2348 | **65** | 9 (نفس تقسيمة الموديلات + `_common`) | ✅ Done (Nov 2026) |
+| 10 | `clients/views/saas_admin_views.py` | 3323 | **68** | 7 (plans/team/analytics/tenants/monitoring/marketplace/broadcast + `_common`) | ✅ Done (Nov 2026) |
+| 11 | `clients/views/admin_views.py` | 1702 | **46** | 6 (dashboard/marketplace_customers/gifts/impersonation/parts_refunds/print_requests + `_common`) | ✅ Done (Nov 2026) |
 
 **Cumulative shrinkage:** 20,451 سطر في الـ entry files → **2,270 سطر** (-89%). 45 domain submodule جديد.
 
@@ -523,6 +530,21 @@ re-split هيتعمل لاحقاً بعد إما:
 inventory/models.py) لأن FKs بتـ resolve بـ Django's ContentType
 lazy mechanism. لكن split للـ functions اللي بتنادي بعضها مع
 test patches = مخاطرة. لازم scan قبل.
+
+### ADR-004 — تقسيمات نوفمبر ٢٠٢٦: تصدير صريح + حارس حجم + خريطة داتابيز (2026-11-20)
+**القرار:**
+1. الـ `__init__.py` في الحزم الجديدة بيصدّر الأسماء **بقايمة صريحة** مش `import *`:
+   لو حصل استيراد دائري وقت الإقلاع، `import *` بينسخ الأسماء اللي اتعرّفت لحد اللحظة دي
+   وبيكمل ساكت (اسم ناقص ⇒ 502 بعدين)، والاستيراد الصريح بيقع بصوت عالي في الاختبارات.
+2. الاستيراد بين موديولات نفس الحزمة: فوق لو مايعملش دائرة، وإلا **جوه الدالة**
+   بتعليق «استيراد محلي لتفادي الدائرية». الـ FK بيستخدم الكلاس من موديول اتحمّل قبله.
+3. الاختبارات اللي بتعمل `mock.patch` بتشاور على الموديول اللي فيه الدالة فعلاً
+   (ADR-003) — عشان كده `robot/views.py` و`robot/services.py` و`hr/views.py`
+   (أكتر من ٥٠ patch لكل واحد) لسه مااتقسموش: تقسيمهم محتاج تعديل الـ patches معاهم.
+4. `erp_core/tests/test_codebase_structure.py` بيتأكد إن كل موديول في الحزم المقسومة بيتحمّل،
+   كل استيراد نسبي سليم، كل `from <حزمة> import X` في المشروع لاقي X، ومافيش ملف جديد يعدّي ١٢٠٠ سطر.
+5. `manage.py db_map` بيولّد `docs/DATABASE.md`، و`tenancy/tests/test_db_map.py` بيتأكد إنه متحدّث
+   وإن مافيش جدول في `public` بيعمل FK لجدول جوه schema شركة.
 
 ---
 

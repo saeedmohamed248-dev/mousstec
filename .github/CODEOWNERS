@@ -1,18 +1,76 @@
 # 👥 مين بيراجع إيه — GitHub بيطلب مراجعتهم أوتوماتيك على أي PR بيلمس الملفات دي.
-# لما التيم يكبر: كل جزء يبقى له مسؤول (بدّل الاسم أو حط @org/team).
+# متقسم بنفس تخصصات docs/TEAM_GUIDE.md. لما تعيّن مبرمج على تخصص: بدّل الاسم في
+# سطور تخصصه بحسابه (أو @org/team) — وسيب سطور «الفلوس» على المالك.
+# ⚠️ آخر سطر بيطابق الملف هو اللي بيكسب — عشان كده الفلوس في الآخر.
 
 *                                   @saeedmohamed248-dev
 
-# 💰 الفلوس — مراجعة المالك إجبارية
+# 🏪 المخزن ونقطة البيع والورشة
+/inventory/                         @saeedmohamed248-dev
+/workshop/                          @saeedmohamed248-dev
+
+# 🖨️ المطابع
+/printing/                          @saeedmohamed248-dev
+/print_market/                      @saeedmohamed248-dev
+
+# 🏢 المنصة والاشتراكات + 👑 لوحة مالك المنصة
+/clients/                           @saeedmohamed248-dev
+/tenancy/                           @saeedmohamed248-dev
+
+# 🛒 السوق B2B / C2C
+/marketplace_b2b/                   @saeedmohamed248-dev
+/marketplace_c2c/                   @saeedmohamed248-dev
+/clients/views/b2b_views.py         @saeedmohamed248-dev
+/clients/views/parts_marketplace_views.py @saeedmohamed248-dev
+/clients/views/marketplace_core_views.py  @saeedmohamed248-dev
+/clients/views/merchant_parts_views.py    @saeedmohamed248-dev
+
+# 🤖 الذكاء الاصطناعي
+/erp_core/ai/                       @saeedmohamed248-dev
+/ai_rooms/                          @saeedmohamed248-dev
+/design_store/                      @saeedmohamed248-dev
+/clients/views/design_store_views/  @saeedmohamed248-dev
+/omnichannel/                       @saeedmohamed248-dev
+/messenger_bot/                     @saeedmohamed248-dev
+/social_ads/                        @saeedmohamed248-dev
+
+# 🚗 التشخيص والسيارات
+/smart_diagnostics/                 @saeedmohamed248-dev
+/bmw_ecu/                           @saeedmohamed248-dev
+/repair_atlas/                      @saeedmohamed248-dev
+/diagnostics_catalog/               @saeedmohamed248-dev
+
+# 🦾 الروبوت والكشك
+/robot/                             @saeedmohamed248-dev
+/smart_robot/                       @saeedmohamed248-dev
+
+# 👥 الموارد البشرية
+/hr/                                @saeedmohamed248-dev
+
+# 🎨 الواجهة والترجمة
+/templates/                         @saeedmohamed248-dev
+/static/                            @saeedmohamed248-dev
+/locale/                            @saeedmohamed248-dev
+
+# 📱 الموبايل
+/mobile_api/                        @saeedmohamed248-dev
+/mobile_app/                        @saeedmohamed248-dev
+
+# 🧪 اختبارات المتصفح
+/e2e/                               @saeedmohamed248-dev
+
+# 🏢 المنصة والنشر
+/erp_core/settings.py               @saeedmohamed248-dev
+/deploy/                            @saeedmohamed248-dev
+/.github/                           @saeedmohamed248-dev
+
+# 💰 الفلوس — مراجعة المالك إجبارية (في الآخر عشان تكسب أي سطر فوق)
 /inventory/services/                @saeedmohamed248-dev
 /inventory/models/                  @saeedmohamed248-dev
+/printing/ledger.py                 @saeedmohamed248-dev
+/printing/models/treasury.py        @saeedmohamed248-dev
+/printing/models/accounting.py      @saeedmohamed248-dev
 /billing/                           @saeedmohamed248-dev
 /clients/services/platform_billing.py @saeedmohamed248-dev
 /clients/views/subscription_views.py  @saeedmohamed248-dev
 /hr/services/payroll_service.py     @saeedmohamed248-dev
-
-# 🏢 المنصة والنشر
-/tenancy/                           @saeedmohamed248-dev
-/erp_core/settings.py               @saeedmohamed248-dev
-/deploy/                            @saeedmohamed248-dev
-/.github/                           @saeedmohamed248-dev

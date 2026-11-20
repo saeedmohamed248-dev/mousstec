@@ -20,7 +20,8 @@ Once a single 3,282-line `_legacy.py`. Now a flat package of focused, single-res
 | **`design_chat_views.py`** | Conversational Design Builder (Phase N — start, message, undo, finalize, state, page). | 6 endpoints (`design_chat_*`) |
 | **`auth_views.py`** | Tenant SaaS signup, sector landing pages, smart post-login redirect, account recovery. | 8 endpoints |
 | **`subscription_views.py`** | Pricing page, Paymob checkout/callback, manage subscription, add-on purchase. | 6 endpoints |
-| **`admin_views.py`** | Super-admin dashboard, customer detail, tenant grants, impersonation, enter-tenant. | 5 endpoints |
+| **`admin_views/`** | Super-admin tools, one module per area: `dashboard`, `marketplace_customers`, `gifts`, `impersonation`, `parts_refunds`, `print_requests` (+ `_common`). | 17 endpoints |
+| **`saas_admin_views/`** | Platform-owner control centre (`/superadmin/`): `plans`, `team`, `analytics`, `tenants`, `monitoring`, `marketplace`, `broadcast` (+ `_common` with `saas_admin_required`). Referenced from `erp_core/urls.py` as `saas_admin_views.<name>`. | ~50 endpoints |
 | **`b2b_views.py`** | B2B marketplace search, blind bidding, escrow wallet, demand predictor. | 5 endpoints |
 | **`parts_marketplace_views.py`** | Customer P2P parts market: feed, listing, escrow checkout, orders/sales, refunds, disputes, "Part Wanted" requests + seller offers, seller listings + edit/resubmit, ❤ saved parts, seller ratings, wallet (payout details), price guide. | 27 endpoints (`parts_*`) |
 | **`merchant_parts_views.py`** | Merchant (tenant) sellers in the parts market: list, withdraw, ship, dispute — from the tenant subdomain. | 5 endpoints (`merchant_parts_*`) |
@@ -49,6 +50,14 @@ Under Daphne (ASGI), wildcard imports were observed to drop names intermittently
 1. Implement the view in the module that owns its domain (e.g. a new design-store action → `design_store_views.py`).
 2. Add the name to that module's `from .X import (...)` block in `__init__.py`.
 3. Reference it from `erp_core/urls.py` as `client_views.<name>` — no other plumbing.
+
+### Packages inside `clients/views/` (`admin_views/`, `saas_admin_views/`, `design_store_views/`)
+
+Same facade rule one level down: the package `__init__.py` re-exports every public name
+explicitly, so `from clients.views.saas_admin_views import X` keeps working. **In tests,
+`mock.patch` the submodule that owns the function** (e.g.
+`clients.views.saas_admin_views.monitoring._check_database`) — patching the package
+attribute doesn't affect calls made inside the submodule.
 
 ### Moving an endpoint between modules
 

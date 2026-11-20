@@ -77,10 +77,10 @@ class SystemStatusOverallTests(TestCase):
         c = Client()
         c.force_login(owner)
         ok = {'status': 'ok', 'name': 'x', 'detail': '', 'icon': 'x'}
-        with mock.patch('clients.views.saas_admin_views._check_database', return_value=ok), \
-                mock.patch('clients.views.saas_admin_views._check_cache', return_value=ok), \
-                mock.patch('clients.views.saas_admin_views._check_celery', return_value=ok), \
-                mock.patch('clients.views.saas_admin_views._check_resources', return_value=resources):
+        with mock.patch('clients.views.saas_admin_views.monitoring._check_database', return_value=ok), \
+                mock.patch('clients.views.saas_admin_views.monitoring._check_cache', return_value=ok), \
+                mock.patch('clients.views.saas_admin_views.monitoring._check_celery', return_value=ok), \
+                mock.patch('clients.views.saas_admin_views.monitoring._check_resources', return_value=resources):
             return c.get('/superadmin/system/').context['overall']
 
     def test_unknown_check_is_not_degraded(self):
