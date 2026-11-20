@@ -132,8 +132,24 @@ def chat_send(request, session_id):
             return JsonResponse({'ok': False, 'error': 'الجلسة مغلقة'}, status=400)
         msg = ChatMessage.objects.create(session=sess, sender='visitor', body=body)
         ChatSession.objects.filter(pk=sess.pk).update(last_activity_at=timezone.now())
+        _notify_owner_of_chat(sess, body)
 
     return JsonResponse({'ok': True, 'id': msg.id})
+
+
+_CHAT_NOTIFY_EVERY = 600   # ثانية — رسايل ورا بعض في نفس الجلسة = إشعار واحد
+
+
+def _notify_owner_of_chat(sess, body):
+    """🐛 [FIX — دورة ناقصة]: رسايل الشات المباشر ماكانش ليها أي إشعار (لا إيميل ولا واتساب ولا تنبيه
+    في اللوحة) — الزائر يكتب ويستنى، وصاحب المنصة مايعرفش غير لو فتح «الشات» بالصدفة."""
+    from django.core.cache import cache
+    if not cache.add(f'chat_notify:{sess.pk}', 1, _CHAT_NOTIFY_EVERY):
+        return
+    from clients.services.owner_notify import notify_owner
+    who = sess.visitor_name or sess.visitor_email or 'زائر'
+    where = sess.tenant.name if sess.tenant_id else 'الموقع'
+    notify_owner(f'💬 رسالة شات من {who} ({where})', body[:500], f'/superadmin/chat/{sess.pk}/')
 
 
 @require_POST
