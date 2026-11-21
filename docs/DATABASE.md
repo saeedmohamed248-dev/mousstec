@@ -28,7 +28,7 @@
 | `mobile_api` | جوه schema كل شركة | 1 |
 | `omnichannel` | public (مشتركة للمنصة) | 3 |
 | `print_market` | public (مشتركة للمنصة) | 9 |
-| `printing` | جوه schema كل شركة | 33 |
+| `printing` | جوه schema كل شركة | 35 |
 | `repair_atlas` | جوه schema كل شركة | 5 |
 | `robot` | جوه schema كل شركة | 24 |
 | `smart_diagnostics` | جوه schema كل شركة | 7 |
@@ -318,6 +318,8 @@
 | `PrintLedgerState` | `printing_printledgerstate` | — |
 | `PrintMaterial` | `printing_printmaterial` | — |
 | `PrintOrder` | `printing_printorder` | — |
+| `PrintPriceRule` | `printing_printpricerule` | — |
+| `PrintPriceTier` | `printing_printpricetier` | — |
 | `PrintProof` | `printing_printproof` | auth.User |
 | `PrintStockAdjustment` | `printing_printstockadjustment` | auth.User |
 | `PrintSupplier` | `printing_printsupplier` | — |
