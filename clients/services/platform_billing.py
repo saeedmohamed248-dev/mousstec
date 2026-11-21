@@ -506,3 +506,19 @@ def refund_invoice(invoice, *, reason='', user=None, cut_service=False):
             sub.current_period_end = today
             sub.save(update_fields=['current_period_end'])
     return True
+
+
+def activate_with_invoice(tenant, sub, months, user=None, *, plan=None, notes='تفعيل من لوحة الإدارة'):
+    """🐛 [FIX — الحسابات]: التفعيل اليدوي (أزرار لوحة Django / صفحة الأسعار) كان بيمدّ التاريخ من غير
+    فاتورة منصة ⇒ الفلوس ماكانتش بتظهر في «حسابات المنصة» ولا MRR ولا سجل فواتير الشركة.
+    دلوقتي لو للشركة باقة: فاتورة مدفوعة بسعرها زي التجديد من صفحة الشركات. True لو اتعملت فاتورة
+    (False = مفيش باقة ⇒ المستدعي بيمدّ التاريخ زي الأول)."""
+    if plan is None:
+        from clients.models import Plan
+        from clients.services.plan_mapping import resolve_plan_slug
+        plan = (sub.plan if sub is not None and sub.plan_id else
+                Plan.objects.filter(slug=resolve_plan_slug(tenant.plan or '') or '', is_active=True).first())
+    if plan is None:
+        return False
+    issue_subscription_invoice(tenant, plan, months, paid=True, provider='manual_admin', user=user, notes=notes)
+    return True

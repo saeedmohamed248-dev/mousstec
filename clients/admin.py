@@ -111,29 +111,8 @@ class SystemErrorLogAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
         return connection.schema_name == 'public' and request.user.is_superuser
 
 import logging
+from clients.services.platform_billing import activate_with_invoice
 logger = logging.getLogger('mouss_tec_core')
-
-
-def _plan_for(tenant, sub=None):
-    """باقة الشركة (من الاشتراك، ولو مفيش من خانة plan القديمة)."""
-    if sub is not None and sub.plan_id:
-        return sub.plan
-    from clients.models import Plan
-    from clients.services.plan_mapping import resolve_plan_slug
-    return Plan.objects.filter(slug=resolve_plan_slug(tenant.plan or '') or '', is_active=True).first()
-
-
-def _activate_with_invoice(request, tenant, sub, months):
-    """🐛 [FIX — الحسابات]: التفعيل من لوحة Django كان بيمدّ التاريخ من غير فاتورة منصة ⇒ الفلوس
-    ماكانتش بتظهر في «حسابات المنصة» ولا MRR ولا سجل فواتير الشركة. دلوقتي (لو للشركة باقة)
-    بيتعمل فاتورة مدفوعة بسعر الباقة زي التجديد من صفحة الشركات. True لو اتعملت فاتورة."""
-    plan = _plan_for(tenant, sub)
-    if plan is None:
-        return False
-    from clients.services.platform_billing import issue_subscription_invoice
-    issue_subscription_invoice(tenant, plan, months, paid=True, provider='manual_admin', user=request.user,
-                               notes='تفعيل من لوحة الإدارة')
-    return True
 
 # =====================================================================
 # 🛡️ 0. درع الحماية السيبراني لحظر تسريب البيانات للفروع (SaaS Isolation Shield)
@@ -373,11 +352,8 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
         for client in queryset:
             try:
                 with transaction.atomic():
-                    sub, _ = TenantSubscription.objects.get_or_create(
-                        tenant=client,
-                        defaults={'is_active': False},
-                    )
-                    if _activate_with_invoice(request, client, sub, 1):
+                    sub, _ = TenantSubscription.objects.get_or_create(tenant=client, defaults={'is_active': False})
+                    if activate_with_invoice(client, sub, 1, request.user):   # فاتورة ⇒ في الحسابات
                         success += 1
                         continue
                     sub.current_period_start = today
@@ -388,9 +364,7 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
                     client.status = 'active'
                     client.subscription_end_date = end_date
                     client.is_active = True
-                    client.save(update_fields=[
-                        'status', 'subscription_end_date', 'is_active',
-                    ])
+                    client.save(update_fields=['status', 'subscription_end_date', 'is_active'])
                     # Defensive re-sync (idempotent — no-op if already in sync)
                     if sub.plan_id:
                         sub.sync_limits_to_tenant()
@@ -961,11 +935,10 @@ class TenantSubscriptionAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
         for sub in queryset:
             try:
                 with transaction.atomic():
-                    if _activate_with_invoice(request, sub.tenant, sub, months):
+                    if activate_with_invoice(sub.tenant, sub, months, request.user):   # فاتورة ⇒ في الحسابات
                         success += 1
                         continue
-                    # Set subscription dates (شركة مالهاش باقة — من غير فاتورة)
-                    sub.current_period_start = today
+                    sub.current_period_start = today   # شركة مالهاش باقة — من غير فاتورة
                     sub.current_period_end = today + relativedelta(months=months)
                     sub.billing_cycle_months = months
                     sub.is_active = True
@@ -976,10 +949,7 @@ class TenantSubscriptionAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
                     client.status = 'active'
                     client.subscription_end_date = sub.current_period_end
                     client.is_active = True
-                    client.save(update_fields=[
-                        'status', 'subscription_end_date', 'is_active',
-                    ])
-
+                    client.save(update_fields=['status', 'subscription_end_date', 'is_active'])
                     # Defensive re-sync (idempotent — no-op if max_* already match Plan)
                     if sub.plan_id:
                         sub.sync_limits_to_tenant()
