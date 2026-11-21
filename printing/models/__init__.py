@@ -19,12 +19,16 @@
 | purchasing  | الموردين والمشتريات ومرتجعاتها وسداد المورد من الرصيد المقدّم |
 | cheques     | الشيكات (أوراق القبض والدفع) |
 | accounting  | الدفتر المحاسبي، الأصول الثابتة، فواتير المصروفات، فرع كل قيد |
+| pricing     | قايمة الأسعار بشرايح الكمية (حاسبة التسعير والمتجر الأونلاين) |
 """
 from .customers import (  # noqa: F401
     PrintBranch, PrintCustomer,
 )
 from .production import (  # noqa: F401
     Designer, DesignerWorkLog, MachineProfile, PrintJob, PrintOrder, ProductType,
+)
+from .pricing import (  # noqa: F401
+    PrintPriceRule, PrintPriceTier,
 )
 from .materials import (  # noqa: F401
     PrintJobMaterial, PrintMaterial, PrintStockAdjustment,

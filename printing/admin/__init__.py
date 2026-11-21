@@ -16,6 +16,7 @@
 | purchasing  | الموردين والمشتريات ومرتجعاتها والتسديد من الرصيد المقدّم |
 | accounting  | الأصول الثابتة وفواتير المصروفات |
 | cheques     | الشيكات |
+| pricing     | قايمة الأسعار بشرايح الكمية |
 """
 from ._common import (  # noqa: F401
     PrintSecureAdmin, PrintTransactionForm,
@@ -57,6 +58,9 @@ from .accounting import (  # noqa: F401
 )
 from .cheques import (  # noqa: F401
     CHEQUE_STATUS_COLORS, PrintChequeAdmin, PrintChequeForm,
+)
+from .pricing import (  # noqa: F401
+    PrintPriceRuleAdmin, PrintPriceTierInline,
 )
 
 # مساعدات بشرطة تحتية (مش في القوايم اللي فوق) ومستخدمة برا الحزمة

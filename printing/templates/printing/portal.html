@@ -1,0 +1,119 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{% trans "حسابي" %} | {{ shop_name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        :root { --ink: #0f172a; --muted: #64748b; --line: #e2e8f0; --accent: #8b5cf6; --accent2: #ec4899; --ok: #059669; --due: #dc2626; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Cairo', sans-serif; background: #f1f5f9; color: var(--ink); margin: 0; padding: 16px 12px 40px; }
+        .wrap { max-width: 760px; margin: 0 auto; }
+        .head { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+        .head img, .head .icon { width: 52px; height: 52px; border-radius: 12px; object-fit: cover; }
+        .head .icon { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+        .head .shop { font-weight: 900; font-size: 1.15rem; }
+        .head .hi { color: var(--muted); font-size: 0.9rem; }
+        .card { background: #fff; border-radius: 16px; box-shadow: 0 6px 24px rgba(15,23,42,0.07); padding: 16px; margin-bottom: 14px; }
+        .card h2 { font-size: 1rem; margin: 0 0 10px; display: flex; gap: 8px; align-items: center; }
+        .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .stat { background: #f8fafc; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+        .stat .lbl { color: var(--muted); font-size: 0.78rem; font-weight: 700; }
+        .stat .val { font-weight: 900; font-size: 1.15rem; }
+        .due, .row .s.due { color: var(--due); } .ok { color: var(--ok); }
+        .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+        .row:last-child { border-bottom: 0; }
+        .row:hover { background: #faf5ff; }
+        .row .t { font-weight: 800; }
+        .row .s { color: var(--muted); font-size: 0.8rem; }
+        .row .amt { font-weight: 800; white-space: nowrap; text-align: end; }
+        .badge { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 800; background: #ede9fe; color: #5b21b6; }
+        .badge.wait { background: #fef3c7; color: #92400e; }
+        .badge.done { background: #dcfce7; color: #166534; }
+        .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn { flex: 1 1 calc(50% - 8px); justify-content: center; display: inline-flex; gap: 6px; align-items: center; font-family: inherit; font-weight: 800; font-size: 0.9rem; border-radius: 12px; padding: 11px 14px; text-decoration: none; }
+        .btn.main { background: var(--ink); color: #fff; }
+        .btn.wa { background: #16a34a; color: #fff; }
+        .empty { color: var(--muted); text-align: center; padding: 12px; font-size: 0.9rem; }
+        .foot { text-align: center; color: var(--muted); font-size: 0.75rem; margin-top: 18px; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="head">
+        {% if shop_logo %}<img src="{{ shop_logo }}" alt="">{% else %}<div class="icon"><i class="fas fa-print"></i></div>{% endif %}
+        <div>
+            <div class="shop">{{ shop_name }}</div>
+            <div class="hi">{% blocktrans with n=customer.name %}أهلاً {{ n }} 👋 — ده حسابك عندنا{% endblocktrans %}</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="stats">
+            <div class="stat">
+                <div class="lbl">{% if balance > 0 %}{% trans "عليك" %}{% elif balance < 0 %}{% trans "ليك رصيد" %}{% else %}{% trans "الحساب" %}{% endif %}</div>
+                <div class="val {% if balance > 0 %}due{% else %}ok{% endif %}">{% if balance %}<span dir="ltr">{{ balance|cut:"-"|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span>{% else %}{% trans "خالص ✅" %}{% endif %}</div>
+            </div>
+            <div class="stat">
+                <div class="lbl">{% trans "طلبات شغّالة" %}</div>
+                <div class="val">{{ open_orders }}</div>
+            </div>
+        </div>
+        <div class="btns" style="margin-top:12px;">
+            {% if has_shop %}<a class="btn main" href="{% url 'printing:print_shop' %}?c={{ token }}"><i class="fas fa-cart-plus"></i> {% trans "اطلب شغل جديد" %}</a>{% endif %}
+            {% if shop_wa %}<a class="btn wa" href="https://wa.me/{{ shop_wa }}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> {% trans "كلّمنا واتساب" %}</a>{% endif %}
+        </div>
+    </div>
+
+    {% if proofs %}
+    <div class="card" style="border:2px solid #fbbf24;">
+        <h2><i class="fas fa-image"></i> {% trans "بروفات مستنية موافقتك" %}</h2>
+        {% for p in proofs %}
+        <a class="row" href="{% url 'printing:proof_public_view' p.share_token %}">
+            <div><div class="t">{{ p.job.description }}</div><div class="s">{% trans "طلب" %} <span dir="ltr">#{{ p.job.order.order_number }}</span> · {% trans "نسخة" %} {{ p.version }}</div></div>
+            <span class="badge wait">{% trans "راجع ووافق" %} ←</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if quotes %}
+    <div class="card">
+        <h2><i class="fas fa-file-signature"></i> {% trans "عروض الأسعار" %}</h2>
+        {% for q in quotes %}
+        <a class="row" href="{% url 'printing:quotation_public_view' q.share_token %}">
+            <div><div class="t">{{ q.title }}</div><div class="s"><span dir="ltr">#{{ q.quote_number }}</span> · {{ q.get_status_display }}</div></div>
+            <div class="amt" dir="ltr">{{ q.total|amount }}</div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <h2><i class="fas fa-file-invoice"></i> {% trans "طلباتي وفواتيري" %}</h2>
+        {% for o in orders %}
+        <a class="row" href="{% url 'printing:customer_portal_order' token o.pk %}">
+            <div>
+                <div class="t" dir="ltr" style="text-align:start;">#{{ o.order_number }}</div>
+                <div class="s"><span dir="ltr">{{ o.date_created|date:"d/m/Y" }}</span> · <span class="badge {% if o.status == 'delivered' %}done{% endif %}">{{ o.get_status_display }}</span></div>
+            </div>
+            <div class="amt">
+                <div dir="ltr">{{ o.net_total|amount }}</div>
+                {% if o.status != 'draft' and o.remaining > 0 %}<div class="s due">{% trans "باقي" %} <span dir="ltr">{{ o.remaining|amount }}</span></div>{% endif %}
+            </div>
+        </a>
+        {% empty %}
+        <div class="empty">{% trans "لسه مفيش طلبات." %}</div>
+        {% endfor %}
+    </div>
+
+    <div class="foot">{{ shop_name }} • {% trans "الرابط ده خاص بيك — ماتبعتهوش لحد." %} • Mouss Tec</div>
+</div>
+</body>
+</html>

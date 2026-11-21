@@ -45,7 +45,7 @@
         <div id="qiLines">
             {% for desc, qty, price in lines %}
             <div class="qi-line">
-                <div class="qi-desc"><label>{% trans "الوصف" %}</label><input class="form-control" name="line_desc" value="{{ desc }}" placeholder="{% trans "مثال: 500 كارت بزنس سوفت تاتش" %}"></div>
+                <div class="qi-desc"><label>{% trans "الوصف" %}</label><input class="form-control" name="line_desc" list="qiProducts" autocomplete="off" value="{{ desc }}" placeholder="{% trans "مثال: 500 كارت بزنس سوفت تاتش" %}"></div>
                 <div><label>{% trans "الكمية" %}</label><input class="form-control qi-qty" name="line_qty" inputmode="numeric" value="{{ qty|default:'1' }}" dir="ltr"></div>
                 <div><label>{% trans "سعر الوحدة" %}</label><input class="form-control qi-price" name="line_price" inputmode="decimal" value="{{ price }}" dir="ltr" placeholder="0"></div>
                 <button type="button" class="qi-del" title="{% trans "شيل البند" %}" aria-label="{% trans "شيل البند" %}">✕</button>
@@ -105,9 +105,11 @@
     <p class="qi-more">{% trans "محتاج ماكينة أو مقاس أو ملف تصميم؟" %} <a href="{% url 'admin:printing_printorder_add' %}">{% trans "الفاتورة المفصّلة" %}</a></p>
 </form>
 
+{# 💲 قايمة الأسعار: اختيار منتج منها بيحسب سعر الوحدة من شريحة الكمية (لو ماكتبتش سعر بإيدك) #}
+<datalist id="qiProducts">{% for r in price_rules %}<option value="{{ r.name }}"></option>{% endfor %}</datalist>
 <template id="qiLineTpl">
     <div class="qi-line">
-        <div class="qi-desc"><label>{% trans "الوصف" %}</label><input class="form-control" name="line_desc" placeholder="{% trans "مثال: 500 كارت بزنس سوفت تاتش" %}"></div>
+        <div class="qi-desc"><label>{% trans "الوصف" %}</label><input class="form-control" name="line_desc" list="qiProducts" autocomplete="off" placeholder="{% trans "مثال: 500 كارت بزنس سوفت تاتش" %}"></div>
         <div><label>{% trans "الكمية" %}</label><input class="form-control qi-qty" name="line_qty" inputmode="numeric" value="1" dir="ltr"></div>
         <div><label>{% trans "سعر الوحدة" %}</label><input class="form-control qi-price" name="line_price" inputmode="decimal" dir="ltr" placeholder="0"></div>
         <button type="button" class="qi-del" title="{% trans "شيل البند" %}" aria-label="{% trans "شيل البند" %}">✕</button>
@@ -152,8 +154,28 @@
         var row = document.getElementById('qiLineTpl').content.firstElementChild.cloneNode(true);
         lines.appendChild(row); bindDel(row); row.querySelector('input').focus();
     });
+    var RULES = {};
+    JSON.parse('{{ price_rules_json|escapejs }}').forEach(function (r) { RULES[r.name] = r; });
+    function ruleQuote(r, q) {   // نفس PrintPriceRule.quote
+        if (q < r.min_qty) return null;
+        var unit = null;
+        r.tiers.forEach(function (t) { if (t[0] <= q) unit = parseFloat(t[1]); });
+        if (unit === null) return null;
+        var total = unit * q + parseFloat(r.setup), floor = parseFloat(r.min_total);
+        if (floor && total < floor) total = floor;
+        return Math.round(total / q * 100) / 100;
+    }
+    function autoPrice(row) {
+        var r = RULES[row.querySelector('[name=line_desc]').value.trim()], price = row.querySelector('.qi-price');
+        if (!r || price.dataset.touched === '1') return;
+        var u = ruleQuote(r, Math.max(1, parseInt(row.querySelector('.qi-qty').value, 10) || 1));
+        if (u !== null) price.value = u;
+    }
     form.addEventListener('input', function (e) {
         if (e.target === paid) paidTouched = true;
+        if (e.target.classList.contains('qi-price')) e.target.dataset.touched = e.target.value ? '1' : '';
+        var row = e.target.closest && e.target.closest('.qi-line');
+        if (row && (e.target.name === 'line_desc' || e.target.name === 'line_qty')) autoPrice(row);
         recalc();
     });
     var all = document.getElementById('qiPaidAll');

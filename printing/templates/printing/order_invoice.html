@@ -71,6 +71,13 @@
 <body>
 
 {# ⚡ بعد الفاتورة السريعة: تأكيد + الخطوة الجاية (فاتورة تانية / واتساب / رجوع) — مابيتطبعش #}
+{% if portal %}
+{# 🔗 بوابة العميل: من غير أزرار الموظفين #}
+<div class="toolbar">
+    <a class="alt" href="{{ portal_url }}"><i class="fas fa-arrow-right"></i> {% trans "حسابي" %}</a>
+    <button class="print" type="button" onclick="window.print()"><i class="fas fa-print"></i> {% trans "طباعة / حفظ PDF" %}</button>
+</div>
+{% else %}
 {% if not ticket and just_created or not ticket and messages %}
 <div class="toolbar done-bar">
     {% if just_created %}<div class="done-msg">✅ {% trans "اتحفظت الفاتورة" %} <span dir="ltr">#{{ order.order_number }}</span></div>{% endif %}
@@ -95,8 +102,10 @@
     {% else %}
     <a class="alt" href="?ticket=1"><i class="fas fa-screwdriver-wrench"></i> {% trans "أمر الشغل للإنتاج" %}</a>
     {% endif %}
+    {% if can_eta and not ticket and order.status == 'delivered' %}<a class="alt" href="{% url 'printing:eta_order_json' order.pk %}"><i class="fas fa-receipt"></i> {% trans "ملف الفاتورة الإلكترونية" %}</a>{% endif %}
     <button class="print" type="button" onclick="window.print()"><i class="fas fa-print"></i> {% trans "طباعة / حفظ PDF" %}</button>
 </div>
+{% endif %}
 
 <div class="sheet">
     <div class="head">

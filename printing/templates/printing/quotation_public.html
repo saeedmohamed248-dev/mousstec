@@ -116,6 +116,10 @@
 </head>
 <body>
 
+{% if request.GET.new == '1' %}
+{# 🛒 جاي من المتجر الأونلاين #}
+<div class="no-print" style="max-width:820px;margin:12px auto 0;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;font-weight:800;border-radius:12px;padding:10px 16px;text-align:center;">✅ {% trans "طلبك وصل! ده عرض السعر — وافق عليه وهنكلّمك نأكّد التفاصيل." %}</div>
+{% endif %}
 <div class="paper">
     <!-- Header -->
     <div class="hdr">

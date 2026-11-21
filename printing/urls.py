@@ -68,6 +68,14 @@ urlpatterns = [
     path('expense/quick/', views.quick_expense, name='quick_expense'),
     path('supplier/pay/quick/', views.quick_pay_supplier, name='quick_pay_supplier'),
 
+    # 🔗 بوابة العميل (رابط سرّي) + 🛒 متجر المطبعة الأونلاين + 🧾 الفاتورة الإلكترونية
+    path('customer/<int:customer_id>/portal-link/', views.customer_portal_link, name='customer_portal_link'),
+    path('c/<uuid:token>/', views.customer_portal, name='customer_portal'),
+    path('c/<uuid:token>/order/<int:order_id>/', views.customer_portal_order, name='customer_portal_order'),
+    path('shop/', views.print_shop, name='print_shop'),
+    path('accounting/eta/', views.print_eta_overview, name='eta_overview'),
+    path('order/<int:order_id>/eta.json', views.print_eta_order_json, name='eta_order_json'),
+
     # 💰 Price Quotations (عروض الأسعار)
     path('quotation/create/', views.quotation_create, name='quotation_create'),
     path('quotation/view/<uuid:share_token>/', views.quotation_public_view, name='quotation_public_view'),

@@ -1,0 +1,67 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block title %}{{ title }} | {{ site_title|default:"Mouss Tec" }}{% endblock %}
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans "الرئيسية" %}</a></li>
+    <li class="breadcrumb-item"><a href="/printing/accounting/">{% trans "الحسابات" %}</a></li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+</ol>
+{% endblock %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block content %}
+{# 🧾 الفاتورة الإلكترونية للمطابع — printing/views/eta.py + printing/eta.py #}
+<p class="text-muted" style="max-width:780px;">{% trans "السيستم بيجهّز كل فاتورة اتسلّمت بصيغة مصلحة الضرائب ويقولك اللي ناقص فيها (الرقم الضريبي للعميل، عنوانه، كود البند…). حمّل ملف الفواتير الجاهزة ووقّعه بالتوكن من أداة التوقيع." %}</p>
+
+<details class="card p-3 mb-3" {% if not form.instance.taxpayer_rin %}open{% endif %} style="border-radius:14px;">
+    <summary style="font-weight:800;cursor:pointer;">⚙️ {% trans "إعدادات الفاتورة الإلكترونية" %}{% if not form.instance.taxpayer_rin %} — <span style="color:#dc2626;">{% trans "لسه مش متظبطة" %}</span>{% endif %}</summary>
+    <form method="post" class="mt-3">
+        {% csrf_token %}
+        <div class="row">
+            {% for f in form %}
+            <div class="col-md-4 col-sm-6 mb-2">
+                <label for="{{ f.id_for_label }}" style="font-weight:700;font-size:.85rem;">{{ f.label }}</label>
+                <input class="form-control" type="text" name="{{ f.html_name }}" id="{{ f.id_for_label }}" value="{{ f.value|default:'' }}" dir="auto">
+                {% if f.help_text %}<small class="text-muted">{{ f.help_text }}</small>{% endif %}
+                {% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        <button class="btn btn-dark" style="border-radius:10px;font-weight:800;">{% trans "حفظ الإعدادات" %}</button>
+    </form>
+</details>
+
+<form method="get" class="d-flex flex-wrap gap-2 align-items-end mb-3" style="gap:8px;">
+    <label>{% trans "من" %}<input class="form-control" type="date" name="from" value="{{ d_from|date:'Y-m-d' }}" dir="ltr"></label>
+    <label>{% trans "إلى" %}<input class="form-control" type="date" name="to" value="{{ d_to|date:'Y-m-d' }}" dir="ltr"></label>
+    <button class="btn btn-secondary">{% trans "عرض" %}</button>
+    {% if ready %}<a class="btn btn-success" style="font-weight:800;" href="?from={{ d_from|date:'Y-m-d' }}&amp;to={{ d_to|date:'Y-m-d' }}&amp;download=1"><i class="fas fa-download"></i> {% blocktrans %}تحميل الجاهزة ({{ ready }}){% endblocktrans %}</a>{% endif %}
+</form>
+{% if truncated %}<p class="text-warning">{% trans "الفترة فيها فواتير كتير — اتعرض أول ٥٠٠ بس. صغّر الفترة." %}</p>{% endif %}
+
+<div class="card" style="border-radius:14px;overflow-x:auto;">
+<table class="table mb-0">
+    <thead><tr><th>{% trans "الفاتورة" %}</th><th>{% trans "العميل" %}</th><th>{% trans "اتسلّمت" %}</th><th>{% trans "الإجمالي" %}</th><th>{% trans "الحالة" %}</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+        <td><a href="{% url 'printing:order_invoice' r.order.pk %}" dir="ltr">#{{ r.order.order_number }}</a></td>
+        <td>{{ r.order.customer.name }}{% if r.order.customer.tax_id %} <small class="text-muted">({% trans "شركة" %})</small>{% endif %}</td>
+        <td><span dir="ltr">{{ r.order.date_delivered|date:"Y-m-d" }}</span></td>
+        <td><span dir="ltr">{{ r.order.net_total|amount }}</span></td>
+        <td>
+            {% if r.errors %}
+            <ul class="small text-danger mb-0" style="padding-inline-start:16px;">{% for e in r.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            <a class="small" href="{% url 'admin:printing_printcustomer_change' r.order.customer_id %}">{% trans "بيانات العميل" %}</a>
+            {% else %}
+            <a class="text-success" style="font-weight:800;" href="{% url 'printing:eta_order_json' r.order.pk %}"><i class="fas fa-circle-check"></i> {% trans "جاهزة — تحميل" %}</a>
+            {% endif %}
+        </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="text-center text-muted p-4">{% trans "مفيش فواتير اتسلّمت في الفترة دي." %}</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

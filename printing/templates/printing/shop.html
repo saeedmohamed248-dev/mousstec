@@ -1,0 +1,138 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "اطلب أونلاين" %} | {{ shop_name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        :root { --ink: #0f172a; --muted: #64748b; --line: #e2e8f0; --accent: #8b5cf6; --accent2: #ec4899; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Cairo', sans-serif; background: #f1f5f9; color: var(--ink); margin: 0; padding: 16px 12px 110px; }
+        .wrap { max-width: 760px; margin: 0 auto; }
+        .head { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+        .head img, .head .icon { width: 52px; height: 52px; border-radius: 12px; object-fit: cover; }
+        .head .icon { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+        .head .shop { font-weight: 900; font-size: 1.15rem; }
+        .head .hi { color: var(--muted); font-size: 0.9rem; }
+        .card { background: #fff; border-radius: 16px; box-shadow: 0 6px 24px rgba(15,23,42,0.07); padding: 16px; margin-bottom: 14px; }
+        .card h2 { font-size: 1rem; margin: 0 0 10px; }
+        .prod { border: 2px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+        .prod.on { border-color: var(--accent); background: #faf5ff; }
+        .prod .n { font-weight: 900; }
+        .prod .d { color: var(--muted); font-size: 0.82rem; white-space: pre-wrap; }
+        .tiers { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+        .tier { font-size: 0.75rem; font-weight: 700; background: #f8fafc; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; }
+        .qtyrow { display: flex; gap: 8px; align-items: center; }
+        input, textarea { font-family: inherit; font-size: 1rem; border: 1px solid #cbd5e1; border-radius: 10px; padding: 9px 12px; width: 100%; }
+        .qtyrow input { max-width: 140px; }
+        .price { font-weight: 900; color: var(--accent); margin-inline-start: auto; white-space: nowrap; }
+        label { font-weight: 700; font-size: 0.85rem; display: block; margin: 8px 0 4px; }
+        .err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; font-weight: 700; }
+        .bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; box-shadow: 0 -6px 20px rgba(15,23,42,0.08); padding: 10px 12px; }
+        .bar .in { max-width: 760px; margin: 0 auto; display: flex; gap: 10px; align-items: center; }
+        .bar .tot { font-weight: 900; font-size: 1.1rem; }
+        .bar button { margin-inline-start: auto; background: var(--ink); color: #fff; border: 0; border-radius: 12px; padding: 12px 20px; font-family: inherit; font-weight: 900; font-size: 1rem; cursor: pointer; }
+        .bar button:disabled { opacity: .5; }
+        .hp { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; overflow: hidden; pointer-events: none; }
+        .note { color: var(--muted); font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="head">
+        {% if shop_logo %}<img src="{{ shop_logo }}" alt="">{% else %}<div class="icon"><i class="fas fa-print"></i></div>{% endif %}
+        <div>
+            <div class="shop">{{ shop_name }}</div>
+            <div class="hi">{% trans "اختار المنتج والكمية — السعر بيتحسب على طول" %}</div>
+        </div>
+    </div>
+
+    <form method="post" id="shopForm" novalidate>
+        {% csrf_token %}
+        {% if token %}<input type="hidden" name="c" value="{{ token }}">{% endif %}
+        {% if errors %}<div class="err">{% for e in errors %}<div>⚠️ {{ e }}</div>{% endfor %}</div>{% endif %}
+
+        <div class="card">
+            <h2>🛍️ {% trans "المنتجات" %}</h2>
+            {% for r in rules %}
+            <div class="prod" data-id="{{ r.pk }}">
+                <div class="n">{{ r.name }}</div>
+                {% if r.description %}<div class="d">{{ r.description }}</div>{% endif %}
+                <div class="tiers">{% for t in r.tiers.all %}<span class="tier"><span dir="ltr">{{ t.min_qty }}+</span> · <span dir="ltr">{{ t.unit_price|floatformat:"-2" }}</span>/{{ r.unit_label }}</span>{% endfor %}</div>
+                <div class="qtyrow">
+                    <input type="hidden" name="rule" value="">
+                    <input type="number" name="qty" inputmode="numeric" min="0" dir="ltr" placeholder="{% trans "الكمية" %}" aria-label="{% trans "الكمية" %} — {{ r.name }}">
+                    <span class="price" dir="ltr"></span>
+                </div>
+            </div>
+            {% endfor %}
+            <p class="note">{% trans "الأسعار تقديرية وبتتأكد بعد مراجعة الملفات. الطلب بيوصلك كعرض سعر توافق عليه." %}</p>
+        </div>
+
+        <div class="card">
+            <h2>👤 {% trans "بياناتك" %}</h2>
+            {% if customer %}
+            <div><b>{{ customer.name }}</b> <span class="note" dir="ltr">{{ customer.phone }}</span></div>
+            {% else %}
+            <label for="sName">{% trans "الاسم" %}</label>
+            <input id="sName" name="name" value="{{ form.name|default:'' }}" autocomplete="name">
+            <label for="sPhone">{% trans "الموبايل (واتساب)" %}</label>
+            <input id="sPhone" name="phone" inputmode="tel" dir="ltr" value="{{ form.phone|default:'' }}" placeholder="01XXXXXXXXX" autocomplete="tel">
+            {% endif %}
+            <label for="sNotes">{% trans "تفاصيل (المقاس، الألوان، رابط الملفات…)" %}</label>
+            <textarea id="sNotes" name="notes" rows="3">{{ form.notes|default:'' }}</textarea>
+            <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        </div>
+    </form>
+</div>
+
+<div class="bar"><div class="in">
+    <div><div class="note">{% trans "الإجمالي التقريبي" %}</div><div class="tot"><span id="sTotal" dir="ltr">0</span> {{ tenant_currency_symbol|default:'ج.م' }}</div></div>
+    <button type="submit" form="shopForm" id="sSend" disabled>{% trans "ابعت الطلب" %}</button>
+</div></div>
+
+<script>
+(function () {
+    var RULES = {};
+    JSON.parse('{{ rules_json|escapejs }}').forEach(function (r) { RULES[r.id] = r; });
+    var MIN_MSG = '{% filter escapejs %}{% trans "أقل كمية" %}{% endfilter %}';
+    // 💲 نفس حساب printing.models.PrintPriceRule.quote (السيرفر بيعيد الحساب وقت الحفظ)
+    function quote(r, q) {
+        if (q < r.min_qty) return null;
+        var unit = null;
+        r.tiers.forEach(function (t) { if (t[0] <= q) unit = parseFloat(t[1]); });
+        if (unit === null) return null;
+        var total = unit * q + parseFloat(r.setup);
+        var floor = parseFloat(r.min_total);
+        if (floor && total < floor) total = floor;
+        var u = Math.round(total / q * 100) / 100;
+        return Math.round(u * q * 100) / 100;
+    }
+    var fmt = function (v) { return v.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2}); };
+    function recalc() {
+        var sum = 0, any = false;
+        document.querySelectorAll('.prod').forEach(function (p) {
+            var r = RULES[p.dataset.id], q = parseInt(p.querySelector('[name=qty]').value, 10) || 0;
+            var out = p.querySelector('.price'), hid = p.querySelector('[name=rule]');
+            if (!q) { out.textContent = ''; hid.value = ''; p.classList.remove('on'); return; }
+            var t = quote(r, q);
+            p.classList.toggle('on', t !== null);
+            hid.value = t !== null ? r.id : '';
+            out.textContent = t !== null ? fmt(t) : (MIN_MSG + ' ' + r.min_qty);
+            if (t !== null) { sum += t; any = true; }
+        });
+        document.getElementById('sTotal').textContent = fmt(sum);
+        document.getElementById('sSend').disabled = !any;
+    }
+    document.getElementById('shopForm').addEventListener('input', recalc);
+    document.getElementById('shopForm').addEventListener('submit', function () { document.getElementById('sSend').disabled = true; });
+    recalc();
+})();
+</script>
+</body>
+</html>

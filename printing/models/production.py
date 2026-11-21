@@ -181,6 +181,8 @@ class ProductType(models.Model):
     """
     name = models.CharField(max_length=150, unique=True, verbose_name=_("اسم البند"))
     usage_count = models.PositiveIntegerField(default=0, editable=False, verbose_name=_("عدد مرات الاستخدام"))
+    eta_item_code = models.CharField(max_length=100, blank=True, default='', verbose_name=_("كود الفاتورة الإلكترونية"),
+                                     help_text=_("كود EGS/GS1 للبند ده — لو فاضي بيتاخد «كود المصنعية العامة» من الإعدادات."))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
