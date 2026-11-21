@@ -113,6 +113,38 @@ class QuickInvoiceTests(ERPTenantTestCase):
         self.assertEqual(PrintCustomer.objects.count(), 1)
         self.assertEqual(PrintOrder.objects.filter(customer=nada).count(), 3)
 
+    def test_cash_name_uses_one_shared_cash_customer(self):
+        """🐛 مطبعة ميم كتبت «نقدي» ⇒ اتعمل عميل جديد اسمه «نقدي» مع كل فاتورة كاش."""
+        r = self.post(customer_name='نقدي', customer_phone='')
+        self.assertNotIn('اتسجّل عميل جديد', ' '.join(str(m) for m in r.wsgi_request._messages))
+        self.post(customer_name='  كاش ', customer_phone='')
+        self.post(customer_name='Cash', customer_phone='')
+        self.assertEqual(PrintCustomer.objects.count(), 1)
+        self.assertEqual(PrintOrder.objects.filter(customer=PrintCustomer.objects.get()).count(), 3)
+
+    def test_old_cash_customer_named_naqdy_is_reused(self):
+        old = PrintCustomer.objects.create(name='نقدي', phone='')
+        self.post(customer_name='عميل نقدي', customer_phone='')
+        self.assertEqual(PrintOrder.objects.get().customer, old)
+
+    def test_cash_customer_must_pay_in_full(self):
+        r = self.post(customer_name='نقدي', customer_phone='', paid='100')
+        self.assertContains(r, 'العميل النقدي لازم يدفع الفاتورة كاملة')
+        self.assertFalse(PrintOrder.objects.exists())
+        self.assertEqual(PrintCustomer.objects.count(), 0)      # الـ transaction اترجعت كلها
+
+    def test_cash_name_with_phone_is_a_real_customer(self):
+        self.post(customer_name='نقدي', customer_phone='01099998888', paid='0', treasury='')
+        self.assertEqual(PrintOrder.objects.get().remaining, D('350.00'))   # له رقم ⇒ آجل مسموح
+
+    def test_dashboard_recent_orders_open_the_invoice(self):
+        """🐛 «بيدوس على الفاتورة في اللوحة ومش بيظهر تفاصيلها» — الصفوف كانت نص من غير لينك."""
+        self.post()
+        order = PrintOrder.objects.get()
+        dash = self.c.get(reverse('admin:index'), HTTP_HOST=self.host)
+        self.assertContains(dash, reverse('printing:order_invoice', args=[order.pk]))
+        self.assertContains(dash, 'class="print-order-row')
+
     def test_customer_name_is_required(self):
         r = self.post(customer_name='', customer_phone='')
         self.assertContains(r, 'اكتب اسم العميل')

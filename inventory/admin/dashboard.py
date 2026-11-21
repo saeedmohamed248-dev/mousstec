@@ -214,10 +214,13 @@ def _printing_dashboard(request, extra_context):
 
     recent_orders = list(
         PrintOrder.objects.order_by('-date_created')[:5].values(
-            'id', 'customer__name', 'total_amount', 'status', 'date_created'
+            'id', 'order_number', 'customer__name', 'total_amount', 'status', 'date_created'
         )
     )
+    from django.urls import reverse as _reverse
     for o in recent_orders:
+        # 🐛 [FIX]: صفوف «آخر الطلبات» كانت نص بس — العميل بيدوس على الفاتورة ومفيش حاجة بتفتح.
+        o['url'] = _reverse('printing:order_invoice', args=[o['id']])
         o['date_created'] = o['date_created'].strftime('%Y-%m-%d') if o['date_created'] else ''
         o['total_amount'] = float(o['total_amount'])
         o['status_display'] = str(dict(PrintOrder.STATUS_CHOICES).get(o['status'], o['status']))

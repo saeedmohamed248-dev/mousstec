@@ -96,6 +96,13 @@
         recordCanvas: false,
         collectFonts: false,
     });
+    // 🐛 [FIX]: على الموبايل (Safari/Chrome) زرار «رجوع» بيرجّع الصفحة القديمة من الـ bfcache والمسجّل
+    //    بيكمّل من غير لقطة كاملة جديدة — فالمشغّل بيطبّق تغييرات الصفحة القديمة على الصفحة اللي بعدها
+    //    (قوايم «EN/مساعدة» وقايمة الماكينات بتطلع متكررة ومن غير تنسيق فوق الفاتورة). لقطة كاملة تصلّحها.
+    window.addEventListener('pageshow', function (e) {
+        if (!e.persisted || stopped) return;
+        try { window.rrwebRecord.takeFullSnapshot(true); } catch (err) { /* ignore */ }
+    });
     setInterval(function () { flush(false); }, 2000);
     window.addEventListener('pagehide', function () { flush(true); });
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flush(true); });
@@ -110,7 +117,10 @@
     bar.setAttribute('role', 'status');
     // 🐛 [FIX]: على الموبايل التنبيه كان قاعد تحت فوق زرار «إتمام البيع» وأزرار الحفظ —
     // الضغطة بتقع عليه. على الشاشات الصغيرة يطلع فوق تحت الهيدر (مايغطّيش القائمة وزرار اللغة).
-    var small = window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
+    // 🐛 [FIX]: في الصفحات اللي مفيهاش هيدر اللوحة (الفاتورة/الإيصال) top:76px كان بيغطّي رسالة
+    //    «اتحفظت الفاتورة» والتحذيرات وبيانات المطبعة — هناك ينزل تحت (مفيش زرار حفظ ثابت تحت).
+    var small = window.matchMedia && window.matchMedia('(max-width: 640px)').matches
+        && !!document.querySelector('.main-header');
     bar.style.cssText = 'position:fixed;' + (small ? 'top:76px;' : 'bottom:12px;') + 'left:12px;right:12px;max-width:560px;margin:0 auto;z-index:2147483000;' +
         'background:#1C2430;color:#fff;border-radius:12px;padding:12px 14px;font:14px/1.6 system-ui,sans-serif;' +
         'box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:10px;align-items:center;' + (en ? 'direction:ltr;' : 'direction:rtl;');
