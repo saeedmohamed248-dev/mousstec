@@ -173,15 +173,15 @@ def saas_pricing_page(request):
             if not is_platform_owner(request.user):
                 messages.error(request, "🛑 غير مصرح — فقط السوبر أدمن يمكنه تغيير الاشتراك مباشرة.")
                 return redirect(reverse('saas_pricing') + f'?shop={shop_post}')
-            with transaction.atomic():
-                target_tenant.plan, target_tenant.status = selected_plan, 'active'
-                base_date = max(target_tenant.subscription_end_date or timezone.localdate(), timezone.localdate())
-
-                # مكافأة ولاء: 5 أيام مجانية عند التجديد المبكر
-                bonus_days = 5 if (target_tenant.subscription_end_date and target_tenant.subscription_end_date > timezone.localdate()) else 0
-                target_tenant.subscription_end_date = base_date + timedelta(days=30 + bonus_days)
-
-                target_tenant.save()
+            from clients.services.platform_billing import activate_with_invoice
+            plan_obj = Plan.objects.filter(slug=resolve_plan_slug(selected_plan) or '', is_active=True).first()
+            with transaction.atomic():   # فاتورة مدفوعة ⇒ في الحسابات؛ من غير باقة: تمديد ٣٠ يوم زي الأول
+                if not (plan_obj and activate_with_invoice(target_tenant, None, 1, request.user, plan=plan_obj,
+                                                           notes='تفعيل من صفحة الأسعار')):
+                    target_tenant.plan, target_tenant.status = selected_plan, 'active'
+                    base_date = max(target_tenant.subscription_end_date or timezone.localdate(), timezone.localdate())
+                    target_tenant.subscription_end_date = base_date + timedelta(days=30)
+                    target_tenant.save()
                 from django.conf import settings as _cfg2
                 _bd = getattr(_cfg2, 'BASE_DOMAIN', 'mousstec.com')
                 return redirect(f"https://{target_tenant.schema_name.replace('_', '-')}.{_bd}/{ADMIN_URL}/")
