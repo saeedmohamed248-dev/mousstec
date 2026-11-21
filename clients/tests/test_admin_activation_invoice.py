@@ -27,6 +27,8 @@ class AdminActivationCreatesInvoiceTests(_PublicDomainMixin, TestCase):
         t = Client(name=schema, owner_name='x', phone='0100', schema_name=schema, is_active=True)
         t.auto_create_schema = False
         t.save()
+        Client.objects.filter(pk=t.pk).update(status='active', subscription_end_date=None)
+        t.refresh_from_db()
         return t, TenantSubscription.objects.create(tenant=t, plan=self.plan if plan else None)
 
     def test_subscription_admin_action_issues_paid_invoice_visible_in_finance(self):
