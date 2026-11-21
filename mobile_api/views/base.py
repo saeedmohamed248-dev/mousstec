@@ -4,12 +4,13 @@ from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ..permissions import MANAGEMENT, RoleScoped, branch_ids
+from ..permissions import AUTOMOTIVE, MANAGEMENT, IndustryGate, RoleScoped, branch_ids
 
 
 class RoleScopedMixin:
     """صلاحيات حسب الدور (read_roles/write_roles) + فلتر الفروع للموظف."""
-    permission_classes = [IsAuthenticated, RoleScoped]
+    permission_classes = [IsAuthenticated, IndustryGate, RoleScoped]
+    industry = AUTOMOTIVE       # مسارات الورش — المطابع ليها views/printing.py
     read_roles = None           # أي موظف
     write_roles = MANAGEMENT    # الأدمن والمدير
 

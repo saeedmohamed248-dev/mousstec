@@ -2,22 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'core/i18n.dart';
 import 'core/theme.dart';
 import 'providers/auth_provider.dart';
 import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
+import 'services/push_service.dart';
 
 class MousstecApp extends StatelessWidget {
   const MousstecApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // 🌐 اللغة من الإعدادات (عربي RTL افتراضياً / إنجليزي LTR) — تغييرها بيعيد بناء التطبيق كله
+    return ListenableBuilder(
+      listenable: AppLanguage.instance,
+      builder: (context, _) => _build(context),
+    );
+  }
+
+  Widget _build(BuildContext context) {
+    final lang = AppLanguage.instance;
     return MaterialApp(
       title: 'Mouss Tec',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
-      // 🌐 عربي + RTL افتراضياً.
-      locale: const Locale('ar'),
+      scaffoldMessengerKey: PushService.instance.messengerKey,
+      locale: lang.locale,
       supportedLocales: const [Locale('ar'), Locale('en')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -25,7 +36,7 @@ class MousstecApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       builder: (context, child) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: lang.direction,
         child: child ?? const SizedBox.shrink(),
       ),
       home: const _RootGate(),

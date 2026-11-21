@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:provider/provider.dart';
+
+import '../core/i18n.dart';
 import '../core/modules.dart';
+import '../providers/auth_provider.dart';
 import 'generic_list_screen.dart';
 import 'settings_screen.dart';
 
@@ -10,13 +14,17 @@ class ModulesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tenant = context.watch<AuthProvider>().tenant;
+    final groups = (moduleGroupsByIndustry[tenant.industry] ?? moduleGroups)
+        .where((g) => modulesInGroup(g, tenant).isNotEmpty)
+        .toList();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('كل الموديولات'),
+        title: Text(tr('كل الموديولات')),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            tooltip: 'الإعدادات',
+            tooltip: tr('الإعدادات'),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SettingsScreen()),
@@ -27,12 +35,16 @@ class ModulesScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          for (final group in moduleGroups) ...[
+          if (groups.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(32),
+              child: Text(tr('مفيش أقسام متاحة لصلاحياتك — كلّم صاحب الشركة.'), textAlign: TextAlign.center),
+            ),
+          for (final group in groups) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
-              child: Text(group,
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 15, color: Colors.grey.shade700)),
+              child: Text(tr(group),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.grey.shade700)),
             ),
             GridView.count(
               crossAxisCount: 2,
@@ -40,7 +52,7 @@ class ModulesScreen extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               childAspectRatio: 2.6,
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              children: modulesInGroup(group).map((mod) => _ModuleTile(module: mod)).toList(),
+              children: modulesInGroup(group, tenant).map((mod) => _ModuleTile(module: mod)).toList(),
             ),
           ],
           const SizedBox(height: 24),
@@ -70,16 +82,17 @@ class _ModuleTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: module.color.withOpacity(0.12),
+                  color: module.color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(module.icon, color: module.color, size: 20),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(module.title,
+                child: Text(tr(module.title),
                     style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
               ),
             ],
           ),

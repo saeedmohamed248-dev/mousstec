@@ -46,3 +46,15 @@ from .diagnostics import (  # noqa: F401
     DiagnosticScanViewSet,
     FaultLogViewSet,
 )
+from .printing import (  # noqa: F401
+    PrintDashboardView,
+    PrintOrderViewSet,
+    PrintJobViewSet,
+    PrintCustomerViewSet,
+    PrintMaterialViewSet,
+    PriceQuotationViewSet,
+    PrintProofViewSet,
+    MachineProfileViewSet,
+    PrintTreasuryListView,
+)
+from .devices import DeviceView  # noqa: F401

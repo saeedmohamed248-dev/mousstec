@@ -9,6 +9,40 @@ class ApiConfig {
   /// مثال: https://mytec.mousstec.com
   static const String defaultBaseUrl = 'https://demo.mousstec.com';
 
+  /// النطاق الرئيسي — «كود الشركة» myshop ⇒ https://myshop.mousstec.com
+  static const String rootDomain = 'mousstec.com';
+
+  /// 🐛 [FIX]: المستخدم كان لازم يكتب رابط كامل بـ https:// في «إعدادات الخادم» المخفية
+  /// وإلا الدخول يقع. دلوقتي يكتب كود شركته بس (myshop) أو أي رابط/دومين خاص.
+  /// بيرجّع null لو المدخل مش صالح.
+  static String? workspaceUrl(String input) {
+    var v = input.trim().toLowerCase();
+    if (v.isEmpty) return null;
+    v = v.replaceAll(RegExp(r'/+$'), '');
+    if (!v.contains('://')) {
+      if (RegExp(r'^[a-z0-9][a-z0-9-]{0,62}$').hasMatch(v)) {
+        v = 'https://$v.$rootDomain';
+      } else {
+        v = 'https://$v';
+      }
+    }
+    final uri = Uri.tryParse(v);
+    if (uri == null ||
+        !(uri.scheme == 'https' || uri.scheme == 'http') ||
+        uri.host.isEmpty ||
+        !uri.host.contains('.') && uri.host != 'localhost') {
+      return null;
+    }
+    return '${uri.scheme}://${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
+  }
+
+  /// العكس للعرض: https://myshop.mousstec.com ⇒ myshop
+  static String workspaceCode(String url) {
+    final host = Uri.tryParse(url)?.host ?? url;
+    final suffix = '.$rootDomain';
+    return host.endsWith(suffix) ? host.substring(0, host.length - suffix.length) : host;
+  }
+
   // مفاتيح التخزين المحلي
   static const String kBaseUrl = 'base_url';
   static const String kAccessToken = 'access_token';

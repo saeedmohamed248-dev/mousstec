@@ -22,6 +22,7 @@ class AppUser {
     this.email,
     this.isStaff = false,
     this.isSuperuser = false,
+    this.tenant,
   });
 
   final int id;
@@ -30,6 +31,7 @@ class AppUser {
   final String? email;
   final bool isStaff;
   final bool isSuperuser;
+  final TenantInfo? tenant;
 
   factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
         id: _toInt(j['id']),
@@ -38,7 +40,48 @@ class AppUser {
         email: j['email'] as String?,
         isStaff: j['is_staff'] as bool? ?? false,
         isSuperuser: j['is_superuser'] as bool? ?? false,
+        tenant: j['tenant'] is Map ? TenantInfo.fromJson(j['tenant'] as Map<String, dynamic>) : null,
       );
+}
+
+/// 🏢 بيانات الشركة من السيرفر — القطاع (سيارات/طباعة) بيحدد شكل التطبيق كله.
+class TenantInfo {
+  const TenantInfo({
+    required this.name,
+    required this.industry,
+    this.businessType = '',
+    this.currency = 'EGP',
+    this.language = 'ar',
+    this.logo,
+    this.permissions,
+  });
+
+  final String name;
+  final String industry;
+  final String businessType;
+  final String currency;
+  final String language;
+  final String? logo;
+
+  /// صلاحيات المطابع (view_printorder ...) — null للورش (الورش بالأدوار على السيرفر).
+  final Set<String>? permissions;
+
+  bool get isPrinting => industry == 'printing';
+
+  /// المطابع: الموظف عنده الصلاحية؟ (الورش: دايماً true والسيرفر بيحكم).
+  bool can(String codename) => permissions == null || permissions!.contains(codename);
+
+  factory TenantInfo.fromJson(Map<String, dynamic> j) => TenantInfo(
+        name: j['name'] as String? ?? '',
+        industry: j['industry'] as String? ?? 'automotive',
+        businessType: j['business_type'] as String? ?? '',
+        currency: j['currency'] as String? ?? 'EGP',
+        language: j['language'] as String? ?? 'ar',
+        logo: j['logo'] as String?,
+        permissions: j['permissions'] is List ? (j['permissions'] as List).map((e) => '$e').toSet() : null,
+      );
+
+  static const automotive = TenantInfo(name: '', industry: 'automotive');
 }
 
 class DashboardSummary {
@@ -52,6 +95,12 @@ class DashboardSummary {
     required this.lowStockAlerts,
     required this.totalCustomers,
     required this.totalProducts,
+    // 🐛 [FIX]: الحقول دي كانت متعرّفة ومش في الكونستركتور — التطبيق ماكانش بيتبني أصلاً.
+    this.totalVehicles = 0,
+    this.pendingPurchases = 0,
+    this.unresolvedFaults = 0,
+    this.activeEmployees = 0,
+    this.pendingLeaves = 0,
   });
 
   final int openWorkOrders;
@@ -59,7 +108,9 @@ class DashboardSummary {
   final int inProgress;
   final int qualityCheck;
   final int quotations;
-  final double revenueToday;
+
+  /// null = الموظف مالوش يشوف الفلوس (السيرفر مابيبعتهاش).
+  final double? revenueToday;
   final int lowStockAlerts;
   final int totalCustomers;
   final int totalProducts;
@@ -75,7 +126,7 @@ class DashboardSummary {
         inProgress: _toInt(j['in_progress']),
         qualityCheck: _toInt(j['quality_check']),
         quotations: _toInt(j['quotations']),
-        revenueToday: _toDouble(j['revenue_today']),
+        revenueToday: j['revenue_today'] == null ? null : _toDouble(j['revenue_today']),
         lowStockAlerts: _toInt(j['low_stock_alerts']),
         totalCustomers: _toInt(j['total_customers']),
         totalProducts: _toInt(j['total_products']),
@@ -279,9 +330,8 @@ class Customer {
         balance: _toDouble(j['balance']),
         loyaltyPoints: _toInt(j['loyalty_points']),
         vipTier: j['vip_tier'] as String?,
-        vehicles: (j['vehicles'] as List? ?? [])
-            .map((e) => Vehicle.fromJson(e as Map<String, dynamic>))
-            .toList(),
+        vehicles:
+            (j['vehicles'] as List? ?? []).map((e) => Vehicle.fromJson(e as Map<String, dynamic>)).toList(),
       );
 }
 
@@ -319,10 +369,20 @@ class Paginated<T> {
   final List<T> results;
   final bool hasNext;
 
+  /// بعض المسارات (زي low-stock) بترجع قائمة مباشرة من غير ترقيم.
+  factory Paginated.fromAny(dynamic data, T Function(Map<String, dynamic>) parse) {
+    if (data is List) {
+      return Paginated(
+        count: data.length,
+        results: data.map((e) => parse(e as Map<String, dynamic>)).toList(),
+      );
+    }
+    return Paginated.fromJson(data as Map<String, dynamic>, parse);
+  }
+
   factory Paginated.fromJson(Map<String, dynamic> j, T Function(Map<String, dynamic>) parse) {
     final raw = j['results'];
-    // بعض المسارات قد تُعيد قائمة مباشرة دون ترقيم.
-    final list = raw is List ? raw : (j is List ? j : const []);
+    final List<dynamic> list = raw is List ? raw : const [];
     return Paginated(
       count: _toInt(j['count'] ?? list.length),
       hasNext: j['next'] != null,

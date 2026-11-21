@@ -2,6 +2,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/i18n.dart';
+
 import '../core/constants.dart';
 import '../core/theme.dart';
 import '../providers/auth_provider.dart';
@@ -28,7 +30,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('التحليلات')),
+      appBar: AppBar(title: Text(tr('التحليلات'))),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _future,
         builder: (context, snap) {
@@ -46,20 +48,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               .map((e) => e as Map<String, dynamic>)
               .toList();
           final status = (data['work_order_status'] as Map?)?.cast<String, dynamic>() ?? {};
-          final top = (data['top_products'] as List? ?? const [])
-              .map((e) => e as Map<String, dynamic>)
-              .toList();
+          final top =
+              (data['top_products'] as List? ?? const []).map((e) => e as Map<String, dynamic>).toList();
 
           return ListView(
             padding: const EdgeInsets.all(12),
             children: [
-              _sectionTitle('إيراد آخر 7 أيام'),
+              _sectionTitle(tr('إيراد آخر 7 أيام')),
               _RevenueChart(revenue: revenue),
               const SizedBox(height: 20),
-              _sectionTitle('توزيع حالات أوامر الشغل'),
+              _sectionTitle(tr('توزيع حالات أوامر الشغل')),
               _StatusBars(status: status),
               const SizedBox(height: 20),
-              _sectionTitle('الأكثر مبيعاً (30 يوم)'),
+              _sectionTitle(tr('الأكثر مبيعاً (30 يوم)')),
               _TopProducts(top: top),
             ],
           );
@@ -81,9 +82,9 @@ class _RevenueChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (revenue.isEmpty) return const SizedBox.shrink();
-    final values = revenue.map((e) => (e['total'] is num
-            ? (e['total'] as num).toDouble()
-            : double.tryParse('${e['total']}') ?? 0))
+    final values = revenue
+        .map((e) =>
+            (e['total'] is num ? (e['total'] as num).toDouble() : double.tryParse('${e['total']}') ?? 0))
         .toList();
     final maxV = values.fold<double>(0, (a, b) => b > a ? b : a);
 
@@ -98,7 +99,8 @@ class _RevenueChart extends StatelessWidget {
               barTouchData: BarTouchData(
                 touchTooltipData: BarTouchTooltipData(
                   getTooltipItem: (group, gi, rod, ri) => BarTooltipItem(
-                    formatMoney(rod.toY), const TextStyle(color: Colors.white, fontSize: 11),
+                    formatMoney(rod.toY),
+                    const TextStyle(color: Colors.white, fontSize: 11),
                   ),
                 ),
               ),
@@ -150,7 +152,7 @@ class _StatusBars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (status.isEmpty) {
-      return const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('لا توجد بيانات')));
+      return Card(child: Padding(padding: EdgeInsets.all(16), child: Text(tr('لا توجد بيانات'))));
     }
     final total = status.values.fold<int>(0, (a, b) => a + (b as int));
     return Card(
@@ -168,7 +170,7 @@ class _StatusBars extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(WorkOrderStatus.label(st)),
+                          Text(tr(WorkOrderStatus.label(st))),
                           Text('${status[st]}', style: const TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
@@ -199,7 +201,7 @@ class _TopProducts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (top.isEmpty) {
-      return const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('لا توجد مبيعات')));
+      return Card(child: Padding(padding: EdgeInsets.all(16), child: Text(tr('لا توجد مبيعات'))));
     }
     return Card(
       child: Column(
@@ -208,7 +210,7 @@ class _TopProducts extends StatelessWidget {
             ListTile(
               leading: CircleAvatar(child: Text('${i + 1}')),
               title: Text('${top[i]['name'] ?? '—'}'),
-              trailing: Text('${top[i]['quantity']} قطعة',
+              trailing: Text(trf('{n} قطعة', {'n': top[i]['quantity']}),
                   style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
         ],

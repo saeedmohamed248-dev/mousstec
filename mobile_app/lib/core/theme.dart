@@ -25,7 +25,7 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 1.5,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
@@ -58,7 +58,30 @@ class AppTheme {
       case 'ready':
         return Colors.green;
       case 'posted':
+      case 'delivered':
+      case 'done':
+      case 'approved':
+      case 'accepted':
         return Colors.teal;
+      // 🎨 المطابع
+      case 'draft':
+      case 'design':
+        return Colors.blueGrey;
+      case 'confirmed':
+      case 'sent':
+        return Colors.blue;
+      case 'proof':
+      case 'pending':
+        return Colors.amber.shade800;
+      case 'printing':
+        return Colors.orange;
+      case 'finishing':
+        return Colors.purple;
+      case 'cancelled':
+      case 'rejected':
+      case 'changes_requested':
+      case 'expired':
+        return Colors.redAccent;
       default:
         return Colors.grey;
     }

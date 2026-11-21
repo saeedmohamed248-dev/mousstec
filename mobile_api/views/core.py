@@ -14,7 +14,7 @@ from inventory.models import Product, StockAlert, Customer, Vehicle
 from inventory.models.organization import Branch
 from inventory.models.invoices import SaleInvoice, PurchaseInvoice
 
-from ..permissions import ADMIN, FINANCE, RoleScoped
+from ..permissions import ADMIN, AUTOMOTIVE, FINANCE, IndustryGate, RoleScoped
 from ..serializers import UserSerializer, BranchSerializer
 from .base import FullCrudViewSet
 
@@ -25,10 +25,49 @@ def _net_sales(qs):
     return ReportingService.net_sales_profit(qs)[0].quantize(Decimal('0.01'))
 
 
+def tenant_info(request, user=None):
+    """بيانات الشركة اللي التطبيق بيبني عليها نفسه: القطاع (سيارات/طباعة)، العملة، اللوجو.
+
+    🐛 [FIX]: التطبيق كان بيفتح «الورشة» لأي شركة — مكانش يعرف نشاطها أصلاً."""
+    from django.db import connection
+    from ..permissions import tenant_industry
+    tenant = getattr(request, 'tenant', None) or getattr(connection, 'tenant', None)
+    if tenant is None or getattr(tenant, 'schema_name', 'public') == 'public':
+        return None
+    try:
+        loc = tenant.localization
+    except Exception:
+        loc = {}
+    logo = None
+    if getattr(tenant, 'logo', None):
+        try:
+            logo = request.build_absolute_uri(tenant.logo.url)
+        except Exception:
+            logo = None
+    data = {
+        'name': tenant.name,
+        'industry': tenant_industry(request),
+        'business_type': getattr(tenant, 'business_type', ''),
+        'plan': getattr(tenant, 'plan', ''),
+        'status': getattr(tenant, 'status', ''),
+        'currency': loc.get('currency') or 'EGP',
+        'language': loc.get('language') or 'ar',
+        'theme_color': getattr(tenant, 'theme_color', '') or '',
+        'logo': logo,
+    }
+    if user is not None and data['industry'] == 'printing':
+        # 🎨 صلاحيات المطابع (جروبات «فريق العمل») — التطبيق بيخفي اللي الموظف مايقدرش يفتحه
+        data['permissions'] = sorted(
+            p.split('.', 1)[1] for p in user.get_all_permissions() if p.startswith('printing.'))
+    return data
+
+
 class MobileTokenObtainPairSerializer(TenantTokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
         data['user'] = UserSerializer(self.user).data
+        request = self.context.get('request')
+        data['tenant'] = tenant_info(request, self.user) if request is not None else None
         return data
 
 
@@ -40,13 +79,16 @@ class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(UserSerializer(request.user).data)
+        data = dict(UserSerializer(request.user).data)
+        data['tenant'] = tenant_info(request, request.user)
+        return Response(data)
 
 
 class DashboardView(APIView):
     """مؤشرات شاملة للشاشة الرئيسية عبر كل الموديولات."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IndustryGate]
+    industry = AUTOMOTIVE
 
     def get(self, request):
         from ..permissions import branch_ids, has_role
@@ -105,7 +147,8 @@ class AnalyticsView(APIView):
     """بيانات الرسوم البيانية للتطبيق: إيراد الأسبوع، توزيع الحالات، الأكثر مبيعاً."""
 
     # إيرادات الأيام = أرقام مالية — للإدارة والمحاسبة بس
-    permission_classes = [IsAuthenticated, RoleScoped]
+    permission_classes = [IsAuthenticated, IndustryGate, RoleScoped]
+    industry = AUTOMOTIVE
     read_roles = FINANCE
 
     def get(self, request):

@@ -13,8 +13,8 @@ void _mockSecureStorage() {
   final store = <String, String?>{};
   const channel = MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
   TestWidgetsFlutterBinding.ensureInitialized();
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(channel, (call) async {
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+      (call) async {
     final args = (call.arguments as Map?) ?? {};
     final key = args['key'] as String?;
     switch (call.method) {
@@ -88,7 +88,10 @@ void main() {
     final store = AuthStore();
     await store.saveTokens(access: 'A', refresh: 'R');
     final mock = MockClient((req) async {
-      return http.Response(jsonEncode({'detail': 'رصيد غير كافٍ'}), 400);
+      // 🐛 [FIX]: http.Response(String) بيكوّد latin1 فبيقع مع العربي قبل ما يوصل للعميل —
+      //    الاختبار كان بيختبر «تعذّر الاتصال» مش رسالة السيرفر.
+      return http.Response.bytes(utf8.encode(jsonEncode({'detail': 'رصيد غير كافٍ'})), 400,
+          headers: {'content-type': 'application/json; charset=utf-8'});
     });
     final api = ApiClient(store: store, httpClient: mock);
     expect(

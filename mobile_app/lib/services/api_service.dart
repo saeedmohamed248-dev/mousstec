@@ -8,14 +8,24 @@ class ApiService {
 
   // ── المصادقة ─────────────────────────────────────────────────────
   Future<Map<String, dynamic>> login(String username, String password) async {
-    final data = await _api.post('/auth/login/',
-        body: {'username': username, 'password': password}, auth: false);
+    final data =
+        await _api.post('/auth/login/', body: {'username': username, 'password': password}, auth: false);
     return data as Map<String, dynamic>;
   }
 
   Future<AppUser> me() async {
     final data = await _api.get('/auth/me/');
     return AppUser.fromJson(data as Map<String, dynamic>);
+  }
+
+  // ── 🔔 أجهزة الإشعارات ─────────────────────────────────────────
+  Future<void> registerDevice(
+      {required String token, required String platform, String language = 'ar'}) async {
+    await _api.post('/devices/', body: {'token': token, 'platform': platform, 'language': language});
+  }
+
+  Future<void> unregisterDevice(String token) async {
+    await _api.delete('/devices/?token=${Uri.encodeQueryComponent(token)}');
   }
 
   // ── لوحة المعلومات ───────────────────────────────────────────────
@@ -58,7 +68,7 @@ class ApiService {
 
   Future<Paginated<Product>> lowStock() async {
     final data = await _api.get('/products/low-stock/');
-    return Paginated.fromJson(data as Map<String, dynamic>, Product.fromJson);
+    return Paginated.fromAny(data, Product.fromJson);
   }
 
   Future<Product> product(int id) async {
@@ -77,6 +87,33 @@ class ApiService {
   Future<Customer> customer(int id) async {
     final data = await _api.get('/customers/$id/');
     return Customer.fromJson(data as Map<String, dynamic>);
+  }
+
+  // ── 🎨 المطابع ──────────────────────────────────────────────────
+  Future<Map<String, dynamic>> printDashboard() async =>
+      await _api.get('/print/dashboard/') as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> printOrder(int id) async =>
+      await _api.get('/print/orders/$id/') as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> createPrintOrder(Map<String, dynamic> body) async =>
+      await _api.post('/print/orders/', body: body) as Map<String, dynamic>;
+
+  /// confirm / deliver / cancel
+  Future<Map<String, dynamic>> printOrderAction(int id, String action) async =>
+      await _api.post('/print/orders/$id/action/', body: {'action': action}) as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> advancePrintJob(int id) async =>
+      await _api.post('/print/jobs/$id/advance/') as Map<String, dynamic>;
+
+  Future<List<Map<String, dynamic>>> printJobProofs(int jobId) async {
+    final data = await _api.get('/print/jobs/$jobId/proofs/');
+    return (data as List).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> printTreasuries() async {
+    final data = await _api.get('/print/treasuries/');
+    return (data as List).map((e) => e as Map<String, dynamic>).toList();
   }
 
   // ── CRUD عام (لمحرك الموديولات) ───────────────────────────────────
@@ -123,8 +160,6 @@ class ApiService {
   Future<List<Map<String, dynamic>>> fkOptions(String endpoint) async {
     final page = await rawList(endpoint, query: {'page_size': 100});
     final results = page['results'];
-    return (results is List ? results : const [])
-        .map((e) => e as Map<String, dynamic>)
-        .toList();
+    return (results is List ? results : const []).map((e) => e as Map<String, dynamic>).toList();
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../core/field_spec.dart';
+import '../core/i18n.dart';
 import '../core/modules.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/common.dart';
@@ -95,7 +96,7 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(isEdit ? 'تم الحفظ' : 'تمت الإضافة')),
+        SnackBar(content: Text(isEdit ? tr('تم الحفظ') : tr('تمت الإضافة'))),
       );
       Navigator.pop(context, true);
     } catch (e) {
@@ -111,7 +112,7 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('${isEdit ? 'تعديل' : 'إضافة'} — ${m.title}')),
+      appBar: AppBar(title: Text('${isEdit ? tr('تعديل') : tr('إضافة')} — ${tr(m.title)}')),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -125,9 +126,12 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
             ElevatedButton.icon(
               onPressed: _saving ? null : _save,
               icon: _saving
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.save),
-              label: Text(isEdit ? 'حفظ التعديلات' : 'حفظ'),
+              label: Text(isEdit ? tr('حفظ التعديلات') : tr('حفظ')),
             ),
           ],
         ),
@@ -139,7 +143,7 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
     switch (f.type) {
       case FieldType.boolean:
         return SwitchListTile(
-          title: Text(f.label),
+          title: Text(tr(f.label)),
           value: _values[f.key] == true,
           onChanged: (v) => setState(() => _values[f.key] = v),
           contentPadding: EdgeInsets.zero,
@@ -147,31 +151,29 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
 
       case FieldType.choice:
         return DropdownButtonFormField<String>(
-          value: _values[f.key] as String?,
-          decoration: InputDecoration(labelText: f.label),
-          items: f.choices
-              .map((c) => DropdownMenuItem(value: c.value, child: Text(c.label)))
-              .toList(),
+          initialValue: _values[f.key] as String?,
+          decoration: InputDecoration(labelText: tr(f.label)),
+          items: f.choices.map((c) => DropdownMenuItem(value: c.value, child: Text(tr(c.label)))).toList(),
           onChanged: (v) => setState(() => _values[f.key] = v),
-          validator: (v) => (f.required && v == null) ? 'مطلوب' : null,
+          validator: (v) => (f.required && v == null) ? tr('مطلوب') : null,
         );
 
       case FieldType.fk:
         final opts = _fkOptions[f.key];
         if (opts == null) {
           return InputDecorator(
-            decoration: InputDecoration(labelText: f.label),
-            child: const Row(children: [
+            decoration: InputDecoration(labelText: tr(f.label)),
+            child: Row(children: [
               SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2)),
               SizedBox(width: 8),
-              Text('جارٍ التحميل…'),
+              Text(tr('جارٍ التحميل…')),
             ]),
           );
         }
         return DropdownButtonFormField<int>(
-          value: _values[f.key] is int ? _values[f.key] as int : null,
+          initialValue: _values[f.key] is int ? _values[f.key] as int : null,
           isExpanded: true,
-          decoration: InputDecoration(labelText: f.label),
+          decoration: InputDecoration(labelText: tr(f.label)),
           items: opts
               .map((o) => DropdownMenuItem(
                     value: o['id'] as int,
@@ -180,7 +182,7 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
                   ))
               .toList(),
           onChanged: (v) => setState(() => _values[f.key] = v),
-          validator: (v) => (f.required && v == null) ? 'مطلوب' : null,
+          validator: (v) => (f.required && v == null) ? tr('مطلوب') : null,
         );
 
       case FieldType.date:
@@ -188,7 +190,7 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
           controller: _text[f.key],
           readOnly: true,
           decoration: InputDecoration(
-            labelText: f.label,
+            labelText: tr(f.label),
             suffixIcon: const Icon(Icons.calendar_today),
           ),
           onTap: () async {
@@ -205,7 +207,7 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
               _values[f.key] = iso;
             }
           },
-          validator: (v) => (f.required && (v == null || v.isEmpty)) ? 'مطلوب' : null,
+          validator: (v) => (f.required && (v == null || v.isEmpty)) ? tr('مطلوب') : null,
         );
 
       default:
@@ -223,8 +225,8 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
               : f.type == FieldType.decimal
                   ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))]
                   : null,
-          decoration: InputDecoration(labelText: f.label + (f.required ? ' *' : '')),
-          validator: (v) => (f.required && (v == null || v.trim().isEmpty)) ? 'مطلوب' : null,
+          decoration: InputDecoration(labelText: tr(f.label) + (f.required ? ' *' : '')),
+          validator: (v) => (f.required && (v == null || v.trim().isEmpty)) ? tr('مطلوب') : null,
         );
     }
   }

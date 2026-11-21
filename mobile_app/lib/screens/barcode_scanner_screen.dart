@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../core/i18n.dart';
+
 /// شاشة مسح الباركود — تُرجع نص الكود الممسوح عبر Navigator.pop.
 class BarcodeScannerScreen extends StatefulWidget {
   const BarcodeScannerScreen({super.key});
@@ -33,7 +35,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('مسح الباركود'),
+        title: Text(tr('مسح الباركود')),
         actions: [
           IconButton(
             icon: const Icon(Icons.flash_on),
@@ -58,10 +60,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          const Positioned(
+          Positioned(
             bottom: 40,
             child: Text(
-              'وجّه الكاميرا نحو باركود القطعة',
+              tr('وجّه الكاميرا نحو باركود القطعة'),
               style: TextStyle(color: Colors.white, fontSize: 16, backgroundColor: Colors.black54),
             ),
           ),

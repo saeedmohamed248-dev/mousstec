@@ -96,3 +96,55 @@ class RoleScoped(BasePermission):
         if role_of(user) == 'viewer':
             return False
         return has_role(user, getattr(view, 'write_roles', MANAGEMENT))
+
+
+# =====================================================================
+# 🏭 القطاع (سيارات / طباعة) — كل شركة تشوف مسارات نشاطها بس
+# =====================================================================
+AUTOMOTIVE = 'automotive'
+PRINTING = 'printing'
+
+
+def tenant_industry(request):
+    """قطاع الشركة الحالية (الافتراضي سيارات زي Client.industry)."""
+    from django.db import connection
+    tenant = getattr(request, 'tenant', None) or getattr(connection, 'tenant', None)
+    return getattr(tenant, 'industry', None) or AUTOMOTIVE
+
+
+class IndustryGate(BasePermission):
+    """🐛 [FIX]: مطبعة داخلة من التطبيق كانت بتشوف لوحة «الورشة» وأوامر الشغل والمركبات
+    (جداول فاضية) ومافيش ولا مسار واحد لشغلها. كل view بيحدّد `industry` بتاعه."""
+    message = 'القسم ده مش متاح لنوع نشاطك.'
+
+    def has_permission(self, request, view):
+        required = getattr(view, 'industry', AUTOMOTIVE)
+        return required is None or tenant_industry(request) == required
+
+
+class PrintModelPerms(BasePermission):
+    """🎨 صلاحيات المطابع = صلاحيات Django الموديل (نفس جروبات «فريق العمل» في الويب).
+
+    القراءة محتاجة view_<model> (مش زي DjangoModelPermissions اللي بتسيب القراءة مفتوحة)،
+    والكتابة add/change. الـ view يقدر يحدّد `perm_model` أو `action_perms` لكل action."""
+    message = 'صلاحيتك مش كفاية للعملية دي.'
+    METHOD_PERM = {'GET': 'view', 'HEAD': 'view', 'OPTIONS': 'view',
+                   'POST': 'add', 'PUT': 'change', 'PATCH': 'change', 'DELETE': 'delete'}
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not (user and user.is_authenticated):
+            return False
+        if request.method not in SAFE_METHODS and role_of(user) == 'viewer':
+            return False
+        action_perms = getattr(view, 'action_perms', {}) or {}
+        action = getattr(view, 'action', None)
+        if action in action_perms:
+            perms = action_perms[action]
+        else:
+            model = getattr(view, 'perm_model', None)
+            if model is None:
+                return True
+            verb = self.METHOD_PERM.get(request.method, 'change')
+            perms = (f'printing.{verb}_{model}',)
+        return all(user.has_perm(p) for p in perms)
