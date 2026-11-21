@@ -55,8 +55,32 @@ jobs:
       - name: توليد قشرة أندرويد/iOS + الأيقونة
         run: python3 tool/setup_native.py
       - run: flutter build apk --release
+      - name: تجربة بناء AAB موقّع (بمفتاح مؤقت — بيتأكد إن إعداد توقيع المتجر سليم)
+        run: |
+          keytool -genkey -noprompt -keystore "$RUNNER_TEMP/ci.jks" -keyalg RSA -keysize 2048 \
+            -validity 1 -alias upload -storepass ci-pass-123 -keypass ci-pass-123 -dname "CN=CI"
+          printf 'storePassword=ci-pass-123\nkeyPassword=ci-pass-123\nkeyAlias=upload\nstoreFile=%s\n' \
+            "$RUNNER_TEMP/ci.jks" > android/key.properties
+          flutter build appbundle --release --build-number=${{ github.run_number }}
+          rm android/key.properties
       - uses: actions/upload-artifact@v4
         with:
           name: mousstec-apk
           path: mobile_app/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14
+
+  ios:
+    name: 🍎 بناء iOS (من غير توقيع)
+    needs: test
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: توليد قشرة iOS
+        run: python3 tool/setup_native.py --no-icons
+      - run: flutter build ios --release --no-codesign

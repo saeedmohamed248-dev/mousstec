@@ -36,6 +36,8 @@ class Command(BaseCommand):
         parser.add_argument('--username', default='admin')
         parser.add_argument('--email', default='')
         parser.add_argument('--password', required=True)
+        parser.add_argument('--industry', default='automotive', choices=('automotive', 'printing'),
+                            help="القطاع: automotive (ورش) أو printing (مطابع)")
 
     def handle(self, *args, **o):
         base = o['base_domain'].strip().lower().rstrip('.')
@@ -69,7 +71,7 @@ class Command(BaseCommand):
             self.stdout.write(f"🔄 إنشاء الفرع '{schema}' وتطبيق مهاجراته (ممكن ياخد دقيقة)...")
             branch = Client(schema_name=schema, name=o['name'],
                             owner_name=o['owner'], phone=o['phone'],
-                            industry='automotive', status='trial')
+                            industry=o.get('industry') or 'automotive', status='trial')
             try:
                 branch.save()
             except Exception as exc:

@@ -93,8 +93,8 @@ keyAlias=upload
 storeFile=/home/you/mousstec-upload.jks
 ```
 
-الخطوات الكاملة للنشر (Play Console / App Store Connect، سياسة الخصوصية، الصور):
-`docs/MOBILE_RELEASE.md`. والـ CI (`.github/workflows/mobile.yml`) بيحلل ويختبر ويبني APK
+الخطوات الكاملة للنشر: `docs/MOBILE_RELEASE.md` — والرفع نفسه أوتوماتيك من GitHub Actions
+(«Mobile Release»). نصوص صفحة المتجر وإجابات الخصوصية وحسابات المراجعين في `store/`. والـ CI (`.github/workflows/mobile.yml`) بيحلل ويختبر ويبني APK
 على أي تغيير في `mobile_app/`.
 
 ---

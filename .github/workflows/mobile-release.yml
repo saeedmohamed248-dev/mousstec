@@ -1,0 +1,160 @@
+# 🚀 رفع تطبيق الموبايل على Google Play و App Store (TestFlight) — أوتوماتيك.
+#
+# التشغيل: Actions ← «Mobile Release» ← Run workflow  (أو tag باسم mobile-v1.2.0)
+# الإعداد مرة واحدة (Settings ← Secrets and variables ← Actions) — التفاصيل في docs/MOBILE_RELEASE.md:
+#   أندرويد: ANDROID_KEYSTORE_BASE64 · ANDROID_KEYSTORE_PASSWORD · ANDROID_KEY_ALIAS · ANDROID_KEY_PASSWORD
+#            PLAY_SERVICE_ACCOUNT_JSON · (اختياري) FIREBASE_GOOGLE_SERVICES_JSON
+#   آيفون:   APPLE_TEAM_ID · ASC_KEY_ID · ASC_ISSUER_ID · ASC_PRIVATE_KEY
+#            (اختياري) FIREBASE_GOOGLE_SERVICE_INFO_PLIST
+#
+# الرقم بعد + في الإصدار (build number) = رقم التشغيل — بيزيد لوحده، فمفيش رفعة بتترفض بسببه.
+name: Mobile Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'المنصّة'
+        type: choice
+        options: [both, android, ios]
+        default: both
+      play_track:
+        description: 'مسار Google Play'
+        type: choice
+        options: [internal, alpha, beta, production]
+        default: internal
+  push:
+    tags: ['mobile-v*']
+
+concurrency:
+  group: mobile-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: mobile_app
+
+jobs:
+  android:
+    name: 🤖 Google Play
+    if: github.event_name == 'push' || inputs.platform != 'ios'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      GS_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: التأكد من المفاتيح
+        run: |
+          missing=""
+          [ -n "$KEYSTORE_B64" ] || missing="$missing ANDROID_KEYSTORE_BASE64"
+          [ -n "$PLAY_JSON" ] || missing="$missing PLAY_SERVICE_ACCOUNT_JSON"
+          if [ -n "$missing" ]; then
+            echo "::error::ناقص Secrets:$missing — راجع docs/MOBILE_RELEASE.md"; exit 1
+          fi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: ملفات التوقيع و Firebase
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          cat > key.properties.tmp <<EOF2
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=$RUNNER_TEMP/upload.jks
+          EOF2
+          if [ -n "$GS_JSON" ]; then echo "$GS_JSON" > firebase/google-services.json; fi
+      - name: قشرة أندرويد + الأيقونة
+        run: |
+          python3 tool/setup_native.py
+          sed 's/^ *//' key.properties.tmp > android/key.properties && rm key.properties.tmp
+      - name: بناء AAB موقّع
+        run: flutter build appbundle --release --build-number=${{ github.run_number }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mousstec-aab-${{ github.run_number }}
+          path: mobile_app/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
+      - name: رفع على Google Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.mousstec.mobile
+          releaseFiles: mobile_app/build/app/outputs/bundle/release/app-release.aab
+          track: ${{ inputs.play_track || 'internal' }}
+          # «مسودة»: بتظهر في Play Console وإنت اللي بتدوس «نشر» (وإجباري لأول نسخة)
+          status: draft
+
+  ios:
+    name: 🍎 App Store (TestFlight)
+    if: github.event_name == 'push' || inputs.platform != 'android'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      GS_PLIST: ${{ secrets.FIREBASE_GOOGLE_SERVICE_INFO_PLIST }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: التأكد من المفاتيح
+        run: |
+          missing=""
+          for v in TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::ناقص Secrets:$missing — راجع docs/MOBILE_RELEASE.md"; exit 1
+          fi
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: مفتاح App Store Connect + Firebase
+        run: |
+          echo "$ASC_PRIVATE_KEY" > "$RUNNER_TEMP/AuthKey.p8"
+          if [ -n "$GS_PLIST" ]; then echo "$GS_PLIST" > firebase/GoogleService-Info.plist; fi
+      - name: قشرة iOS + الأيقونة
+        run: python3 tool/setup_native.py
+      - name: بناء (من غير توقيع — التوقيع في الأرشيف)
+        run: flutter build ios --release --no-codesign --build-number=${{ github.run_number }}
+      - name: أرشيف موقّع (توقيع أوتوماتيك بمفتاح الـ API)
+        run: |
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Runner.xcarchive" archive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic
+      - name: تصدير ورفع على App Store Connect
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF2
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          EOF2
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
