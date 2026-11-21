@@ -176,8 +176,6 @@ def saas_pricing_page(request):
             with transaction.atomic():
                 # 🐛 [FIX — الحسابات]: كان بيمدّ ٣٠ يوم من غير فاتورة ⇒ الفلوس مش بتظهر في الحسابات.
                 #    لو الباقة ليها سعر: فاتورة منصة مدفوعة زي التجديد من صفحة الشركات.
-                from clients.models import Plan
-                from clients.services.plan_mapping import resolve_plan_slug
                 from clients.services.platform_billing import issue_subscription_invoice
                 plan_obj = Plan.objects.filter(slug=resolve_plan_slug(selected_plan) or '', is_active=True).first()
                 if plan_obj is not None:
