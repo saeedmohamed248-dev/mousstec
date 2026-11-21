@@ -137,15 +137,35 @@ def ios():
                       '\t\t<string>remote-notification</string>\n\t</array>\n</dict>\n</plist>', 1)
     write(plist, s)
 
+    # 🔔 إشعارات iOS محتاجة صلاحية Push (aps-environment) في توقيع التطبيق
+    ent = path('ios', 'Runner', 'Runner.entitlements')
+    if not os.path.exists(ent):
+        write(ent, '<?xml version="1.0" encoding="UTF-8"?>\n'
+                   '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+                   '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+                   '<plist version="1.0">\n<dict>\n'
+                   '\t<key>aps-environment</key>\n\t<string>production</string>\n'
+                   '</dict>\n</plist>\n')
+
     pbx = path('ios', 'Runner.xcodeproj', 'project.pbxproj')
     p = read(pbx)
     p = re.sub(r'PRODUCT_BUNDLE_IDENTIFIER = com\.mousstec\.mousstecMobile;',
                f'PRODUCT_BUNDLE_IDENTIFIER = {APP_ID};', p)
+    p = re.sub(r'IPHONEOS_DEPLOYMENT_TARGET = 1[0-4]\.\d+;', 'IPHONEOS_DEPLOYMENT_TARGET = 15.0;', p)
+    if 'CODE_SIGN_ENTITLEMENTS' not in p:
+        # تارجت Runner بس (RunnerTests الـ ID بتاعه بينتهي بـ .RunnerTests)
+        p = p.replace(f'PRODUCT_BUNDLE_IDENTIFIER = {APP_ID};',
+                      f'PRODUCT_BUNDLE_IDENTIFIER = {APP_ID};\n'
+                      '\t\t\t\tCODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;')
     write(pbx, p)
 
     podfile = path('ios', 'Podfile')
+    # 🐛 [FIX]: Flutter الجديد بيستخدم Swift Package Manager — عمل Podfile بإيدنا كان بيجبر CocoaPods
+    #    ويوقّع البناء («sandbox is not in sync»). أقل iOS بيتظبط من المشروع (IPHONEOS_DEPLOYMENT_TARGET فوق)،
+    #    والـ Podfile بيتعدّل بس لو Flutter عمله (مشروع لسه على CocoaPods).
     if os.path.exists(podfile):
         pf = read(podfile)
+        # Firebase محتاج iOS 15 على الأقل
         pf = re.sub(r"^#?\s*platform :ios, '[\d.]+'", "platform :ios, '15.0'", pf, flags=re.M)
         write(podfile, pf)
 
