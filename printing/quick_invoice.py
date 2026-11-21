@@ -51,9 +51,36 @@ def clean_lines(raw_lines):
     return lines
 
 
-def resolve_customer(*, customer_id=None, name='', phone=''):
-    """عميل مسجّل بالـ id، أو بالموبايل، أو عميل جديد بالاسم والموبايل (زي تحويل عرض السعر)."""
+#: 💵 الأسامي اللي الموظف بيكتبها لما يقصد «بيع كاش لعميل عابر» (مش عميل اسمه كده)
+CASH_ALIASES = frozenset({
+    'نقدي', 'نقدى', 'نقداً', 'نقدا', 'كاش', 'عميل نقدي', 'عميل نقدى', 'عميل كاش', 'عميل عابر',
+    'cash', 'cash customer', 'walk-in', 'walk in', 'walkin',
+})
+CASH_CUSTOMER_NAME = 'عميل نقدي'
+
+
+def is_cash_name(name):
+    return ' '.join((name or '').split()).lower() in CASH_ALIASES
+
+
+def cash_customer():
+    """العميل النقدي المشترك للمطبعة — واحد بس (لو اتعمل قبل كده باسم «نقدي» أو «كاش» بنستخدمه)."""
     from printing.models import PrintCustomer
+    for c in PrintCustomer.objects.filter(phone='').order_by('pk'):
+        if is_cash_name(c.name):
+            return c
+    return PrintCustomer.objects.create(name=CASH_CUSTOMER_NAME, phone='', whatsapp='')
+
+
+def resolve_customer(*, customer_id=None, name='', phone=''):
+    """عميل مسجّل بالـ id، أو بالموبايل، أو عميل جديد بالاسم والموبايل (زي تحويل عرض السعر).
+
+    🐛 [FIX]: مطبعة كتبت «نقدي» في خانة العميل (يعني بيع كاش) ⇒ السيستم عمل عميل جديد اسمه «نقدي»
+    وطلّع تحذير «اتسجّل عميل جديد: نقدي». دلوقتي «نقدي/كاش/cash» من غير موبايل = العميل النقدي المشترك.
+    """
+    from printing.models import PrintCustomer
+    if not customer_id and not (phone or '').strip() and is_cash_name(name):
+        return cash_customer(), False
     if customer_id:
         try:
             return PrintCustomer.objects.get(pk=int(customer_id)), False
@@ -155,6 +182,9 @@ def create_quick_invoice(*, user, lines, customer_id=None, customer_name='', cus
     warnings = []
     with transaction.atomic():
         customer, created = resolve_customer(customer_id=customer_id, name=customer_name, phone=customer_phone)
+        # 🐛 [FIX]: العميل النقدي مشترك بين ناس كتير — باقي عليه = دين مالوش صاحب في كشف الحساب.
+        if not customer.phone and is_cash_name(customer.name) and paid < subtotal - discount:
+            raise ValidationError(_("العميل النقدي لازم يدفع الفاتورة كاملة. لو هيدفع الباقي بعدين اكتب اسمه وموبايله."))
         extra = {'date_created': when} if when else {}
         order = PrintOrder.objects.create(customer=customer, discount=discount, status='confirmed',
                                           notes=(notes or '').strip(), **extra)

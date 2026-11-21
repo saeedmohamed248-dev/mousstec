@@ -28927,3 +28927,12 @@ msgstr "Operating"
 
 msgid "طبيعة المصروف"
 msgstr "Expense type"
+
+msgid "عميل نقدي (كاش)"
+msgstr "Cash customer (walk-in)"
+
+msgid "عميل نقدي"
+msgstr "Cash customer"
+
+msgid "العميل النقدي لازم يدفع الفاتورة كاملة. لو هيدفع الباقي بعدين اكتب اسمه وموبايله."
+msgstr "A cash (walk-in) customer must pay the invoice in full. If they'll pay the rest later, enter their name and mobile."

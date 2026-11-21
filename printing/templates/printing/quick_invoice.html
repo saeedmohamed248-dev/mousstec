@@ -32,6 +32,8 @@
             </div>
         </div>
         <input type="hidden" name="customer_id" id="qiCustomerId" value="{{ form.customer_id|default:'' }}">
+        {# 💵 بيع كاش لعميل عابر — من غير ما يتعمل عميل جديد لكل زبون #}
+        <button type="button" class="qi-add" id="qiCash" style="margin-top:8px;">💵 {% trans "عميل نقدي (كاش)" %}</button>
         <div class="qi-pick" id="qiPicked">✅ {% trans "عميل مسجّل — الفاتورة هتتسجّل على حسابه" %}</div>
         <datalist id="qiCustomers">
             {% for c in customers %}<option value="{{ c.name }}" data-id="{{ c.pk }}" data-phone="{{ c.phone }}">{{ c.phone }}</option>{% endfor %}
@@ -170,6 +172,10 @@
     name.addEventListener('input', match);
     phone.addEventListener('input', function () { if (cid.value) { cid.value = ''; picked.style.display = 'none'; } });
     if (cid.value) picked.style.display = 'block';
+    document.getElementById('qiCash').addEventListener('click', function () {
+        name.value = '{% filter escapejs %}{% trans "عميل نقدي" %}{% endfilter %}'; phone.value = ''; cid.value = '';
+        picked.style.display = 'none'; paidTouched = false; recalc();
+    });
 
     form.addEventListener('submit', function () {
         var b = document.getElementById('qiSave'); b.disabled = true; b.textContent = '{% filter escapejs %}{% trans "بنحفظ..." %}{% endfilter %}';
