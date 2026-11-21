@@ -160,14 +160,9 @@ def ios():
     write(pbx, p)
 
     podfile = path('ios', 'Podfile')
-    if not os.path.exists(podfile):
-        # الـ Podfile بيتولّد مع أول بناء iOS — بنعمله من قالب Flutter نفسه عشان نثبّت الـ platform
-        flutter_bin = shutil.which('flutter')
-        if flutter_bin:
-            tpl = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(flutter_bin))),
-                               'packages', 'flutter_tools', 'templates', 'cocoapods', 'Podfile-ios')
-            if os.path.exists(tpl):
-                shutil.copy(tpl, podfile)
+    # 🐛 [FIX]: Flutter الجديد بيستخدم Swift Package Manager — عمل Podfile بإيدنا كان بيجبر CocoaPods
+    #    ويوقّع البناء («sandbox is not in sync»). أقل iOS بيتظبط من المشروع (IPHONEOS_DEPLOYMENT_TARGET فوق)،
+    #    والـ Podfile بيتعدّل بس لو Flutter عمله (مشروع لسه على CocoaPods).
     if os.path.exists(podfile):
         pf = read(podfile)
         # Firebase محتاج iOS 15 على الأقل
