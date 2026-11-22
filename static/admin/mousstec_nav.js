@@ -636,3 +636,22 @@ window.mtT = function (ar, en) {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();
+
+/* 🔗 لينك لجزء جوه تاب (مثلاً «#material_usages-group» = الخامات المصروفة على مهمة طباعة):
+ * Jazzmin بيفتح التاب بس لو الـ hash هو اسم التاب نفسه (اللي بيتغيّر مع اللغة) — هنا لو الـ hash
+ * عنصر جوه تاب مقفول بنفتح التاب بتاعه وننزل عليه. */
+(function () {
+  function openHashTab() {
+    var id = decodeURIComponent((location.hash || "").slice(1));
+    if (!id) return;
+    var el = document.getElementById(id);
+    var pane = el && el.closest(".tab-pane");
+    if (!pane || pane.classList.contains("active")) return;
+    var link = document.querySelector('a[data-toggle="tab"][href="#' + pane.id + '"], a[data-toggle="pill"][href="#' + pane.id + '"], .nav-tabs a[href="#' + pane.id + '"]');
+    if (!link) return;
+    if (window.jQuery && window.jQuery.fn.tab) window.jQuery(link).tab("show"); else link.click();
+    setTimeout(function () { el.scrollIntoView({ block: "start" }); }, 150);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", openHashTab);
+  else openHashTab();
+})();

@@ -29526,3 +29526,18 @@ msgstr "At most %(n)s materials."
 
 msgid "الخامة المختارة مش موجودة."
 msgstr "The selected material doesn't exist."
+
+msgid "متأخرة عن ميعاد التسليم"
+msgstr "Past the delivery date"
+
+msgid "جاهزة للتسليم"
+msgstr "Ready for pickup"
+
+msgid "فلوسك عند العملاء"
+msgstr "Owed to you by customers"
+
+msgid "فواتير اتسلّمت ولسه ماتحصّلتش"
+msgstr "Delivered invoices not collected yet"
+
+msgid "سجّل الخامات المصروفة"
+msgstr "Record materials used"

@@ -41,6 +41,12 @@ class ProductionBoardTests(ERPTenantTestCase):
         self.assertEqual([j.pk for j in design], [self.job.pk])
         self.assertContains(r, 'كروت بزنس')
 
+    def test_board_keeps_the_sidebar_and_links_job_materials(self):
+        # 🐛 القايمة الجانبية كانت بتختفي هنا (من غير each_context)
+        r = self.get()
+        self.assertTrue(r.context['available_apps'])
+        self.assertContains(r, reverse('admin:printing_printjob_change', args=[self.job.pk]) + '#material_usages-group')
+
     def test_draft_cancelled_and_delivered_orders_are_hidden(self):
         for status in ('draft', 'cancelled', 'delivered'):
             PrintOrder.objects.filter(pk=self.order.pk).update(status=status)

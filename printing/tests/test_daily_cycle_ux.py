@@ -24,6 +24,7 @@ from inventory.services.accounting_reports import AccountingReportService
 from inventory.tests.base import ERPTenantTestCase
 from printing import ledger
 from printing.models import (
+    MachineProfile,
     MaterialPurchase, MaterialPurchaseLine, PrintCustomer, PrintJob, PrintMaterial, PrintOrder, PrintSupplier,
     PrintTransaction, PrintTreasury,
 )
@@ -167,7 +168,15 @@ class PrintingDailyCycleUXTests(ERPTenantTestCase):
         self.assertContains(dash, reverse('printing:quick_expense'))
         self.assertContains(dash, reverse('printing:quick_purchase'))
         self.assertContains(dash, 'id="printStartSteps"')
-        self.assertContains(dash, 'خلصت 1 من 5')            # فيه عميل بس
+        self.assertContains(dash, 'خلصت 1 من 6')            # فيه عميل بس
+        # 🐛 قايمة واحدة بس — كارت «أول خطوات» العام مايكرّرش «ابدأ هنا» في لوحة المطبعة
+        self.assertNotContains(dash, 'id="onboardingSteps"')
+        self.assertContains(dash, 'id="printOpsNow"')
+        self.assertContains(dash, reverse('admin:printing_printorder_add') + '?full=1')
+        html = dash.content.decode()
+        # الترتيب: ابدأ هنا ← شغل النهارده ← الفلوس ← أزرار الشغل ← البانرات
+        self.assertLess(html.index('id="printOpsNow"'), html.index('id="printMoneyNow"'))
+        self.assertLess(html.index('id="printMoneyNow"'), html.index('id="printCyclePanel"'))
         # 🚀 أول خطوة لسه ماخلصتش = أول فاتورة لعميل (زرار بارز)، مش «الفلوس اللي في الخزنة»
         self.assertContains(dash, f'<a class="pc-next" href="{reverse("printing:quick_invoice")}">')
         html = dash.content.decode()
@@ -187,6 +196,8 @@ class PrintingDailyCycleUXTests(ERPTenantTestCase):
         # 4) مصروف إيجار
         r = self.guided('expense', amount='800', category='rent', description='إيجار المحل')
         self.assertEqual(r.status_code, 302)
+        # 5) الماكينة (تكلفة التشغيل) — آخر خطوة في «ابدأ هنا»
+        MachineProfile.objects.create(name='ديجيتال')
 
         txns = {t.category: t for t in PrintTransaction.objects.all()}
         self.assertEqual((txns['capital'].transaction_type, txns['rent'].transaction_type), ('in', 'out'))
@@ -211,4 +222,7 @@ class PrintingDailyCycleUXTests(ERPTenantTestCase):
         dash = self.c.get(reverse('admin:index'), HTTP_HOST=self.host)
         self.assertContains(dash, 'id="printMonthPnl"')
         self.assertContains(dash, f"{pnl['net_profit']:,.0f}")
+        # 💳 فلوسك عند العملاء = رصيد المدينين في الدفاتر (500)
+        self.assertEqual(dash.context['print_ops']['receivables'], bal('1100'))
+        self.assertContains(dash, 'id="printReceivables"')
         self.assertNotContains(dash, 'id="printStartSteps"')
