@@ -213,6 +213,8 @@ from .admin_views import (  # noqa: F401
 # ───────────────────────────────────────────────────────────────────────────
 from .parts_marketplace_views import (  # noqa: F401
     parts_feed,
+    parts_feed_individuals,
+    parts_feed_traders,
     parts_detail,
     parts_stock_detail,
     parts_create,

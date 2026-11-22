@@ -90,15 +90,44 @@ def _validate_photo(photo):
 # 1. PUBLIC FEED — anyone can browse, only logged-in customers can buy
 # ─────────────────────────────────────────────────────────────────────
 
-def parts_feed(request):
-    """Public feed of active part listings, filterable by car make."""
+FEED_PAGE_SIZE = 48
+
+# 🏪 أقسام السوق: «الكل» + سوق الأفراد (مستعمل/حاجات مش محتاجينها) + سوق التجار.
+#    زي OLX/eBay: البائع الفرد في صفحة لوحده بعيد عن محلات قطع الغيار.
+FEED_SECTIONS = ('all', 'individuals', 'traders')
+
+
+def _page_number(request, param='page'):
+    n = _parse_int(request.GET.get(param), 1) or 1
+    return max(n, 1)
+
+
+def parts_feed(request, section=None):
+    """
+    Public feed of active part listings, filterable by car make.
+
+    ``section`` (من الـ URL أو ?seller=):
+      * ``all``         — كل حاجة (قطع الأفراد + قطع التجار + مخازن التجار)
+      * ``individuals`` — سوق الأفراد: عميل بيبيع حاجته اللي مش محتاجها
+      * ``traders``     — سوق التجار: قطع الشركات + أصناف مخازنهم
+    """
     if getattr(connection, 'schema_name', 'public') != 'public':
         return HttpResponseForbidden('Access from main site only')
+
+    if section is None:
+        section = (request.GET.get('seller') or 'all').strip().lower()
+    if section not in FEED_SECTIONS:
+        section = 'all'
 
     public_q = Q(
         listings__status='active', listings__moderation_status='approved',
         listings__is_deleted=False, listings__reserved_for__isnull=True,
     )
+    # عدّاد كل ماركة بيتحسب على القسم المفتوح بس.
+    if section == 'individuals':
+        public_q &= Q(listings__seller_customer__isnull=False)
+    elif section == 'traders':
+        public_q &= Q(listings__seller_tenant__isnull=False)
     # 🐛 [FIX]: عدّاد الماركة (listings_count) كان بيزيد مع كل قطعة جديدة حتى
     #    لو لسه مستنية موافقة أو اترفضت، وماكانش بيقل أبداً مع البيع —
     #    دلوقتي بيتحسب لحظياً من القطع المعروضة فعلاً.
@@ -115,7 +144,11 @@ def parts_feed(request):
     listings = PartListing.objects.filter(
         status='active', moderation_status='approved', is_deleted=False,
         reserved_for__isnull=True,  # private (wanted-offer) listings never hit the feed
-    ).select_related('car_make').prefetch_related('photos')
+    ).select_related('car_make', 'seller_tenant').prefetch_related('photos')
+    if section == 'individuals':
+        listings = listings.filter(seller_customer__isnull=False)
+    elif section == 'traders':
+        listings = listings.filter(seller_tenant__isnull=False)
 
     selected_make = None
     if selected_make_slug:
@@ -139,27 +172,58 @@ def parts_feed(request):
     else:
         listings = listings.order_by('-created_at')
 
-    listings = listings[:60]
+    # 🐛 [FIX]: السوق كان بيقطع عند أول 60 قطعة من غير صفحات — أي قطعة بعدها
+    #    كانت مستخبية عن المشترين خالص. دلوقتي فيه صفحات.
+    from django.core.paginator import Paginator
+    listings_page = Paginator(listings, FEED_PAGE_SIZE).get_page(_page_number(request))
 
     # 🐛 [FIX]: أصناف الشركات (طلبات «نشر في سوق التجار») اللي الإدارة وافقت عليها
     #    ماكانتش بتظهر هنا خالص — دلوقتي ليها قسم «من مخازن التجار».
-    from clients.services import parts_stock_orders as stock_svc
-    stock_items = stock_svc.filter_stock_items(
-        stock_svc.public_stock_items(), q=q, make=selected_make,
-        condition=condition if condition in dict(PartListing.CONDITION_CHOICES) else '', sort=sort,
-    )[:60]
+    #    (مخازن التجار مالهاش مكان في سوق الأفراد.)
+    stock_page = None
+    if section != 'individuals':
+        from clients.services import parts_stock_orders as stock_svc
+        stock_qs = stock_svc.filter_stock_items(
+            stock_svc.public_stock_items(), q=q, make=selected_make,
+            condition=condition if condition in dict(PartListing.CONDITION_CHOICES) else '', sort=sort,
+        )
+        stock_page = Paginator(stock_qs, FEED_PAGE_SIZE).get_page(_page_number(request, 'spage'))
+
+    # روابط الصفحات بتحافظ على الفلاتر.
+    from urllib.parse import urlencode
+    keep = {k: v for k, v in (('make', selected_make_slug), ('q', q),
+                              ('condition', condition), ('sort', sort if sort != 'new' else ''))
+            if v}
+    filter_qs = urlencode(keep)
 
     customer = _marketplace_auth(request)
     return render(request, 'clients/marketplace/parts_feed.html', {
-        'stock_items': stock_items,
+        'section': section,
+        'section_base': {'all': '/marketplace/parts/',
+                         'individuals': '/marketplace/parts/individuals/',
+                         'traders': '/marketplace/parts/traders/'}[section],
+        'filter_qs': filter_qs,
+        'stock_items': stock_page.object_list if stock_page else [],
+        'stock_page': stock_page,
         'makes': makes,
         'selected_make': selected_make,
         'selected_make_slug': selected_make_slug,
-        'listings': listings,
+        'listings': listings_page.object_list,
+        'listings_page': listings_page,
         'q': q, 'condition': condition, 'sort': sort,
         'customer': customer,
         'condition_choices': PartListing.CONDITION_CHOICES,
     })
+
+
+def parts_feed_individuals(request):
+    """👤 سوق الأفراد — العميل بيعرض حاجته اللي مش محتاجها (مستعمل/زيادة)."""
+    return parts_feed(request, section='individuals')
+
+
+def parts_feed_traders(request):
+    """🏪 سوق التجار — قطع الشركات ومخازنهم."""
+    return parts_feed(request, section='traders')
 
 
 def parts_stock_detail(request, item_id):
@@ -401,7 +465,9 @@ def parts_create(request):
     """Form to create a new listing as a marketplace customer."""
     customer = _marketplace_auth(request)
     if not customer:
-        return redirect('/marketplace/login/')
+        # 🐛 [FIX]: كان بيودّي لـ /marketplace/login/ من غير ?next — اللي داخل يبيع حاجته
+        #    بعد التسجيل كان بيلاقي نفسه في اللوحة ويتوه. غالباً عميل جديد ⇒ صفحة «حساب جديد».
+        return redirect('/marketplace/automotive/?next=/marketplace/parts/sell/')
     if customer.sector != 'automotive':
         return render(request, 'clients/marketplace/parts_unavailable.html', {
             'reason': 'سوق قطع الغيار خاص بقطاع السيارات فقط.',
@@ -705,7 +771,8 @@ def parts_my_orders(request):
     """List the current customer's purchases."""
     customer = _marketplace_auth(request)
     if not customer:
-        return redirect('/marketplace/login/')
+        # 🐛 [FIX]: من غير ?next العميل (اللي جاي من إشعار) كان بيرجع للوحة مش للطلب.
+        return redirect('/marketplace/login/?next=/marketplace/parts/orders/')
     orders = list(
         PartOrder.objects.filter(buyer_customer=customer)
         .select_related('listing', 'listing__car_make', 'listing__seller_customer')
@@ -723,7 +790,8 @@ def parts_my_sales(request):
     """List the current customer's sales."""
     customer = _marketplace_auth(request)
     if not customer:
-        return redirect('/marketplace/login/')
+        # 🐛 [FIX]: من غير ?next العميل (اللي جاي من إشعار) كان بيرجع للوحة مش للطلب.
+        return redirect('/marketplace/login/?next=/marketplace/parts/sales/')
     # Unpaid / cancelled checkouts are noise for the seller — they only need
     # orders that were actually paid.
     orders = list(

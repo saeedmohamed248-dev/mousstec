@@ -571,6 +571,8 @@ urlpatterns = [
 
     # 🚗 P2P Car-Parts Marketplace
     path('marketplace/parts/',                                client_views.parts_feed,             name='parts_feed'),
+    path('marketplace/parts/individuals/',                    client_views.parts_feed_individuals, name='parts_feed_individuals'),
+    path('marketplace/parts/traders/',                        client_views.parts_feed_traders,     name='parts_feed_traders'),
     path('marketplace/parts/sell/',                           client_views.parts_create,           name='parts_create'),
     path('marketplace/parts/wanted/new/',                     client_views.parts_wanted_create,    name='parts_wanted_create'),
     path('marketplace/parts/wanted/sellers/',                 client_views.parts_wanted_seller_feed, name='parts_wanted_seller_feed'),

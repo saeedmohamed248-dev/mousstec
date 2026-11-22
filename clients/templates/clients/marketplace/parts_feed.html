@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سوق قطع الغيار | Mouss Tec</title>
+    <title>{% if section == 'individuals' %}{% trans "سوق الأفراد — بيع واشتري المستعمل" %}{% elif section == 'traders' %}{% trans "سوق التجار — قطع غيار من المحلات" %}{% else %}سوق قطع الغيار{% endif %} | Mouss Tec</title>
     <meta name="description" content="{% trans "قطع غيار سيارات جديدة ومستعملة من تجار ومراكز موثّقة — دوّر بالماركة والموديل، قارن الأسعار، واشتري بأمان على Mouss Tec." %}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
@@ -88,6 +88,28 @@
         .card-store { color: var(--soft); font-size: 0.78rem; margin-bottom: 6px; }
         .card-store .fa-circle-check { color: #60a5fa; }
 
+        /* 🏪 أقسام السوق: الكل / الأفراد / التجار */
+        .tabs { display: flex; gap: 8px; margin: 0 0 18px; flex-wrap: wrap; }
+        .tab { padding: 10px 18px; border-radius: 12px; border: 1px solid var(--line); background: var(--card);
+               color: var(--soft); text-decoration: none; font-weight: 800; font-size: 0.9rem; transition: 0.15s; }
+        .tab:hover { border-color: var(--accent); }
+        .tab.active { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #0b1020; border-color: transparent; }
+        .tab small { display: block; font-weight: 600; font-size: 0.7rem; opacity: 0.8; }
+        .sell-banner { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+                       background: linear-gradient(135deg, rgba(245,158,11,0.16), rgba(239,68,68,0.12));
+                       border: 1px solid rgba(245,158,11,0.35); border-radius: 16px; padding: 16px 18px; margin-bottom: 18px; }
+        .sell-banner h3 { margin: 0 0 4px; font-size: 1.05rem; font-weight: 900; }
+        .sell-banner p { margin: 0; color: var(--soft); font-size: 0.85rem; }
+        .sell-banner a { background: var(--accent); color: #0b1020; padding: 10px 20px; border-radius: 12px;
+                         font-weight: 900; text-decoration: none; white-space: nowrap; }
+        .badge-seller { font-size: 0.7rem; padding: 2px 7px; border-radius: 6px; font-weight: 800; }
+        .badge-seller.ind { background: rgba(168,85,247,0.2); color: #d8b4fe; }
+        .badge-seller.biz { background: rgba(59,130,246,0.2); color: #93c5fd; }
+        .pager { display: flex; justify-content: center; align-items: center; gap: 10px; margin: 22px 0 6px; }
+        .pager a, .pager span { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line);
+                                color: var(--soft); text-decoration: none; font-weight: 700; font-size: 0.85rem; }
+        .pager a:hover { border-color: var(--accent); color: var(--accent); }
+
         .empty { background: var(--card); border: 1px dashed var(--line); border-radius: 18px;
                  text-align: center; padding: 60px 20px; }
         .empty i { font-size: 3rem; color: var(--accent); opacity: 0.4; margin-bottom: 12px; }
@@ -125,12 +147,44 @@
 </div>
 
 <div class="wrap">
+    {% if section == 'individuals' %}
+    <h1>👤 {% trans "سوق الأفراد" %}</h1>
+    <p class="subtitle">{% trans "ناس زيك بتبيع حاجات عربياتها اللي مش محتاجاها — والفلوس آمنة في الـ Escrow لحد ما تستلم وتتأكد." %}</p>
+    {% elif section == 'traders' %}
+    <h1>🏪 {% trans "سوق التجار" %}</h1>
+    <p class="subtitle">{% trans "قطع من محلات ومراكز مسجّلة على Mouss Tec — جديد ومستعمل بفاتورة وضمان." %}</p>
+    {% else %}
     <h1>🛒 سوق قطع غيار السيارات</h1>
     <p class="subtitle">قطع مع ضمان رد المال — الفلوس آمنة في الـ Escrow حتى تتأكد من القطعة.</p>
+    {% endif %}
+
+    <nav class="tabs" aria-label="{% trans "أقسام السوق" %}">
+        <a href="/marketplace/parts/" class="tab {% if section == 'all' %}active{% endif %}">
+            <i class="fas fa-th-large"></i> {% trans "الكل" %}
+        </a>
+        <a href="/marketplace/parts/individuals/" class="tab {% if section == 'individuals' %}active{% endif %}">
+            <i class="fas fa-user"></i> {% trans "سوق الأفراد" %}
+            <small>{% trans "مستعمل من أصحاب العربيات" %}</small>
+        </a>
+        <a href="/marketplace/parts/traders/" class="tab {% if section == 'traders' %}active{% endif %}">
+            <i class="fas fa-store"></i> {% trans "سوق التجار" %}
+            <small>{% trans "محلات ومراكز موثّقة" %}</small>
+        </a>
+    </nav>
+
+    {% if section != 'traders' %}
+    <div class="sell-banner">
+        <div>
+            <h3><i class="fas fa-hand-holding-dollar"></i> {% trans "عندك قطعة أو حاجة لعربيتك مش محتاجها؟" %}</h3>
+            <p>{% trans "صوّرها واعرضها في سوق الأفراد ببلاش — المشتري بيدفع للمنصة، وفلوسك بتوصلك بعد ما يستلم." %}</p>
+        </div>
+        <a href="/marketplace/parts/sell/"><i class="fas fa-camera"></i> {% trans "اعرض حاجتك للبيع" %}</a>
+    </div>
+    {% endif %}
 
     <!-- Makes filter strip -->
     <div class="makes-strip">
-        <a href="/marketplace/parts/" class="make-chip {% if not selected_make %}active{% endif %}">
+        <a href="{{ section_base }}" class="make-chip {% if not selected_make %}active{% endif %}">
             <i class="fas fa-th"></i><br>الكل
         </a>
         {% for m in makes %}
@@ -142,7 +196,7 @@
     </div>
 
     <!-- Text filter -->
-    <form method="get" class="filter-row">
+    <form method="get" action="{{ section_base }}" class="filter-row">
         {% if selected_make_slug %}<input type="hidden" name="make" value="{{ selected_make_slug }}">{% endif %}
         <input type="search" name="q" value="{{ q }}" placeholder="ابحث: اسم قطعة، موديل، رقم OEM...">
         <select name="condition">
@@ -173,6 +227,10 @@
             <div class="card-body">
                 <h3 class="card-title">{{ l.title }}</h3>
                 <div class="card-make">{{ l.car_make.name }}{% if l.car_model %} — {{ l.car_model }}{% endif %}</div>
+                <div class="card-store">
+                    {% if l.seller_tenant_id %}<span class="badge-seller biz"><i class="fas fa-store"></i> {% trans "تاجر" %}</span> {{ l.seller_tenant.name }}
+                    {% else %}<span class="badge-seller ind"><i class="fas fa-user"></i> {% trans "بائع فرد" %}</span>{% if l.city %} · {{ l.city }}{% endif %}{% endif %}
+                </div>
                 <div class="card-price">{{ l.price_egp|num }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
                 <div class="card-meta">
                     <span><i class="fas fa-{% if l.condition == 'new' %}sparkles{% else %}wrench{% endif %}"></i> {{ l.get_condition_display }}</span>
@@ -182,6 +240,13 @@
         </a>
         {% endfor %}
     </div>
+    {% if listings_page.has_other_pages %}
+    <div class="pager">
+        {% if listings_page.has_previous %}<a href="?{% if filter_qs %}{{ filter_qs }}&amp;{% endif %}page={{ listings_page.previous_page_number }}"><i class="fas fa-chevron-right"></i> {% trans "السابق" %}</a>{% endif %}
+        <span dir="ltr">{{ listings_page.number }} / {{ listings_page.paginator.num_pages }}</span>
+        {% if listings_page.has_next %}<a href="?{% if filter_qs %}{{ filter_qs }}&amp;{% endif %}page={{ listings_page.next_page_number }}">{% trans "التالي" %} <i class="fas fa-chevron-left"></i></a>{% endif %}
+    </div>
+    {% endif %}
     {% endif %}
 
     {% if stock_items %}
@@ -212,6 +277,13 @@
         </a>
         {% endfor %}
     </div>
+    {% if stock_page.has_other_pages %}
+    <div class="pager">
+        {% if stock_page.has_previous %}<a href="?{% if filter_qs %}{{ filter_qs }}&amp;{% endif %}spage={{ stock_page.previous_page_number }}"><i class="fas fa-chevron-right"></i> {% trans "السابق" %}</a>{% endif %}
+        <span dir="ltr">{{ stock_page.number }} / {{ stock_page.paginator.num_pages }}</span>
+        {% if stock_page.has_next %}<a href="?{% if filter_qs %}{{ filter_qs }}&amp;{% endif %}spage={{ stock_page.next_page_number }}">{% trans "التالي" %} <i class="fas fa-chevron-left"></i></a>{% endif %}
+    </div>
+    {% endif %}
     {% endif %}
 
     {% if not listings and not stock_items %}
@@ -224,7 +296,7 @@
             <i class="fas fa-bullhorn"></i> اطلب قطعة
         </a>
         {% endif %}
-        {% if customer %}
+        {% if customer or section == 'individuals' %}
         <a href="/marketplace/parts/sell/" style="display:inline-block; margin-top:12px; background:var(--accent); color:#0b1020; padding:10px 22px; border-radius:12px; font-weight:800; text-decoration:none;">
             <i class="fas fa-plus"></i> اعرض قطعة الآن
         </a>

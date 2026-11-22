@@ -207,6 +207,7 @@ class StaticSitemap(_Base):
         ('smart_root', 1.0), ('automotive_landing', 0.9), ('printing_landing', 0.9), ('saas_pricing', 0.9),
         ('features_page', 0.8), ('marketplace_home', 0.8), ('marketplace_printing', 0.8),
         ('marketplace_automotive', 0.8), ('catalog_sell', 0.7), ('parts_feed', 0.8),
+        ('parts_feed_individuals', 0.8), ('parts_feed_traders', 0.8),
         ('design_store_home', 0.7), ('print_market:home', 0.9), ('print_market:signup', 0.5),
         ('legal_privacy', 0.2), ('legal_terms', 0.2),
     )
