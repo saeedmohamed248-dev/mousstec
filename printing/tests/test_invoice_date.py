@@ -123,5 +123,5 @@ class PrintInvoiceDateTests(ERPTenantTestCase):
         order = PrintOrder.objects.get()
         r = self.c.get(f'/secure-portal/printing/printorder/{order.pk}/change/', HTTP_HOST=self.host)
         self.assertContains(r, 'name="date_created_0"')
-        r = self.c.get('/secure-portal/printing/printorder/add/', HTTP_HOST=self.host)
+        r = self.c.get('/secure-portal/printing/printorder/add/?full=1', HTTP_HOST=self.host)
         self.assertNotContains(r, 'name="date_created_0"')

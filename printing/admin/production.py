@@ -136,9 +136,28 @@ class DesignerWorkLogAdmin(PrintSecureAdmin):
 # =====================================================================
 
 class PrintOrderForm(forms.ModelForm):
+    # 🧾 الضريبة كانت مبلغ بس — الموظف بيحسب الـ ١٤٪ بإيده. النسبة بتتحوّل مبلغ بعد حساب إجمالي المهام.
+    tax_rate = forms.DecimalField(required=False, min_value=0, max_value=100, decimal_places=2,
+                                  label=_("نسبة الضريبة ٪"),
+                                  help_text=_("اكتب ١٤ مثلاً والمبلغ يتحسب لوحده من (الإجمالي − الخصم). فاضية = المبلغ زي ما هو."))
+
     class Meta:
         model = PrintOrder
         fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 🐛 [FIX]: «الإجمالي» كان مطلوب وفيه صفر مع إنه بيتحسب من المهام — كان بيلخبط الموظف.
+        if 'total_amount' in self.fields:
+            self.fields['total_amount'].required = False
+        if not self.instance.pk and 'branch' in self.fields and not self.initial.get('branch'):
+            qs = self.fields['branch'].queryset
+            if qs.count() == 1:                  # فرع واحد ⇒ يتختار لوحده
+                self.initial['branch'] = qs.first().pk
+
+    def clean_total_amount(self):
+        value = self.cleaned_data.get('total_amount')
+        return value if value is not None else (self.instance.total_amount or Decimal('0'))
 
     def clean(self):
         data = super().clean()
@@ -436,6 +455,11 @@ class PrintOrderAdmin(PrintSecureAdmin):
         super().save_related(request, form, formsets, change)
         order = form.instance
         order.recalc_total_from_jobs()
+        rate = form.cleaned_data.get('tax_rate') if hasattr(form, 'cleaned_data') else None
+        if rate is not None:
+            order.refresh_from_db(fields=['total_amount', 'discount'])
+            order.tax_amount = ((order.total_amount - order.discount) * rate / 100).quantize(Decimal('0.01'))
+            order.save(update_fields=['tax_amount'])
         moved = order.sync_status_from_jobs()
         if moved:
             self.message_user(request, gettext("حالة الطلب بقت «%(status)s» حسب المهام.")
@@ -469,12 +493,30 @@ class PrintOrderAdmin(PrintSecureAdmin):
         if order.discount and order.total_amount and order.discount > order.total_amount:
             self.message_user(request, gettext("الخصم أكبر من إجمالي المهام — راجع الخصم."), messages.ERROR)
 
+    #: 🐛 [FIX]: في «طلب جديد» كانت بتظهر خانات فاضية مالهاش لازمة (رقم الطلب «-»، تاريخ التسليم
+    #: الفعلي «-»، إجراءات سريعة «—»، المدفوع 0.00) — بتتشال لحد ما الطلب يتحفظ.
+    ADD_HIDDEN = ('order_number', 'date_delivered', 'order_actions', 'paid_amount')
+
+    def add_view(self, request, form_url='', extra_context=None):
+        """«+ طلب جديد» ⇒ الفاتورة السريعة (العميل ← البنود بأسعارها ← الحساب ← الدفع في شاشة واحدة).
+        الشاشة التفصيلية لسه موجودة بـ ?full=1 (ومن استوديو التصميم والنوافذ المنبثقة)."""
+        q = request.GET
+        if request.method == 'GET' and not ({'full', 'ai_session', '_popup', '_to_field'} & set(q.keys())):
+            from django.shortcuts import redirect
+            from django.urls import reverse
+            url = reverse('printing:quick_invoice')
+            if str(q.get('customer', '')).isdigit():
+                url += f"?customer={q['customer']}"
+            return redirect(url)
+        return super().add_view(request, form_url, extra_context)
+
     def get_fieldsets(self, request, obj=None):
         """📅 «تاريخ الفاتورة» بيتعدّل في الفاتورة الموجودة بس — الجديدة بتاخد النهارده
         (وللفاتورة القديمة الجديدة: الفاتورة السريعة فيها خانة تاريخ)."""
         fieldsets = super().get_fieldsets(request, obj)
         if obj is None or not obj.pk:
-            return fieldsets
+            return [(name, {**opts, 'fields': tuple(f for f in opts.get('fields', ()) if f not in self.ADD_HIDDEN)})
+                    for name, opts in fieldsets]
         out = []
         for name, opts in fieldsets:
             fields = list(opts.get('fields', ()))
@@ -489,11 +531,11 @@ class PrintOrderAdmin(PrintSecureAdmin):
             'fields': ('order_number', 'customer', 'branch', 'status', 'date_due', 'date_delivered', 'order_actions'),
         }),
         (_('💰 المالي'), {
-            'fields': ('total_amount', 'discount', 'tax_amount', 'paid_amount'),
+            'fields': ('total_amount', 'discount', 'tax_rate', 'tax_amount', 'paid_amount'),
             'description': _('الإجمالي بيتحسب تلقائياً من أسعار المهام (لو فيه مهام مسعّرة). '
                              'المدفوع بيتحسب من الدفعات تحت — سجّل الدفعة في جدول «الدفعات على الطلب».'),
         }),
-        (_('📁 ملفات المشروع'), {
+        (_('📁 الملفات'), {
             'fields': ('project_file', 'project_file_2', 'project_file_3'),
             'description': _('ارفع ملفات المشروع الأصلية (PSD, AI, PDF, إلخ) — يتم حفظها بأمان على السيرفر'),
         }),
