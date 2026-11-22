@@ -29541,3 +29541,10 @@ msgstr "Delivered invoices not collected yet"
 
 msgid "سجّل الخامات المصروفة"
 msgstr "Record materials used"
+
+msgid "متاحة دلوقتي في مخازن التجار"
+msgstr "Available now in traders' stock"
+
+#, python-format
+msgid "شوف كل قطع التجار (%(n)s)"
+msgstr "See all traders' parts (%(n)s)"

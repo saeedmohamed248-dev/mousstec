@@ -266,3 +266,33 @@ class SuperAdminActiveStockTests(_StockFixture):
         r = self._admin().get(f'/superadmin/parts/stock/{row.pk}/unpublish/')
         self.assertEqual(r.status_code, 405)
         self.assertIsNotNone(self._row())
+
+
+class CatalogShowsTradersStockTests(_StockFixture):
+    """🐛 «سوق قطع الغيار» (/marketplace/catalog/automotive/) — اللي كل اللينكات بتودّي عليه — ماكانش
+    بيعرض أصناف التجار المعتمدة خالص (كانت في /marketplace/parts/traders/ بس)."""
+
+    URL = '/marketplace/catalog/automotive/'
+
+    def test_approved_stock_shows_in_the_catalog(self):
+        self._stock(5)
+        self._approve()
+        row = self._row()
+        html = HttpClient().get(self.URL).content.decode()
+        self.assertIn('id="tradersStock"', html)
+        self.assertIn(self.product.name, html)
+        self.assertIn(f'/marketplace/parts/stock/{row.pk}/', html)
+
+    def test_search_and_category_and_printing_sector(self):
+        self._stock(5)
+        self._approve()
+        c = HttpClient()
+        self.assertIn(self.product.name, c.get(self.URL, {'q': self.sku}).content.decode())
+        self.assertNotIn(self.product.name, c.get(self.URL, {'q': 'مفيش-حاجة-بالاسم-ده'}).content.decode())
+        # القسم خاص بمنتجات الكتالوج ⇒ مع قسم مختار مايظهرش
+        self.assertNotIn('id="tradersStock"', c.get(self.URL, {'cat': 'brakes'}).content.decode())
+        self.assertNotIn('id="tradersStock"', c.get('/marketplace/catalog/printing/').content.decode())
+
+    def test_zero_stock_not_shown(self):
+        self._approve()
+        self.assertNotIn('id="tradersStock"', HttpClient().get(self.URL).content.decode())

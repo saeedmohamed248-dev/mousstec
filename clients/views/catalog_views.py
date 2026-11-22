@@ -174,6 +174,31 @@ def _new_request_url(sector, customer):
     return f'/marketplace/{sector}/?tab=login&next={quote(target, safe="")}'
 
 
+STOCK_PREVIEW = 12
+
+
+def _traders_stock(sector, *, q, make, cat, first_page):
+    """🏪 أصناف مخازن التجار (زي فيكست) في كتالوج قطع الغيار.
+
+    🐛 [FIX]: «سوق قطع الغيار» اللي كل اللينكات بتودّي عليه (الرئيسية، 404، لوحة العميل) كان بيعرض
+    منتجات المتاجر التجريبية بس (16 منتج)، والأصناف الحقيقية اللي الإدارة وافقت عليها (مئات من فيكست)
+    كانت في صفحة تانية (/marketplace/parts/traders/) محدش بيوصلها. دلوقتي أول 12 بتظهر فوق المعروضات
+    بنفس البحث والماركة، ولينك «شوف الكل». القسم (cat) خاص بالكتالوج ⇒ مع قسم مختار مابنعرضهاش.
+    """
+    if sector != 'automotive' or cat:
+        return [], 0
+    from clients.models import PartCarMake
+    from clients.services import parts_stock_orders as stock_svc
+    part_make = None
+    if make:
+        part_make = PartCarMake.objects.filter(Q(name__iexact=make) | Q(slug__iexact=make)).first()
+        if part_make is None:     # ماركة الكتالوج بالعربي — نفلتر بالاسم نفسه
+            part_make = PartCarMake(name=make, slug=make)
+    qs = stock_svc.filter_stock_items(stock_svc.public_stock_items(), q=q, make=part_make)
+    count = qs.count()
+    return (list(qs.select_related('tenant')[:STOCK_PREVIEW]) if first_page and count else []), count
+
+
 def catalog_home(request, sector):
     meta = _sector_or_404(sector)
     customer = _marketplace_auth(request)
@@ -223,6 +248,7 @@ def catalog_home(request, sector):
         pairs = set(CatalogItem.objects.filter(store__sector='automotive', is_active=True)
                     .exclude(car_make='').values_list('car_make', 'car_make_en'))
         makes = sorted({(m, (m_en if _is_en() and m_en else m)) for m, m_en in pairs}, key=lambda x: x[1])
+    stock_items, stock_count = _traders_stock(sector, q=q, make=make, cat=cat, first_page=page.number == 1)
     # 📣 جاي من إعلان الشركات (utm_campaign=shops) ⇒ زرار «سجّل شركتك» يظهر فوق الصفحة.
     #    🐛 [FIX]: الإعلان كان بيوصّل أصحاب المطابع للسوق وزرار التسجيل مدفون تحت المعروضات
     #    فمحدش سجّل. بنقبل كمان «role=shop» الملزوق في رابط الإعلان القديم.
@@ -231,6 +257,7 @@ def catalog_home(request, sector):
     return render(request, 'clients/marketplace/catalog.html', {
         'from_shops_ad': from_shops_ad,
         'sector': sector, 'meta': meta, 'page': page, 'stores': stores,
+        'stock_items': stock_items, 'stock_count': stock_count,
         'categories': _categories(meta),
         'cat': cat, 'q': q, 'make': make, 'makes': makes,
         'customer': customer, 'tab': 'offers',
