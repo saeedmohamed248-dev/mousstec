@@ -47,8 +47,10 @@ window.mtT = function (ar, en) {
      بنقسّمه بترتيب الدورة المحاسبية: بيع ← شراء ← فلوس ← مخزن ← حسابات ← فريق.
      المطابقة بجزء من الرابط (بالـ / في الآخر عشان printtreasury ≠ printtreasurytransfer). */
   var PRINT_SECTIONS = [
-    { title: mtT("🧾 المبيعات والعملاء", "🧾 Sales & customers"), keys: ["/printing/printorder/", "/printing/pricequotation/",
-      "/printing/printcustomer/", "/printing/printproof/", "/printing/printcreditnote/"] },
+    /* 🐛 [FIX]: «فاتورة سريعة» (أكتر شاشة بتتفتح) و«قايمة الأسعار» كانوا تحت خالص في «أخرى» */
+    { title: mtT("🧾 المبيعات والعملاء", "🧾 Sales & customers"), keys: ["/printing/invoice/quick/", "/printing/printorder/",
+      "/printing/pricequotation/", "/printing/printcustomer/", "/printing/printpricerule/", "/printing/printproof/",
+      "/printing/printcreditnote/"] },
     { title: mtT("🛒 المشتريات والموردين", "🛒 Purchases & suppliers"), keys: ["/printing/materialpurchase/", "/printing/printexpensebill/",
       "/printing/printsupplier/", "/printing/materialpurchasereturn/", "/printing/printsupplierallocation/"] },
     { title: mtT("💰 الخزائن والمصروفات", "💰 Treasuries & expenses"), keys: ["/printing/printtransaction/", "/printing/printtreasury/",
@@ -78,6 +80,15 @@ window.mtT = function (ar, en) {
     var items = [].slice.call(body.children).filter(function (li) {
       return li.classList.contains("nav-item");
     });
+    /* 🐛 [FIX]: «ضريبة القيمة المضافة والإقرارات» (تاب الحسابات، فيه الإقرارات نفسها) و«إقرارات ضريبة
+       القيمة المضافة» كانوا رابطين لنفس الحاجة — بنسيب الأول بس */
+    var hasVatTab = items.some(function (li) { return !!li.querySelector('a[href*="tab=vat"]'); });
+    if (hasVatTab) {
+      items = items.filter(function (li) {
+        if (li.querySelector('a[href*="/printing/printvatreturn/"]')) { li.parentNode.removeChild(li); return false; }
+        return true;
+      });
+    }
     var buckets = PRINT_SECTIONS.map(function () { return []; }), rest = [];
     items.forEach(function (li) {
       var pos = printSectionOf(li);
@@ -101,7 +112,31 @@ window.mtT = function (ar, en) {
       other.textContent = mtT("🔗 أخرى", "🔗 Other");
       body.appendChild(other);
       rest.forEach(function (li) { body.appendChild(li); });
+    }    /* ⚡ الفاتورة السريعة: أول حاجة في الكارت وبشكل زرار */
+    var quick = body.querySelector('a[href*="/printing/invoice/quick/"]');
+    if (quick) {
+      var qli = quick.closest("li");
+      qli.classList.add("mt-quick-item");
+      body.insertBefore(qli, body.firstChild);
     }
+  }
+
+  /* 🐛 [FIX]: الروابط اللي اسمها بيبدأ بإيموجي وجنبها أيقونة كانت بتطلع أيقونتين («⏳ ⌛»، «🔒 🔒»)
+     — بنشيل الإيموجي من أول الاسم لو فيه أيقونة. */
+  function dropDoubleIcons(root) {
+    var re;
+    try { re = new RegExp("^[\\p{Extended_Pictographic}\\uFE0F\\u200D\\s]+", "u"); } catch (e) { return; }
+    [].slice.call(root.querySelectorAll(".nav-link")).forEach(function (a) {
+      if (!a.querySelector("i")) return;
+      var p = a.querySelector("p") || a;
+      for (var n = p.firstChild; n; n = n.nextSibling) {
+        if (n.nodeType === 3 && n.nodeValue.trim()) {
+          var t = n.nodeValue.replace(re, "");
+          if (t && t !== n.nodeValue) n.nodeValue = t;
+          break;
+        }
+      }
+    });
   }
 
   function normalize(s) {
@@ -234,6 +269,7 @@ window.mtT = function (ar, en) {
     });
 
     if (buckets.print.items) splitPrintCard(buckets.print.body);
+    dropDoubleIcons(document.querySelector(".main-sidebar") || document);
 
     /* ---- تنظيف الفاضي + العدّادات + الحالة الأولية ---- */
     CATEGORIES.forEach(function (cat) {

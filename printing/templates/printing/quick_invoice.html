@@ -13,7 +13,7 @@
 {# ⚡ فاتورة بيع في شاشة واحدة — printing/quick_invoice.py. الفاتورة المفصّلة (ماكينات/مقاسات/ملفات) لسه موجودة. #}
 {% include 'printing/_quick_styles.html' %}
 
-<form method="post" class="qi" id="quickInvoice" novalidate>
+<form method="post" class="qi" id="quickInvoice" enctype="multipart/form-data" novalidate>
     {% csrf_token %}
     {% if errors %}<div class="alert alert-danger" style="border-radius:12px;">{% for e in errors %}<div>⚠️ {{ e }}</div>{% endfor %}</div>{% endif %}
 
@@ -64,6 +64,15 @@
             {# 📅 تاريخ الفاتورة — النهارده افتراضياً، وتقدر ترجعه لفاتورة قديمة (مش في المستقبل) #}
             <div><label for="qiDate">{% trans "تاريخ الفاتورة" %}</label><input class="form-control" id="qiDate" type="date" name="invoice_date" dir="ltr" max="{% now 'Y-m-d' %}" value="{% if form.invoice_date %}{{ form.invoice_date }}{% else %}{% now 'Y-m-d' %}{% endif %}"></div>
         </div>
+        {# 🧾 الضريبة نسبة — بتتحسب على الصافي بعد الخصم (والنسبة اللي استخدمتها آخر مرة بتتفتكر) #}
+        <div class="qi-row2" style="margin:6px 0;">
+            <div>
+                <label for="qiTax">{% trans "ضريبة ٪" %}</label>
+                <input class="form-control" id="qiTax" name="tax_rate" inputmode="decimal" dir="ltr" value="{{ form.tax_rate|default:'' }}" placeholder="0">
+                <span class="qi-chips"><button type="button" class="qi-chip" data-tax="0">{% trans "من غير" %}</button><button type="button" class="qi-chip" data-tax="14">14%</button></span>
+            </div>
+            <div><label>{% trans "مبلغ الضريبة" %}</label><div class="form-control" style="background:#f8fafc;" dir="ltr" id="qiTaxAmt">0</div></div>
+        </div>
         <div class="qi-total big"><span>{% trans "المطلوب من العميل" %}</span><span><span id="qiNet">0</span> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
     </div>
 
@@ -74,6 +83,18 @@
             <label><input type="radio" name="delivered" value="0" {% if form and form.delivered == '0' %}checked{% endif %}><span>⏳ {% trans "لسه (شغل جاري)" %}</span></label>
         </div>
         <small class="text-muted d-block mt-2">{% trans "الإيراد بيتحسب لما تتسلّم. لو لسه، تقدر تسلّمها بعدين من صفحة الفاتورة." %}</small>
+        {# ⏰ موعد التسليم — للشغل الجاري بس #}
+        <div id="qiDueBox" style="margin-top:10px;">
+            <label for="qiDue">{% trans "موعد التسليم" %}</label>
+            <input class="form-control" id="qiDue" type="date" name="due_date" dir="ltr" min="{% now 'Y-m-d' %}" value="{{ form.due_date|default:'' }}">
+            <span class="qi-chips"><button type="button" class="qi-chip" data-due="0">{% trans "النهارده" %}</button><button type="button" class="qi-chip" data-due="1">{% trans "بكرة" %}</button><button type="button" class="qi-chip" data-due="3">{% trans "بعد ٣ أيام" %}</button><button type="button" class="qi-chip" data-due="7">{% trans "بعد أسبوع" %}</button></span>
+        </div>
+    </div>
+
+    <div class="qi-card">
+        <h6>📁 {% trans "ملفات التصميم (اختياري)" %}</h6>
+        <input class="form-control" type="file" name="files" multiple id="qiFiles">
+        <small class="text-muted d-block mt-1">{% trans "لحد ٣ ملفات (PDF, AI, PSD, صور) — تقدر تختارهم مرة واحدة." %}</small>
     </div>
 
     {% if can_collect %}
@@ -102,7 +123,7 @@
     </details>
 
     <button type="submit" class="qi-save" id="qiSave">{% trans "احفظ الفاتورة" %}</button>
-    <p class="qi-more">{% trans "محتاج ماكينة أو مقاس أو ملف تصميم؟" %} <a href="{% url 'admin:printing_printorder_add' %}">{% trans "الفاتورة المفصّلة" %}</a></p>
+    <p class="qi-more">{% trans "محتاج ماكينة أو مقاس أو مراحل إنتاج؟" %} <a href="{% url 'admin:printing_printorder_add' %}?full=1">{% trans "الفاتورة المفصّلة" %}</a></p>
 </form>
 
 {# 💲 قايمة الأسعار: اختيار منتج منها بيحسب سعر الوحدة من شريحة الكمية (لو ماكتبتش سعر بإيدك) #}
@@ -132,7 +153,10 @@
             sub += t;
             row.querySelector('.qi-sum').textContent = p ? (q + ' × ' + fmt(p) + ' = ' + fmt(t)) : '';
         });
-        var disc = Math.min(num(document.getElementById('qiDiscount').value), sub), net = sub - disc;
+        var disc = Math.min(num(document.getElementById('qiDiscount').value), sub);
+        var tax = Math.round((sub - disc) * Math.min(100, num(document.getElementById('qiTax').value))) / 100;
+        var net = sub - disc + tax;
+        document.getElementById('qiTaxAmt').textContent = fmt(tax);
         document.getElementById('qiSubtotal').textContent = fmt(sub);
         document.getElementById('qiNet').textContent = fmt(net);
         if (paid) {
@@ -150,6 +174,28 @@
         });
     }
     lines.querySelectorAll('.qi-line').forEach(bindDel);
+    // 🧾 الضريبة: زراير سريعة + آخر نسبة اتستخدمت
+    var taxIn = document.getElementById('qiTax');
+    try { if (!taxIn.value && localStorage.getItem('qi_tax')) taxIn.value = localStorage.getItem('qi_tax'); } catch (e) { /* ignore */ }
+    document.querySelectorAll('[data-tax]').forEach(function (b) {
+        b.addEventListener('click', function () { taxIn.value = b.dataset.tax === '0' ? '' : b.dataset.tax; recalc(); });
+    });
+    // ⏰ موعد التسليم: بيظهر لما الشغل «لسه» بس
+    var dueBox = document.getElementById('qiDueBox'), dueIn = document.getElementById('qiDue');
+    function syncDue() {
+        var later = document.querySelector('[name=delivered][value="0"]').checked;
+        dueBox.style.display = later ? '' : 'none';
+    }
+    document.querySelectorAll('[name=delivered]').forEach(function (r) { r.addEventListener('change', syncDue); });
+    document.querySelectorAll('[data-due]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var d = new Date(); d.setDate(d.getDate() + parseInt(b.dataset.due, 10));
+            dueIn.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        });
+    });
+    syncDue();
+    recalc();
+    form.addEventListener('submit', function () { try { localStorage.setItem('qi_tax', taxIn.value || ''); } catch (e) { /* ignore */ } });
     document.getElementById('qiAdd').addEventListener('click', function () {
         var row = document.getElementById('qiLineTpl').content.firstElementChild.cloneNode(true);
         lines.appendChild(row); bindDel(row); row.querySelector('input').focus();

@@ -29168,3 +29168,59 @@ msgstr "Online order"
 
 msgid "طلبات كتير من نفس الجهاز — جرّب كمان شوية أو كلّمنا واتساب."
 msgstr "Too many requests from this device — try again later or message us on WhatsApp."
+
+msgid "نسبة الضريبة ٪"
+msgstr "Tax rate %"
+
+msgid "اكتب ١٤ مثلاً والمبلغ يتحسب لوحده من (الإجمالي − الخصم). فاضية = المبلغ زي ما هو."
+msgstr "Enter e.g. 14 and the amount is calculated from (total − discount). Empty = keep the amount as is."
+
+msgid "📁 الملفات"
+msgstr "📁 Files"
+
+msgid "ضريبة ٪"
+msgstr "Tax %"
+
+msgid "من غير"
+msgstr "None"
+
+msgid "مبلغ الضريبة"
+msgstr "Tax amount"
+
+msgid "بكرة"
+msgstr "Tomorrow"
+
+msgid "بعد ٣ أيام"
+msgstr "In 3 days"
+
+msgid "بعد أسبوع"
+msgstr "In a week"
+
+msgid "ملفات التصميم (اختياري)"
+msgstr "Design files (optional)"
+
+msgid "لحد ٣ ملفات (PDF, AI, PSD, صور) — تقدر تختارهم مرة واحدة."
+msgstr "Up to 3 files (PDF, AI, PSD, images) — you can pick them all at once."
+
+msgid "محتاج ماكينة أو مقاس أو مراحل إنتاج؟"
+msgstr "Need a machine, size or production stages?"
+
+msgid "موعد التسليم غير صحيح."
+msgstr "Invalid due date."
+
+msgid "موعد التسليم مينفعش يبقى فات."
+msgstr "The due date cannot be in the past."
+
+msgid "نسبة الضريبة"
+msgstr "Tax rate"
+
+msgid "نسبة الضريبة لازم تبقى بين ٠ و ١٠٠."
+msgstr "The tax rate must be between 0 and 100."
+
+#, python-format
+msgid "أقصى عدد ملفات %(n)s."
+msgstr "Maximum %(n)s files."
+
+#, python-format
+msgid "الملف «%(f)s» أكبر من %(m)s ميجا."
+msgstr "The file “%(f)s” is larger than %(m)s MB."
