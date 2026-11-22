@@ -458,6 +458,18 @@
         a.pc-kpi:hover{border-color:#C7CEDB}
         .pc-kpi em{display:block;font-style:normal;color:var(--mt-muted);font-size:11.5px;margin-top:2px}
         .pc-note{font-size:12.5px;color:var(--mt-muted);margin:-8px 0 16px}
+        .pc-ops{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+        a.pc-op{display:flex;align-items:center;gap:10px;background:var(--mt-card);border:1px solid var(--mt-line);border-radius:12px;
+                padding:10px 14px;color:var(--mt-ink)!important;text-decoration:none!important;transition:border-color .15s}
+        a.pc-op:hover{border-color:#C7CEDB}
+        .pc-op i{width:34px;height:34px;flex:0 0 34px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;
+                 background:#EEF2FA;color:#33427F}
+        .pc-op b{font-size:22px;line-height:1}
+        .pc-op span{color:var(--mt-muted);font-size:12.5px;font-weight:700;line-height:1.3}
+        .pc-op-bad{border-color:#F5C2C2!important;background:#FEF3F2!important}.pc-op-bad i{background:#FDE2E2;color:#D14343}.pc-op-bad b{color:#D14343}
+        .pc-op-good i{background:#E7F6EF;color:#0E9F6E}.pc-op-good b{color:#0E9F6E}
+        @media (max-width:575px){.pc-ops{gap:6px}a.pc-op{flex-direction:column;align-items:flex-start;gap:6px;padding:10px}
+                                 .pc-op i{width:28px;height:28px;flex-basis:28px}.pc-op b{font-size:20px}.pc-op span{font-size:11.5px}}
         @media (max-width:575px){.pc-month{grid-template-columns:1fr 1fr}.pc-month b{font-size:18px}}
     </style>
 
@@ -465,24 +477,38 @@
     {# 💰 الأرقام المهمة فوق الأزرار (زي لوحات QuickBooks/Zoho): الكاش دلوقتي + الشهر ده. #}
     {#    🐛 [FIX]: كانت تحت كل الأزرار ومن غير رصيد خزنة — العميل اشترى خامات كاش فشاف «مصروفات 0» #}
     {#    وافتكر إن الفلوس مش متسجلة. دلوقتي الكاش والمشتريات وقيمة المخزن ظاهرين + سطر بيشرح الفرق. #}
+    {# 🧭 شغل النهارده: شغّال / متأخر / جاهز للتسليم — أول حاجة صاحب المطبعة بيدوّر عليها الصبح #}
+    {% if print_ops %}
+    <div class="pc-ops" id="printOpsNow">
+        <a href="{{ print_ops.board_url }}" class="pc-op"><i class="fas fa-industry"></i><b>{{ print_ops.pending }}</b><span>{% trans "طلبات شغّالة" %}</span></a>
+        <a href="{{ print_ops.pending_url }}" class="pc-op{% if print_ops.delayed %} pc-op-bad{% endif %}"><i class="fas fa-clock"></i><b>{{ print_ops.delayed }}</b><span>{% trans "متأخرة عن ميعاد التسليم" %}</span></a>
+        <a href="{{ print_ops.ready_url }}" class="pc-op{% if print_ops.ready %} pc-op-good{% endif %}"><i class="fas fa-box-open"></i><b>{{ print_ops.ready }}</b><span>{% trans "جاهزة للتسليم" %}</span></a>
+    </div>
+    {% endif %}
+
     {% if print_cash_snapshot or print_month_pnl %}
+    {# 💰 الترتيب: الكاش ← فلوسك عند العملاء ← ربح الشهر ← المخزن (ومشتريات الشهر تحته) #}
     <div class="pc-month" id="printMoneyNow">
         {% if print_cash_snapshot %}
         <a href="{% url 'admin:printing_printtreasury_changelist' %}" class="pc-kpi"><span>💵 {% trans "الفلوس في الخزن دلوقتي" %}</span><b style="color:{% if print_cash_snapshot.cash < 0 %}#D14343{% else %}#0E9F6E{% endif %};">{{ print_cash_snapshot.cash|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></a>
-        <a href="{% url 'admin:printing_materialpurchase_changelist' %}" class="pc-kpi"><span>🛒 {% trans "مشتريات خامات الشهر" %}</span><b style="color:#B45309;">{{ print_cash_snapshot.purchases_month|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></a>
-        <a href="{% url 'admin:printing_printmaterial_changelist' %}" class="pc-kpi"><span>📦 {% trans "قيمة الخامات في المخزن" %}</span><b style="color:#33427F;">{{ print_cash_snapshot.stock_value|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></a>
+        {% endif %}
+        {% if print_ops.receivables_url %}
+        <a href="{{ print_ops.receivables_url }}" class="pc-kpi" id="printReceivables"><span>💳 {% trans "فلوسك عند العملاء" %}</span><b style="color:#B45309;">{{ print_ops.receivables|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small>
+            <em>{% trans "فواتير اتسلّمت ولسه ماتحصّلتش" %}</em></a>
         {% endif %}
         {% if print_month_pnl %}
         <a href="/printing/reports/profit-loss/" class="pc-kpi" id="printMonthPnl"><span>📈 {% trans "صافي ربح الشهر" %}</span><b style="color:{% if print_month_pnl.net < 0 %}#D14343{% else %}#2266C9{% endif %};">{{ print_month_pnl.net|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small>
             <em>{% trans "إيرادات" %} {{ print_month_pnl.revenue|num }} · {% trans "تكلفة ومصروفات" %} {{ print_month_pnl.expenses|num }}</em></a>
+        {% endif %}
+        {% if print_cash_snapshot %}
+        <a href="{% url 'admin:printing_printmaterial_changelist' %}" class="pc-kpi"><span>📦 {% trans "قيمة الخامات في المخزن" %}</span><b style="color:#33427F;">{{ print_cash_snapshot.stock_value|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small>
+            <em>🛒 {% trans "مشتريات خامات الشهر" %} {{ print_cash_snapshot.purchases_month|num }}</em></a>
         {% endif %}
     </div>
     {% if print_cash_snapshot.purchases_month and print_month_pnl %}
     <p class="pc-note">ℹ️ {% trans "الخامات اللي اشتريتها دخلت المخزن بتكلفتها — بتتحسب «تكلفة» في الربح لما تتصرف على طلب، مش يوم الشراء." %}</p>
     {% endif %}
     {% endif %}
-
-    {% include 'admin/_tenant_banners.html' %}
 
     <div class="pc-grid" id="printCyclePanel">
         <div class="pc-col pc-sales">
@@ -491,7 +517,8 @@
             {# ⚡ الفاتورة السريعة هي الأساسي (شاشة واحدة)، والمفصّلة للشغل اللي محتاج ماكينة/مقاس/ملف #}
             <a class="pc-btn pc-main" href="{% url 'printing:quick_invoice' %}"><i class="fas fa-bolt"></i>
                 <span><b>{% trans "فاتورة سريعة لعميل" %}</b><small>{% trans "العميل والبنود والمدفوع في شاشة واحدة" %}</small></span></a>
-            <a class="pc-btn" href="{% url 'admin:printing_printorder_add' %}"><i class="fas fa-file-invoice"></i>
+            {# 🐛 [FIX]: من غير ?full=1 «طلب طباعة مفصّل» كان بيفتح الفاتورة السريعة (نفس الزرار اللي فوقه) #}
+            <a class="pc-btn" href="{% url 'admin:printing_printorder_add' %}?full=1"><i class="fas fa-file-invoice"></i>
                 <span><b>{% trans "طلب طباعة مفصّل" %}</b><small>{% trans "ماكينة، مقاس، ملفات، ومراحل الإنتاج" %}</small></span></a>
             {% endif %}
             {% if perms.printing.view_printjob %}
@@ -546,6 +573,10 @@
             {% endif %}
         </div>
     </div>
+
+    {# 🐛 [FIX]: البانرات (المجال الغلط / الهدية / ارفعولي بضاعتي) كانت بين الأرقام وأزرار الشغل — على الموبايل #}
+    {#    الأزرار كانت بتنزل تحت شاشتين. وكارت «أول خطوات» كان بيكرّر «ابدأ هنا» بأرقام مختلفة — خطواته بتستخبى هنا. #}
+    {% with hide_onboarding_steps=True %}{% include 'admin/_tenant_banners.html' %}{% endwith %}
 
     {% endif %}
 

@@ -43,6 +43,8 @@
             <small>{{ job.order.customer.name }} · <span dir="ltr">#{{ job.order.order_number }}</span></small>
             <small>{% trans "الكمية" %}: {{ job.quantity }}{% if job.machine %} · {{ job.machine.name }}{% endif %}</small>
             {% if job.order.date_due %}<small>{% trans "التسليم" %}: <span dir="ltr">{{ job.order.date_due|date:"Y-m-d H:i" }}</span></small>{% endif %}
+            {# 🧾 الفاتورة السريعة مافيهاش خامات — من غير اللينك ده تكلفة الورق والحبر عمرها ما بتدخل الربح #}
+            {% if can_move and not job.is_complete %}<small><a href="{% url 'admin:printing_printjob_change' job.pk %}#material_usages-group">🧾 {% trans "سجّل الخامات المصروفة" %}</a></small>{% endif %}
             {% if can_move and job.next_stage %}
                 {% if not job.board_blocked %}
                 <form method="post" action="{% url 'printing:production_job_advance' job.pk %}">{% csrf_token %}

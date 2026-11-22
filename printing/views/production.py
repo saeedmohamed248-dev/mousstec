@@ -116,8 +116,11 @@ def production_board(request):
         # ⏳ الطباعة مقفولة لحد ما العميل يوافق على البروفة (نفس شرط PrintJob.advance_stage)
         job.board_blocked = bool(nxt) and nxt in PrintJob.PRODUCTION_STAGES and not job.can_go_to_production
         columns.setdefault(job.stage, []).append(job)
+    from django.contrib import admin as _admin
     from printing.models import MachineProfile
+    # 🐛 [FIX]: من غير each_context القايمة الجانبية كانت بتختفي في لوحة الإنتاج (بتظهر «لوحة التحكم» بس)
     return render(request, 'printing/production_board.html', {
+        **_admin.site.each_context(request),
         'title': _("لوحة الإنتاج"),
         'columns': [(code, label, columns.get(code, [])) for code, label in PrintJob.STAGE_CHOICES],
         'machines': MachineProfile.objects.all(),
