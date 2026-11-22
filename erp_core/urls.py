@@ -700,6 +700,7 @@ urlpatterns = [
     # 🛒 Parts marketplace — live/active listings control (Phase 3 #1)
     path('superadmin/parts/active/', saas_admin_views.parts_active_listings, name='saas_parts_active_listings'),
     path('superadmin/parts/active/<int:listing_id>/edit/',    saas_admin_views.parts_listing_edit,        name='saas_parts_listing_edit'),
+    path('superadmin/parts/stock/<int:item_id>/unpublish/', saas_admin_views.parts_stock_unpublish, name='saas_parts_stock_unpublish'),
     path('superadmin/parts/active/<int:listing_id>/suspend/', saas_admin_views.parts_listing_suspend,     name='saas_parts_listing_suspend'),
     path('superadmin/parts/active/<int:listing_id>/delete/',  saas_admin_views.parts_listing_soft_delete, name='saas_parts_listing_soft_delete'),
 

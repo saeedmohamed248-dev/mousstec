@@ -53,7 +53,9 @@ class _PublicDomainMixin:
         super().tearDownClass()
 
 
-class PartsStockPublicTests(_PublicDomainMixin, ERPTenantTestCase):
+class _StockFixture(_PublicDomainMixin, ERPTenantTestCase):
+    """شركة automotive + صنف منشور + طلب نشر معلّق — من غير اختبارات."""
+
     def setUp(self):
         cache.clear()
         connection.set_tenant(self.tenant)
@@ -98,6 +100,8 @@ class PartsStockPublicTests(_PublicDomainMixin, ERPTenantTestCase):
         c.cookies['mp_session'] = str(cust.session_token)
         return cust, c
 
+
+class PartsStockPublicTests(_StockFixture):
     # ── الظهور ─────────────────────────────────────────────────────────
     def test_approved_company_product_shows_in_public_parts_market(self):
         self._stock(5)
@@ -202,3 +206,63 @@ class PartsStockPublicTests(_PublicDomainMixin, ERPTenantTestCase):
         self.assertIn('next=', resp['Location'])
         with schema_context(self.tenant.schema_name):
             self.assertFalse(SaleInvoice.objects.filter(sales_channel='marketplace').exists())
+
+
+class SuperAdminActiveStockTests(_StockFixture):
+    """🐛 صفحة «المعروضات النشطة على السوق» في السوبر أدمن كانت بتقول 0 والسوق مليان
+    أصناف فيكست — لأنها بتقرا PartListing بس. دلوقتي فيها جدول «من مخازن التجار»."""
+
+    URL = '/superadmin/parts/active/'
+
+    def _admin(self):
+        from django.contrib.auth.models import User
+        user = User.objects.create_user(f'adm_{uuid.uuid4().hex[:6]}@t.com', password='x',
+                                        is_staff=True, is_superuser=True)
+        c = HttpClient()
+        c.force_login(user)
+        return c
+
+    def test_admin_active_page_lists_approved_company_stock(self):
+        self._stock(5)
+        self._approve()
+        row = self._row()
+        r = self._admin().get(self.URL)
+        self.assertEqual(r.status_code, 200)
+        self.assertGreaterEqual(r.context['total_stock'], 1)
+        self.assertEqual(r.context['total_active'], r.context['total_listings'] + r.context['total_stock'])
+        html = r.content.decode()
+        self.assertIn(self.product.name, html)
+        self.assertIn(self.tenant.name, html)
+        self.assertIn(f'/superadmin/parts/stock/{row.pk}/unpublish/', html)
+        # البحث برقم القطعة واسم الشركة
+        self.assertIn(self.product.name, self._admin().get(self.URL, {'q': self.sku}).content.decode())
+        self.assertNotIn(self.product.name,
+                         self._admin().get(self.URL, {'q': 'مفيش-حاجة-بالاسم-ده'}).content.decode())
+
+    def test_admin_page_hides_zero_stock_like_the_market(self):
+        self._approve()  # رصيد صفر ⇒ مش ظاهر للمشترين ⇒ مش في الجدول
+        html = self._admin().get(self.URL).content.decode()
+        self.assertNotIn(self.product.name, html)
+
+    def test_unpublish_removes_from_market_and_stays_removed(self):
+        self._stock(5)
+        self._approve()
+        row = self._row()
+        r = self._admin().post(f'/superadmin/parts/stock/{row.pk}/unpublish/')
+        self.assertEqual(r.status_code, 302)
+        self.assertIsNone(self._row())
+        with schema_context(self.tenant.schema_name):
+            self.product.refresh_from_db()
+            self.assertFalse(self.product.is_b2b_published)
+            # حركة مخزون جديدة مارجّعتوش السوق
+            make_inventory(self.product, self.branch, quantity=3)
+        self.assertIsNone(self._row())
+        self.assertNotIn(self.product.name, HttpClient().get('/marketplace/parts/').content.decode())
+
+    def test_unpublish_requires_post(self):
+        self._stock(5)
+        self._approve()
+        row = self._row()
+        r = self._admin().get(f'/superadmin/parts/stock/{row.pk}/unpublish/')
+        self.assertEqual(r.status_code, 405)
+        self.assertIsNotNone(self._row())

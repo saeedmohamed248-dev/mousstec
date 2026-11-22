@@ -29467,3 +29467,22 @@ msgid "اتفتح الواتساب لشركة واحدة."
 msgid_plural "اتفتح الواتساب لـ %(n)s شركة."
 msgstr[0] "WhatsApp was opened for one company."
 msgstr[1] "WhatsApp was opened for %(n)s companies."
+
+msgid "قطع معروضة"
+msgstr "Listed parts"
+
+msgid "قطع معروضة (أفراد وشركات)"
+msgstr "Listed parts (individuals & companies)"
+
+msgid "أصناف الشركات اللي وافقت على نشرها وظاهرة دلوقتي للمشترين (رصيدها أكبر من صفر). «إيقاف النشر» بيشيلها من السوق، والشركة لو عايزاها ترجع تطلب نشر من جديد."
+msgstr "Company items you approved that buyers can see now (stock above zero). “Unpublish” removes them from the market; the company must request publishing again to bring them back."
+
+#, python-format
+msgid "إيقاف نشر «%(title)s»؟ هيتشال من السوق فوراً."
+msgstr "Unpublish “%(title)s”? It will be removed from the market immediately."
+
+msgid "إيقاف النشر"
+msgstr "Unpublish"
+
+msgid "مفيش أصناف من مخازن التجار ظاهرة في السوق بالفلتر ده."
+msgstr "No merchant stock items are visible in the market for this filter."

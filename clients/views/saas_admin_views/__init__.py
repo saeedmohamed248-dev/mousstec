@@ -52,7 +52,7 @@ from .marketplace import (  # noqa: F401
     dispute_resolve, disputes_queue, marketplace_requests_list, parts_active_listings,
     parts_listing_edit, parts_listing_soft_delete, parts_listing_suspend,
     parts_moderation_approve, parts_moderation_queue, parts_moderation_reject,
-    payout_mark_paid, payouts_queue,
+    parts_stock_unpublish, payout_mark_paid, payouts_queue,
 )
 from .broadcast import (  # noqa: F401
     broadcast_banner_dismiss, broadcast_enable_banner, broadcast_list, broadcast_retry,

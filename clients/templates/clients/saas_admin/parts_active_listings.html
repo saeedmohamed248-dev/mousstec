@@ -15,7 +15,11 @@
         .breadcrumb a { color:#1E2A57; text-decoration:none; }
         h1 { color:#2F6B3F; font-weight:900; margin:0 0 6px; }
         .sub { color:#6B6F76; font-size:14px; margin-bottom:18px; }
-        .stats { display:flex; gap:12px; margin-bottom:18px; }
+        .stats { display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
+        h2 { color:#2F6B3F; font-weight:900; margin:28px 0 6px; font-size:20px; }
+        .tbl-wrap { overflow-x:auto; }
+        .pager { display:flex; gap:10px; justify-content:center; align-items:center; margin:14px 0; }
+        .pager a, .pager span { padding:6px 12px; border:1px solid #E6E1D8; border-radius:8px; background:#fff; color:#1E2A57; text-decoration:none; font-size:13px; }
         .stat { background:#FFFFFF; border:1px solid #E6E1D8; border-radius:10px; padding:12px 18px; }
         .stat .n { font-size:22px; font-weight:900; }
         .stat.ok .n { color:#2F6B3F; }
@@ -53,6 +57,8 @@
 
     <div class="stats">
         <div class="stat ok"><div class="n">{{ total_active }}</div><div>{% trans "نشطة" %}</div></div>
+        <div class="stat"><div class="n">{{ total_listings }}</div><div>{% trans "قطع معروضة" %}</div></div>
+        <div class="stat"><div class="n">{{ total_stock }}</div><div>{% trans "من مخازن التجار" %}</div></div>
         <div class="stat warn"><div class="n">{{ total_suspended }}</div><div>{% trans "معلقة" %}</div></div>
     </div>
 
@@ -61,6 +67,8 @@
         <button type="submit">{% trans "بحث" %}</button>
     </form>
 
+    <h2>📝 {% trans "قطع معروضة (أفراد وشركات)" %}</h2>
+    <div class="tbl-wrap">
     <table>
         <thead>
             <tr>
@@ -107,6 +115,56 @@
         {% endfor %}
         </tbody>
     </table>
+    </div>
+
+    <h2>🏪 {% trans "من مخازن التجار" %} <span style="font-size:14px;color:#6B6F76;">({{ stock_page.paginator.count }})</span></h2>
+    <p class="sub">{% trans "أصناف الشركات اللي وافقت على نشرها وظاهرة دلوقتي للمشترين (رصيدها أكبر من صفر). «إيقاف النشر» بيشيلها من السوق، والشركة لو عايزاها ترجع تطلب نشر من جديد." %}</p>
+    <div class="tbl-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>{% trans "القطعة" %}</th>
+                <th>{% trans "الماركة/الموديل" %}</th>
+                <th>{% trans "الشركة" %}</th>
+                <th>{% trans "السعر" %}</th>
+                <th>{% trans "الكمية" %}</th>
+                <th>{% trans "آخر تحديث" %}</th>
+                <th>{% trans "الإجراءات" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for it in stock_items %}
+            <tr>
+                <td>
+                    <a href="/marketplace/parts/stock/{{ it.id }}/" target="_blank" rel="noopener"><b>{{ it.product_name|truncatechars:50 }}</b></a><br>
+                    <span style="color:#6B6F76;font-size:11px;" dir="ltr">{{ it.part_number|default:"—" }}</span>
+                </td>
+                <td>{{ it.brand|default:"—" }} {{ it.car_model }}</td>
+                <td>🏢 {{ it.tenant.name }}</td>
+                <td><b>{{ it.wholesale_price|amount }}</b> {{ tenant_currency_symbol|default:'ج.م' }}</td>
+                <td>{{ it.available_qty }}</td>
+                <td><span dir="ltr">{{ it.updated_at|date:"Y-m-d" }}</span></td>
+                <td class="actions">
+                    <form method="post" action="{% url 'saas_parts_stock_unpublish' item_id=it.id %}" onsubmit="return confirm('{% blocktrans with title=it.product_name|escapejs %}إيقاف نشر «{{ title|escapejs }}»؟ هيتشال من السوق فوراً.{% endblocktrans %}')">
+                        {% csrf_token %}
+                        <input type="hidden" name="q" value="{{ q }}">
+                        <button class="btn btn-suspend"><i class="fas fa-pause"></i> {% trans "إيقاف النشر" %}</button>
+                    </form>
+                </td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="7" style="text-align:center;padding:40px;color:#6B6F76;">{% trans "مفيش أصناف من مخازن التجار ظاهرة في السوق بالفلتر ده." %}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% if stock_page.has_other_pages %}
+    <div class="pager">
+        {% if stock_page.has_previous %}<a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}spage={{ stock_page.previous_page_number }}">{% trans "السابق" %}</a>{% endif %}
+        <span dir="ltr">{{ stock_page.number }} / {{ stock_page.paginator.num_pages }}</span>
+        {% if stock_page.has_next %}<a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}spage={{ stock_page.next_page_number }}">{% trans "التالي" %}</a>{% endif %}
+    </div>
+    {% endif %}
 </div>
 </body>
 </html>
