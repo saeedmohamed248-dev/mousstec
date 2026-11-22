@@ -29526,7 +29526,3 @@ msgstr "At most %(n)s materials."
 
 msgid "الخامة المختارة مش موجودة."
 msgstr "The selected material doesn't exist."
-
-#, python-format
-msgid "المخزون من «%(name)s» مش كفاية: المتاح %(have)s %(unit)s، المطلوب %(need)s."
-msgstr "Not enough “%(name)s” in stock: %(have)s %(unit)s available, %(need)s needed."
