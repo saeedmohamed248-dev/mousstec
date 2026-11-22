@@ -1,0 +1,198 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% trans "التواصل على واتساب" %} — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:24px 16px; }
+        .container { max-width:1300px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#1E2A57; font-weight:900; margin:0 0 6px; font-size:24px; }
+        h2 { color:#1E2A57; font-size:16px; margin:0 0 10px; }
+        .sub { color:#6B6F76; font-size:14px; margin-bottom:18px; }
+        .msg { padding:10px 14px; border-radius:10px; margin-bottom:10px; font-weight:700; font-size:13px; }
+        .msg.success { background:#15803d18; color:#2F6B3F; } .msg.error { background:#dc262618; color:#A33A2A; }
+        .buckets { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+        @media (max-width:900px) { .buckets { grid-template-columns:repeat(2,1fr); } }
+        .bucket { border-radius:14px; padding:14px; border:1px solid #E6E1D8; background:#fff; text-decoration:none; color:inherit; }
+        .bucket .n { font-size:28px; font-weight:900; line-height:1; }
+        .bucket .lbl { font-size:12px; font-weight:700; margin-top:4px; color:#6B6F76; }
+        .panel { background:#fff; border:1px solid #E6E1D8; border-radius:14px; padding:16px; margin-bottom:16px; }
+        .grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+        @media (max-width:900px) { .grid { grid-template-columns:1fr 1fr; } }
+        label { font-size:12px; font-weight:700; color:#6B6F76; display:block; margin-bottom:4px; }
+        input[type=text], input[type=date], select, textarea { width:100%; box-sizing:border-box; border:1px solid #E6E1D8; border-radius:10px; padding:8px 10px; font:inherit; font-size:13px; background:#fff; }
+        textarea { min-height:110px; resize:vertical; }
+        .hint { font-size:12px; color:#6B6F76; margin-top:4px; }
+        .btn { display:inline-flex; align-items:center; gap:6px; border:0; border-radius:10px; padding:9px 14px; font:inherit; font-weight:700; font-size:13px; cursor:pointer; text-decoration:none; }
+        .btn-navy { background:#1E2A57; color:#fff; } .btn-wa { background:#15803d; color:#fff; } .btn-light { background:#F3EFE7; color:#1E2A57; }
+        .btn[disabled] { opacity:.45; cursor:not-allowed; }
+        .bulk { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        @media (max-width:900px) { .bulk { grid-template-columns:1fr; } }
+        .bulk .box { border:1px dashed #E6E1D8; border-radius:12px; padding:12px; }
+        .warn { background:#f59e0b18; color:#9A6A12; border-radius:10px; padding:8px 10px; font-size:12px; margin:8px 0; }
+        .card { background:#fff; border:1px solid #E6E1D8; border-radius:14px; overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:13px; min-width:1000px; }
+        th { text-align:start; background:#F3EFE7; padding:10px; font-size:12px; color:#6B6F76; }
+        td { padding:10px; border-top:1px solid #E6E1D8; vertical-align:top; }
+        tr.due td { background:#f59e0b0d; }
+        .pill { display:inline-block; padding:3px 10px; border-radius:999px; font-weight:700; font-size:12px; }
+        .s-trial { background:#0e749022; color:#33427F; } .s-trial_over, .s-expired, .s-suspended, .s-cancelled { background:#dc262622; color:#A33A2A; }
+        .s-active { background:#15803d22; color:#2F6B3F; }
+        .o-subscribed, .o-interested, .o-sent { color:#2F6B3F; } .o-failed, .o-not_interested { color:#A33A2A; } .o-no_reply, .o-queued, .o-opened, .o-replied { color:#33427F; }
+        .muted { color:#6B6F76; font-size:12px; }
+        .late { color:#A33A2A; font-weight:700; }
+        details summary { cursor:pointer; color:#1E2A57; font-weight:700; font-size:12px; margin-top:6px; }
+        .outcome { display:grid; gap:6px; margin-top:8px; min-width:220px; }
+        .empty { padding:40px; text-align:center; color:#6B6F76; }
+        .name a { color:#1E2A57; font-weight:700; text-decoration:none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/superadmin/">{% trans "لوحة المالك" %}</a> / {% trans "التواصل على واتساب" %}</div>
+    <h1><i class="fab fa-whatsapp"></i> {% trans "التواصل مع الشركات على واتساب" %}</h1>
+    <div class="sub">{% trans "ابعت لأي شركة من موبايلك أو للكل مرة واحدة، وسجّل نتيجة كل متابعة — والشركات اللي ميعاد متابعتها جه بتطلع الأول." %}</div>
+
+    {% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <div class="buckets">
+        <a class="bucket" href="?{{ filter_qs }}"><div class="n" style="color:#1E2A57">{{ counts.total }}</div><div class="lbl">{% trans "شركة في الفلتر" %}</div></a>
+        <a class="bucket" href="?due=1"><div class="n" style="color:#9A6A12">{{ counts.due }}</div><div class="lbl">{% trans "ميعاد متابعتها جه" %}</div></a>
+        <div class="bucket"><div class="n" style="color:#334155">{{ counts.never }}</div><div class="lbl">{% trans "عمرنا ماكلّمناها" %}</div></div>
+        <div class="bucket"><div class="n" style="color:#A33A2A">{{ counts.no_phone }}</div><div class="lbl">{% trans "رقمها مش صالح" %}</div></div>
+    </div>
+
+    <form method="get" class="panel" id="filters">
+        <h2><i class="fas fa-filter"></i> {% trans "الشركات والرسالة" %}</h2>
+        <div class="grid">
+            <div><label>{% trans "الشركات" %}</label>
+                <select name="audience">{% for k, v in audiences %}<option value="{{ k }}" {% if f.audience == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+            <div><label>{% trans "الباقة" %}</label>
+                <select name="plan"><option value="">{% trans "أي باقة" %}</option>{% for p in plans %}<option value="{{ p.slug }}" {% if f.plan == p.slug %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
+                <div class="hint">{% trans "بتشتغل مع «باقة محددة»" %}</div></div>
+            <div><label>{% trans "المجال" %}</label>
+                <select name="industry"><option value="">{% trans "الكل" %}</option>{% for k, v in industries %}<option value="{{ k }}" {% if f.industry == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+            <div><label>{% trans "بحث" %}</label><input type="text" name="q" value="{{ f.q }}" placeholder="{% trans 'الاسم، المالك، الرقم' %}"></div>
+            <div><label>&nbsp;</label><label style="color:#1C2430"><input type="checkbox" name="due" value="1" {% if f.due == '1' %}checked{% endif %}> {% trans "اللي ميعاد متابعتهم جه بس" %}</label></div>
+        </div>
+        <div style="margin-top:12px">
+            <label>{% trans "الرسالة" %}</label>
+            <select name="preset" onchange="document.getElementById('msg').value=''; this.form.submit()" style="max-width:260px; margin-bottom:6px">
+                {% for k, v in presets %}<option value="{{ k }}" {% if preset == k %}selected{% endif %}>{% trans "رسالة جاهزة:" %} {{ v }}</option>{% endfor %}
+            </select>
+            <textarea name="msg" id="msg">{{ msg }}</textarea>
+            <div class="hint">{% trans "اكتب {owner} لاسم المالك و {company} لاسم الشركة و {days_left} للأيام الفاضلة — بتتملي لكل شركة لوحدها." %}</div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap">
+            <button class="btn btn-navy" type="submit"><i class="fas fa-check"></i> {% trans "تطبيق" %}</button>
+            <button class="btn btn-wa" type="submit" formaction="{% url 'saas_whatsapp_queue' %}"><i class="fas fa-mobile-alt"></i> {% trans "ابعت للكل من موبايلي" %} ({{ counts.total }})</button>
+        </div>
+        <div class="hint">{% trans "«ابعت للكل من موبايلي» بيفتحلك الشركات واحدة ورا التانية والرسالة جاهزة — انت بس تدوس إرسال في واتساب." %}</div>
+    </form>
+
+    <div class="panel">
+        <h2><i class="fas fa-robot"></i> {% trans "ابعت للكل أوتوماتيك من رقم المنصة" %}</h2>
+        {% if not api_ready %}
+            <div class="warn">{% trans "مفاتيح واتساب المنصة (WhatsApp Cloud API) مش متظبطة على السيرفر — الإرسال الأوتوماتيك مقفول. استخدم «ابعت للكل من موبايلي»." %}</div>
+        {% elif not api_template %}
+            <div class="warn">{% trans "مفيش قالب Meta متظبط (WHATSAPP_OUTREACH_TEMPLATE) — الرسالة هتتبعت كنص، و Meta مابتوصّلهاش إلا للي كلّم رقم المنصة آخر 24 ساعة." %}</div>
+        {% else %}
+            <div class="hint">{% trans "هيتبعت قالب Meta المتوافق عليه باسم المالك والشركة (نص الصندوق بيتسجّل للمتابعة بس)." %}</div>
+        {% endif %}
+        <form method="post" action="{% url 'saas_whatsapp_send_api' %}" style="display:flex; gap:8px; align-items:end; flex-wrap:wrap; margin-top:8px">
+            {% csrf_token %}
+            {% for k, v in f.items %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+            <input type="hidden" name="msg" class="js-msg" value="{{ msg }}">
+            <div><label>{% trans "اكتب SEND للتأكيد" %}</label><input type="text" name="confirm" autocomplete="off" style="width:140px" dir="ltr"></div>
+            <button class="btn btn-navy" type="submit" {% if not api_ready or not counts.total %}disabled{% endif %}><i class="fas fa-paper-plane"></i> {% trans "ابعت لـ" %} {{ counts.total }} {% trans "شركة" %}</button>
+        </form>
+        {% if recent_batches %}
+            <table style="min-width:0; margin-top:12px">
+                <thead><tr><th>{% trans "آخر دفعات الإرسال" %}</th><th>{% trans "اتبعتت" %}</th><th>{% trans "ماتبعتتش" %}</th><th>{% trans "في الطابور" %}</th></tr></thead>
+                {% for b in recent_batches %}
+                <tr><td><span dir="ltr">{{ b.at|date:"Y-m-d H:i" }}</span></td><td class="o-sent">{{ b.sent }}</td><td class="o-failed">{{ b.failed }}</td><td>{{ b.queued }}</td></tr>
+                {% endfor %}
+            </table>
+        {% endif %}
+    </div>
+
+    <div class="card">
+    {% if rows %}
+        <table>
+            <thead><tr>
+                <th>{% trans "الشركة" %}</th><th>{% trans "تواصل" %}</th><th>{% trans "الحالة" %}</th><th>{% trans "الرقم" %}</th>
+                <th>{% trans "آخر تواصل" %}</th><th>{% trans "المتابعة الجاية" %}</th>
+            </tr></thead>
+            <tbody>
+            {% for r in rows %}
+            <tr class="{% if r.due %}due{% endif %}">
+                <td class="name"><a href="{% url 'saas_tenant_360' r.tenant.pk %}">{{ r.tenant.name }}</a>
+                    <div class="muted">{{ r.tenant.owner_name }} · {{ r.tenant.get_industry_display }}</div></td>
+                <td>{# الزرار تاني عمود عشان يبان على الموبايل من غير سكرول #}
+                    {% if r.wa_phone %}
+                    <form method="post" action="{% url 'saas_whatsapp_open' r.tenant.pk %}" target="_blank" style="display:inline">
+                        {% csrf_token %}<input type="hidden" name="msg" class="js-msg" value="{{ msg }}">
+                        <button class="btn btn-wa" type="submit" title="{{ r.preview }}"><i class="fab fa-whatsapp"></i> {% trans "واتساب" %}</button>
+                    </form>
+                    {% endif %}
+                    <details>
+                        <summary>{% trans "سجّل النتيجة" %}</summary>
+                        <form method="post" action="{% url 'saas_whatsapp_outcome' r.tenant.pk %}" class="outcome">
+                            {% csrf_token %}
+                            <select name="status" required>
+                                <option value="">{% trans "النتيجة…" %}</option>
+                                {% for k, v in outcomes %}<option value="{{ k }}" {% if r.last.status == k %}selected{% endif %}>{{ v }}</option>{% endfor %}
+                            </select>
+                            <textarea name="notes" style="min-height:50px" placeholder="{% trans 'ملاحظات (قال إيه، محتاج إيه)' %}">{{ r.last.notes }}</textarea>
+                            <select name="in_days">
+                                <option value="">{% trans "أتابع تاني…" %}</option>
+                                <option value="1">{% trans "بكرة" %}</option><option value="3">{% trans "بعد ٣ أيام" %}</option>
+                                <option value="7">{% trans "بعد أسبوع" %}</option><option value="14">{% trans "بعد أسبوعين" %}</option>
+                            </select>
+                            <input type="date" name="next_follow_up" title="{% trans 'أو اختار تاريخ' %}">
+                            <button class="btn btn-light" type="submit"><i class="fas fa-save"></i> {% trans "حفظ" %}</button>
+                        </form>
+                    </details>
+                </td>
+                <td><span class="pill s-{{ r.state }}">
+                    {% if r.state == 'trial' %}{% trans "تجربة" %} — {% blocktrans with d=r.days_left %}فاضل {{ d }} يوم{% endblocktrans %}
+                    {% elif r.state == 'trial_over' %}{% trans "التجربة خلصت" %}
+                    {% elif r.state == 'active' %}{% trans "مشترك" %}
+                    {% elif r.state == 'expired' %}{% trans "الاشتراك خلص" %}
+                    {% else %}{{ r.tenant.get_status_display }}{% endif %}</span></td>
+                <td>{% if r.wa_phone %}<span dir="ltr">{{ r.tenant.phone }}</span>{% else %}<span class="late">{% trans "رقم مش صالح" %}</span> <span dir="ltr" class="muted">{{ r.tenant.phone }}</span>{% endif %}</td>
+                <td>{% if r.last %}
+                        <span class="o-{{ r.last.status }}"><b>{{ r.last.get_status_display }}</b></span>
+                        <div class="muted"><span dir="ltr">{{ r.last.created_at|date:"Y-m-d H:i" }}</span> · {{ r.last.get_channel_display }} · {% blocktrans count n=r.contacts %}مرة واحدة{% plural %}{{ n }} مرات{% endblocktrans %}</div>
+                        {% if r.last.notes %}<div class="muted">📝 {{ r.last.notes|truncatechars:90 }}</div>{% endif %}
+                    {% else %}<span class="muted">{% trans "لسه ماحدش كلّمها" %}</span>{% endif %}</td>
+                <td>{% if r.next_follow_up %}<span dir="ltr" class="{% if r.due %}late{% endif %}">{{ r.next_follow_up|date:"Y-m-d" }}</span>{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty">{% trans "مفيش شركات في الفلتر ده." %}</div>
+    {% endif %}
+    </div>
+</div>
+<script>
+// أي تعديل في صندوق الرسالة بيتنقل لكل أزرار «واتساب» و«ابعت للكل» من غير ما تدوس «تطبيق»
+(function () {
+    var box = document.getElementById('msg');
+    if (!box) return;
+    box.addEventListener('input', function () {
+        document.querySelectorAll('input.js-msg').forEach(function (el) { el.value = box.value; });
+    });
+})();
+</script>
+</body>
+</html>

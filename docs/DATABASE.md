@@ -20,7 +20,7 @@
 | `ai_rooms` | public (مشتركة للمنصة) | 1 |
 | `blog` | public (مشتركة للمنصة) | 1 |
 | `bmw_ecu` | جوه schema كل شركة | 17 |
-| `clients` | public (مشتركة للمنصة) | 79 |
+| `clients` | public (مشتركة للمنصة) | 80 |
 | `diagnostics_catalog` | public (مشتركة للمنصة) | 5 |
 | `hr` | جوه schema كل شركة | 13 |
 | `inventory` | جوه schema كل شركة | 70 |
@@ -148,6 +148,7 @@
 | `SupportTicket` | `clients_supportticket` | auth.User |
 | `SystemErrorLog` | `clients_systemerrorlog` | auth.User |
 | `TenantDesignTopUp` | `clients_tenantdesigntopup` | — |
+| `TenantOutreach` | `clients_tenantoutreach` | auth.User |
 | `TenantSubscription` | `clients_tenantsubscription` | — |
 | `TenderOffer` | `clients_tenderoffer` | — |
 | `UserVerification` | `clients_userverification` | auth.User |

@@ -666,6 +666,13 @@ urlpatterns = [
     # 📢 Tenant-facing: dismiss an in-app banner
     path('broadcast/banner/<int:campaign_id>/dismiss/', saas_admin_views.broadcast_banner_dismiss, name='broadcast_banner_dismiss'),
 
+    # 📲 التواصل مع الشركات على واتساب + المتابعة
+    path('superadmin/whatsapp/', saas_admin_views.whatsapp_outreach, name='saas_whatsapp_outreach'),
+    path('superadmin/whatsapp/queue/', saas_admin_views.whatsapp_queue, name='saas_whatsapp_queue'),
+    path('superadmin/whatsapp/send/', saas_admin_views.whatsapp_send_api, name='saas_whatsapp_send_api'),
+    path('superadmin/whatsapp/<int:tenant_id>/open/', saas_admin_views.whatsapp_open, name='saas_whatsapp_open'),
+    path('superadmin/whatsapp/<int:tenant_id>/outcome/', saas_admin_views.whatsapp_outcome, name='saas_whatsapp_outcome'),
+
     # 🔍 Quick search (backs the ⌘K palette)
     path('superadmin/api/quick-search/', saas_admin_views.quick_search, name='saas_quick_search'),
 
