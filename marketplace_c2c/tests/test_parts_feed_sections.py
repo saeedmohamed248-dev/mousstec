@@ -74,7 +74,7 @@ class PartsFeedSectionsTests(_PublicDomainMixin, TestCase):
         self.assertEqual(make.live_count, 2)
 
     def test_feed_is_paginated_instead_of_cut_at_60(self):
-        from clients.views.parts_marketplace_views import FEED_PAGE_SIZE
+        from clients.views.parts_feed_views import FEED_PAGE_SIZE
         seller = _customer('Bulk')
         PartListing.objects.bulk_create([
             PartListing(seller_customer=seller, title=f'Bulk {i}', description='Good part here',

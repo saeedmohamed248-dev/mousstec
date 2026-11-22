@@ -211,12 +211,14 @@ from .admin_views import (  # noqa: F401
 # ───────────────────────────────────────────────────────────────────────────
 # 🚗 P2P Car-Parts Marketplace
 # ───────────────────────────────────────────────────────────────────────────
-from .parts_marketplace_views import (  # noqa: F401
+from .parts_feed_views import (  # noqa: F401
     parts_feed,
     parts_feed_individuals,
     parts_feed_traders,
-    parts_detail,
     parts_stock_detail,
+)
+from .parts_marketplace_views import (  # noqa: F401
+    parts_detail,
     parts_create,
     parts_checkout,
     parts_paymob_callback,
