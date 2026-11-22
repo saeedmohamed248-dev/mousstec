@@ -191,12 +191,64 @@ def parts_active_listings(request):
     total_suspended = PartListing.objects.filter(
         is_deleted=False, moderation_status='suspended',
     ).count()
+
+    # 🐛 [FIX]: أصناف مخازن الشركات اللي الإدارة وافقت على نشرها (زي فيكست) بتتعرض
+    #    في السوق من GlobalB2BMarketplace مش من PartListing — فالصفحة دي كانت بتقول
+    #    «0 نشطة» والسوق مليان قطع. دلوقتي ليها جدول لوحدها بنفس شروط الظهور للمشترين.
+    from django.core.paginator import Paginator
+    from clients.services import parts_stock_orders as stock_svc
+    stock_qs = stock_svc.public_stock_items()
+    total_stock = stock_qs.count()
+    if q:
+        stock_qs = stock_qs.filter(
+            Q(product_name__icontains=q) | Q(part_number__icontains=q)
+            | Q(tenant__name__icontains=q) | Q(brand__icontains=q) | Q(car_model__icontains=q)
+        )
+    stock_page = Paginator(stock_qs.order_by('tenant__name', '-updated_at'), 100).get_page(
+        request.GET.get('spage') or 1)
+
     return render(request, 'clients/saas_admin/parts_active_listings.html', {
         'listings': qs[:300],
         'q': q,
-        'total_active': total_active,
+        'total_active': total_active + total_stock,
+        'total_listings': total_active,
+        'total_stock': total_stock,
         'total_suspended': total_suspended,
+        'stock_items': stock_page.object_list,
+        'stock_page': stock_page,
     })
+
+
+@saas_admin_required
+@widget_required('b2b')
+@require_POST
+def parts_stock_unpublish(request, item_id):
+    """⏸️ إيقاف نشر صنف من مخزن شركة في السوق.
+
+    مسح سطر GlobalB2BMarketplace لوحده مش كفاية — أول حركة مخزون بتنشره تاني
+    (الـ sync بيشترط is_b2b_published). فبنشيل علامة النشر من الصنف جوه schema
+    الشركة، والشركة لو عايزاه يرجع تطلب نشر جديد ويعدّي على المراجعة.
+    """
+    from django_tenants.utils import schema_context
+    from clients.models import GlobalB2BMarketplace
+    item = get_object_or_404(GlobalB2BMarketplace.objects.select_related('tenant'), pk=item_id)
+    tenant, name = item.tenant, item.product_name
+    try:
+        with schema_context(tenant.schema_name):
+            from inventory.models import Product
+            product = Product.objects.filter(part_number=item.part_number).first()
+            if product is not None and product.is_b2b_published:
+                product.is_b2b_published = False
+                product.save()  # الـ signal بيشيله من السوق
+    except Exception:  # noqa: BLE001 — schema بايظ: على الأقل نشيله من السوق
+        logger.exception("[B2B] unpublish failed in %s for %s", tenant.schema_name, item.part_number)
+    GlobalB2BMarketplace.objects.filter(pk=item.pk).delete()
+    _log_event('suspension', tenant=tenant, user=request.user,
+               description=f"⏸️ إيقاف نشر «{name[:60]}» ({item.part_number}) من سوق قطع الغيار")
+    messages.success(request, f"اتشال «{name[:40]}» ({tenant.name}) من السوق.")
+    back = reverse('saas_parts_active_listings')
+    q = (request.POST.get('q') or '').strip()
+    return redirect(f"{back}?q={q}" if q else back)
 
 
 @saas_admin_required
