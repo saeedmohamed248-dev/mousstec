@@ -148,6 +148,28 @@
     </div>
     {% endif %}
 
+    {% if stock_items %}
+    {# 🏪 أصناف حقيقية في مخازن محلات قطع الغيار (طلبات «نشر في سوق التجار» المعتمدة) #}
+    <div class="sec-title" id="tradersStock"><i class="fas fa-warehouse"></i> {% trans "متاحة دلوقتي في مخازن التجار" %} <span class="badge-mt">{{ stock_count }}</span></div>
+    <div class="grid">
+        {% for s in stock_items %}
+        <a class="card" href="/marketplace/parts/stock/{{ s.pk }}/">
+            <div class="thumb" style="background:#1E2A57;">{% if s.image_url %}<img src="{{ s.image_url }}" draggable="false" alt="{{ s.product_name }}" loading="lazy">{% else %}<i class="fas fa-gear"></i>{% endif %}</div>
+            <div class="body">
+                <h3>{{ s.product_name }}</h3>
+                <span class="st"><i class="fas fa-store"></i> {{ s.tenant.name }}{% if s.tenant.is_verified_merchant %} <i class="fas fa-circle-check" title="{% trans "تاجر موثّق" %}"></i>{% endif %}</span>
+                {% if s.brand or s.car_model %}<span class="st">{{ s.brand }}{% if s.car_model %} — {{ s.car_model }}{% endif %}</span>{% endif %}
+                <span class="st"><b style="color:var(--mt-text);">{{ s.wholesale_price|num }} {% trans "ج.م" %}</b> · {% blocktrans with n=s.available_qty %}متاح {{ n }}{% endblocktrans %}</span>
+                <span class="cta">{% trans "اطلب القطعة" %} ←</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% if stock_count > stock_items|length %}
+    <p style="text-align:center;margin:14px 0 22px;"><a class="chip on" href="/marketplace/parts/traders/{% if q %}?q={{ q|urlencode }}{% endif %}">{% blocktrans with n=stock_count %}شوف كل قطع التجار ({{ n }}){% endblocktrans %} ←</a></p>
+    {% endif %}
+    {% endif %}
+
     <a class="sell" href="/marketplace/sell/"><i class="fas fa-shop" style="font-size:1.4rem;"></i>
         <span><b>{% if sector == 'automotive' %}{% trans "عندك محل قطع غيار؟" %}{% else %}{% trans "عندك مطبعة أو مكتب تصميم؟" %}{% endif %}</b><br><small>{% trans "اعرض منتجاتك قدام العملاء اللي بيدوّروا كل يوم." %}</small></span>
         <span class="go">{% trans "اعرض منتجاتك هنا" %} ←</span></a>
