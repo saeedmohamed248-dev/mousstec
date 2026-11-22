@@ -29486,3 +29486,18 @@ msgstr "Unpublish"
 
 msgid "مفيش أصناف من مخازن التجار ظاهرة في السوق بالفلتر ده."
 msgstr "No merchant stock items are visible in the market for this filter."
+
+msgid "متأخرة عن ميعاد التسليم"
+msgstr "Past the delivery date"
+
+msgid "جاهزة للتسليم"
+msgstr "Ready for pickup"
+
+msgid "فلوسك عند العملاء"
+msgstr "Owed to you by customers"
+
+msgid "فواتير اتسلّمت ولسه ماتحصّلتش"
+msgstr "Delivered invoices not collected yet"
+
+msgid "سجّل الخامات المصروفة"
+msgstr "Record materials used"

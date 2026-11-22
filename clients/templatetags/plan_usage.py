@@ -54,8 +54,10 @@ def onboarding_checklist(context, style='portal'):
                                       .order_by('-created_at').first())
             except Exception:   # noqa: BLE001 — الكارت مايوقّعش الصفحة
                 logger.exception('[ONBOARDING] checklist failed')
+    # 🖨️ لوحة المطبعة ليها «ابدأ هنا» بنفس الخطوات فوق — الكارت ده بيعرض «ارفعولي بضاعتي» بس.
     return {'ob': data, 'style': style, 'bt_options': bt_options, 'import_req': import_req,
-            'can_send': can_send, 'request': request, 'csrf_token': context.get('csrf_token')}
+            'can_send': can_send, 'request': request, 'csrf_token': context.get('csrf_token'),
+            'hide_steps': bool(context.get('hide_onboarding_steps'))}
 
 
 @register.inclusion_tag('clients/_trial_offer_banner.html', takes_context=True)

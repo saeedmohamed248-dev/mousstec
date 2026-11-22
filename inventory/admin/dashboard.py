@@ -225,6 +225,8 @@ def _printing_dashboard(request, extra_context):
 
     extra_context['print_month_pnl'] = _printing_month_pnl(request.user, first_day_of_month, today)
     extra_context['print_start_steps'] = _printing_start_steps(request.user)
+    from printing.dashboard import ops_snapshot  # 🧭 شغّال/متأخر/جاهز + فلوسك عند العملاء — فوق اللوحة
+    extra_context['print_ops'] = ops_snapshot(pending=pending_orders, delayed=delayed_orders, show_money=show_money)
     # 💰 🐛 [FIX]: عميل حط فلوس في الخزنة واشترى خامات كاش — اللوحة فوق قالت «مصروفات 0، ربح 0» ومفيش
     #    رصيد خزنة غير في آخر الصفحة، فافتكر إن فلوسه ضاعت. الأرقام صح محاسبياً (الخامات بتدخل المخزن
     #    وبتبقى تكلفة لما تتصرف على طلب)، بس لازم يشوف: الكاش اللي معاه، اشترى بكام، وقيمة اللي في المخزن.
@@ -290,41 +292,11 @@ def _printing_month_pnl(user, date_from, date_to):
 
 
 def _printing_start_steps(user):
-    """🚀 «ابدأ هنا» لشركة جديدة: الخطوات بالترتيب بتاع الدورة — بتختفي لما تخلص كلها."""
-    from django.apps import apps
+    """🚀 «ابدأ هنا» — نفس قايمة «أول خطوات» (clients/services/onboarding_steps.py)، لمين يقدر يعمل طلبات."""
     if not user.has_perm('printing.add_printorder'):
         return None
-    get = lambda name: apps.get_model('printing', name)  # noqa: E731
-    PrintTransaction = get('PrintTransaction')
-    admin_url = lambda model, suffix='add/': reverse(f'admin:printing_{model}_changelist') + suffix  # noqa: E731
-    expense_categories = ('rent', 'utilities', 'maintenance', 'shipping', 'marketing', 'materials',
-                          'salaries', 'other_expense')
-    # 🐛 [FIX]: أول خطوة كانت «سجّل الفلوس اللي في الخزنة» — تقيلة على حد لسه بيجرّب، وكتير
-    #    بيقفلوا من غير ما يشوفوا السيستم بيعمل إيه. دلوقتي البداية بأول فاتورة لعميل (العميل بيتضاف
-    #    من جوه الفاتورة بعلامة +)، والخزنة قبل الشراء/المصروف عشان مايترفضوش بـ «الرصيد لا يكفي».
-    steps = [
-        {'key': 'order', 'done': get('PrintOrder').objects.exists(),
-         'title': _("اعمل أول فاتورة / طلب لعميل"), 'hint': _("دقيقة — العميل والبنود والمدفوع في شاشة واحدة"),
-         'url': reverse('printing:quick_invoice')},
-        {'key': 'customer', 'done': get('PrintCustomer').objects.exists(),
-         'title': _("ضيف أول عميل"), 'hint': _("اسمه ورقمه — وتقدر تضيف مديونيته القديمة"),
-         'url': reverse('printing:quick_customer')},
-        {'key': 'capital', 'done': PrintTransaction.objects.filter(category='capital').exists()
-                                   or get('PrintTreasury').objects.exclude(balance=0).exists(),
-         'title': _("سجّل الفلوس اللي في الخزنة"), 'hint': _("رأس المال أو الكاش اللي بتبدأ بيه"),
-         'url': admin_url('printtransaction') + '?mode=income&category=capital'},
-        {'key': 'purchase', 'done': get('MaterialPurchase').objects.exists(),
-         'title': _("سجّل أول فاتورة شراء خامات"), 'hint': _("الورق والحبر بيدخلوا المخزن بتكلفتهم"),
-         'url': reverse('printing:quick_purchase')},
-        {'key': 'expense', 'done': PrintTransaction.objects.filter(category__in=expense_categories).exists(),
-         'title': _("سجّل أول مصروف"), 'hint': _("إيجار، كهرباء، مواصلات…"),
-         'url': reverse('printing:quick_expense')},
-    ]
-    done = sum(1 for s in steps if s['done'])
-    if done == len(steps):
-        return None
-    next_key = next(s['key'] for s in steps if not s['done'])
-    return {'steps': steps, 'done': done, 'total': len(steps), 'next_key': next_key}
+    from clients.services.onboarding_steps import print_start_steps
+    return print_start_steps()
 
 
 def _print_jobs_cost(jobs):
