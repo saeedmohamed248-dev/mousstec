@@ -897,6 +897,8 @@ def quick_invoice(request):
                 paid=(P.get('paid') or '0') if can_collect else '0',
                 treasury=treasury, notes=P.get('notes', ''),
                 invoice_date=P.get('invoice_date', ''),
+                tax_rate=P.get('tax_rate') or '0', due_date=P.get('due_date', ''),
+                files=request.FILES.getlist('files'),
             )
         except ValidationError as exc:
             errors = exc.messages

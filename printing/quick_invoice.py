@@ -151,9 +151,29 @@ def parse_invoice_date(value):
     return timezone.make_aware(_dt.combine(day, _time(12, 0)), timezone.get_current_timezone())
 
 
+FILE_FIELDS = ('project_file', 'project_file_2', 'project_file_3')
+MAX_FILE_MB = 50
+
+
+def parse_due_date(value):
+    """⏰ موعد التسليم (YYYY-MM-DD) للشغل اللي لسه ماتسلّمش — آخر اليوم (٦ مساءً)."""
+    from datetime import date as _date, datetime as _dt, time as _time
+    from django.utils import timezone
+    value = (value or '').strip()
+    if not value:
+        return None
+    try:
+        day = _date.fromisoformat(value)
+    except ValueError:
+        raise ValidationError(_("موعد التسليم غير صحيح."))
+    if day < timezone.localdate():
+        raise ValidationError(_("موعد التسليم مينفعش يبقى فات."))
+    return timezone.make_aware(_dt.combine(day, _time(18, 0)), timezone.get_current_timezone())
+
+
 def create_quick_invoice(*, user, lines, customer_id=None, customer_name='', customer_phone='',
                          discount='0', delivered=True, paid='0', treasury=None, notes='',
-                         invoice_date=None):
+                         invoice_date=None, tax_rate='0', due_date=None, files=()):
     """بيعمل الفاتورة كلها في transaction واحدة — يا كله يتحفظ يا ولا حاجة.
 
     بيرجّع (order, warnings).
@@ -163,12 +183,25 @@ def create_quick_invoice(*, user, lines, customer_id=None, customer_name='', cus
     lines = clean_lines(lines)
     discount = _dec(discount, _("الخصم"))
     paid = _dec(paid, _("المدفوع"))
+    # 🧾 الضريبة نسبة (١٤٪ عادةً) بدل ما الموظف يحسب المبلغ بإيده — بتتحسب على الصافي بعد الخصم
+    rate = _dec(tax_rate, _("نسبة الضريبة"))
+    if rate > 100:
+        raise ValidationError(_("نسبة الضريبة لازم تبقى بين ٠ و ١٠٠."))
     subtotal = sum((q * p for _d, q, p in lines), Decimal('0'))
     if subtotal <= 0:
         raise ValidationError(_("إجمالي الفاتورة صفر — اكتب سعر البنود."))
     if discount > subtotal:
         raise ValidationError(_("الخصم أكبر من إجمالي البنود."))
-    if paid > subtotal - discount:
+    tax = ((subtotal - discount) * rate / 100).quantize(Decimal('0.01'))
+    net = subtotal - discount + tax
+    due = None if delivered else parse_due_date(due_date)
+    files = [f for f in (files or ()) if f]
+    if len(files) > len(FILE_FIELDS):
+        raise ValidationError(_("أقصى عدد ملفات %(n)s.") % {'n': len(FILE_FIELDS)})
+    for f in files:
+        if f.size > MAX_FILE_MB * 1024 * 1024:
+            raise ValidationError(_("الملف «%(f)s» أكبر من %(m)s ميجا.") % {'f': f.name, 'm': MAX_FILE_MB})
+    if paid > net:
         raise ValidationError(_("المدفوع أكبر من قيمة الفاتورة. لو العميل دافع زيادة سجّلها من «تحصيل من عميل»."))
     if paid > 0 and treasury is None:
         raise ValidationError(_("اختار الخزنة اللي الفلوس دخلت فيها."))
@@ -183,11 +216,16 @@ def create_quick_invoice(*, user, lines, customer_id=None, customer_name='', cus
     with transaction.atomic():
         customer, created = resolve_customer(customer_id=customer_id, name=customer_name, phone=customer_phone)
         # 🐛 [FIX]: العميل النقدي مشترك بين ناس كتير — باقي عليه = دين مالوش صاحب في كشف الحساب.
-        if not customer.phone and is_cash_name(customer.name) and paid < subtotal - discount:
+        if not customer.phone and is_cash_name(customer.name) and paid < net:
             raise ValidationError(_("العميل النقدي لازم يدفع الفاتورة كاملة. لو هيدفع الباقي بعدين اكتب اسمه وموبايله."))
         extra = {'date_created': when} if when else {}
-        order = PrintOrder.objects.create(customer=customer, discount=discount, status='confirmed',
-                                          notes=(notes or '').strip(), **extra)
+        if due:
+            extra['date_due'] = due
+        order = PrintOrder(customer=customer, discount=discount, tax_amount=tax, status='confirmed',
+                           notes=(notes or '').strip(), **extra)
+        for name, f in zip(FILE_FIELDS, files):
+            setattr(order, name, f)
+        order.save()
         for desc, qty, price in lines:
             # proof_waived: الفاتورة السريعة لشغل متفق عليه — مفيش بروفة تستنى موافقة العميل
             PrintJob.objects.create(order=order, description=desc, quantity=qty, copies=1,

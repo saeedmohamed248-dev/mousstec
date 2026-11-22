@@ -320,14 +320,23 @@ html[dir="rtl"] .main-sidebar .mt-cat-body .nav-link {
   html[dir="rtl"] .form-group .row > label.text-left { text-align: right !important; }
   .form-group .row > label { margin-bottom: 4px; font-weight: 700; }
 
-  /* تابات الفورم (horizontal_tabs): شريط بيتسحب بالعرض بدل عمود لينكات في النص */
-  .card-body > .nav-tabs, .card-header > .nav-tabs, #jazzy-tabs {
-    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  /* تابات الفورم (horizontal_tabs): 🐛 [FIX]: كانت شريط بيتسحب بالعرض والتاب التالت بيبان أيقونة
+     مقطوعة («📁» من غير اسم) والموظف مايعرفش إن فيه تابات تانية — دلوقتي بتلف سطرين وكلها باينة */
+  .card-body > .nav-tabs, .card-header > .nav-tabs, #jazzy-tabs { flex-wrap: wrap; gap: 4px; border-bottom: 0; }
+  .card-body > .nav-tabs .nav-item, .card-header > .nav-tabs .nav-item, #jazzy-tabs .nav-item { flex: 1 1 auto; }
+  .card-body > .nav-tabs .nav-link, .card-header > .nav-tabs .nav-link, #jazzy-tabs .nav-link {
+    white-space: nowrap; text-align: center; padding: 8px 10px; border: 1px solid #e2e8f0 !important; border-radius: 10px !important;
   }
-  .card-body > .nav-tabs .nav-link, .card-header > .nav-tabs .nav-link, #jazzy-tabs .nav-link { white-space: nowrap; }
+  .card-body > .nav-tabs .nav-link.active, .card-header > .nav-tabs .nav-link.active, #jazzy-tabs .nav-link.active {
+    background: #1e2a55 !important; color: #fff !important; border-color: #1e2a55 !important;
+  }
 
   /* أزرار الحفظ تحت: بعرض الشاشة وسهلة الضغط */
   .submit-row .btn, #jazzy-actions .btn { width: 100%; margin-bottom: 6px; }
+  /* 🐛 [FIX]: ٣ أزرار حفظ كتير على الموبايل و«احفظ وأضف آخر» نادراً بيتستخدم — وزرار المساعدة (SOS)
+     العايم كان راكب عليه. بيتشال، والصفحة بتاخد مسافة تحت عشان آخر زرار مايتغطّاش. */
+  [name="_addanother"] { display: none !important; }
+  body.change-form .content-wrapper { padding-bottom: 84px; }
 }
 
 /* القائمة الجانبية في العربي بتطلع من اليمين (جنب زرارها) — AdminLTE مكتوبة للإنجليزي بس.
@@ -447,3 +456,9 @@ html[dir="rtl"] .breadcrumb-item + .breadcrumb-item::before { float: right; padd
 
 /* 🐛 [FIX]: فوتر لوحة المطابع كان بيعرض «Jazzmin version 3.0.1» للعميل — اسم مكتبة تقنية مالوش لازمة */
 .main-footer .float-right { display: none !important; }
+
+/* ⚡ «فاتورة سريعة» أول حاجة في كارت المطابع وبشكل زرار (mousstec_nav.js → splitPrintCard) */
+.mt-quick-item { margin: 4px 6px 8px; }
+.mt-quick-item > .nav-link { background: linear-gradient(135deg, #B4541F, #d97706) !important; color: #fff !important;
+  border-radius: 12px !important; font-weight: 800; }
+.mt-quick-item > .nav-link i, .mt-quick-item > .nav-link p { color: #fff !important; }

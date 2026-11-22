@@ -274,7 +274,7 @@ class PrintingStaffTests(ERPTenantTestCase):
         r = c.get('/secure-portal/', HTTP_HOST=self.host)
         self.assertEqual(r.status_code, 200)
         self.assertFalse(r.context['print_show_money'])
-        self.assertEqual(c.get('/secure-portal/printing/printorder/add/', HTTP_HOST=self.host).status_code, 200)
+        self.assertEqual(c.get('/secure-portal/printing/printorder/add/?full=1', HTTP_HOST=self.host).status_code, 200)
         self.assertEqual(c.get('/printing/staff/', HTTP_HOST=self.host).status_code, 403)
 
     def test_owner_changes_role_and_flags_and_can_stop_an_employee(self):
