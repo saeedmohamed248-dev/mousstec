@@ -141,7 +141,7 @@ class ListingModerationTests(TestCase):
 
         rf = RequestFactory()
         # _marketplace_auth + public schema gate — patch the schema check.
-        from clients.views import parts_marketplace_views as pmv
+        from clients.views import parts_feed_views as pmv
         from unittest.mock import patch
         request = rf.get('/marketplace/parts/')
         with patch.object(pmv, 'connection') as mock_conn:
