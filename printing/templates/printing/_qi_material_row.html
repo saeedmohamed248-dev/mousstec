@@ -1,0 +1,11 @@
+{% load i18n %}{# 🧾 سطر خامة في الفاتورة السريعة (quick_invoice.html) — mid/mqty للفورم اللي رجع بخطأ #}
+<div class="qi-mat">
+    <div><label>{% trans "الخامة" %}</label>
+        <select class="form-control" name="mat_id">
+            <option value="">— {% trans "اختار خامة" %} —</option>
+            {% for m in stock_materials %}<option value="{{ m.pk }}" data-unit="{{ m.unit }}" data-have="{{ m.quantity|stringformat:'s' }}"{% if show_cost %} data-cost="{{ m.cost_per_unit|stringformat:'s' }}"{% endif %}{% if mid == m.pk|stringformat:'s' %} selected{% endif %}>{{ m.name }}</option>{% endfor %}
+        </select></div>
+    <div><label>{% trans "الكمية" %}</label><input class="form-control qi-mqty" name="mat_qty" inputmode="decimal" dir="ltr" value="{{ mqty }}" placeholder="0"></div>
+    <button type="button" class="qi-del" title="{% trans "شيل الخامة" %}" aria-label="{% trans "شيل الخامة" %}">✕</button>
+    <div class="qi-mhave"></div>
+</div>

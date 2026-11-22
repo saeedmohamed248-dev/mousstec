@@ -258,3 +258,78 @@ class QuickInvoiceTests(ERPTenantTestCase):
         self.assertEqual(c.post(reverse('printing:order_deliver', args=[order.pk]), HTTP_HOST=self.host).status_code, 403)
         order.refresh_from_db()
         self.assertEqual(order.status, 'confirmed')
+
+    # ── 🧾 الخامات المستخدمة ────────────────────────────────────────────
+    def _paper(self, qty='20', cost='50'):
+        from printing.models import PrintMaterial
+        return PrintMaterial.objects.create(name='ورق كوشيه', unit='رزمة', quantity=D(qty), cost_per_unit=D(cost))
+
+    def test_materials_leave_stock_and_become_cost_when_delivered(self):
+        paper = self._paper()
+        r = self.post(mat_id=[str(paper.pk), str(paper.pk), ''], mat_qty=['2', '1', ''])   # نفس الخامة مرتين ⇒ 3
+        order = PrintOrder.objects.get()
+        self.assertEqual(r.status_code, 302)
+        paper.refresh_from_db()
+        self.assertEqual(paper.quantity, D('17.00'))
+        self.assertEqual(order.material_cost, D('150.00'))
+        # الإيراد 350 − تكلفة الخامات 150 في قائمة الدخل
+        pnl = AccountingReportService.income_statement(self.today.replace(day=1), self.today)
+        self.assertEqual(pnl['revenue']['total'], D('350.00'))
+        self.assertEqual(pnl['net_profit'], D('200.00'))
+
+    def test_materials_on_work_in_progress_wait_in_wip(self):
+        paper = self._paper()
+        self.post(delivered='0', paid='0', mat_id=[str(paper.pk)], mat_qty=['4'])
+        order = PrintOrder.objects.get()
+        paper.refresh_from_db()
+        self.assertEqual(paper.quantity, D('16.00'))
+        self.assertEqual(bal(ledger.PRINT_ACCOUNTS['wip'][0]), D('200.00'))     # شغل جاري — مش تكلفة لسه
+        pnl = AccountingReportService.income_statement(self.today.replace(day=1), self.today)
+        self.assertEqual(pnl['net_profit'], D('0'))
+        from printing.quick_invoice import deliver_order
+        deliver_order(order)
+        self.assertEqual(bal(ledger.PRINT_ACCOUNTS['wip'][0]), D('0.00'))
+        pnl = AccountingReportService.income_statement(self.today.replace(day=1), self.today)
+        self.assertEqual(pnl['net_profit'], D('150.00'))                         # 350 − 200
+
+    def test_more_than_in_stock_saves_nothing_and_keeps_the_rows(self):
+        paper = self._paper(qty='2')
+        r = self.post(mat_id=[str(paper.pk)], mat_qty=['5'])
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'مش كفاية')
+        self.assertEqual(PrintOrder.objects.count(), 0)
+        self.assertEqual(PrintTransaction.objects.count(), 0)
+        paper.refresh_from_db()
+        self.assertEqual(paper.quantity, D('2.00'))
+        self.assertEqual(r.context['mat_rows'], [(str(paper.pk), '5')])
+
+    def test_material_rows_must_be_complete(self):
+        paper = self._paper()
+        cases = (
+            ([('', '3')], 'اختار الخامة'),
+            ([(str(paper.pk), '0')], 'اكتب الكمية'),
+            ([('999999', '1')], 'مش موجودة'),
+        )
+        for rows, msg in cases:
+            with self.assertRaisesMessage(ValidationError, msg):
+                create_quick_invoice(user=self.user, lines=[('بنر', '1', '500')], customer_name='س',
+                                     materials=rows)
+        self.assertEqual(PrintOrder.objects.count(), 0)
+
+    def test_page_lists_stock_and_hides_cost_without_profit_permission(self):
+        paper = self._paper()
+        paper.refresh_from_db()
+        r = self.c.get(self.url, HTTP_HOST=self.host)
+        self.assertContains(r, 'id="qiMatCard"')
+        self.assertContains(r, f'data-cost="{paper.cost_per_unit}"')
+        from printing.models import StaffPermission
+        clerk = User.objects.create_user('qi_clerk', 'k@x.com', 'x', is_staff=True)
+        from django.contrib.auth.models import Permission
+        clerk.user_permissions.add(Permission.objects.get(codename='add_printorder'))
+        StaffPermission.objects.create(user=clerk, can_view_profits=False, can_view_treasury=False)
+        c = Client()
+        c.force_login(clerk)
+        r = c.get(self.url, HTTP_HOST=self.host)
+        self.assertContains(r, 'ورق كوشيه')
+        self.assertNotContains(r, 'data-cost=')
+        self.assertNotContains(r, 'id="qiMatCost"')

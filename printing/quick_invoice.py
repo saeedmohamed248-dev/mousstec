@@ -51,6 +51,44 @@ def clean_lines(raw_lines):
     return lines
 
 
+MAX_MATERIALS = 30
+
+
+def clean_materials(raw):
+    """🧾 [(id الخامة، الكمية)] من الفورم ⇒ [(PrintMaterial, كمية)] — نفس الخامة مرتين بتتجمع.
+
+    الفاتورة السريعة مكانش فيها خامات: الورق والحبر اللي اتصرفوا على الشغل ماكانوش بيتخصموا من
+    المخزن ولا بيدخلوا التكلفة، فربح كل فاتورة كان طالع ١٠٠٪. السطور الفاضية بتتشال، والكمية لازم
+    تكون موجودة في المخزن (نفس رسالة PrintJobMaterial — والتأكيد النهائي جوه الـ transaction).
+    """
+    from printing.models import PrintMaterial
+    wanted = {}
+    for i, (mid, qty) in enumerate(raw, start=1):
+        mid, qty = str(mid or '').strip(), str(qty or '').strip()
+        if not mid and not qty:
+            continue
+        if not mid:
+            raise ValidationError(_("الخامة %(n)s: اختار الخامة.") % {'n': i})
+        q = _dec(qty, _("كمية الخامة %(n)s") % {'n': i})
+        if q <= 0:
+            raise ValidationError(_("الخامة %(n)s: اكتب الكمية اللي اتصرفت.") % {'n': i})
+        wanted[mid] = wanted.get(mid, Decimal('0')) + q
+    if len(wanted) > MAX_MATERIALS:
+        raise ValidationError(_("أقصى عدد خامات %(n)s.") % {'n': MAX_MATERIALS})
+    found = {str(m.pk): m for m in PrintMaterial.objects.filter(pk__in=[k for k in wanted if k.isdigit()])}
+    out = []
+    for mid, q in wanted.items():
+        mat = found.get(mid)
+        if mat is None:
+            raise ValidationError(_("الخامة المختارة مش موجودة."))
+        if mat.quantity < q:
+            raise ValidationError(
+                _("المخزون من «%(name)s» مش كفاية: المتاح %(have)s %(unit)s، المطلوب %(need)s.")
+                % {'name': mat.name, 'have': mat.quantity, 'unit': mat.unit, 'need': q})
+        out.append((mat, q))
+    return out
+
+
 #: 💵 الأسامي اللي الموظف بيكتبها لما يقصد «بيع كاش لعميل عابر» (مش عميل اسمه كده)
 CASH_ALIASES = frozenset({
     'نقدي', 'نقدى', 'نقداً', 'نقدا', 'كاش', 'عميل نقدي', 'عميل نقدى', 'عميل كاش', 'عميل عابر',
@@ -173,14 +211,18 @@ def parse_due_date(value):
 
 def create_quick_invoice(*, user, lines, customer_id=None, customer_name='', customer_phone='',
                          discount='0', delivered=True, paid='0', treasury=None, notes='',
-                         invoice_date=None, tax_rate='0', due_date=None, files=()):
+                         invoice_date=None, tax_rate='0', due_date=None, files=(), materials=()):
     """بيعمل الفاتورة كلها في transaction واحدة — يا كله يتحفظ يا ولا حاجة.
+
+    materials: [(id الخامة، الكمية)] اللي اتصرفت على الشغل — بتتخصم من المخزن وتدخل تكلفة الفاتورة
+    (بتتسجّل على أول بند؛ الربح والتكلفة بيتحسبوا على الفاتورة كلها).
 
     بيرجّع (order, warnings).
     """
-    from printing.models import PrintJob, PrintOrder, PrintTransaction
+    from printing.models import PrintJob, PrintJobMaterial, PrintOrder, PrintTransaction
 
     lines = clean_lines(lines)
+    used = clean_materials(materials)
     discount = _dec(discount, _("الخصم"))
     paid = _dec(paid, _("المدفوع"))
     # 🧾 الضريبة نسبة (١٤٪ عادةً) بدل ما الموظف يحسب المبلغ بإيده — بتتحسب على الصافي بعد الخصم
@@ -226,10 +268,15 @@ def create_quick_invoice(*, user, lines, customer_id=None, customer_name='', cus
         for name, f in zip(FILE_FIELDS, files):
             setattr(order, name, f)
         order.save()
-        for desc, qty, price in lines:
+        jobs = [
             # proof_waived: الفاتورة السريعة لشغل متفق عليه — مفيش بروفة تستنى موافقة العميل
             PrintJob.objects.create(order=order, description=desc, quantity=qty, copies=1,
                                     unit_price=price, proof_waived=True)
+            for desc, qty, price in lines
+        ]
+        # 🧾 الخامات قبل التسليم: بتتخصم من المخزن (تحت شغل جاري) وتتحوّل تكلفة لما الفاتورة تتسلّم
+        for mat, qty in used:
+            PrintJobMaterial.objects.create(job=jobs[0], material=mat, quantity=qty)
         order.recalc_total_from_jobs()
         order.refresh_from_db()
 
