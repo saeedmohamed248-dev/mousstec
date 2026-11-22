@@ -734,6 +734,11 @@ WHATSAPP_DAILY_SUMMARY_TEMPLATE = env.str('WHATSAPP_DAILY_SUMMARY_TEMPLATE', '')
 WHATSAPP_MAINTENANCE_DIGEST_TEMPLATE = env.str('WHATSAPP_MAINTENANCE_DIGEST_TEMPLATE', '')
 # 👋 قالب Meta لرسالة الترحيب بعد التسجيل (متغيّرات: الشركة، رابط الدخول) — فاضي = رسالة نصية
 WHATSAPP_WELCOME_TEMPLATE = env.str('WHATSAPP_WELCOME_TEMPLATE', '')
+# 📲 قالب Meta (MARKETING) لرسايل مالك المنصة الجماعية للشركات من /superadmin/whatsapp/
+#    (متغيّرات: {{1}} اسم المالك، {{2}} اسم الشركة). فاضي = رسالة نصية — ومن غير قالب Meta
+#    مابتوصّلش إلا للي كلّمك على رقم المنصة آخر 24 ساعة.
+WHATSAPP_OUTREACH_TEMPLATE = env.str('WHATSAPP_OUTREACH_TEMPLATE', '')
+WHATSAPP_OUTREACH_TEMPLATE_LANG = env.str('WHATSAPP_OUTREACH_TEMPLATE_LANG', 'ar')
 # ⏳ خصم عرض «اشترك قبل ما التجربة تخلص» (آخر يومين) — صفر = تذكير من غير خصم
 TRIAL_END_OFFER_PERCENT = env.int('TRIAL_END_OFFER_PERCENT', 20)
 
@@ -1007,6 +1012,7 @@ CELERY_TASK_ROUTES = {
     # ── Notification queue ───────────────────────────────────────────
     'clients.tasks.async_welcome_bot_task':             {'queue': 'notifications'},
     'clients.tasks.send_error_alert':                   {'queue': 'notifications'},
+    'clients.tasks.send_whatsapp_outreach_batch':       {'queue': 'notifications'},
     'clients.tasks.request_error_autofix':              {'queue': 'notifications'},
     'clients.tasks.send_broadcast_campaign':            {'queue': 'notifications'},
     'inventory.tasks.dispatch_maintenance_reminders':   {'queue': 'notifications'},

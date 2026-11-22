@@ -18,6 +18,7 @@
 | monitoring  | الأخطاء، مركز الأمان، سجل الأحداث، حالة النظام، الزوار اللايف |
 | marketplace | مراجعة قطع السوق، طلبات نشر B2B، النزاعات والمدفوعات وطلبات السوق |
 | broadcast   | حملات الإيميل والبانرات |
+| whatsapp    | التواصل مع الشركات على واتساب (زرار لكل شركة، إرسال جماعي، المتابعة) |
 
 ⚠️ في الاختبارات: الـ mock.patch يتعمل على الموديول اللي فيه الدالة فعلاً
 (مثلاً `clients.views.saas_admin_views.monitoring._check_database`) مش على الحزمة.
@@ -56,6 +57,9 @@ from .marketplace import (  # noqa: F401
 from .broadcast import (  # noqa: F401
     broadcast_banner_dismiss, broadcast_enable_banner, broadcast_list, broadcast_retry,
     broadcast_send,
+)
+from .whatsapp import (  # noqa: F401
+    whatsapp_open, whatsapp_outcome, whatsapp_outreach, whatsapp_queue, whatsapp_send_api,
 )
 
 # أسماء بشرطة تحتية (مش في القوايم اللي فوق) — كانت متاحة من الملف القديم

@@ -390,9 +390,10 @@
         <div class="grid gap-3 lg:grid-cols-2 items-start">
 
             <details class="sa-group" open data-group="companies">
-                <summary class="sa-group-head"><i class="fas fa-building gico"></i><span class="flex-1">{% trans "الشركات والاشتراكات" %}</span><span class="gcnt">8</span><i class="fas fa-chevron-down chev"></i></summary>
+                <summary class="sa-group-head"><i class="fas fa-building gico"></i><span class="flex-1">{% trans "الشركات والاشتراكات" %}</span><span class="gcnt">9</span><i class="fas fa-chevron-down chev"></i></summary>
                 <div class="grid grid-cols-3 sm:grid-cols-2 gap-2 pt-2">
                 <a href="{% url 'saas_trials_watch' %}" class="sa-tool"><span class="sa-ico tone-navy"><i class="fas fa-flask"></i></span><span class="txt"><span class="name">{% trans "متابعة التجارب" %}</span><span class="desc">{% trans "مين بيشتغل فعلاً ومين محتاج مكالمة" %}</span></span></a>
+                <a href="{% url 'saas_whatsapp_outreach' %}" class="sa-tool"><span class="sa-ico tone-green"><i class="fab fa-whatsapp"></i></span><span class="txt"><span class="name">{% trans "التواصل على واتساب" %}</span><span class="desc">{% trans "ابعت لشركة أو للكل وتابع معاهم" %}</span></span></a>
                 <a href="/superadmin/tenants/" class="sa-tool"><span class="sa-ico tone-violet"><i class="fas fa-building"></i></span><span class="txt"><span class="name">{% trans "إدارة المستأجرين" %}</span><span class="desc">{% trans "حذف آمن" %} • {% trans "استعادة" %} • Force Delete</span></span></a>
                 <a href="/superadmin/plans/" class="sa-tool"><span class="sa-ico tone-sky"><i class="fas fa-gem"></i></span><span class="txt"><span class="name">{% trans "الباقات والاشتراكات" %}</span><span class="desc">{% trans "تسعير" %} • {% trans "مزايا" %} • {% trans "تحرير" %}</span></span></a>
                 <a href="/superadmin/promotions/" class="sa-tool"><span class="sa-ico tone-rose"><i class="fas fa-percent"></i></span><span class="txt"><span class="name">{% trans "عروض الخصم المؤقتة" %}</span><span class="desc">{% trans "خصم على باقة ليوم/أسبوع/شهر" %}</span></span></a>
