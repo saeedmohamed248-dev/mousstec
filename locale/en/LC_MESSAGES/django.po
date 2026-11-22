@@ -27784,7 +27784,6 @@ msgstr "Distinct IPs this week"
 msgid "دفع فعلاً"
 msgstr "Actually paid"
 
-
 msgid "%(n)s<span class=\"text-xs text-emerald-400/60\"> يوم متبقي</span>"
 msgid_plural "%(n)s<span class=\"text-xs text-emerald-400/60\"> يوم متبقي</span>"
 msgstr[0] "%(n)s<span class=\"text-xs text-emerald-400/60\"> day left</span>"
@@ -29269,6 +29268,205 @@ msgstr "Maximum %(n)s files."
 #, python-format
 msgid "الملف «%(f)s» أكبر من %(m)s ميجا."
 msgstr "The file “%(f)s” is larger than %(m)s MB."
+
+msgid "التواصل على واتساب"
+msgstr "WhatsApp outreach"
+
+msgid "التواصل مع الشركات على واتساب"
+msgstr "Reach out to companies on WhatsApp"
+
+msgid "ابعت لأي شركة من موبايلك أو للكل مرة واحدة، وسجّل نتيجة كل متابعة — والشركات اللي ميعاد متابعتها جه بتطلع الأول."
+msgstr "Message any company from your phone or all of them at once, and log the result of every follow-up — companies due for follow-up come first."
+
+msgid "شركة في الفلتر"
+msgstr "companies in filter"
+
+msgid "ميعاد متابعتها جه"
+msgstr "follow-up due"
+
+msgid "عمرنا ماكلّمناها"
+msgstr "never contacted"
+
+msgid "رقمها مش صالح"
+msgstr "invalid number"
+
+msgid "الشركات والرسالة"
+msgstr "Companies & message"
+
+msgid "أي باقة"
+msgstr "Any plan"
+
+msgid "بتشتغل مع «باقة محددة»"
+msgstr "Used with “specific plan”"
+
+msgid "الاسم، المالك، الرقم"
+msgstr "Name, owner, phone"
+
+msgid "اللي ميعاد متابعتهم جه بس"
+msgstr "Only those due for follow-up"
+
+msgid "رسالة جاهزة:"
+msgstr "Template:"
+
+msgid "اكتب {owner} لاسم المالك و {company} لاسم الشركة و {days_left} للأيام الفاضلة — بتتملي لكل شركة لوحدها."
+msgstr "Use {owner} for the owner name, {company} for the company name and {days_left} for the days left — filled in for each company."
+
+msgid "ابعت للكل من موبايلي"
+msgstr "Send to all from my phone"
+
+msgid "«ابعت للكل من موبايلي» بيفتحلك الشركات واحدة ورا التانية والرسالة جاهزة — انت بس تدوس إرسال في واتساب."
+msgstr "“Send to all from my phone” opens the companies one after another with the message ready — you just tap Send in WhatsApp."
+
+msgid "ابعت للكل أوتوماتيك من رقم المنصة"
+msgstr "Send to all automatically from the platform number"
+
+msgid "مفاتيح واتساب المنصة (WhatsApp Cloud API) مش متظبطة على السيرفر — الإرسال الأوتوماتيك مقفول. استخدم «ابعت للكل من موبايلي»."
+msgstr "The platform WhatsApp keys (WhatsApp Cloud API) are not configured on the server — automatic sending is off. Use “Send to all from my phone”."
+
+msgid "مفيش قالب Meta متظبط (WHATSAPP_OUTREACH_TEMPLATE) — الرسالة هتتبعت كنص، و Meta مابتوصّلهاش إلا للي كلّم رقم المنصة آخر 24 ساعة."
+msgstr "No Meta template is configured (WHATSAPP_OUTREACH_TEMPLATE) — the message will be sent as text, and Meta only delivers it to people who messaged the platform number in the last 24 hours."
+
+msgid "هيتبعت قالب Meta المتوافق عليه باسم المالك والشركة (نص الصندوق بيتسجّل للمتابعة بس)."
+msgstr "The approved Meta template will be sent with the owner and company names (the text box is only kept for the follow-up log)."
+
+msgid "اكتب SEND للتأكيد"
+msgstr "Type SEND to confirm"
+
+msgid "ابعت لـ"
+msgstr "Send to"
+
+msgid "آخر دفعات الإرسال"
+msgstr "Recent sends"
+
+msgid "اتبعتت"
+msgstr "Sent"
+
+msgid "ماتبعتتش"
+msgstr "Not sent"
+
+msgid "في الطابور"
+msgstr "Queued"
+
+msgid "آخر تواصل"
+msgstr "Last contact"
+
+msgid "المتابعة الجاية"
+msgstr "Next follow-up"
+
+msgid "تجربة"
+msgstr "Trial"
+
+msgid "مشترك"
+msgstr "Subscribed"
+
+msgid "الاشتراك خلص"
+msgstr "Subscription ended"
+
+msgid "رقم مش صالح"
+msgstr "Invalid number"
+
+msgid "لسه ماحدش كلّمها"
+msgstr "Not contacted yet"
+
+msgid "سجّل النتيجة"
+msgstr "Log result"
+
+msgid "النتيجة…"
+msgstr "Result…"
+
+msgid "ملاحظات (قال إيه، محتاج إيه)"
+msgstr "Notes (what they said, what they need)"
+
+msgid "أتابع تاني…"
+msgstr "Follow up again…"
+
+msgid "بعد أسبوعين"
+msgstr "In two weeks"
+
+msgid "أو اختار تاريخ"
+msgstr "Or pick a date"
+
+msgid "مفيش شركات في الفلتر ده."
+msgstr "No companies match this filter."
+
+msgid "افتح واتساب وابعت"
+msgstr "Open WhatsApp and send"
+
+msgid "تخطي ←"
+msgstr "Skip →"
+
+msgid "وقّف وارجع للقايمة"
+msgstr "Stop and back to list"
+
+msgid "بعد ما واتساب يفتح في تاب جديدة دوس إرسال هناك — والصفحة دي بتنقل للشركة اللي بعدها لوحدها."
+msgstr "WhatsApp opens in a new tab — tap Send there, and this page moves on to the next company by itself."
+
+msgid "خلصت كل الشركات"
+msgstr "All companies done"
+
+msgid "ارجع للقايمة وسجّل نتيجة كل متابعة."
+msgstr "Go back to the list and log the result of each follow-up."
+
+msgid "ارجع للقايمة"
+msgstr "Back to list"
+
+msgid "واتساب ومتابعة"
+msgstr "WhatsApp & follow-up"
+
+msgid "ابعت لشركة أو للكل وتابع معاهم"
+msgstr "Message one company or all, and follow up"
+
+msgid "من موبايلي"
+msgstr "From my phone"
+
+msgid "أوتوماتيك من رقم المنصة"
+msgstr "Automatically from the platform number"
+
+msgid "اتفتح الواتساب"
+msgstr "WhatsApp opened"
+
+msgid "مارد"
+msgstr "No reply"
+
+msgid "ردّ"
+msgstr "Replied"
+
+msgid "مهتم"
+msgstr "Interested"
+
+msgid "مش مهتم"
+msgstr "Not interested"
+
+msgid "اشترك"
+msgstr "Subscribed"
+
+msgid "طريقة الإرسال"
+msgstr "Channel"
+
+msgid "دفعة الإرسال الجماعي"
+msgstr "Bulk send batch"
+
+msgid "سبب الفشل"
+msgstr "Failure reason"
+
+msgid "تواصل واتساب"
+msgstr "WhatsApp contact"
+
+msgid "📲 التواصل مع الشركات على واتساب"
+msgstr "📲 WhatsApp outreach to companies"
+
+msgid "فاضل %(d)s يوم"
+msgstr "%(d)s days left"
+
+msgid "مرة واحدة"
+msgid_plural "%(n)s مرات"
+msgstr[0] "once"
+msgstr[1] "%(n)s times"
+
+msgid "اتفتح الواتساب لشركة واحدة."
+msgid_plural "اتفتح الواتساب لـ %(n)s شركة."
+msgstr[0] "WhatsApp was opened for one company."
+msgstr[1] "WhatsApp was opened for %(n)s companies."
 
 msgid "قطع معروضة"
 msgstr "Listed parts"
