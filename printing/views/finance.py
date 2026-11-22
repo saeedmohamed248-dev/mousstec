@@ -835,6 +835,7 @@ def order_invoice(request, order_id):
         'can_edit_order': request.user.has_perm('printing.change_printorder'),
         'deliverable_statuses': ('confirmed', 'in_progress', 'ready'),
         'can_credit_note': request.user.has_perm('printing.add_printcreditnote'),
+        'can_eta': any(_can_see_money(request.user, f) for f in ('can_view_reports', 'can_view_treasury')),
     })
 
 
@@ -913,10 +914,14 @@ def quick_invoice(request):
             form.update({'customer_id': str(pre.pk), 'customer_name': pre.name, 'customer_phone': pre.phone,
                          'delivered': '1'})
     customers = list(PrintCustomer.objects.order_by('-pk').values('pk', 'name', 'phone')[:500])
+    from printing.models import PrintPriceRule
+    price_rules = list(PrintPriceRule.objects.filter(is_active=True).prefetch_related('tiers')[:300])
     ctx = _admin.site.each_context(request)
     ctx.update({
         'title': _("⚡ فاتورة سريعة"), 'errors': errors, 'form': form,
         'customers': customers, 'treasuries': treasuries, 'can_collect': can_collect,
+        'price_rules': price_rules,
+        'price_rules_json': json.dumps([r.as_dict() for r in price_rules if r.tiers.all()], ensure_ascii=False),
         'lines': list(zip(form.getlist('line_desc'), form.getlist('line_qty'), form.getlist('line_price')))
                  if errors else [('', '1', '')],
     })

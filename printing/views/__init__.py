@@ -38,6 +38,8 @@ from .production import *  # noqa: F401, F403
 from .accounting import *  # noqa: F401, F403
 from .quick import *  # noqa: F401, F403  ⚡ تحصيل/شراء/عميل سريع
 from .staff import staff_list, staff_add, staff_edit  # noqa: F401
+from .portal import *  # noqa: F401, F403  🔗 بوابة العميل + 🛒 المتجر
+from .eta import *  # noqa: F401, F403  🧾 الفاتورة الإلكترونية
 
 # Underscore-prefixed helpers that `import *` skips.
 from .utils import _get_tenant, _check_ai_access, _apply_watermark_to_url, _tenant_brand_context  # noqa: F401

@@ -54,6 +54,16 @@ class OnAccountPaymentInline(admin.TabularInline):
         return _money_txns(super().get_queryset(request).filter(order__isnull=True))
 
 
+def _site_root():
+    """https://<دومين الشركة> — الأدمن instance واحد لكل الطلبات، فمانخزّنش الـ host عليه."""
+    from django.db import connection
+    try:
+        dom = connection.tenant.get_primary_domain()
+        return f"https://{dom.domain}" if dom else ''
+    except Exception:
+        return ''
+
+
 @admin.register(PrintCustomer)
 class PrintCustomerAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
     list_display = ('name', 'company', 'phone', 'whatsapp', 'orders_count', 'balance_display',
@@ -62,6 +72,35 @@ class PrintCustomerAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
     list_filter = ('created_at',)
     inlines = [OnAccountPaymentInline]
     actions = ['settle_open_orders_from_credit']
+    readonly_fields = ('portal_box',)
+
+    def portal_box(self, obj):
+        """🔗 رابط بوابة العميل (طلباته وفواتيره وبروفاته وحسابه) — بيتبعت له واتساب."""
+        if not obj or not obj.pk:
+            return gettext("احفظ العميل الأول.")
+        from django.urls import reverse
+        from urllib.parse import quote
+        btn = ('display:inline-block;margin:2px 4px 2px 0;padding:6px 12px;border-radius:8px;border:0;cursor:pointer;'
+               'text-decoration:none;font-weight:700;font-size:0.82rem;color:#fff;background:{}')
+        action = reverse('printing:customer_portal_link', args=[obj.pk])
+        if not obj.portal_token:
+            return format_html('<span id="portal"></span><button type="submit" formaction="{}" formmethod="post" style="' + btn + '">🔗 {}</button>',
+                               action, '#8b5cf6', gettext('اعمل رابط بوابة للعميل'))
+        url = _site_root() + reverse('printing:customer_portal', args=[obj.portal_token])
+        parts = [format_html('<span id="portal"></span><input readonly value="{}" dir="ltr" onclick="this.select()" '
+                             'style="width:100%;max-width:520px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;"><br>', url),
+                 format_html('<a href="{}" target="_blank" style="' + btn + '">👁️ {}</a>', url, '#0f172a', gettext('افتح'))]
+        from .production import _wa_number
+        wa = _wa_number(obj.whatsapp or obj.phone)
+        if wa:
+            msg = gettext("أهلاً %(n)s 👋 ده رابط حسابك عندنا — طلباتك وفواتيرك والبروفات:") % {'n': obj.name}
+            parts.append(format_html('<a href="https://wa.me/{}?text={}" target="_blank" rel="noopener" style="' + btn + '">💬 {}</a>',
+                                     wa, quote(f"{msg}\n{url}"), '#25d366', gettext('ابعته واتساب')))
+        parts.append(format_html('<button type="submit" formaction="{}" formmethod="post" name="regenerate" value="1" '
+                                 'style="' + btn + '" onclick="return confirm(this.dataset.q);" data-q="{}">♻️ {}</button>',
+                                 action, '#dc2626', gettext('الرابط القديم هيقف. متأكد؟'), gettext('رابط جديد')))
+        return format_html(''.join(['{}'] * len(parts)), *parts)
+    portal_box.short_description = _("🔗 بوابة العميل")
 
     def balance_display(self, obj):
         bal = obj.account_summary()['balance']

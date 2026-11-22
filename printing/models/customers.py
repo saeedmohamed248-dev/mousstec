@@ -1,4 +1,5 @@
 """🏢 المطابع — الفروع والعملاء (PrintBranch, PrintCustomer)."""
+import uuid
 from decimal import Decimal
 from django.db import models
 from django.utils import timezone
@@ -46,6 +47,19 @@ class PrintCustomer(models.Model):
     opening_date = models.DateField(default=timezone.localdate, verbose_name=_("تاريخ الرصيد الافتتاحي"))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
+    # 🧾 بيانات الفاتورة الإلكترونية (ETA) — للشركات: الرقم الضريبي والعنوان، وللأفراد الرقم القومي
+    tax_id = models.CharField(max_length=30, blank=True, default='', verbose_name=_("الرقم الضريبي"),
+                              help_text=_("للعميل الشركة — بيتكتب في الفاتورة الإلكترونية."))
+    national_id = models.CharField(max_length=14, blank=True, default='', verbose_name=_("الرقم القومي"),
+                                   help_text=_("للفرد — إلزامي في الفاتورة الإلكترونية لو ٥٠ ألف أو أكتر."))
+    eta_governate = models.CharField(max_length=100, blank=True, default='', verbose_name=_("المحافظة"))
+    eta_region_city = models.CharField(max_length=100, blank=True, default='', verbose_name=_("المدينة / الحي"))
+    eta_street = models.CharField(max_length=200, blank=True, default='', verbose_name=_("الشارع"))
+    eta_building_number = models.CharField(max_length=50, blank=True, default='', verbose_name=_("رقم المبنى"))
+    # 🔗 بوابة العميل: رابط خاص بيتعمل أول مرة الموظف يطلبه (ويتغيّر لو اتسرّب)
+    portal_token = models.UUIDField(null=True, blank=True, unique=True, editable=False,
+                                    verbose_name=_("رمز بوابة العميل"))
+
     class Meta:
         verbose_name = _("عميل")
         verbose_name_plural = _("العملاء")
@@ -53,6 +67,13 @@ class PrintCustomer(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.company})" if self.company else self.name
+
+    def get_portal_token(self, regenerate=False):
+        """رمز البوابة — بيتولّد أول مرة (أو من جديد عشان الرابط القديم يقف)."""
+        if regenerate or not self.portal_token:
+            self.portal_token = uuid.uuid4()
+            type(self).objects.filter(pk=self.pk).update(portal_token=self.portal_token)
+        return self.portal_token
 
     def payments_qs(self):
         """كل فلوس العميل: دفعات على طلباته + دفعات على حسابه (من غير طلب)."""

@@ -825,6 +825,7 @@ JAZZMIN_SETTINGS = {
         "printing.PrintVatReturn": "fas fa-file-signature",
         "printing.PrintCheque": "fas fa-money-check",
         "printing.PrintSupplierAllocation": "fas fa-hand-holding-dollar",
+        "printing.PrintPriceRule": "fas fa-tags",
         # 🔧 Smart Diagnostics Icons
         "smart_diagnostics.DiagnosticDevice": "fas fa-microchip",
         "smart_diagnostics.DiagnosticScan": "fas fa-stethoscope",
@@ -877,12 +878,10 @@ JAZZMIN_SETTINGS = {
                 "icon": "fas fa-file-signature",
                 "permissions": ["printing.change_printtransaction"],
             },
-            {
-                "name": _("🔒 إقفال الفترات المحاسبية"),
-                "url": "/printing/accounting/?tab=periods",
-                "icon": "fas fa-lock",
-                "permissions": ["printing.change_printtransaction"],
-            },
+            {"name": _("🔒 إقفال الفترات المحاسبية"), "url": "/printing/accounting/?tab=periods", "icon": "fas fa-lock",
+             "permissions": ["printing.change_printtransaction"]},
+            {"name": _("🧾 الفاتورة الإلكترونية (ETA)"), "url": "/printing/accounting/eta/", "icon": "fas fa-receipt",
+             "permissions": ["printing.change_printtransaction"]},
         ],
         # 👤 اختصار لصفحة إضافة الموظف السهلة (إيميل + دور + دعوة) بدل شاشة
         #    auth/user/add التقنية الخام — يظهر تحت قسم المصادقة في الأدمن.

@@ -28936,3 +28936,235 @@ msgstr "Cash customer"
 
 msgid "العميل النقدي لازم يدفع الفاتورة كاملة. لو هيدفع الباقي بعدين اكتب اسمه وموبايله."
 msgstr "A cash (walk-in) customer must pay the invoice in full. If they'll pay the rest later, enter their name and mobile."
+
+msgid "أقل كمية"
+msgstr "Min. qty"
+
+msgid "🧾 الفاتورة الإلكترونية (ETA)"
+msgstr "🧾 E-invoicing (ETA)"
+
+msgid "🛒 متجر المطبعة الأونلاين"
+msgstr "🛒 Online print shop"
+
+msgid "احفظ العميل الأول."
+msgstr "Save the customer first."
+
+msgid "اعمل رابط بوابة للعميل"
+msgstr "Create a customer portal link"
+
+msgid "افتح"
+msgstr "Open"
+
+#, python-format
+msgid "أهلاً %(n)s 👋 ده رابط حسابك عندنا — طلباتك وفواتيرك والبروفات:"
+msgstr "Hi %(n)s 👋 here is your account link — your orders, invoices and proofs:"
+
+msgid "الرابط القديم هيقف. متأكد؟"
+msgstr "The old link will stop working. Are you sure?"
+
+msgid "رابط جديد"
+msgstr "New link"
+
+msgid "🔗 بوابة العميل"
+msgstr "🔗 Customer portal"
+
+msgid "المتجر الأونلاين"
+msgstr "Online shop"
+
+msgid "أمثلة من الحاسبة"
+msgstr "Calculator examples"
+
+msgid "مفيش شرايح"
+msgstr "No tiers"
+
+msgid "الشرايح"
+msgstr "Tiers"
+
+msgid "احفظ المنتج بشرايحه الأول."
+msgstr "Save the product with its tiers first."
+
+msgid "أمثلة"
+msgstr "Examples"
+
+msgid "للعميل الشركة — بيتكتب في الفاتورة الإلكترونية."
+msgstr "For business customers — printed on the e-invoice."
+
+msgid "للفرد — إلزامي في الفاتورة الإلكترونية لو ٥٠ ألف أو أكتر."
+msgstr "For individuals — required on e-invoices of 50,000 or more."
+
+msgid "رمز بوابة العميل"
+msgstr "Customer portal token"
+
+msgid "زي ما بيتكتب في الفاتورة — مثال: كارت بزنس 350 جم سوفت تاتش"
+msgstr "As written on the invoice — e.g. Business card 350gsm soft touch"
+
+msgid "قطعة / كارت / متر / نسخة"
+msgstr "piece / card / meter / copy"
+
+msgid "رسوم التجهيز"
+msgstr "Setup fee"
+
+msgid "مبلغ ثابت على الطلب كله (زنكات، إعداد ماكينة، قص) — بيتوزّع على الوحدات."
+msgstr "A fixed amount per order (plates, machine setup, cutting) — spread over the units."
+
+msgid "أقل سعر للطلب"
+msgstr "Minimum order price"
+
+msgid "لو الحساب طلع أقل من كده بيتحسب الحد الأدنى. صفر = مفيش."
+msgstr "If the calculated price is lower, the minimum is charged. Zero = none."
+
+msgid "وصف للعميل"
+msgstr "Description for the customer"
+
+msgid "بيظهر في المتجر الأونلاين (الخامة، المقاس، مدة التنفيذ)."
+msgstr "Shown in the online shop (material, size, turnaround)."
+
+msgid "يظهر في المتجر الأونلاين"
+msgstr "Show in the online shop"
+
+msgid "سعر منتج"
+msgstr "Product price"
+
+msgid "💲 قايمة الأسعار (حاسبة التسعير)"
+msgstr "💲 Price list (pricing calculator)"
+
+#, python-format
+msgid "مفيش سعر لكمية %(q)s من «%(n)s»."
+msgstr "No price for a quantity of %(q)s of “%(n)s”."
+
+#, python-format
+msgid "أقل كمية من «%(n)s» هي %(m)s."
+msgstr "The minimum quantity of “%(n)s” is %(m)s."
+
+msgid "من كمية"
+msgstr "From qty"
+
+msgid "شريحة سعر"
+msgstr "Price tier"
+
+msgid "شرايح الكمية (كل ما الكمية تزيد السعر يقل)"
+msgstr "Quantity tiers (larger quantities, lower unit price)"
+
+msgid "كود الفاتورة الإلكترونية"
+msgstr "E-invoice item code"
+
+msgid "كود EGS/GS1 للبند ده — لو فاضي بيتاخد «كود المصنعية العامة» من الإعدادات."
+msgstr "EGS/GS1 code for this item — if empty, the general service code from the settings is used."
+
+msgid "السيستم بيجهّز كل فاتورة اتسلّمت بصيغة مصلحة الضرائب ويقولك اللي ناقص فيها (الرقم الضريبي للعميل، عنوانه، كود البند…). حمّل ملف الفواتير الجاهزة ووقّعه بالتوكن من أداة التوقيع."
+msgstr "The system prepares every delivered invoice in the Tax Authority format and tells you what is missing (customer tax ID, address, item code…). Download the ready invoices and sign them with your token in the signing tool."
+
+msgid "لسه مش متظبطة"
+msgstr "not set up yet"
+
+msgid "حفظ الإعدادات"
+msgstr "Save settings"
+
+msgid "مفيش فواتير اتسلّمت في الفترة دي."
+msgstr "No delivered invoices in this period."
+
+msgid "ملف الفاتورة الإلكترونية"
+msgstr "E-invoice file"
+
+#, python-format
+msgid "أهلاً %(n)s 👋 — ده حسابك عندنا"
+msgstr "Hi %(n)s 👋 — this is your account with us"
+
+msgid "عليك"
+msgstr "You owe"
+
+msgid "ليك رصيد"
+msgstr "Your credit"
+
+msgid "خالص ✅"
+msgstr "Settled ✅"
+
+msgid "طلبات شغّالة"
+msgstr "Open orders"
+
+msgid "اطلب شغل جديد"
+msgstr "Place a new order"
+
+msgid "بروفات مستنية موافقتك"
+msgstr "Proofs awaiting your approval"
+
+msgid "راجع ووافق"
+msgstr "Review & approve"
+
+msgid "طلباتي وفواتيري"
+msgstr "My orders & invoices"
+
+msgid "لسه مفيش طلبات."
+msgstr "No orders yet."
+
+msgid "الرابط ده خاص بيك — ماتبعتهوش لحد."
+msgstr "This link is private to you — do not share it."
+
+msgid "طلبك وصل! ده عرض السعر — وافق عليه وهنكلّمك نأكّد التفاصيل."
+msgstr "Your order arrived! Here is the quotation — approve it and we will contact you to confirm the details."
+
+msgid "اطلب أونلاين"
+msgstr "Order online"
+
+msgid "اختار المنتج والكمية — السعر بيتحسب على طول"
+msgstr "Choose the product and quantity — the price updates instantly"
+
+msgid "الأسعار تقديرية وبتتأكد بعد مراجعة الملفات. الطلب بيوصلك كعرض سعر توافق عليه."
+msgstr "Prices are estimates and are confirmed after reviewing your files. Your order comes back as a quotation for you to approve."
+
+msgid "بياناتك"
+msgstr "Your details"
+
+msgid "الموبايل (واتساب)"
+msgstr "Mobile (WhatsApp)"
+
+msgid "تفاصيل (المقاس، الألوان، رابط الملفات…)"
+msgstr "Details (size, colors, link to files…)"
+
+msgid "لا تملك صلاحية التقارير."
+msgstr "You do not have permission to view reports."
+
+msgid "تعديل الإعدادات لصاحب المطبعة / مدير الخزينة بس."
+msgstr "Only the shop owner / treasury manager can change the settings."
+
+msgid "اتحفظت إعدادات الفاتورة الإلكترونية."
+msgstr "E-invoicing settings saved."
+
+msgid "🧾 الفاتورة الإلكترونية"
+msgstr "🧾 E-invoicing"
+
+msgid "لا تملك صلاحية مشاهدة الطلبات."
+msgstr "You do not have permission to view orders."
+
+msgid "لا تملك صلاحية تعديل العملاء."
+msgstr "You do not have permission to edit customers."
+
+msgid "اتعمل رابط جديد — الرابط القديم مابقاش شغّال."
+msgstr "A new link was created — the old link no longer works."
+
+msgid "رابط بوابة العميل جاهز — ابعته له على الواتساب."
+msgstr "The customer portal link is ready — send it on WhatsApp."
+
+msgid "المنتج المختار مش متاح."
+msgstr "The selected product is not available."
+
+msgid "الكمية لازم تكون رقم صحيح."
+msgstr "Quantity must be a whole number."
+
+msgid "اختار منتج واحد على الأقل."
+msgstr "Choose at least one product."
+
+msgid "اكتب اسمك."
+msgstr "Enter your name."
+
+msgid "اكتب رقم موبايل صحيح عشان نكلّمك."
+msgstr "Enter a valid mobile number so we can contact you."
+
+msgid "طلب من المتجر الأونلاين"
+msgstr "Online shop order"
+
+msgid "طلب أونلاين"
+msgstr "Online order"
+
+msgid "طلبات كتير من نفس الجهاز — جرّب كمان شوية أو كلّمنا واتساب."
+msgstr "Too many requests from this device — try again later or message us on WhatsApp."
