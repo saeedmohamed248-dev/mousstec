@@ -125,7 +125,8 @@
             <h1>{{ tenant.name }}</h1>
             <div class="meta">
                 {% trans "بدون email" as no_email_txt %}
-                {{ tenant.owner_name|default:"—" }} · {{ tenant.email|default:no_email_txt }} · {{ tenant.phone|default:"—" }}
+                {# 🐛 [FIX]: رقم الموبايل جوه نص عربي كان بيتقلب — اتلف في ltr #}
+                {{ tenant.owner_name|default:"—" }} · {{ tenant.email|default:no_email_txt }} · <span dir="ltr">{{ tenant.phone|default:"—" }}</span>
             </div>
             <div class="chips">
                 <span class="chip">{{ tenant.schema_name }}</span>
@@ -143,6 +144,9 @@
             <button onclick="openRenewModal()" class="btn btn-ghost" style="color:#2F6B3F; border-color:#34d39966;">
                 <i class="fas fa-rotate"></i> {% trans "تجديد الاشتراك" %}
             </button>
+            <a href="{% url 'saas_whatsapp_outreach' %}?q={{ tenant.schema_name|urlencode }}" class="btn btn-ghost" style="color:#15803d; border-color:#15803d55;">
+                <i class="fab fa-whatsapp"></i> {% trans "واتساب ومتابعة" %}
+            </a>
             <a href="/superadmin/audit-log/?tenant={{ tenant.schema_name }}" target="_blank" class="btn btn-ghost">
                 <i class="fas fa-clipboard-list"></i> {% trans "سجل التدقيق" %}
             </a>

@@ -1,0 +1,66 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% trans "ابعت للكل من موبايلي" %} — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:24px 16px; }
+        .wrap { max-width:560px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        .card { background:#fff; border:1px solid #E6E1D8; border-radius:18px; padding:22px; text-align:center; }
+        .progress { height:8px; background:#F3EFE7; border-radius:99px; overflow:hidden; margin:10px 0 18px; }
+        .progress span { display:block; height:100%; background:#15803d; }
+        .count { color:#6B6F76; font-weight:700; font-size:13px; }
+        h1 { color:#1E2A57; font-size:22px; margin:6px 0 2px; }
+        .muted { color:#6B6F76; font-size:13px; }
+        .preview { white-space:pre-wrap; text-align:start; background:#F3EFE7; border-radius:12px; padding:12px; font-size:13px; margin:16px 0; }
+        .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:0; border-radius:12px; padding:14px 18px; font:inherit; font-weight:900; font-size:16px; cursor:pointer; text-decoration:none; width:100%; box-sizing:border-box; }
+        .btn-wa { background:#15803d; color:#fff; } .btn-light { background:#F3EFE7; color:#1E2A57; font-size:14px; padding:10px; }
+        .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="breadcrumb"><a href="/superadmin/">{% trans "لوحة المالك" %}</a> / <a href="{{ back_url }}">{% trans "التواصل على واتساب" %}</a> / {% trans "ابعت للكل من موبايلي" %}</div>
+    <div class="card">
+    {% if current %}
+        <div class="count"><span dir="ltr">{{ n }} / {{ total }}</span></div>
+        <div class="progress"><span style="width:{% widthratio i total 100 %}%"></span></div>
+        <h1>{{ current.name }}</h1>
+        <div class="muted">{{ current.owner_name }} · <span dir="ltr">{{ current.phone }}</span></div>
+        <div class="preview">{{ preview }}</div>
+        <form method="post" action="{% url 'saas_whatsapp_open' current.pk %}" target="_blank" id="open-form">
+            {% csrf_token %}
+            <input type="hidden" name="msg" value="{{ msg }}">
+            <input type="hidden" name="batch" value="{{ batch }}">
+            <button class="btn btn-wa" type="submit"><i class="fab fa-whatsapp"></i> {% trans "افتح واتساب وابعت" %}</button>
+        </form>
+        <div class="row">
+            <a class="btn btn-light" href="{{ next_url }}">{% trans "تخطي ←" %}</a>
+            <a class="btn btn-light" href="{{ back_url }}">{% trans "وقّف وارجع للقايمة" %}</a>
+        </div>
+        <p class="muted">{% trans "بعد ما واتساب يفتح في تاب جديدة دوس إرسال هناك — والصفحة دي بتنقل للشركة اللي بعدها لوحدها." %}</p>
+    {% else %}
+        <h1>✅ {% trans "خلصت كل الشركات" %}</h1>
+        <p class="muted">{% blocktrans count n=total %}اتفتح الواتساب لشركة واحدة.{% plural %}اتفتح الواتساب لـ {{ n }} شركة.{% endblocktrans %} {% trans "ارجع للقايمة وسجّل نتيجة كل متابعة." %}</p>
+        <a class="btn btn-light" href="{{ back_url }}">{% trans "ارجع للقايمة" %}</a>
+    {% endif %}
+    </div>
+</div>
+{% if current %}
+<script>
+// واتساب بيفتح في تاب جديدة، والصفحة دي تنقل للشركة اللي بعدها
+document.getElementById('open-form').addEventListener('submit', function () {
+    setTimeout(function () { window.location.href = "{{ next_url|escapejs }}"; }, 500);
+});
+</script>
+{% endif %}
+</body>
+</html>

@@ -190,6 +190,13 @@ def send_broadcast_campaign(self, campaign_id):
         campaign.save(update_fields=['status', 'error_log'])
 
 
+@shared_task(name='clients.tasks.send_whatsapp_outreach_batch')
+def send_whatsapp_outreach_batch(batch):
+    """📲 رسايل مالك المنصة للشركات من رقم المنصة (/superadmin/whatsapp/) — في الخلفية."""
+    from clients.services.whatsapp_outreach import send_api_batch
+    return send_api_batch(batch)
+
+
 # =====================================================================
 # 💸 2. وكيل إدارة المطالبات والتعليق (Dunning & Grace Period Enforcer)
 # =====================================================================
