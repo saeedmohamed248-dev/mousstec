@@ -86,112 +86,10 @@ def _validate_photo(photo):
     return None
 
 
+
 # ─────────────────────────────────────────────────────────────────────
-# 1. PUBLIC FEED — anyone can browse, only logged-in customers can buy
+# 1. PUBLIC DETAIL — الفيد نفسه في parts_feed_views.py
 # ─────────────────────────────────────────────────────────────────────
-
-def parts_feed(request):
-    """Public feed of active part listings, filterable by car make."""
-    if getattr(connection, 'schema_name', 'public') != 'public':
-        return HttpResponseForbidden('Access from main site only')
-
-    public_q = Q(
-        listings__status='active', listings__moderation_status='approved',
-        listings__is_deleted=False, listings__reserved_for__isnull=True,
-    )
-    # 🐛 [FIX]: عدّاد الماركة (listings_count) كان بيزيد مع كل قطعة جديدة حتى
-    #    لو لسه مستنية موافقة أو اترفضت، وماكانش بيقل أبداً مع البيع —
-    #    دلوقتي بيتحسب لحظياً من القطع المعروضة فعلاً.
-    makes = (
-        PartCarMake.objects.filter(is_active=True)
-        .annotate(live_count=Count('listings', filter=public_q))
-        .order_by('sort_order', 'name')
-    )
-    selected_make_slug = request.GET.get('make', '').strip().lower()
-    q = request.GET.get('q', '').strip()[:100]
-    condition = request.GET.get('condition', '').strip()
-    sort = request.GET.get('sort', 'new')
-
-    listings = PartListing.objects.filter(
-        status='active', moderation_status='approved', is_deleted=False,
-        reserved_for__isnull=True,  # private (wanted-offer) listings never hit the feed
-    ).select_related('car_make').prefetch_related('photos')
-
-    selected_make = None
-    if selected_make_slug:
-        selected_make = makes.filter(slug=selected_make_slug).first()
-        if selected_make:
-            listings = listings.filter(car_make=selected_make)
-    if q:
-        # 🐛 [FIX]: البحث كان على العنوان والوصف بس، رغم إن الخانة بتقول
-        #    "اسم قطعة، موديل، رقم OEM".
-        listings = listings.filter(
-            Q(title__icontains=q) | Q(description__icontains=q)
-            | Q(part_number__icontains=q) | Q(car_model__icontains=q)
-            | Q(engine_code__icontains=q)
-        )
-    if condition and condition in dict(PartListing.CONDITION_CHOICES):
-        listings = listings.filter(condition=condition)
-    if sort == 'price_low':
-        listings = listings.order_by('price_egp', '-created_at')
-    elif sort == 'price_high':
-        listings = listings.order_by('-price_egp', '-created_at')
-    else:
-        listings = listings.order_by('-created_at')
-
-    listings = listings[:60]
-
-    # 🐛 [FIX]: أصناف الشركات (طلبات «نشر في سوق التجار») اللي الإدارة وافقت عليها
-    #    ماكانتش بتظهر هنا خالص — دلوقتي ليها قسم «من مخازن التجار».
-    from clients.services import parts_stock_orders as stock_svc
-    stock_items = stock_svc.filter_stock_items(
-        stock_svc.public_stock_items(), q=q, make=selected_make,
-        condition=condition if condition in dict(PartListing.CONDITION_CHOICES) else '', sort=sort,
-    )[:60]
-
-    customer = _marketplace_auth(request)
-    return render(request, 'clients/marketplace/parts_feed.html', {
-        'stock_items': stock_items,
-        'makes': makes,
-        'selected_make': selected_make,
-        'selected_make_slug': selected_make_slug,
-        'listings': listings,
-        'q': q, 'condition': condition, 'sort': sort,
-        'customer': customer,
-        'condition_choices': PartListing.CONDITION_CHOICES,
-    })
-
-
-def parts_stock_detail(request, item_id):
-    """🏬 صفحة صنف من مخازن التجار + «اطلب القطعة» (فاتورة عرض سعر عند الشركة)."""
-    if getattr(connection, 'schema_name', 'public') != 'public':
-        return HttpResponseForbidden('Access from main site only')
-    from clients.services import parts_stock_orders as stock_svc
-    item = get_object_or_404(stock_svc.public_stock_items(), pk=item_id)
-    customer = _marketplace_auth(request)
-    error = ''
-    placed = None
-    qty = 1
-    note = ''
-    if request.method == 'POST':
-        if customer is None:
-            from clients.views.marketplace_core_views import marketplace_login_page_url
-            return redirect(marketplace_login_page_url(request, request.path))
-        qty = _parse_int(request.POST.get('quantity'), 0)
-        note = (request.POST.get('note') or '')[:stock_svc.MAX_NOTE_LEN]
-        try:
-            placed = stock_svc.place_order(item, customer, qty, note)
-        except stock_svc.StockOrderError as exc:
-            error = str(exc)
-        except Exception:  # noqa: BLE001 — مشكلة في سيستم الشركة ماتطلعش 500 للعميل
-            logger.exception("[PARTS STOCK] order failed for item %s", item.pk)
-            error = 'حصلت مشكلة وإحنا بنبعت طلبك للمحل — جرّب تاني بعد شوية.'
-    return render(request, 'clients/marketplace/parts_stock_detail.html', {
-        'item': item, 'customer': customer, 'error': error, 'placed': placed,
-        'qty': qty or 1, 'note': note,
-        'max_qty': min(item.available_qty, 999),
-    })
-
 
 def parts_detail(request, listing_code):
     """Public detail page of a listing."""
@@ -401,7 +299,9 @@ def parts_create(request):
     """Form to create a new listing as a marketplace customer."""
     customer = _marketplace_auth(request)
     if not customer:
-        return redirect('/marketplace/login/')
+        # 🐛 [FIX]: كان بيودّي لـ /marketplace/login/ من غير ?next — اللي داخل يبيع حاجته
+        #    بعد التسجيل كان بيلاقي نفسه في اللوحة ويتوه. غالباً عميل جديد ⇒ صفحة «حساب جديد».
+        return redirect('/marketplace/automotive/?next=/marketplace/parts/sell/')
     if customer.sector != 'automotive':
         return render(request, 'clients/marketplace/parts_unavailable.html', {
             'reason': 'سوق قطع الغيار خاص بقطاع السيارات فقط.',
@@ -705,7 +605,8 @@ def parts_my_orders(request):
     """List the current customer's purchases."""
     customer = _marketplace_auth(request)
     if not customer:
-        return redirect('/marketplace/login/')
+        # 🐛 [FIX]: من غير ?next العميل (اللي جاي من إشعار) كان بيرجع للوحة مش للطلب.
+        return redirect('/marketplace/login/?next=/marketplace/parts/orders/')
     orders = list(
         PartOrder.objects.filter(buyer_customer=customer)
         .select_related('listing', 'listing__car_make', 'listing__seller_customer')
@@ -723,7 +624,8 @@ def parts_my_sales(request):
     """List the current customer's sales."""
     customer = _marketplace_auth(request)
     if not customer:
-        return redirect('/marketplace/login/')
+        # 🐛 [FIX]: من غير ?next العميل (اللي جاي من إشعار) كان بيرجع للوحة مش للطلب.
+        return redirect('/marketplace/login/?next=/marketplace/parts/sales/')
     # Unpaid / cancelled checkouts are noise for the seller — they only need
     # orders that were actually paid.
     orders = list(

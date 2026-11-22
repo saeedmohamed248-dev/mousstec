@@ -44,7 +44,7 @@ LEGACY_GIANTS = {
     'clients/views/auth_views.py': 1597,
     'clients/views/design_store_views/generate.py': 1398,
     'clients/views/marketplace_core_views.py': 1431,
-    'clients/views/parts_marketplace_views.py': 1629,
+    'clients/views/parts_marketplace_views.py': 1531,
     'clients/views/subscription_views.py': 1228,
     'erp_core/ai/design_engine/__init__.py': 2971,
     'erp_core/ai/design_views.py': 1271,

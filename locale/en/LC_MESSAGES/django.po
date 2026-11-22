@@ -29169,6 +29169,51 @@ msgstr "Online order"
 msgid "طلبات كتير من نفس الجهاز — جرّب كمان شوية أو كلّمنا واتساب."
 msgstr "Too many requests from this device — try again later or message us on WhatsApp."
 
+msgid "سوق الأفراد — بيع واشتري المستعمل"
+msgstr "Individuals market — buy & sell used"
+
+msgid "سوق التجار — قطع غيار من المحلات"
+msgstr "Traders market — parts from shops"
+
+msgid "سوق الأفراد"
+msgstr "Individuals market"
+
+msgid "سوق التجار"
+msgstr "Traders market"
+
+msgid "ناس زيك بتبيع حاجات عربياتها اللي مش محتاجاها — والفلوس آمنة في الـ Escrow لحد ما تستلم وتتأكد."
+msgstr "People like you selling car parts and items they no longer need — your money stays safe in escrow until you receive and check the item."
+
+msgid "قطع من محلات ومراكز مسجّلة على Mouss Tec — جديد ومستعمل بفاتورة وضمان."
+msgstr "Parts from shops and service centers registered on Mouss Tec — new and used, with invoice and warranty."
+
+msgid "مستعمل من أصحاب العربيات"
+msgstr "Used, from car owners"
+
+msgid "محلات ومراكز موثّقة"
+msgstr "Verified shops and centers"
+
+msgid "عندك قطعة أو حاجة لعربيتك مش محتاجها؟"
+msgstr "Got a car part or item you don't need?"
+
+msgid "صوّرها واعرضها في سوق الأفراد ببلاش — المشتري بيدفع للمنصة، وفلوسك بتوصلك بعد ما يستلم."
+msgstr "Snap photos and list it in the individuals market for free — the buyer pays the platform and you get paid once they receive it."
+
+msgid "اعرض حاجتك للبيع"
+msgstr "Sell your item"
+
+msgid "تاجر"
+msgstr "Trader"
+
+msgid "بائع فرد"
+msgstr "Private seller"
+
+msgid "سوق الأفراد (المستعمل)"
+msgstr "Individuals market (used)"
+
+msgid "بيع حاجة مش محتاجها"
+msgstr "Sell something you don't need"
+
 msgid "نسبة الضريبة ٪"
 msgstr "Tax rate %"
 

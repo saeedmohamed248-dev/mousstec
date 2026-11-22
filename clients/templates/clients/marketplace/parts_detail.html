@@ -86,7 +86,7 @@
 <body>
 
 <div class="topbar">
-    <a href="/marketplace/parts/{% if listing.car_make.slug %}?make={{ listing.car_make.slug }}{% endif %}" class="back"><i class="fas fa-arrow-right"></i> رجوع للسوق</a>
+    <a href="/marketplace/parts/{% if listing.seller_is_company %}traders/{% else %}individuals/{% endif %}{% if listing.car_make.slug %}?make={{ listing.car_make.slug }}{% endif %}" class="back"><i class="fas fa-arrow-right"></i> رجوع للسوق</a>
     <a href="/marketplace/" class="back"><i class="fas fa-home"></i></a>
 </div>
 
