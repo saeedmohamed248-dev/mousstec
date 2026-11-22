@@ -56,6 +56,24 @@
         <button type="button" class="qi-add" id="qiAdd">＋ {% trans "بند تاني" %}</button>
     </div>
 
+    {# 🧾 الخامات اللي اتصرفت — من غيرها تكلفة الورق والحبر مابتدخلش الربح والمخزن مابيقلّش #}
+    <details class="qi-card" id="qiMatCard" {% if mat_rows %}open{% endif %}>
+        <summary style="font-weight:800;cursor:pointer;">🧾 {% trans "الخامات المستخدمة (اختياري)" %}
+            <small class="text-muted d-block" style="font-weight:600;margin-top:2px;">{% trans "الورق والحبر اللي اتصرفوا على الشغل — بيتخصموا من المخزن ويدخلوا في تكلفة الفاتورة" %}</small></summary>
+        {% if stock_materials %}
+        <div id="qiMats" style="margin-top:10px;">
+            {% for mid, mqty in mat_rows %}{% include "printing/_qi_material_row.html" %}{% empty %}{% include "printing/_qi_material_row.html" with mid='' mqty='' %}{% endfor %}
+        </div>
+        <button type="button" class="qi-add" id="qiMatAdd">＋ {% trans "خامة تانية" %}</button>
+        {% if show_cost %}
+        <div class="qi-total" style="margin-top:8px;"><span>{% trans "تكلفة الخامات" %}</span><b><span id="qiMatCost">0</span> {{ tenant_currency_symbol|default:'ج.م' }}</b></div>
+        <div class="qi-total"><span>{% trans "ربح تقريبي (قبل المصاريف)" %}</span><b id="qiProfitWrap"><span id="qiProfit">0</span> {{ tenant_currency_symbol|default:'ج.م' }}</b></div>
+        {% endif %}
+        {% else %}
+        <div class="qi-empty" style="margin-top:10px;">{% trans "مفيش خامات في المخزن لسه." %} <a href="{% url 'printing:quick_purchase' %}">{% trans "سجّل فاتورة شراء خامات" %}</a></div>
+        {% endif %}
+    </details>
+
     <div class="qi-card">
         <h6>💰 {% trans "الحساب" %}</h6>
         <div class="qi-total"><span>{% trans "الإجمالي" %}</span><b><span id="qiSubtotal">0</span> {{ tenant_currency_symbol|default:'ج.م' }}</b></div>
@@ -137,7 +155,7 @@
         <div class="qi-sum"></div>
     </div>
 </template>
-
+<template id="qiMatTpl">{% include "printing/_qi_material_row.html" with mid='' mqty='' %}</template>
 <script>
 (function () {
     var form = document.getElementById('quickInvoice'), lines = document.getElementById('qiLines');
@@ -156,6 +174,7 @@
         var disc = Math.min(num(document.getElementById('qiDiscount').value), sub);
         var tax = Math.round((sub - disc) * Math.min(100, num(document.getElementById('qiTax').value))) / 100;
         var net = sub - disc + tax;
+        recalcMats(sub - disc);
         document.getElementById('qiTaxAmt').textContent = fmt(tax);
         document.getElementById('qiSubtotal').textContent = fmt(sub);
         document.getElementById('qiNet').textContent = fmt(net);
@@ -165,6 +184,43 @@
             document.getElementById('qiRemaining').textContent = fmt(rem);
             document.getElementById('qiRemainingWrap').style.color = rem > 0 ? '#B42318' : '#047857';
         }
+    }
+    // 🧾 الخامات: المتاح تحت كل سطر، أحمر لو الكمية أكتر منه، والتكلفة والربح التقريبي
+    var mats = document.getElementById('qiMats');
+    function recalcMats(revenue) {
+        if (!mats) return;
+        var cost = 0;
+        mats.querySelectorAll('.qi-mat').forEach(function (row) {
+            var opt = row.querySelector('select').selectedOptions[0], q = num(row.querySelector('.qi-mqty').value);
+            var hint = row.querySelector('.qi-mhave');
+            if (!opt || !opt.value) { hint.textContent = ''; return; }
+            var have = parseFloat(opt.dataset.have) || 0;
+            hint.textContent = '{% filter escapejs %}{% trans "المتاح" %}{% endfilter %}: ' + fmt(have) + ' ' + opt.dataset.unit;
+            hint.style.color = q > have ? '#B42318' : '';
+            cost += q * (parseFloat(opt.dataset.cost) || 0);
+        });
+        var c = document.getElementById('qiMatCost');
+        if (c) {
+            c.textContent = fmt(Math.round(cost * 100) / 100);
+            var profit = Math.round((revenue - cost) * 100) / 100;
+            document.getElementById('qiProfit').textContent = profit < 0 ? '-' + fmt(-profit) : fmt(profit);
+            document.getElementById('qiProfitWrap').style.color = profit < 0 ? '#B42318' : '#047857';
+        }
+    }
+    function bindMat(row) {
+        row.querySelector('.qi-del').addEventListener('click', function () {
+            if (mats.querySelectorAll('.qi-mat').length > 1) row.remove();
+            else { row.querySelector('select').value = ''; row.querySelector('.qi-mqty').value = ''; }
+            recalc();
+        });
+        row.querySelector('select').addEventListener('change', recalc);
+    }
+    if (mats) {
+        mats.querySelectorAll('.qi-mat').forEach(bindMat);
+        document.getElementById('qiMatAdd').addEventListener('click', function () {
+            var row = document.getElementById('qiMatTpl').content.firstElementChild.cloneNode(true);
+            mats.appendChild(row); bindMat(row); row.querySelector('select').focus();
+        });
     }
     function bindDel(row) {
         row.querySelector('.qi-del').addEventListener('click', function () {

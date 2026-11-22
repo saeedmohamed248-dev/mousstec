@@ -29487,6 +29487,46 @@ msgstr "Unpublish"
 msgid "مفيش أصناف من مخازن التجار ظاهرة في السوق بالفلتر ده."
 msgstr "No merchant stock items are visible in the market for this filter."
 
+msgid "الخامات المستخدمة (اختياري)"
+msgstr "Materials used (optional)"
+
+msgid "الورق والحبر اللي اتصرفوا على الشغل — بيتخصموا من المخزن ويدخلوا في تكلفة الفاتورة"
+msgstr "Paper and ink used on this job — deducted from stock and added to the invoice cost"
+
+msgid "ربح تقريبي (قبل المصاريف)"
+msgstr "Estimated profit (before expenses)"
+
+msgid "مفيش خامات في المخزن لسه."
+msgstr "No materials in stock yet."
+
+msgid "سجّل فاتورة شراء خامات"
+msgstr "Record a materials purchase"
+
+msgid "اختار خامة"
+msgstr "Choose a material"
+
+msgid "شيل الخامة"
+msgstr "Remove material"
+
+#, python-format
+msgid "الخامة %(n)s: اختار الخامة."
+msgstr "Material %(n)s: choose the material."
+
+#, python-format
+msgid "كمية الخامة %(n)s"
+msgstr "Quantity of material %(n)s"
+
+#, python-format
+msgid "الخامة %(n)s: اكتب الكمية اللي اتصرفت."
+msgstr "Material %(n)s: enter the quantity used."
+
+#, python-format
+msgid "أقصى عدد خامات %(n)s."
+msgstr "At most %(n)s materials."
+
+msgid "الخامة المختارة مش موجودة."
+msgstr "The selected material doesn't exist."
+
 msgid "متأخرة عن ميعاد التسليم"
 msgstr "Past the delivery date"
 

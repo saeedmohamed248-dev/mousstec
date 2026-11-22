@@ -899,6 +899,7 @@ def quick_invoice(request):
                 invoice_date=P.get('invoice_date', ''),
                 tax_rate=P.get('tax_rate') or '0', due_date=P.get('due_date', ''),
                 files=request.FILES.getlist('files'),
+                materials=list(zip(P.getlist('mat_id'), P.getlist('mat_qty'))),
             )
         except ValidationError as exc:
             errors = exc.messages
@@ -916,7 +917,10 @@ def quick_invoice(request):
             form.update({'customer_id': str(pre.pk), 'customer_name': pre.name, 'customer_phone': pre.phone,
                          'delivered': '1'})
     customers = list(PrintCustomer.objects.order_by('-pk').values('pk', 'name', 'phone')[:500])
-    from printing.models import PrintPriceRule
+    from printing.models import PrintMaterial, PrintPriceRule
+    # 🧾 الخامات اللي في المخزن (للصرف على الفاتورة) — التكلفة بتظهر بس للي يشوف الأرباح
+    stock = list(PrintMaterial.objects.filter(quantity__gt=0).order_by('category', 'name')
+                 .values('pk', 'name', 'unit', 'quantity', 'cost_per_unit')[:300])
     price_rules = list(PrintPriceRule.objects.filter(is_active=True).prefetch_related('tiers')[:300])
     ctx = _admin.site.each_context(request)
     ctx.update({
@@ -926,6 +930,10 @@ def quick_invoice(request):
         'price_rules_json': json.dumps([r.as_dict() for r in price_rules if r.tiers.all()], ensure_ascii=False),
         'lines': list(zip(form.getlist('line_desc'), form.getlist('line_qty'), form.getlist('line_price')))
                  if errors else [('', '1', '')],
+        'stock_materials': stock,
+        'show_cost': _can_see_money(request.user, 'can_view_profits'),
+        'mat_rows': [r for r in zip(form.getlist('mat_id'), form.getlist('mat_qty')) if any(r)]
+                    if errors else [],
     })
     return render(request, 'printing/quick_invoice.html', ctx)
 
