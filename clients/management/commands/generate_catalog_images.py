@@ -57,9 +57,10 @@ def image_slots():
     from clients.catalog_image_scenes import PART_SCENES, PRINT_SCENES
     from clients.catalog_seed import PARTS_ITEMS_EN, PRINT_ITEMS_EN
     from clients.catalog_seed_more import PRINT_ITEMS_MORE
+    from clients.catalog_seed_seasonal import PRINT_ITEMS_SEASONAL
     slots, seen = [], set()
     # 🆕 منتجات الدفعة التانية بتكمّل الترقيم بعد القديمة (p080…) ⇒ أكواد الصور القديمة ماتتغيّرش
-    print_rows = list(zip(PRINT_ITEMS_EN, PRINT_SCENES)) + [(it[4:7], it[7]) for it in PRINT_ITEMS_MORE]
+    print_rows = list(zip(PRINT_ITEMS_EN, PRINT_SCENES)) + [(it[4:7], it[7]) for it in PRINT_ITEMS_MORE + PRINT_ITEMS_SEASONAL]
     for i, ((title, _desc, _qty), desc) in enumerate(print_rows, 1):
         key = f'printing:{title.strip().lower()}'
         if key not in seen:

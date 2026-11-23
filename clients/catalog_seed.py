@@ -6,6 +6,8 @@
 import random
 
 from clients.catalog_seed_more import PRINT_CATEGORIES_MORE, PRINT_ITEMS_MORE, PRINT_STORES_MORE
+from clients.catalog_seed_seasonal import (PRINT_CATEGORIES_SEASONAL, PRINT_ITEMS_SEASONAL, PRINT_STORES_SEASONAL,
+                                          seasonal_plan)
 
 # ─────────────────────────────── 🖨️ المطابع والتصميم ───────────────────────────────
 # القسم ⇒ (اسم القسم للعرض، الأيقونة)
@@ -27,6 +29,7 @@ PRINT_CATEGORIES = {
 }
 # 🆕 أقسام الدفعة التانية (clients/catalog_seed_more.py)
 PRINT_CATEGORIES.update({k: (ar, icon) for k, (ar, icon, _en) in PRINT_CATEGORIES_MORE.items()})
+PRINT_CATEGORIES.update({k: (ar, icon) for k, (ar, icon, _en) in PRINT_CATEGORIES_SEASONAL.items()})
 
 # (القسم، الاسم، الوصف، أقل كمية)
 PRINT_ITEMS = [
@@ -330,6 +333,7 @@ def seed_catalog(Store, Item):
             )
 
     new_items += _seed_more_printing(Store, Item)
+    new_items += _seed_seasonal_printing(Store, Item)
     return Store.objects.count(), new_items
 
 
@@ -378,6 +382,40 @@ def _seed_more_printing(Store, Item):
     return new_items
 
 
+def _seed_seasonal_printing(Store, Item):
+    """🌙💼 الدفعة التالتة: منتجات رمضان وهدايا الشركات — متجرين جديد + كام منتج لكل متجر قديم قسمه يناسب."""
+    new_items = 0
+    seasonal = [it[:7] for it in PRINT_ITEMS_SEASONAL]
+
+    def add(store, entries, start):
+        n = 0
+        for i, (cat, title, d, q, t_en, d_en, q_en) in enumerate(entries, start):
+            n += _upsert_item(Item, store, title,
+                              dict(description=d, category=cat, icon=PRINT_CATEGORIES[cat][1], min_qty=q, sort=i),
+                              dict(title_en=t_en, description_en=d_en, min_qty_en=q_en))
+        return n
+
+    old = [(s[1], s[3]) for s in PRINT_STORES] + [(s[1], s[3]) for s in PRINT_STORES_MORE]
+    for slug, entries in seasonal_plan(old):
+        store = Store.objects.filter(slug=slug).first()
+        if store:
+            # 🛡️ المتجر مايعدّيش ٣٠ منتج (المنتجات اللي اتزرعت قبل كده بتتحسب، فالزرع تاني مابيزوّدش)
+            have = {t for t in Item.objects.filter(store=store).values_list('title', flat=True)}
+            room = max(0, 30 - len(have)) + sum(1 for it in entries if it[1] in have)
+            new_items += add(store, [it[:7] for it in entries][:room], 200)
+
+    start = len(PRINT_STORES) + len(PRINT_STORES_MORE)
+    for sort, (name, slug, tagline, cats, icon, color, city, name_en, tag_en, city_en) in enumerate(PRINT_STORES_SEASONAL, start):
+        desc = (f'{tagline}. بنستلم طلبك ونرد عليك بالسعر والمعاد في أسرع وقت. '
+                'كل الطلبات بتتنفّذ وتتتابع عن طريق Mouss Tec.')
+        desc_en = (f'{tag_en}. We receive your request and get back to you with the price and timing as soon '
+                   'as possible. Every order is fulfilled and followed up by Mouss Tec.')
+        store = _upsert_store(Store, 'printing', sort, name, slug, tagline, icon, color, city, desc,
+                              (name_en, tag_en, city_en, desc_en))
+        new_items += add(store, [it for it in seasonal if it[0] == cats[0]], 0)
+    return new_items
+
+
 # ═══════════════════════════════ 🌐 النسخة الإنجليزي ═══════════════════════════════
 # بنفس ترتيب القوايم العربي فوق (فيه assert تحت يتأكد إن العدد مطابق).
 
@@ -389,6 +427,7 @@ PRINT_CATEGORIES_EN = {
     'office': 'Business & clinic stationery',
 }
 PRINT_CATEGORIES_EN.update({k: en for k, (_ar, _icon, en) in PRINT_CATEGORIES_MORE.items()})
+PRINT_CATEGORIES_EN.update({k: en for k, (_ar, _icon, en) in PRINT_CATEGORIES_SEASONAL.items()})
 
 # (الاسم، الوصف، أقل كمية) — بنفس ترتيب PRINT_ITEMS
 PRINT_ITEMS_EN = [

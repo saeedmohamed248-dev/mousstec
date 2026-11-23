@@ -3,7 +3,8 @@
     python scripts/split_catalog_grids.py ~/Downloads/part1 --start G001
     python scripts/split_catalog_grids.py ~/Downloads/part1 --start G001 --dry-run
 
-* الخريطة (أنهي كود في أنهي ربع) من docs/catalog_image_prompts_per_store_missing.txt.
+* الخريطة (أنهي كود في أنهي ربع) من docs/catalog_image_prompts_per_store_missing.txt
+  (أو --prompts docs/catalog_image_prompts_seasonal.txt لصور رمضان والشركات).
 * لو اسم الملف فيه G012 ⇒ بياخده. غير كده الصور بتترتّب بالاسم وبتبدأ من --start.
 * الناتج WEBP في clients/catalog_photos (الموجود مابيتكتبش عليه إلا بـ --overwrite)،
   وبعدها: python manage.py import_catalog_images --bundled
@@ -32,7 +33,7 @@ def load_map(path=PROMPTS):
         if m:
             cur = grids.setdefault(int(m.group(1)), {})
             continue
-        m = re.match(r'\s+(top-left|top-right|bottom-left|bottom-right) \[(p\d{3}(?:-\d+)?)\]', line)
+        m = re.match(r'\s+(top-left|top-right|bottom-left|bottom-right) \[(p\d{3}(?:-\d+)?(?:-brand)?)\]', line)
         if m and cur is not None:
             cur[m.group(1)] = m.group(2)
     return grids
@@ -64,11 +65,12 @@ def main(argv=None):
     ap.add_argument('folder')
     ap.add_argument('--start', default='G001', help='رقم أول جريد في الفولدر (مثلاً G017)')
     ap.add_argument('--out', default=OUT)
+    ap.add_argument('--prompts', default=PROMPTS, help='ملف البرومبتات اللي فيه خريطة الجريدات')
     ap.add_argument('--overwrite', action='store_true')
     ap.add_argument('--dry-run', action='store_true')
     a = ap.parse_args(argv)
 
-    grids = load_map()
+    grids = load_map(a.prompts)
     files = sorted(f for f in os.listdir(a.folder) if f.lower().endswith(EXT))
     if not files:
         sys.exit('مفيش صور في الفولدر')
