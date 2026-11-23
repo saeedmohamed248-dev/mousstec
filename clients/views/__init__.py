@@ -55,6 +55,10 @@ from .customer_advisor_views import (  # noqa: F401
 # ───────────────────────────────────────────────────────────────────────────
 # 🛍️ Marketplace core — customer flows + service requests + merchant feed
 # ───────────────────────────────────────────────────────────────────────────
+from .marketplace_admin_views import (  # noqa: F401
+    marketplace_admin_approve,
+    marketplace_admin_reject,
+)
 from .marketplace_core_views import (  # noqa: F401
     marketplace_home,
     marketplace_automotive,
@@ -73,8 +77,6 @@ from .marketplace_core_views import (  # noqa: F401
     marketplace_merchant_feed_count,
     marketplace_merchant_create_request,
     marketplace_merchant_accept_offer,
-    marketplace_admin_approve,
-    marketplace_admin_reject,
     marketplace_edit_request,
     marketplace_cancel_request,
 )
