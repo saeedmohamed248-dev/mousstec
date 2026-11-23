@@ -6,8 +6,8 @@ from django.utils import timezone
 from django.utils.html import format_html
 
 from .notify import notify
-from .models import (MarketAccount, MarketMessage, MarketOffer, MarketOrder, MarketPayment, MarketProduct,
-                     MarketProof, MarketReview)
+from .models import (MarketAccount, MarketMessage, MarketOffer, MarketOrder, MarketOrderFile, MarketPayment,
+                     MarketProduct, MarketProof, MarketReview)
 
 
 @admin.register(MarketAccount)
@@ -55,11 +55,19 @@ class _MessageInline(admin.TabularInline):
     can_delete = False
 
 
+class _FileInline(admin.TabularInline):
+    model = MarketOrderFile
+    extra = 0
+    fields = ('kind', 'file', 'original_name', 'created_at')
+    readonly_fields = fields
+    can_delete = False
+
+
 @admin.register(MarketOrder)
 class MarketOrderAdmin(admin.ModelAdmin):
     list_display = ('title', 'customer', 'shop', 'status', 'payout_info', 'updated_at')
     fieldsets = ((None, {'fields': ('code', 'customer', 'shop', 'product', 'title', 'details', 'quantity',
-                                    'attachment', 'status', 'payout_done_at', 'refund_done_at', 'created_at')}),
+                                    'company_name', 'print_text', 'attachment', 'status', 'payout_done_at', 'refund_done_at', 'created_at')}),
                  ('التسليم والمشاكل', {'fields': ('delivered_at', 'late_notified_at', 'auto_completed', 'disputed_at',
                                                   'dispute_reason')}))
     list_filter = ('status',)
@@ -67,7 +75,7 @@ class MarketOrderAdmin(admin.ModelAdmin):
     readonly_fields = ('code', 'customer', 'shop', 'product', 'status', 'payout_done_at', 'refund_done_at',
                        'created_at',
                        'delivered_at', 'late_notified_at', 'auto_completed', 'disputed_at', 'dispute_reason')
-    inlines = (_OfferInline, _ProofInline, _MessageInline)
+    inlines = (_FileInline, _OfferInline, _ProofInline, _MessageInline)
     actions = ('mark_payout_done', 'mark_refund_done', 'dispute_for_shop', 'dispute_for_customer')
 
     def has_add_permission(self, request):

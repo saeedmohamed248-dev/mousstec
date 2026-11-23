@@ -20,8 +20,8 @@ from django.views.decorators.http import require_POST
 
 from . import auth
 from .contact_guard import clean_text, find_contact
-from .models import (ATTACH_EXT, IMAGE_EXT, PROOF_EXT, MarketAccount, MarketMessage, MarketNotification,
-                     MarketOffer, MarketOrder, MarketPayment, MarketProduct, MarketProof, MarketReview,
+from .models import (ATTACH_EXT, IMAGE_EXT, LOGO_EXT, ORDER_IMAGE_EXT, PROOF_EXT, MarketAccount, MarketMessage, MarketNotification,
+                     MarketOffer, MarketOrder, MarketOrderFile, MarketPayment, MarketProduct, MarketProof, MarketReview,
                      check_upload, transfer_fee)
 from .notify import notify
 from .services import run_auto_complete
@@ -39,6 +39,7 @@ GOVERNORATES = (
 )
 PROOF_MAX_MB = 50
 ATTACH_MAX_MB = 20
+ORDER_FILES_TOTAL_MB = 60   # مجموع كل ملفات الطلب الواحد
 IMAGE_MAX_MB = 5
 
 
@@ -441,15 +442,19 @@ def order_new(request, shop_id):
     pid = request.POST.get('product') or request.GET.get('product')
     if pid and str(pid).isdigit():
         product = shop.products.filter(pk=int(pid), is_active=True).first()
-    data = {'title': product.title if product else '', 'details': '', 'quantity': '1'}
+    data = {'title': product.title if product else '', 'details': '', 'quantity': '1',
+            'company_name': '', 'print_text': ''}
     if request.method == 'POST':
         cust = acc
-        data.update({k: request.POST.get(k, '') for k in ('title', 'details', 'quantity')})
+        data.update({k: request.POST.get(k, '') for k in ('title', 'details', 'quantity', 'company_name',
+                                                           'print_text')})
         guest = {k: (request.POST.get(k) or '').strip() for k in ('name', 'email')}
         data.update(guest)
         try:
             title = _guarded(request, cust, data['title'], 150)
             details = _guarded(request, cust, data['details'], 3000)
+            company = _guarded(request, cust, data['company_name'], 150)
+            print_text = _guarded(request, cust, data['print_text'], 1500)
             if not title or not details:
                 raise ValidationError(_('اكتب عنوان الطلب وتفاصيله.'))
             try:
@@ -460,12 +465,27 @@ def order_new(request, shop_id):
                 raise ValidationError(_('اكتب كمية صحيحة.'))
             att = request.FILES.get('attachment')
             check_upload(att, ATTACH_EXT, ATTACH_MAX_MB)
+            logo = request.FILES.get('logo')
+            check_upload(logo, LOGO_EXT, ATTACH_MAX_MB)
+            images = [f for f in request.FILES.getlist('images') if f]
+            if len(images) > MarketOrderFile.MAX_IMAGES:
+                raise ValidationError(_('أقصى عدد %(n)s صور.') % {'n': MarketOrderFile.MAX_IMAGES})
+            for f in images:
+                check_upload(f, ORDER_IMAGE_EXT, ATTACH_MAX_MB)
+            total = sum(getattr(f, 'size', 0) or 0 for f in [att, logo, *images] if f)
+            if total > ORDER_FILES_TOTAL_MB * 1024 * 1024:
+                raise ValidationError(_('مجموع الملفات أكبر من %(mb)s ميجا.') % {'mb': ORDER_FILES_TOTAL_MB})
             if cust is None:
                 cust, errors = _new_account(request, 'customer', guest, request.POST.get('password') or '')
                 if cust is None:
                     raise ValidationError(errors)
-            order = MarketOrder.objects.create(customer=cust, shop=shop, product=product, title=title,
-                                               details=details, quantity=qty, attachment=att or '')
+            with transaction.atomic():
+                order = MarketOrder.objects.create(customer=cust, shop=shop, product=product, title=title,
+                                                   details=details, quantity=qty, attachment=att or '',
+                                                   company_name=company, print_text=print_text)
+                for kind, f in ([('logo', logo)] if logo else []) + [('image', f) for f in images]:
+                    MarketOrderFile.objects.create(order=order, kind=kind, file=f,
+                                                   original_name=os.path.basename(f.name)[:200])
             notify(request, shop, _('طلب جديد'), _('وصلك طلب جديد: %(t)s — قدّم عرضك.') % {'t': title}, order)
             messages.success(request, _('طلبك اتبعت للمطبعة — هيوصلك العرض هنا.'))
             return auth.login(_back(request, order), cust) if acc is None else _back(request, order)
@@ -670,6 +690,7 @@ def notifications(request):
 
 _FILE_KINDS = {
     'attachment': (MarketOrder, 'attachment', lambda o: o),
+    'orderfile': (MarketOrderFile, 'file', lambda o: o.order),
     'proof': (MarketProof, 'file', lambda o: o.order),
     'receipt': (MarketPayment, 'receipt', lambda o: o.order),
 }
