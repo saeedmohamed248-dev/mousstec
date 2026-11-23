@@ -29,6 +29,9 @@ IMAGE_EXT = ('png', 'jpg', 'jpeg', 'webp', 'gif')
 VIDEO_EXT = ('mp4', 'webm', 'mov', 'm4v')
 PROOF_EXT = IMAGE_EXT + VIDEO_EXT + ('pdf',)
 ATTACH_EXT = IMAGE_EXT + ('pdf', 'ai', 'psd', 'eps', 'svg', 'zip', 'cdr')
+# 🐛 [FIX]: صور الموبايل (آيفون) بتترفع HEIC — كانت بتترفض فالعميل مايعرفش يرفع صوره
+ORDER_IMAGE_EXT = IMAGE_EXT + ('heic', 'heif', 'pdf')
+LOGO_EXT = IMAGE_EXT + ('heic', 'heif', 'svg', 'pdf', 'ai', 'eps', 'psd', 'cdr')
 
 
 def _ext(name):
@@ -51,6 +54,7 @@ class _rand_path:
 product_image_path = _rand_path('print_market_pub/products')
 logo_path = _rand_path('print_market_pub/logos')
 attachment_path = _rand_path('print_market/attachments')
+order_file_path = _rand_path('print_market/order_files')
 proof_path = _rand_path('print_market/proofs')
 receipt_path = _rand_path('print_market/receipts')
 
@@ -190,6 +194,8 @@ class MarketOrder(models.Model):
     details = models.TextField(max_length=3000, verbose_name=_('التفاصيل'))
     quantity = models.PositiveIntegerField(default=1, verbose_name=_('الكمية'))
     attachment = models.FileField(upload_to=attachment_path, blank=True, verbose_name=_('ملف مرفق'))
+    company_name = models.CharField(max_length=150, blank=True, verbose_name=_('اسم الشركة / البراند'))
+    print_text = models.TextField(max_length=1500, blank=True, verbose_name=_('النصوص المطلوبة على التصميم'))
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='requested',
                               db_index=True, verbose_name=_('الحالة'))
     payout_done_at = models.DateTimeField(null=True, blank=True, verbose_name=_('اتحوّل للمطبعة في'))
@@ -213,6 +219,13 @@ class MarketOrder(models.Model):
 
     def __str__(self):
         return f'{self.title} — {self.customer.name} ← {self.shop.name}'
+
+    PAID_STATUSES = ('paid', 'delivered', 'completed', 'disputed')
+
+    @property
+    def print_text_visible_to_shop(self):
+        """النصوص ممكن تبقى فيها أرقام العميل ⇒ تظهر للمطبعة بعد الدفع بس (مايتواصلوش برّه المنصة)."""
+        return self.status in self.PAID_STATUSES
 
     @property
     def accepted_offer(self):
@@ -527,6 +540,30 @@ class MarketPayment(models.Model):
                 order.save(update_fields=['status', 'updated_at'])
         self.refresh_from_db()
         return self
+
+
+class MarketOrderFile(models.Model):
+    """ملفات العميل على الطلب — اللوجو وصور التصميم (أكتر من ملف)."""
+    KIND_CHOICES = (('logo', _('اللوجو')), ('image', _('صورة')))
+    MAX_IMAGES = 6
+    order = models.ForeignKey(MarketOrder, on_delete=models.CASCADE, related_name='files',
+                              verbose_name=_('الطلب'))
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default='image', verbose_name=_('النوع'))
+    file = models.FileField(upload_to=order_file_path, verbose_name=_('الملف'))
+    original_name = models.CharField(max_length=200, blank=True, verbose_name=_('اسم الملف'))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-kind', 'pk')   # اللوجو الأول ('logo' > 'image')
+        verbose_name = _('ملف طلب')
+        verbose_name_plural = _('ملفات الطلب')
+
+    def __str__(self):
+        return self.original_name or basename(self.file)
+
+    @property
+    def is_image(self):
+        return _ext(self.file.name) in IMAGE_EXT
 
 
 class MarketProof(models.Model):

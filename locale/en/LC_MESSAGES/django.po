@@ -29548,3 +29548,62 @@ msgstr "Available now in traders' stock"
 #, python-format
 msgid "شوف كل قطع التجار (%(n)s)"
 msgstr "See all traders' parts (%(n)s)"
+
+msgid "بيانات التصميم"
+msgstr "Design details"
+
+msgid "اسم الشركة / البراند (اختياري)"
+msgstr "Company / brand name (optional)"
+
+msgid "النصوص اللي هتتطبع (الشعار، العنوان، الوظيفة…)"
+msgstr "Text to print (slogan, address, job title…)"
+
+msgid "اللوجو (اختياري)"
+msgstr "Logo (optional)"
+
+msgid "صور التصميم أو أمثلة (لحد ٦ صور)"
+msgstr "Design images or examples (up to 6)"
+
+msgid "اختار كذا صورة مرة واحدة — كل ملف لحد ٢٠ ميجا."
+msgstr "Select several images at once — up to 20 MB each."
+
+msgid "ملف التصميم الجاهز (اختياري)"
+msgstr "Ready design file (optional)"
+
+msgid "أقصى عدد ٦ صور."
+msgstr "Maximum 6 images."
+
+msgid "الملف أكبر من ٢٠ ميجا."
+msgstr "File is larger than 20 MB."
+
+msgid "الشركة / البراند:"
+msgstr "Company / brand:"
+
+msgid "النصوص اللي هتتطبع:"
+msgstr "Text to print:"
+
+msgid "اسم الشركة / البراند"
+msgstr "Company / brand name"
+
+msgid "النصوص المطلوبة على التصميم"
+msgstr "Text required on the design"
+
+msgid "ملف طلب"
+msgstr "Order file"
+
+msgid "ملفات الطلب"
+msgstr "Order files"
+
+#, python-format
+msgid "أقصى عدد %(n)s صور."
+msgstr "Maximum %(n)s images."
+
+#, python-format
+msgid "مجموع الملفات أكبر من %(mb)s ميجا."
+msgstr "Total files exceed %(mb)s MB."
+
+msgid "النصوص هتظهرلك بعد ما العميل يدفع."
+msgstr "The text will be visible to you after the customer pays."
+
+msgid "تقدر تكتب هنا الموبايل والإيميل اللي هيتطبعوا — المطبعة بتشوفهم بعد الدفع بس."
+msgstr "You can write the phone and email to be printed here — the print shop sees them only after payment."

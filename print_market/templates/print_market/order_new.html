@@ -13,8 +13,26 @@
     <input name="quantity" type="number" min="1" value="{{ data.quantity }}" class="form-control mb-2" required dir="ltr">
     <label class="form-label">{% trans "التفاصيل (المقاس، الورق، الألوان، الميعاد…)" %}</label>
     <textarea name="details" class="form-control mb-2" rows="5" required maxlength="3000">{{ data.details }}</textarea>
-    <label class="form-label">{% trans "ملف التصميم أو صورة (اختياري)" %}</label>
-    <input name="attachment" type="file" class="form-control mb-3">
+    <div class="pm-card p-3 mb-3" style="background:#f8f6ff">
+      <div class="fw-bold mb-2">{% trans "بيانات التصميم" %}</div>
+      <label class="form-label">{% trans "اسم الشركة / البراند (اختياري)" %}</label>
+      <input name="company_name" value="{{ data.company_name }}" class="form-control mb-2" maxlength="150">
+      <label class="form-label">{% trans "النصوص اللي هتتطبع (الشعار، العنوان، الوظيفة…)" %}</label>
+      <textarea name="print_text" class="form-control mb-1" rows="3" maxlength="1500">{{ data.print_text }}</textarea>
+      <div class="small pm-muted mb-2">{% trans "تقدر تكتب هنا الموبايل والإيميل اللي هيتطبعوا — المطبعة بتشوفهم بعد الدفع بس." %}</div>
+      <label class="form-label">{% trans "اللوجو (اختياري)" %}</label>
+      <input name="logo" type="file" class="form-control mb-1 pm-file" data-max-mb="20"
+             accept="image/*,.svg,.pdf,.ai,.eps,.psd,.cdr,.heic,.heif">
+      <div class="small pm-muted mb-2">PNG · JPG · SVG · PDF · AI · EPS · PSD · CDR</div>
+      <label class="form-label">{% trans "صور التصميم أو أمثلة (لحد ٦ صور)" %}</label>
+      <input name="images" type="file" multiple class="form-control mb-1 pm-file" data-max-mb="20" data-max-count="6"
+             accept="image/*,.pdf,.heic,.heif">
+      <div class="small pm-muted mb-2">{% trans "اختار كذا صورة مرة واحدة — كل ملف لحد ٢٠ ميجا." %}</div>
+      <label class="form-label">{% trans "ملف التصميم الجاهز (اختياري)" %}</label>
+      <input name="attachment" type="file" class="form-control pm-file" data-max-mb="20"
+             accept="image/*,.pdf,.ai,.psd,.eps,.svg,.zip,.cdr">
+      <div class="small text-danger mt-2" id="pm-file-err" hidden></div>
+    </div>
     {% if not account %}
     <div class="pm-card p-3 mb-3" style="background:#f8f6ff">
       <div class="fw-bold mb-1">{% trans "بياناتك عشان يوصلك العرض" %}</div>
@@ -28,4 +46,18 @@
     <button class="pm-btn w-100">{% trans "ابعت الطلب" %}</button>
   </form>
 </div></div></div>
+<script>
+{# الملفات بتتمسح لو الصفحة رجعت بخطأ — فبنتأكد من العدد والحجم قبل الإرسال #}
+document.querySelectorAll('.pm-file').forEach(function (inp) {
+  inp.addEventListener('change', function () {
+    var err = document.getElementById('pm-file-err'), msg = '';
+    var max = +inp.dataset.maxMb * 1048576, cnt = +(inp.dataset.maxCount || 1);
+    if (inp.files.length > cnt) msg = '{% trans "أقصى عدد ٦ صور." %}';
+    for (var i = 0; i < inp.files.length && !msg; i++)
+      if (inp.files[i].size > max) msg = inp.files[i].name + ': {% trans "الملف أكبر من ٢٠ ميجا." %}';
+    if (msg) { inp.value = ''; }
+    err.textContent = msg; err.hidden = !msg;
+  });
+});
+</script>
 {% endblock %}

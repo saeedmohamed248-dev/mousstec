@@ -27,7 +27,7 @@
 | `messenger_bot` | public (مشتركة للمنصة) | 2 |
 | `mobile_api` | جوه schema كل شركة | 1 |
 | `omnichannel` | public (مشتركة للمنصة) | 3 |
-| `print_market` | public (مشتركة للمنصة) | 9 |
+| `print_market` | public (مشتركة للمنصة) | 10 |
 | `printing` | جوه schema كل شركة | 35 |
 | `repair_atlas` | جوه schema كل شركة | 5 |
 | `robot` | جوه schema كل شركة | 24 |
@@ -288,6 +288,7 @@
 | `MarketNotification` | `print_market_marketnotification` | — |
 | `MarketOffer` | `print_market_marketoffer` | — |
 | `MarketOrder` | `print_market_marketorder` | — |
+| `MarketOrderFile` | `print_market_marketorderfile` | — |
 | `MarketPayment` | `print_market_marketpayment` | auth.User |
 | `MarketProduct` | `print_market_marketproduct` | — |
 | `MarketProof` | `print_market_marketproof` | — |

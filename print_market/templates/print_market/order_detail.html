@@ -22,6 +22,19 @@
   </div>
   {% endif %}
   <p class="mt-3 mb-1" style="white-space:pre-wrap">{{ order.details }}</p>
+  {% if order.company_name %}<div class="mt-2"><span class="pm-muted">{% trans "الشركة / البراند:" %}</span> <b>{{ order.company_name }}</b></div>{% endif %}
+  {% if order.print_text %}<div class="mt-2"><div class="pm-muted small">{% trans "النصوص اللي هتتطبع:" %}</div>{% if is_customer or order.print_text_visible_to_shop %}<div style="white-space:pre-wrap">{{ order.print_text }}</div>{% else %}<div class="small pm-muted"><i class="fas fa-lock me-1"></i>{% trans "النصوص هتظهرلك بعد ما العميل يدفع." %}</div>{% endif %}</div>{% endif %}
+  {% with files=order.files.all %}{% if files %}
+  <div class="d-flex flex-wrap gap-2 mt-2">
+    {% for f in files %}
+    <a href="{% url 'print_market:file' 'orderfile' f.pk %}" target="_blank" class="pm-card p-1 text-center small" style="width:96px" title="{{ f }}">
+      {% if f.is_image %}<img src="{% url 'print_market:file' 'orderfile' f.pk %}" alt="" style="width:100%;height:72px;object-fit:contain">
+      {% else %}<i class="fas fa-file fs-2 my-3"></i>{% endif %}
+      <div class="text-truncate">{% if f.kind == 'logo' %}{% trans "اللوجو" %}{% else %}{{ f }}{% endif %}</div>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}{% endwith %}
   {% if order.attachment %}<a href="{% url 'print_market:file' 'attachment' order.pk %}" target="_blank"><i class="fas fa-paperclip me-1"></i>{% trans "الملف المرفق" %}</a>{% endif %}
 </div>
 
