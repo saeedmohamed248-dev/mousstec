@@ -8,7 +8,6 @@ import logging
 import os
 
 from django.conf import settings
-
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.paginator import Paginator
@@ -17,15 +16,28 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.safestring import mark_safe
+from django.utils.translation import get_language
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _l
 from django.views.decorators.http import require_POST
 
-from django.utils.translation import get_language, gettext as _, gettext_lazy as _l
-
-from clients.catalog_seed import PARTS_CATEGORIES, PARTS_CATEGORIES_EN, PRINT_CATEGORIES, PRINT_CATEGORIES_EN
-from clients.models import CatalogItem, CatalogQuoteRequest, CatalogReview, CatalogStore, ServiceRequest
-from clients.services import catalog_stats
 from clients import catalog_options
+from clients.catalog_seed import (
+    PARTS_CATEGORIES,
+    PARTS_CATEGORIES_EN,
+    PRINT_CATEGORIES,
+    PRINT_CATEGORIES_EN,
+)
+from clients.models import (
+    CatalogItem,
+    CatalogQuoteRequest,
+    CatalogReview,
+    CatalogStore,
+    ServiceRequest,
+)
 from clients.permissions import platform_owner_required
+from clients.services import catalog_stats
+from clients.services.search_text import text_filter
 
 from ._shared import _marketplace_auth
 
@@ -113,6 +125,7 @@ def notify_owner_async(req_id):
         _notify_owner_of_quote(req_id)
         return
     import threading
+
     from django.db import connection
 
     def _run():
@@ -226,8 +239,9 @@ def catalog_home(request, sector):
     if make:
         items = items.filter(Q(car_make=make) | Q(car_make=''))
     if q:
-        items = items.filter(Q(title__icontains=q) | Q(description__icontains=q)
-                             | Q(car_models__icontains=q) | Q(store__name__icontains=q))
+        # 🐛 [FIX]: البحث كان على العنوان العربي بس — «tri-fold» ماكانتش بتلاقي «بروشور تري فولد»
+        items = items.filter(text_filter(q, ('title', 'title_en', 'description', 'description_en', 'car_models',
+                                             'car_models_en', 'part_number', 'store__name')))
     # ترتيب ثابت بيخلط المتاجر (أول منتج من كل متجر، بعدين التاني…) — والصفحات مابتتكررش.
     # «اختيار Mouss Tec» وتقييم Mouss Tec الأعلى الأول (من غير ما يأثر على ثبات الصفحات).
     # 📸 المنتجات اللي ليها صور الأول (طلب صاحب المنصة) — وبعدين نفس الترتيب الثابت القديم.

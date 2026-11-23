@@ -18,11 +18,29 @@ from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
+from clients.services.search_text import text_filter
+
 from . import auth
 from .contact_guard import clean_text, find_contact
-from .models import (ATTACH_EXT, IMAGE_EXT, LOGO_EXT, ORDER_IMAGE_EXT, PROOF_EXT, MarketAccount, MarketMessage, MarketNotification,
-                     MarketOffer, MarketOrder, MarketOrderFile, MarketPayment, MarketProduct, MarketProof, MarketReview,
-                     check_upload, transfer_fee)
+from .models import (
+    ATTACH_EXT,
+    IMAGE_EXT,
+    LOGO_EXT,
+    ORDER_IMAGE_EXT,
+    PROOF_EXT,
+    MarketAccount,
+    MarketMessage,
+    MarketNotification,
+    MarketOffer,
+    MarketOrder,
+    MarketOrderFile,
+    MarketPayment,
+    MarketProduct,
+    MarketProof,
+    MarketReview,
+    check_upload,
+    transfer_fee,
+)
 from .notify import notify
 from .services import run_auto_complete
 
@@ -108,12 +126,14 @@ def home(request):
     cat = request.GET.get('cat') or ''
     city = request.GET.get('city') or ''
     if q:
-        qs = qs.filter(Q(title__icontains=q) | Q(description__icontains=q) | Q(shop__name__icontains=q))
+        # 🐛 [FIX]: بحث متسامح (همزات/ى/ة/شرط وكل كلمة لوحدها) بدل تطابق الجملة حرفياً
+        qs = qs.filter(text_filter(q, ('title', 'description', 'shop__name')))
     if cat in dict(MarketProduct.CATEGORY_CHOICES):
         qs = qs.filter(category=cat)
     if city in GOVERNORATES:
         qs = qs.filter(shop__city=city)
-    page = Paginator(qs, 24).get_page(request.GET.get('page'))
+    # 🐛 [FIX]: الـ annotate (Avg) بيلغي ترتيب الموديل ⇒ الصفحات كانت بتكرّر/تخبّي منتجات
+    page = Paginator(qs.order_by('-created_at', '-pk'), 24).get_page(request.GET.get('page'))
     # المطابع الموجودة — العميل يشوف مين معاه في السوق ويطلب طلب خاص حتى لو مالقاش منتج
     shops = (_rated_shops()
              .annotate(n_products=Count('products', filter=Q(products__is_active=True), distinct=True))

@@ -55,6 +55,15 @@ class CatalogTests(_TenantDomainMixin, TestCase):
         self.assertIn('اطلب سعر', html)
         self.assertEqual(c.get('/marketplace/catalog/nothing/').status_code, 404)
 
+    def test_search_finds_english_and_spelling_variants(self):
+        """🐛 «tri-fold» ماكانتش بتلاقي «بروشور تري فولد» — البحث كان على العنوان العربي بس."""
+        c = HttpClient()
+        for q in ('tri-fold', 'Trifold', 'tri fold', 'تري-فولد', 'بروشور فولد', 'Brochure'):
+            r = c.get('/marketplace/catalog/printing/', {'q': q})
+            self.assertContains(r, 'تري فولد', msg_prefix=q)
+        r = c.get('/marketplace/catalog/printing/', {'q': 'zzzqqq'})
+        self.assertNotContains(r, 'تري فولد')
+
     def test_item_page_structured_data_is_a_script_not_visible_text(self):
         """🐛 الـ JSON-LD كان بيتطبع كلام ظاهر فوق صفحة المنتج (الـ <script> متهرّب)."""
         html = HttpClient().get(f'/marketplace/catalog/item/{self.item.item_code}/').content.decode()
