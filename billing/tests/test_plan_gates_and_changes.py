@@ -334,7 +334,7 @@ class PlanGatesAndChangesTests(ERPTenantTestCase):
         for url in ('/payment/failed/', '/payment/success/'):
             body = HttpClient().get(url, HTTP_HOST=self.domain.domain).content.decode()
             self.assertNotIn('XXXXXXXX', body)
-            self.assertIn('wa.me/201094850763', body)
+            self.assertIn('wa.me/201132852978', body)
         body = HttpClient().get('/pricing/', HTTP_HOST=self.domain.domain).content.decode()
         self.assertIn(f'جرّب مجاناً {TRIAL_DAYS} يوم', body)
 
