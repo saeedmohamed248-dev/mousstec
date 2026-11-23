@@ -29610,3 +29610,6 @@ msgstr "You can write the phone and email to be printed here — the print shop 
 
 msgid "مش قادرين نقرا الصورة — ارفعها JPG أو PNG."
 msgstr "We couldn't read the image — please upload it as JPG or PNG."
+
+msgid "السعر يبدأ من (لكتالوج ميتا)"
+msgstr "Starting price (for Meta catalog)"
