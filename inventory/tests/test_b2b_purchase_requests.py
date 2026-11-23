@@ -44,6 +44,10 @@ class B2BPurchaseRequestTests(ERPTenantTestCase):
         # جداول الـ public مابتتمسحش بين اختبارات الـ TransactionTestCase — نبدأ نضاف
         B2BPurchaseRequest.objects.all().delete()
         GlobalB2BMarketplace.objects.all().delete()
+        # 🐛 [FIX]: صنف الشركة التانية (كمية 40) كان بيفضل في الـ public بعد الاختبار فيظهر في سوق
+        #    قطع الغيار لاختبارات تانية في نفس الـ shard (test_zero_stock_not_shown) — بنمسح ورانا.
+        self.addCleanup(lambda: (B2BPurchaseRequest.objects.all().delete(),
+                                 GlobalB2BMarketplace.objects.all().delete()))
         self.other = _other_company()
         self.listing = GlobalB2BMarketplace.objects.create(
             tenant=self.other, part_number='B2B-PLUG', product_name='بوجيه', wholesale_price=Decimal('195.00'),
