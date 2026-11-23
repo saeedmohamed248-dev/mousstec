@@ -36,6 +36,7 @@ from clients.models import (
     ServiceRequest,
 )
 from clients.permissions import platform_owner_required
+from clients.services import catalog_request_desk as desk
 from clients.services import catalog_stats
 from clients.services.search_text import text_filter
 
@@ -483,37 +484,124 @@ def _decorate_for_printer(request, r):
                 (_('ملف التصميم'), r.attachment_url)]
         r.printer_text = '\n'.join([_('طلب تسعير من Mouss Tec')] + [f'{k}: {v}' for k, v in rows if v])
 
-@login_required
-@platform_owner_required
-def catalog_requests_admin(request):
+def _decorate_for_desk(request, r):
+    """🗂️ تنظيم الطلب للعرض: أرقام/لينكات من التفاصيل، عمر الطلب، معاينة الملف."""
+    r.wa_number = desk.wa_digits(r.phone)
+    r.phone_local = desk.local_phone(r.phone)
+    r.contacts = desk.extract_contacts(r.details, main_phone=r.phone)
+    r.age = desk.age_info(r.created_at, r.status)
+    r.attachment_name = os.path.basename(r.attachment.name) if r.attachment else ''
+    r.attachment_is_image = desk.is_image(r.attachment_name)
+    r.review_url = (request.build_absolute_uri(f'/marketplace/catalog/review/{r.review_token}/')
+                    if r.review_token else '')
+    r.existing_review = getattr(r, 'review', None) if r.review_token else None
+    _decorate_for_printer(request, r)
+
+
+def _filtered_requests(request):
     status = request.GET.get('status', 'open')
-    qs = CatalogQuoteRequest.objects.select_related('item', 'item__store', 'customer')
+    qs = CatalogQuoteRequest.objects.select_related('item', 'item__store', 'customer', 'review')
     if status == 'open':
         qs = qs.filter(status__in=('new', 'contacted', 'quoted'))
     elif status in dict(CatalogQuoteRequest.STATUS_CHOICES):
         qs = qs.filter(status=status)
+    else:
+        status = 'all'
     sector = request.GET.get('sector', '')
     if sector in SECTORS:
         qs = qs.filter(sector=sector)
-    tabs = [(key, label, CatalogQuoteRequest.objects.filter(status=key).count())
-            for key, label in CatalogQuoteRequest.STATUS_CHOICES]
-    page = Paginator(qs, 50).get_page(request.GET.get('page'))
+    else:
+        sector = ''
+    q = (request.GET.get('q') or '').strip()[:80]
+    if q:
+        digits = ''.join(ch for ch in q.translate(desk._ARABIC_DIGITS) if ch.isdigit())
+        cond = (Q(name__icontains=q) | Q(item_title__icontains=q) | Q(store_name__icontains=q)
+                | Q(details__icontains=q) | Q(admin_notes__icontains=q))
+        if len(digits) >= 4:
+            cond |= Q(phone__contains=digits[-9:]) | Q(details__contains=digits[-9:])
+        qs = qs.filter(cond)
+    sort = request.GET.get('sort', 'new')
+    qs = qs.order_by('created_at' if sort == 'old' else '-created_at')
+    return qs, {'status': status, 'sector': sector, 'q': q, 'sort': sort}
+
+
+def _requests_csv(request, qs):
+    import csv
+
+    from django.http import HttpResponse
+    resp = HttpResponse(content_type='text/csv; charset=utf-8')
+    stamp = timezone.localtime().strftime('%Y%m%d-%H%M')
+    resp['Content-Disposition'] = f'attachment; filename="catalog-requests-{stamp}.csv"'
+    resp.write('\ufeff')   # BOM ⇒ Excel يفتح العربي صح
+    w = csv.writer(resp)
+    w.writerow(desk.CSV_HEADER)
+    for r in qs[:5000]:
+        url = ''
+        if r.attachment:
+            try:
+                url = request.build_absolute_uri(r.attachment.url)
+            except Exception:  # noqa: BLE001
+                url = ''
+        w.writerow(desk.csv_row(r, attachment_url=url))
+    return resp
+
+
+@login_required
+@platform_owner_required
+def catalog_requests_admin(request):
+    qs, f = _filtered_requests(request)
+    if request.GET.get('export') == 'csv':
+        return _requests_csv(request, qs)
+    all_qs = CatalogQuoteRequest.objects.all()
+    counts = dict(all_qs.values_list('status').annotate(n=Count('id')).values_list('status', 'n'))
+    tabs = [(key, label, counts.get(key, 0)) for key, label in CatalogQuoteRequest.STATUS_CHOICES]
+    now = timezone.now()
+    today = timezone.localtime(now).replace(hour=0, minute=0, second=0, microsecond=0)
+    month = all_qs.filter(created_at__gte=now - timezone.timedelta(days=30))
+    month_total = month.count()
+    month_done = month.filter(status='done').count()
+    kpis = {
+        'today': all_qs.filter(created_at__gte=today).count(),
+        'open': sum(counts.get(k, 0) for k in ('new', 'contacted', 'quoted')),
+        'late': all_qs.filter(status='new', created_at__lt=now - timezone.timedelta(hours=6)).count(),
+        'month': month_total,
+        'conversion': round(100 * month_done / month_total) if month_total else 0,
+    }
+    page = Paginator(qs, 30).get_page(request.GET.get('page'))
     for r in page.object_list:
-        digits = ''.join(ch for ch in r.phone if ch.isdigit())
-        if digits.startswith('0') and len(digits) == 11:   # 01xxxxxxxxx ⇒ 201xxxxxxxxx
-            digits = '20' + digits[1:]
-        r.wa_number = digits
-        r.review_url = (request.build_absolute_uri(f'/marketplace/catalog/review/{r.review_token}/')
-                        if r.review_token else '')
-        r.existing_review = getattr(r, 'review', None) if r.review_token else None
-        _decorate_for_printer(request, r)
+        _decorate_for_desk(request, r)
+    from urllib.parse import urlencode
+    base_qs = urlencode({k: v for k, v in f.items() if v})
     return render(request, 'clients/saas_admin/catalog_requests.html', {
         'reviews_hidden': CatalogReview.objects.filter(is_visible=False).count(),
         'reviews_total': CatalogReview.objects.count(),
-        'page': page, 'status': status, 'sector': sector, 'tabs': tabs,
+        'page': page, **f, 'tabs': tabs, 'kpis': kpis, 'base_qs': base_qs,
         'status_choices': CatalogQuoteRequest.STATUS_CHOICES,
+        'flow': [('new', _('جديد')), ('contacted', _('اتواصلت')), ('quoted', _('اتبعت السعر')), ('done', _('اتنفّذ'))],
         'stores_count': CatalogStore.objects.count(), 'items_count': CatalogItem.objects.count(),
     })
+
+
+@login_required
+@platform_owner_required
+def catalog_request_sheet(request, request_id):
+    """🧾 أمر شغل للطلب — صفحة نضيفة تتطبع أو تتحفظ PDF (من غير رقم العميل لو للمطبعة)."""
+    r = get_object_or_404(CatalogQuoteRequest.objects.select_related('item'), pk=request_id)
+    _decorate_for_desk(request, r)
+    return render(request, 'clients/saas_admin/catalog_request_sheet.html', {
+        'r': r, 'for_printer': request.GET.get('for') == 'printer',
+    })
+
+
+@login_required
+@platform_owner_required
+def catalog_request_vcard(request, request_id):
+    """📇 احفظ العميل في موبايلك بكل أرقامه (.vcf)."""
+    from django.http import HttpResponse
+    r = get_object_or_404(CatalogQuoteRequest, pk=request_id)
+    resp = HttpResponse(desk.vcard(r), content_type='text/vcard; charset=utf-8')
+    resp['Content-Disposition'] = f'attachment; filename="customer-{r.pk}.vcf"'
+    return resp
 
 
 @login_required
@@ -532,6 +620,11 @@ def catalog_request_update(request, request_id):
         req.review_token = uuid.uuid4()   # ⭐ لينك تقييم للعميل (مرة واحدة)
         fields.append('review_token')
     req.save(update_fields=fields)
+    if request.headers.get('X-Requested-With') == 'fetch':   # ⚡ تغيير الحالة من غير ما الصفحة تتحمّل تاني
+        from django.http import JsonResponse
+        return JsonResponse({'ok': True, 'status': req.status, 'label': req.get_status_display(),
+                             'review_url': (request.build_absolute_uri(
+                                 f'/marketplace/catalog/review/{req.review_token}/') if req.review_token else '')})
     back = request.POST.get('next') or '/superadmin/catalog/requests/'
     return redirect(back if back.startswith('/superadmin/catalog/') else '/superadmin/catalog/requests/')
 

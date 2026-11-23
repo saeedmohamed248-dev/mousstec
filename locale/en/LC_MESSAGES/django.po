@@ -29613,3 +29613,127 @@ msgstr "We couldn't read the image — please upload it as JPG or PNG."
 
 msgid "السعر يبدأ من (لكتالوج ميتا)"
 msgstr "Starting price (for Meta catalog)"
+
+# 🗂️ مكتب طلبات الكتالوج
+msgid "أمر شغل (PDF)"
+msgstr "Work order (PDF)"
+
+msgid "اتبعت السعر"
+msgstr "Quoted"
+
+msgid "اتحفظ"
+msgstr "Saved"
+
+msgid "اتنفّذ"
+msgstr "Done"
+
+msgid "اتنفّذ من طلبات الشهر"
+msgstr "Of this month's requests completed"
+
+msgid "اتواصلت"
+msgstr "Contacted"
+
+msgid "احفظ العميل في الموبايل"
+msgstr "Save contact to phone"
+
+msgid "استلام المطبعة"
+msgstr "Received by print shop"
+
+msgid "اطبع / احفظ PDF"
+msgstr "Print / save PDF"
+
+msgid "اطلبه منه"
+msgstr "Ask for it"
+
+msgid "الأحدث الأول"
+msgstr "Newest first"
+
+msgid "الأقدم الأول"
+msgstr "Oldest first"
+
+msgid "العربية"
+msgstr "Car"
+
+msgid "اللوكيشن"
+msgstr "Location"
+
+msgid "المتجر"
+msgstr "Store"
+
+msgid "انسخ المواصفات"
+msgstr "Copy specs"
+
+msgid "تحميل Excel"
+msgstr "Download Excel"
+
+msgid "تحميل ملف التصميم"
+msgstr "Download design file"
+
+msgid "جديدة عدّى عليها +٦ ساعات"
+msgstr "New, waiting 6+ hours"
+
+msgid "حصلت مشكلة، جرّب تاني"
+msgstr "Something went wrong, try again"
+
+msgid "دوّر باسم العميل، الموبايل، المنتج، أو ملاحظاتك…"
+msgstr "Search by customer, phone, product or your notes…"
+
+msgid "رسالة العميل"
+msgstr "Customer message"
+
+msgid "رقم تاني"
+msgstr "Other number"
+
+msgid "طباعة القائمة"
+msgstr "Print list"
+
+msgid "طلبات آخر ٣٠ يوم"
+msgstr "Requests, last 30 days"
+
+msgid "طلبات النهارده"
+msgstr "Requests today"
+
+msgid "كود الطلب"
+msgstr "Request code"
+
+msgid "لينك"
+msgstr "Link"
+
+msgid "مفتوحة ومحتاجة متابعة"
+msgstr "Open, need follow-up"
+
+msgid "مفيش طلبات بالبحث ده."
+msgstr "No requests match this search."
+
+msgid "مفيش ملف لسه"
+msgstr "No file yet"
+
+msgid "مفيش ملفات"
+msgstr "No files"
+
+msgid "ملاحظاتك"
+msgstr "Your notes"
+
+msgid "ملفات العميل"
+msgstr "Customer files"
+
+#, python-format
+msgid "من %(n)s دقيقة"
+msgstr "%(n)s min ago"
+
+#, python-format
+msgid "من %(n)s ساعة"
+msgstr "%(n)s h ago"
+
+#, python-format
+msgid "من %(n)s يوم"
+msgstr "%(n)s d ago"
+
+msgid "نسخة المطبعة (من غير بيانات العميل)"
+msgstr "Print-shop copy (no customer data)"
+
+msgid "نسخة كاملة ببيانات العميل"
+msgstr "Full copy with customer data"
+
+msgid "وقت من غير رد"
+msgstr "Time without reply"
