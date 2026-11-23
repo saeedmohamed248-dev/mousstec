@@ -139,6 +139,12 @@ def _call_together_text(messages, json_mode, max_retries):
             break
 
     logger.error(f"🛑 [COGNITIVE AGENT]: Together text path exhausted. Last error: {last_error}")
+    # 🐛 [FIX]: لو Together وقع (رصيد خلص/مفتاح اتلغى/زحمة) كل الطبقة النصّية كانت بتقف (المستشار بيرجّع
+    #    503) مع إن مفتاح Gemini المجاني ممكن يكون مضبوط — نجرّبه قبل ما نستسلم.
+    if (str(getattr(settings, 'AI_VISION_API_KEY', '') or '').strip()
+            or str(getattr(settings, 'GEMINI_API_KEY', '') or '').strip()):
+        logger.warning("🔁 [COGNITIVE AGENT]: Together فشل — بنجرّب Gemini للنص.")
+        return _call_gemini_vision(messages, json_mode=json_mode, max_retries=1)
     return None
 
 
