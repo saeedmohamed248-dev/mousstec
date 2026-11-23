@@ -46,8 +46,10 @@ def public_stock_items():
 
 def filter_stock_items(qs, *, q='', make=None, condition='', sort='new'):
     if q:
-        qs = qs.filter(Q(product_name__icontains=q) | Q(part_number__icontains=q)
-                       | Q(brand__icontains=q) | Q(car_model__icontains=q))
+        # 🐛 [FIX]: بحث متسامح — كل كلمة لوحدها (فلتر زيت تويوتا)، والهمزات/ى/ة، والشرط والمسافات
+        #    في رقم القطعة (04152-YZZA1 = 04152YZZA1) والأرقام العربي.
+        from clients.services.search_text import text_filter
+        qs = qs.filter(text_filter(q, ('product_name', 'part_number', 'brand', 'car_model')))
     if make is not None:
         qs = qs.filter(Q(brand__iexact=make.name) | Q(brand__iexact=make.slug)
                        | Q(product_name__icontains=make.name))

@@ -125,6 +125,17 @@ class PartsStockPublicTests(_StockFixture):
         self.assertEqual(detail.status_code, 200)
         self.assertIn(self.tenant.name, detail.content.decode())
 
+    def test_search_tolerates_spelling_and_part_number_separators(self):
+        """🐛 البحث كان تطابق حرفي: «طرمبه» أو رقم القطعة من غير شرطة أو كلمتين مش جنب بعض ماكانوش بيلاقوا."""
+        self._stock(5)
+        self._approve()
+        for q in (self.sku.replace('-', ''), self.sku.replace('-', ' ').lower(), 'طرمبه', 'بنزين طرمبة',
+                  'طرمبة E92'):
+            html = HttpClient().get('/marketplace/parts/', {'q': q}).content.decode()
+            self.assertIn(self.product.name, html, q)
+        html = HttpClient().get('/marketplace/parts/', {'q': 'طرمبة كاوتش'}).content.decode()
+        self.assertNotIn(self.product.name, html)
+
     def test_hidden_when_company_left_marketplace(self):
         self._stock(5)
         self._approve()
