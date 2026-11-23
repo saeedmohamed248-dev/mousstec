@@ -94,6 +94,9 @@ class CatalogItem(_Localized, models.Model):
     # 🎨 اختيارات خاصة بالمنتج (لو فاضية بتتاخد من نوعه في clients/catalog_options.py)
     #    {"sizes": [["عربي","English"],…], "colors": ["red","navy",…], "shapes": […], "finishes": […]}
     options = models.JSONField(default=dict, blank=True, verbose_name=_("اختيارات المنتج"))
+    # 📣 كتالوج ميتا (فيسبوك/إنستجرام) بيطلب سعر — «يبدأ من» لأقل كمية. فاضي ⇒ المنتج مش في الـ Feed.
+    price_from = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
+                                     verbose_name=_("السعر يبدأ من (لكتالوج ميتا)"))
     is_active = models.BooleanField(default=True, db_index=True)
     sort = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

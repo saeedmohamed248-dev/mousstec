@@ -28,6 +28,7 @@ from clients.views import platform_finance_views as platform_finance_views
 from clients.views import agent_api as agent_api_views
 from clients.views import screen_recording_views as screen_rec_views
 from clients.views import catalog_views as catalog_views
+from clients.views import meta_feed_views as meta_feed_views
 from omnichannel import saas_admin_views as omnichannel_saas_views
 from clients.views import support_views as support_views
 from clients.views import marketplace_password_reset_views as mp_pw_views
@@ -856,6 +857,8 @@ urlpatterns = [
     path('marketplace/catalog/item/<uuid:item_code>/', catalog_views.catalog_item, name='catalog_item'),
     path('marketplace/catalog/review/<uuid:token>/', catalog_views.catalog_review, name='catalog_review'),
     path('marketplace/sell/', catalog_views.catalog_sell, name='catalog_sell'),
+    # 📣 Feed منتجات المطابع لكتالوج ميتا (فيسبوك/إنستجرام)
+    path('feeds/meta/printing.csv', meta_feed_views.meta_printing_feed, name='meta_printing_feed'),
     path('superadmin/catalog/requests/', catalog_views.catalog_requests_admin, name='catalog_requests_admin'),
     path('superadmin/catalog/requests/<int:request_id>/update/', catalog_views.catalog_request_update, name='catalog_request_update'),
     path('marketplace/register/', client_views.marketplace_register, name='marketplace_register'),

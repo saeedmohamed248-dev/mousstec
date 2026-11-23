@@ -1362,7 +1362,7 @@ from .models import CatalogItem, CatalogQuoteRequest, CatalogStore  # noqa: E402
 class _CatalogItemInline(admin.TabularInline):
     model = CatalogItem
     extra = 0
-    fields = ('title', 'category', 'icon', 'image', 'min_qty', 'is_active', 'sort')
+    fields = ('title', 'category', 'icon', 'image', 'min_qty', 'price_from', 'is_active', 'sort')
     show_change_link = True
 
 
@@ -1383,9 +1383,9 @@ class CatalogStoreAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
 
 @admin.register(CatalogItem)
 class CatalogItemAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ('title', 'store', 'category', 'car_make', 'has_image', 'is_active')
+    list_display = ('title', 'store', 'category', 'car_make', 'has_image', 'price_from', 'is_active')
     list_filter = ('store__sector', 'category', 'is_active', 'store')
-    list_editable = ('is_active',)
+    list_editable = ('price_from', 'is_active')
     search_fields = ('title', 'description', 'car_make', 'car_models', 'store__name')
     autocomplete_fields = ('store',)
 
