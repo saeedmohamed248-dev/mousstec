@@ -196,21 +196,21 @@ def advisor_chat(request):
         'content': f'═══ سياق حسابك ═══\n{context_block}\n═══════════════════\n\nسؤال: {user_message}',
     })
 
+    # 🐛 [FIX]: لو مزوّد الذكاء الاصطناعي واقع (مفتاح خلص/زحمة/AI مقفول) كنا بنرجّع 503 — العميل
+    #    بيشوف «⚠️ تعذر الحصول على رد» ولوحة الأخطاء بتعلّمه «Code failure» مع إن الكود سليم.
+    #    دلوقتي: رد مفيد (200) بيقول له يعمل إيه، والعطل بيتسجّل warning بسببه — ومن غير ما يدخل الهيستوري.
+    answer, reason = None, 'ai_empty'
     try:
         from inventory.ai_services import call_llm_layer
         answer = call_llm_layer(messages, json_mode=False, max_retries=2)
-    except Exception:
+    except Exception:  # noqa: BLE001 — عطل حقيقي في الكود: يفضل exception في السجل
         logger.exception('[CUSTOMER ADVISOR] pipeline failed')
-        return JsonResponse({
-            'error': 'ai_unavailable',
-            'message': 'المستشار مش متاح دلوقتي، جرب تاني خلال لحظات.',
-        }, status=503)
-
-    if not answer:
-        return JsonResponse({
-            'error': 'ai_empty',
-            'message': 'مفيش رد دلوقتي، جرب تاني.',
-        }, status=503)
+        reason = 'ai_unavailable'
+    if not (answer or '').strip():
+        if reason == 'ai_empty':
+            logger.warning('[CUSTOMER ADVISOR] no reply from the AI provider (customer=%s, sector=%s)',
+                           customer.pk, sector)
+        return JsonResponse({'reply': _offline_reply(sector), 'sector': sector, 'degraded': reason})
 
     answer = answer.strip()
     history.append({'role': 'assistant', 'text': answer})
@@ -221,6 +221,17 @@ def advisor_chat(request):
         'reply': answer,
         'sector': sector,
     })
+
+
+def _offline_reply(sector):
+    """رد المستشار لما الذكاء الاصطناعي مش متاح — خطوات حقيقية بدل رسالة خطأ."""
+    if sector == 'printing':
+        return ('المستشار الذكي مش متاح دلوقتي — جرّب تاني بعد شوية. 🙏\n'
+                'لحد ما يرجع: تقدر تتصفّح معروضات الطباعة من /marketplace/catalog/printing/ '
+                'أو تكتب طلبك من لوحتك (/marketplace/dashboard/?new=1) والشركات تبعتلك أسعارها.')
+    return ('المستشار الذكي مش متاح دلوقتي — جرّب تاني بعد شوية. 🙏\n'
+            'لحد ما يرجع: تقدر تدوّر على القطعة في /marketplace/catalog/automotive/ '
+            'أو تكتب طلبك من لوحتك (/marketplace/dashboard/?new=1) والمحلات تبعتلك أسعارها.')
 
 
 @csrf_exempt
