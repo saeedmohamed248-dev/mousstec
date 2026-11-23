@@ -29601,3 +29601,9 @@ msgstr "Maximum %(n)s images."
 #, python-format
 msgid "مجموع الملفات أكبر من %(mb)s ميجا."
 msgstr "Total files exceed %(mb)s MB."
+
+msgid "النصوص هتظهرلك بعد ما العميل يدفع."
+msgstr "The text will be visible to you after the customer pays."
+
+msgid "تقدر تكتب هنا الموبايل والإيميل اللي هيتطبعوا — المطبعة بتشوفهم بعد الدفع بس."
+msgstr "You can write the phone and email to be printed here — the print shop sees them only after payment."

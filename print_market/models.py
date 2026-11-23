@@ -220,6 +220,13 @@ class MarketOrder(models.Model):
     def __str__(self):
         return f'{self.title} — {self.customer.name} ← {self.shop.name}'
 
+    PAID_STATUSES = ('paid', 'delivered', 'completed', 'disputed')
+
+    @property
+    def print_text_visible_to_shop(self):
+        """النصوص ممكن تبقى فيها أرقام العميل ⇒ تظهر للمطبعة بعد الدفع بس (مايتواصلوش برّه المنصة)."""
+        return self.status in self.PAID_STATUSES
+
     @property
     def accepted_offer(self):
         return self.offers.filter(status='accepted').first()

@@ -474,7 +474,9 @@ def order_new(request, shop_id):
             title = _guarded(request, cust, data['title'], 150)
             details = _guarded(request, cust, data['details'], 3000)
             company = _guarded(request, cust, data['company_name'], 150)
-            print_text = _guarded(request, cust, data['print_text'], 1500)
+            # النصوص اللي هتتطبع (كارت شخصي فيه موبايل/إيميل) مسموح فيها بيانات تواصل —
+            # بس المطبعة مابتشوفهاش غير بعد الدفع (MarketOrder.print_text_visible_to_shop)
+            print_text = (data['print_text'] or '').strip()[:1500]
             if not title or not details:
                 raise ValidationError(_('اكتب عنوان الطلب وتفاصيله.'))
             try:

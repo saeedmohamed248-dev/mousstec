@@ -417,13 +417,10 @@ class PrintMarketFlowTests(_TenantDomainMixin, TestCase):
     def test_order_with_logo_many_images_and_company(self):
         url = reverse('print_market:order_new', args=[self.shop.pk])
         base = {'title': 'كروت', 'details': '500 كارت', 'quantity': '500', 'company_name': 'شركة النور',
-                'print_text': 'أحمد علي — مدير مبيعات'}
+                'print_text': 'أحمد علي — مدير مبيعات 01012345678'}
         # ٧ صور ← أكتر من المسموح ومفيش طلب
         r = self.cust_c.post(url, {**base, 'images': [_png(f'{i}.png') for i in range(7)]})
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(MarketOrder.objects.count(), 0)
-        # رقم موبايل في النصوص ← ممنوع
-        r = self.cust_c.post(url, {**base, 'print_text': '01012345678'})
         self.assertEqual(MarketOrder.objects.count(), 0)
         heic = SimpleUploadedFile('IMG_1.HEIC', b'\x00' * 100, content_type='image/heic')
         r = self.cust_c.post(url, {**base, 'logo': _png('logo.png'), 'images': [_png('a.png'), _png('b.png'), heic]})
@@ -435,6 +432,11 @@ class PrintMarketFlowTests(_TenantDomainMixin, TestCase):
         self.assertEqual(order.files.filter(kind='image').count(), 3)
         page = self.shop_c.get(self._u('order_detail', order))
         self.assertContains(page, 'شركة النور')
+        # النصوص (ممكن فيها موبايل للكارت) مقفولة على المطبعة لحد الدفع
+        self.assertNotContains(page, 'مدير مبيعات')
+        self.assertContains(self.cust_c.get(self._u('order_detail', order)), 'مدير مبيعات')
+        MarketOrder.objects.filter(pk=order.pk).update(status='paid')
+        self.assertContains(self.shop_c.get(self._u('order_detail', order)), 'مدير مبيعات')
         f = order.files.get(kind='logo')
         file_url = reverse('print_market:file', args=['orderfile', f.pk])
         self.assertEqual(self.shop_c.get(file_url).status_code, 200)

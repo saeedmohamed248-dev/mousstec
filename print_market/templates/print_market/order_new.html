@@ -18,7 +18,8 @@
       <label class="form-label">{% trans "اسم الشركة / البراند (اختياري)" %}</label>
       <input name="company_name" value="{{ data.company_name }}" class="form-control mb-2" maxlength="150">
       <label class="form-label">{% trans "النصوص اللي هتتطبع (الشعار، العنوان، الوظيفة…)" %}</label>
-      <textarea name="print_text" class="form-control mb-2" rows="3" maxlength="1500">{{ data.print_text }}</textarea>
+      <textarea name="print_text" class="form-control mb-1" rows="3" maxlength="1500">{{ data.print_text }}</textarea>
+      <div class="small pm-muted mb-2">{% trans "تقدر تكتب هنا الموبايل والإيميل اللي هيتطبعوا — المطبعة بتشوفهم بعد الدفع بس." %}</div>
       <label class="form-label">{% trans "اللوجو (اختياري)" %}</label>
       <input name="logo" type="file" class="form-control mb-1 pm-file" data-max-mb="20"
              accept="image/*,.svg,.pdf,.ai,.eps,.psd,.cdr,.heic,.heif">
