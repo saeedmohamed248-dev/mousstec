@@ -25,7 +25,9 @@ EXT = ('.png', '.jpg', '.jpeg', '.webp')
 def load_map(path=PROMPTS):
     """{رقم الجريد: {الربع: الكود}} من ملف البرومبتات."""
     grids, cur = {}, None
-    for line in open(path, encoding='utf-8'):
+    with open(path, encoding='utf-8') as fh:
+        lines = fh.readlines()
+    for line in lines:
         m = re.match(r'GRID G(\d{3}):', line)
         if m:
             cur = grids.setdefault(int(m.group(1)), {})
