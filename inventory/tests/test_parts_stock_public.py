@@ -294,5 +294,8 @@ class CatalogShowsTradersStockTests(_StockFixture):
         self.assertNotIn('id="tradersStock"', c.get('/marketplace/catalog/printing/').content.decode())
 
     def test_zero_stock_not_shown(self):
+        # 🐛 [FIX]: كان بيتأكد إن قسم «مخازن التجار» كله مش ظاهر — بيقع لو اختبار تاني في نفس الـ shard
+        # ساب صنف لشركة تانية. المطلوب فعلاً: الصنف اللي رصيده صفر مايظهرش.
         self._approve()
-        self.assertNotIn('id="tradersStock"', HttpClient().get(self.URL).content.decode())
+        self.assertIsNone(self._row())
+        self.assertNotIn(self.product.name, HttpClient().get(self.URL).content.decode())
