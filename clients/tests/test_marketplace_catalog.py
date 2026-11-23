@@ -667,7 +667,7 @@ class CatalogOptionsTests(_TenantDomainMixin, TestCase):
         self.assertNotIn('01011112222', rows[exact.pk].printer_text)      # رقم العميل مايروحش للمطبعة
         html = unquote(page.content.decode())
         for s in ('المقاس بالسنتي مش متحدد', 'العميل ما رفعش ملف التصميم', 'اطلب المقاس والتصميم', 'ابعت للمطبعة',
-                  'المقاس بالسنتي: ٢٠ × ١٥ × ٨ سم', 'wa.me/201011112222?text=', 'wa.me/?text='):
+                  '٢٠ × ١٥ × ٨ سم', 'wa.me/201011112222?text=', 'wa.me/?text='):
             self.assertIn(s, html)
 
     def test_parts_requests_have_no_printer_prompts(self):

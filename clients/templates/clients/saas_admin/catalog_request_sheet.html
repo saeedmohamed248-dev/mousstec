@@ -1,0 +1,98 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% trans "أمر شغل" %} #{{ r.request_code|stringformat:"s"|slice:":8" }} — {{ r.item_title }}</title>
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        @page { size:A4; margin:14mm; }
+        * { box-sizing:border-box; }
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; color:#1C2430; background:#EEEBE5; margin:0; padding:20px 16px; }
+        .sheet { max-width:794px; margin:0 auto; background:#fff; border-radius:12px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,.08); }
+        .bar { max-width:794px; margin:0 auto 12px; display:flex; gap:8px; flex-wrap:wrap; }
+        .bar a, .bar button { display:inline-flex; gap:6px; align-items:center; border:1px solid #CFC8BA; background:#fff; color:#1E2A57; border-radius:10px; padding:8px 13px; font:inherit; font-size:13px; font-weight:700; text-decoration:none; cursor:pointer; }
+        .bar .primary { background:#1E2A57; color:#fff; border-color:#1E2A57; }
+        .top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #1E2A57; padding-bottom:14px; margin-bottom:18px; gap:12px; }
+        .brand { font-weight:900; font-size:22px; color:#1E2A57; }
+        .brand small { display:block; font-size:12px; color:#6B6F76; font-weight:600; }
+        .doc { text-align:end; }
+        .doc .t { font-size:20px; font-weight:900; }
+        .doc .m { font-size:12.5px; color:#6B6F76; }
+        h2 { font-size:13px; color:#6B6F76; margin:20px 0 8px; font-weight:800; }
+        table { width:100%; border-collapse:collapse; font-size:14px; }
+        th, td { border:1px solid #E6E1D8; padding:9px 11px; text-align:start; vertical-align:top; }
+        th { background:#FBF9F5; width:32%; color:#4b5563; font-weight:700; }
+        td { font-weight:700; }
+        .note { border:1px solid #E6E1D8; border-radius:8px; padding:10px 12px; white-space:pre-wrap; font-size:14px; line-height:1.7; }
+        .art { margin-top:6px; border:1px solid #E6E1D8; border-radius:8px; padding:8px; text-align:center; }
+        .art img { max-width:100%; max-height:320px; }
+        .sign { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:36px; font-size:12.5px; color:#6B6F76; }
+        .sign div { border-top:1px solid #9ca3af; padding-top:6px; }
+        .foot { margin-top:24px; font-size:11px; color:#9ca3af; text-align:center; }
+        @media print { body { background:#fff; padding:0; } .bar { display:none; } .sheet { box-shadow:none; border-radius:0; padding:0; max-width:none; } }
+    </style>
+</head>
+<body>
+<div class="bar">
+    <button class="primary" type="button" onclick="window.print()"><i class="fas fa-file-pdf"></i> {% trans "اطبع / احفظ PDF" %}</button>
+    {% if for_printer %}
+    <a href="?"><i class="fas fa-user"></i> {% trans "نسخة كاملة ببيانات العميل" %}</a>
+    {% else %}
+    <a href="?for=printer"><i class="fas fa-print"></i> {% trans "نسخة المطبعة (من غير بيانات العميل)" %}</a>
+    {% endif %}
+    {% if r.attachment_url %}<a href="{{ r.attachment_url }}" download="{{ r.attachment_name }}"><i class="fas fa-download"></i> {% trans "تحميل ملف التصميم" %}</a>{% endif %}
+</div>
+
+<div class="sheet">
+    <div class="top">
+        <div class="brand">Mouss Tec<small>{% if r.sector == 'automotive' %}{% trans "قطع غيار" %}{% else %}{% trans "طباعة وتصميم" %}{% endif %}</small></div>
+        <div class="doc">
+            <div class="t">{% trans "أمر شغل" %}</div>
+            <div class="m"><span dir="ltr">#{{ r.request_code|stringformat:"s"|slice:":8" }}</span> · <span dir="ltr">{{ r.created_at|date:"Y-m-d H:i" }}</span></div>
+            <div class="m">{% trans "الحالة" %}: {{ r.get_status_display }}</div>
+        </div>
+    </div>
+
+    <h2>{% trans "المنتج" %}</h2>
+    <table>
+        <tr><th>{% trans "المنتج" %}</th><td>{{ r.item_title }}</td></tr>
+        {% if r.quantity %}<tr><th>{% trans "الكمية" %}</th><td>{{ r.quantity }}</td></tr>{% endif %}
+        {% if r.options.size %}<tr><th>{% trans "المقاس" %}</th><td>{{ r.options.size }}</td></tr>{% endif %}
+        {% if r.options.dimensions %}<tr><th>{% trans "المقاس بالسنتي" %}</th><td>{{ r.options.dimensions }}</td></tr>{% endif %}
+        {% if r.options.color %}<tr><th>{% trans "اللون" %}</th><td>{{ r.options.color }}</td></tr>{% endif %}
+        {% if r.options.shape %}<tr><th>{% trans "الشكل" %}</th><td>{{ r.options.shape }}</td></tr>{% endif %}
+        {% if r.options.finish %}<tr><th>{% trans "التشطيب" %}</th><td>{{ r.options.finish }}</td></tr>{% endif %}
+        {% if r.car_info %}<tr><th>{% trans "العربية" %}</th><td>{{ r.car_info }}</td></tr>{% endif %}
+    </table>
+
+    {% if r.contacts.note %}<h2>{% trans "رسالة العميل" %}</h2><div class="note">{{ r.contacts.note }}</div>{% endif %}
+
+    <h2>{% trans "ملف التصميم" %}</h2>
+    {% if r.attachment_url %}
+    <div class="art">
+        {% if r.attachment_is_image %}<img src="{{ r.attachment_url }}" alt="{% trans 'لوجو/تصميم العميل' %}">{% endif %}
+        <div dir="ltr" style="font-size:12px;word-break:break-all;margin-top:6px;">{{ r.attachment_url }}</div>
+    </div>
+    {% else %}
+    <div class="note">{% trans "العميل ما رفعش ملف التصميم" %}</div>
+    {% endif %}
+
+    {% if not for_printer %}
+    <h2>{% trans "العميل" %}</h2>
+    <table>
+        <tr><th>{% trans "الاسم" %}</th><td>{{ r.name }}</td></tr>
+        <tr><th>{% trans "الموبايل" %}</th><td dir="ltr" style="text-align:end;">{{ r.phone_local }}{% for p in r.contacts.phones %} · {{ p.local }}{% endfor %}</td></tr>
+        {% for l in r.contacts.links %}<tr><th>{{ l.label }}</th><td dir="ltr" style="text-align:end;word-break:break-all;">{{ l.url }}</td></tr>{% endfor %}
+        {% if r.admin_notes %}<tr><th>{% trans "ملاحظاتك" %}</th><td style="white-space:pre-wrap;">{{ r.admin_notes }}</td></tr>{% endif %}
+    </table>
+    {% endif %}
+
+    <div class="sign"><div>{% trans "استلام المطبعة" %}</div><div>{% trans "موعد التسليم" %}</div></div>
+    <div class="foot">Mouss Tec · mousstec.com</div>
+</div>
+</body>
+</html>
