@@ -23,7 +23,7 @@ Once a single 3,282-line `_legacy.py`. Now a flat package of focused, single-res
 | **`admin_views/`** | Super-admin tools, one module per area: `dashboard`, `marketplace_customers`, `gifts`, `impersonation`, `parts_refunds`, `print_requests` (+ `_common`). | 17 endpoints |
 | **`saas_admin_views/`** | Platform-owner control centre (`/superadmin/`): `plans`, `team`, `analytics`, `tenants`, `monitoring`, `marketplace`, `broadcast` (+ `_common` with `saas_admin_required`). Referenced from `erp_core/urls.py` as `saas_admin_views.<name>`. | ~50 endpoints |
 | **`b2b_views.py`** | B2B marketplace search, blind bidding, escrow wallet, demand predictor. | 5 endpoints |
-| **`parts_marketplace_views.py`** | Customer P2P parts market: feed, listing, escrow checkout, orders/sales, refunds, disputes, "Part Wanted" requests + seller offers, seller listings + edit/resubmit, ❤ saved parts, seller ratings, wallet (payout details), price guide. | 27 endpoints (`parts_*`) |
+| **`parts_marketplace_views/`** | Customer P2P parts market: feed, listing, escrow checkout, orders/sales, refunds, disputes, "Part Wanted" requests + seller offers, seller listings + edit/resubmit, ❤ saved parts, seller ratings, wallet (payout details), price guide. | 27 endpoints (`parts_*`) — package split by domain (listings/checkout/orders/seller/disputes) |
 | **`merchant_parts_views.py`** | Merchant (tenant) sellers in the parts market: list, withdraw, ship, dispute — from the tenant subdomain. | 5 endpoints (`merchant_parts_*`) |
 | **`webhook_views.py`** | Universal webhook multiplexer (Paymob, Twilio, etc.). | `universal_webhook_multiplexer` |
 
