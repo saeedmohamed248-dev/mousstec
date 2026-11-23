@@ -41,6 +41,34 @@ class CatalogTests(_TenantDomainMixin, TestCase):
         seed_catalog(CatalogStore, CatalogItem)
         self.assertEqual(CatalogItem.objects.count(), before)
 
+    def test_seasonal_products_seeded(self):
+        """🌙💼 منتجات رمضان وهدايا الشركات: متجرين للموسم + منتجات على المتاجر القديمة اللي قسمها يناسب."""
+        from clients.catalog_seed_seasonal import PRINT_ITEMS_SEASONAL
+        for slug, cat in (('fawanees-ramadan-prints', 'ramadan'), ('business-gifts-2027', 'corporate')):
+            store = CatalogStore.objects.get(slug=slug)
+            self.assertEqual(store.sector, 'printing')
+            self.assertEqual(store.items.filter(category=cat).count(),
+                             sum(1 for it in PRINT_ITEMS_SEASONAL if it[0] == cat))
+        for cat in ('ramadan', 'corporate'):
+            old = CatalogItem.objects.filter(category=cat).exclude(
+                store__slug__in=('fawanees-ramadan-prints', 'business-gifts-2027'))
+            self.assertTrue(old.exists(), cat)
+            self.assertFalse(old.filter(title_en='').exists())   # الإنجليزي اتملى
+
+    def test_seasonal_products_seeded(self):
+        """🌙💼 منتجات رمضان وهدايا الشركات: متجرين للموسم + منتجات على المتاجر القديمة اللي قسمها يناسب."""
+        from clients.catalog_seed_seasonal import PRINT_ITEMS_SEASONAL
+        for slug, cat in (('fawanees-ramadan-prints', 'ramadan'), ('business-gifts-2027', 'corporate')):
+            store = CatalogStore.objects.get(slug=slug)
+            self.assertEqual(store.sector, 'printing')
+            self.assertEqual(store.items.filter(category=cat).count(),
+                             sum(1 for it in PRINT_ITEMS_SEASONAL if it[0] == cat))
+        for cat in ('ramadan', 'corporate'):
+            old = CatalogItem.objects.filter(category=cat).exclude(
+                store__slug__in=('fawanees-ramadan-prints', 'business-gifts-2027'))
+            self.assertTrue(old.exists(), cat)
+            self.assertFalse(old.filter(title_en='').exists())   # الإنجليزي اتملى
+
     def test_pages_render(self):
         c = HttpClient()
         store = CatalogStore.objects.filter(sector='printing').first()

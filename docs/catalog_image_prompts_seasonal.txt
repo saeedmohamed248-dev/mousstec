@@ -1,0 +1,391 @@
+# صور منتجات رمضان وهدايا الشركات: 205 صورة في 52 صورة مجمّعة (كل صورة ٤ تصميمات ٢×٢)
+# كل منتج عليه اسم شركة متخيّل (مش حقيقي) — العميل يتخيّل اسمه مكانه، والسوق بيعرض الصور دي الأول (-brand).
+# كل جزء = ١٦ صورة مجمّعة (٤ ردود من Gemini) في محادثة جديدة. نزّل الصور بالترتيب.
+# بعد التنزيل قسّمها:
+#   python scripts/split_catalog_grids.py <فولدر الصور> --start G001 --prompts docs/catalog_image_prompts_seasonal.txt
+# وبعدين: python manage.py import_catalog_images --bundled
+# راجع الأسماء والعربي بعينك قبل الرفع — لو كلمة اتكتبت غلط اطلب من Gemini يعيد الصورة دي بس.
+
+===================== الجزء 1 من 4 — G001 لحد G016 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop marketplace in Egypt (Ramadan and New-Year corporate gifts season). The products must look REAL and PRINTABLE exactly as shown: real paper/card/plastic/fabric/metal materials, real sizes and real finishing (lamination, gold foil, emboss, laser engraving, die-cut, embroidery) that any print shop can produce. Nothing fantasy or impossible.
+
+FORMAT (VERY IMPORTANT):
+- Every image is ONE landscape 4:3 picture (2048x1536 or larger) split into a 2x2 GRID of 4 equal panels: top-left, top-right, bottom-left, bottom-right.
+- Each panel is a separate, complete product photo of its own item. Thin plain white gap between panels, no borders, no labels, nothing crossing from one panel to another.
+- In EVERY reply send 4 such grid images (= 16 product photos), in list order, then stop and wait.
+- When I write "كمل" continue with the next 4 grid images. Keep going until the list is finished, then write "DONE" and tell me any grid you skipped.
+
+RULES FOR EVERY PANEL:
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail, premium feel.
+- Each item shows a FICTIONAL company/shop name, so customers imagine their own name on it. Print that name exactly as written, spelled correctly, clean and professional (like a real logo: simple wordmark or monogram). It must look printed/engraved/embossed ON the product, not floating on the photo.
+- Arabic text ("رمضان كريم") only where the item asks for it; it must be correct, connected Arabic calligraphy. If you cannot write it correctly, use a decorative crescent instead of text.
+- No other text at all: no slogans, phone numbers, emails, websites, dates or random letters. Calendars and planners show blank grids/lines without readable numbers.
+- No real brands: props must be plain and unbranded; screens turned off.
+- Never write the grid name or the file code on the image.
+
+THE LIST:
+GRID G001:
+  top-left [p189-brand]: A printed Ramadan timetable poster on thick matte card with a decorative Islamic geometric border, crescent and lantern illustrations, hanging on a kitchen wall. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "NOVARA" printed small and neat as the shop/company logo.
+  top-right [p189-2-brand]: A printed Ramadan timetable poster on thick matte card with a decorative Islamic geometric border, crescent and lantern illustrations, hanging on a kitchen wall. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "Al Waha Group" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p189-3-brand]: A printed Ramadan timetable poster on thick matte card with a decorative Islamic geometric border, crescent and lantern illustrations, hanging on a kitchen wall. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "ZENTRO" printed small and neat as the shop/company logo.
+  bottom-right [p189-4-brand]: A printed Ramadan timetable poster on thick matte card with a decorative Islamic geometric border, crescent and lantern illustrations, hanging on a kitchen wall. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "Nile Crest" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G002:
+  top-left [p189-5-brand]: A printed Ramadan timetable poster on thick matte card with a decorative Islamic geometric border, crescent and lantern illustrations, hanging on a kitchen wall. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "ORBIX" printed small and neat as the shop/company logo.
+  top-right [p189-6-brand]: A printed Ramadan timetable poster on thick matte card with a decorative Islamic geometric border, crescent and lantern illustrations, hanging on a kitchen wall. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "Qasr Foods" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p189-7-brand]: A printed Ramadan timetable poster on thick matte card with a decorative Islamic geometric border, crescent and lantern illustrations, hanging on a kitchen wall. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "VELMORA" printed small and neat as the shop/company logo.
+  bottom-right [p189-8-brand]: A printed Ramadan timetable poster on thick matte card with a decorative Islamic geometric border, crescent and lantern illustrations, hanging on a kitchen wall. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "Sahra Tech" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G003:
+  top-left [p189-9-brand]: A printed Ramadan timetable poster on thick matte card with a decorative Islamic geometric border, crescent and lantern illustrations, hanging on a kitchen wall. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "LUMIRA" printed small and neat as the shop/company logo.
+  top-right [p189-10-brand]: A printed Ramadan timetable poster on thick matte card with a decorative Islamic geometric border, crescent and lantern illustrations, hanging on a kitchen wall. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "Bayt Al Kheir" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p189-11-brand]: A printed Ramadan timetable poster on thick matte card with a decorative Islamic geometric border, crescent and lantern illustrations, hanging on a kitchen wall. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "KORVEX" printed small and neat as the shop/company logo.
+  bottom-right [p190-brand]: A small rectangular printed fridge magnet with an Islamic pattern and crescent design stuck on a white fridge door. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "Marsa Holding" printed small and neat as the shop/company logo.
+
+GRID G004:
+  top-left [p190-2-brand]: A small rectangular printed fridge magnet with an Islamic pattern and crescent design stuck on a white fridge door. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "ELARA" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  top-right [p190-3-brand]: A small rectangular printed fridge magnet with an Islamic pattern and crescent design stuck on a white fridge door. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "Delta Pharma Plus" printed small and neat as the shop/company logo.
+  bottom-left [p190-4-brand]: A small rectangular printed fridge magnet with an Islamic pattern and crescent design stuck on a white fridge door. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "TAVRO" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p190-5-brand]: A small rectangular printed fridge magnet with an Islamic pattern and crescent design stuck on a white fridge door. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "Rawda Dates" printed small and neat as the shop/company logo.
+
+GRID G005:
+  top-left [p190-6-brand]: A small rectangular printed fridge magnet with an Islamic pattern and crescent design stuck on a white fridge door. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "AURELO" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  top-right [p190-7-brand]: A small rectangular printed fridge magnet with an Islamic pattern and crescent design stuck on a white fridge door. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "Nour Bakery" printed small and neat as the shop/company logo.
+  bottom-left [p190-8-brand]: A small rectangular printed fridge magnet with an Islamic pattern and crescent design stuck on a white fridge door. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "SOLVEN" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p190-9-brand]: A small rectangular printed fridge magnet with an Islamic pattern and crescent design stuck on a white fridge door. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "Hilal Sweets" printed small and neat as the shop/company logo.
+
+GRID G006:
+  top-left [p190-10-brand]: A small rectangular printed fridge magnet with an Islamic pattern and crescent design stuck on a white fridge door. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "MERIDO" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  top-right [p190-11-brand]: A small rectangular printed fridge magnet with an Islamic pattern and crescent design stuck on a white fridge door. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "Fayrouz Cafe" printed small and neat as the shop/company logo.
+  bottom-left [p190-12-brand]: A small rectangular printed fridge magnet with an Islamic pattern and crescent design stuck on a white fridge door. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "QUANTA" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p191-brand]: A laser-cut card Ramadan lantern with intricate Islamic geometric cut-outs glowing with a warm LED light inside, on a wooden table at night. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "Sultan Grill" printed small and neat as the shop/company logo.
+
+GRID G007:
+  top-left [p191-2-brand]: A laser-cut card Ramadan lantern with intricate Islamic geometric cut-outs glowing with a warm LED light inside, on a wooden table at night. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "VEXA" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  top-right [p191-3-brand]: A laser-cut card Ramadan lantern with intricate Islamic geometric cut-outs glowing with a warm LED light inside, on a wooden table at night. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "Amal Charity" printed small and neat as the shop/company logo.
+  bottom-left [p191-4-brand]: A laser-cut card Ramadan lantern with intricate Islamic geometric cut-outs glowing with a warm LED light inside, on a wooden table at night. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "ORVINO" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p191-5-brand]: A laser-cut card Ramadan lantern with intricate Islamic geometric cut-outs glowing with a warm LED light inside, on a wooden table at night. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "Nakhla Market" printed small and neat as the shop/company logo.
+
+GRID G008:
+  top-left [p191-6-brand]: A laser-cut card Ramadan lantern with intricate Islamic geometric cut-outs glowing with a warm LED light inside, on a wooden table at night. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "ZAFIRA" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  top-right [p191-7-brand]: A laser-cut card Ramadan lantern with intricate Islamic geometric cut-outs glowing with a warm LED light inside, on a wooden table at night. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "Masr Logistics" printed small and neat as the shop/company logo.
+  bottom-left [p191-8-brand]: A laser-cut card Ramadan lantern with intricate Islamic geometric cut-outs glowing with a warm LED light inside, on a wooden table at night. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "KAVIO" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p191-9-brand]: A laser-cut card Ramadan lantern with intricate Islamic geometric cut-outs glowing with a warm LED light inside, on a wooden table at night. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "Lotus Clinic" printed small and neat as the shop/company logo.
+
+GRID G009:
+  top-left [p191-10-brand]: A laser-cut card Ramadan lantern with intricate Islamic geometric cut-outs glowing with a warm LED light inside, on a wooden table at night. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "NOVARA" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  top-right [p191-11-brand]: A laser-cut card Ramadan lantern with intricate Islamic geometric cut-outs glowing with a warm LED light inside, on a wooden table at night. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "Al Waha Group" printed small and neat as the shop/company logo.
+  bottom-left [p192-brand]: Printed paper Ramadan bunting with crescents, stars and lanterns hanging across a cozy living room with warm lights. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "ZENTRO" printed small and neat as the shop/company logo.
+  bottom-right [p192-2-brand]: Printed paper Ramadan bunting with crescents, stars and lanterns hanging across a cozy living room with warm lights. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "Nile Crest" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G010:
+  top-left [p192-3-brand]: Printed paper Ramadan bunting with crescents, stars and lanterns hanging across a cozy living room with warm lights. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "ORBIX" printed small and neat as the shop/company logo.
+  top-right [p192-4-brand]: Printed paper Ramadan bunting with crescents, stars and lanterns hanging across a cozy living room with warm lights. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "Qasr Foods" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p192-5-brand]: Printed paper Ramadan bunting with crescents, stars and lanterns hanging across a cozy living room with warm lights. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "VELMORA" printed small and neat as the shop/company logo.
+  bottom-right [p192-6-brand]: Printed paper Ramadan bunting with crescents, stars and lanterns hanging across a cozy living room with warm lights. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "Sahra Tech" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G011:
+  top-left [p192-7-brand]: Printed paper Ramadan bunting with crescents, stars and lanterns hanging across a cozy living room with warm lights. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "LUMIRA" printed small and neat as the shop/company logo.
+  top-right [p192-8-brand]: Printed paper Ramadan bunting with crescents, stars and lanterns hanging across a cozy living room with warm lights. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "Bayt Al Kheir" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p192-9-brand]: Printed paper Ramadan bunting with crescents, stars and lanterns hanging across a cozy living room with warm lights. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "KORVEX" printed small and neat as the shop/company logo.
+  bottom-right [p192-10-brand]: Printed paper Ramadan bunting with crescents, stars and lanterns hanging across a cozy living room with warm lights. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "Marsa Holding" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G012:
+  top-left [p192-11-brand]: Printed paper Ramadan bunting with crescents, stars and lanterns hanging across a cozy living room with warm lights. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "ELARA" printed small and neat as the shop/company logo.
+  top-right [p193-brand]: A long iftar table covered with a printed table runner and place mats with an Islamic arabesque pattern, dates, juice and plates at sunset light. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "Delta Pharma Plus" printed small and neat as the shop/company logo.
+  bottom-left [p193-2-brand]: A long iftar table covered with a printed table runner and place mats with an Islamic arabesque pattern, dates, juice and plates at sunset light. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "TAVRO" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p193-3-brand]: A long iftar table covered with a printed table runner and place mats with an Islamic arabesque pattern, dates, juice and plates at sunset light. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "Rawda Dates" printed small and neat as the shop/company logo.
+
+GRID G013:
+  top-left [p193-4-brand]: A long iftar table covered with a printed table runner and place mats with an Islamic arabesque pattern, dates, juice and plates at sunset light. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "AURELO" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  top-right [p193-5-brand]: A long iftar table covered with a printed table runner and place mats with an Islamic arabesque pattern, dates, juice and plates at sunset light. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "Nour Bakery" printed small and neat as the shop/company logo.
+  bottom-left [p193-6-brand]: A long iftar table covered with a printed table runner and place mats with an Islamic arabesque pattern, dates, juice and plates at sunset light. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "SOLVEN" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p193-7-brand]: A long iftar table covered with a printed table runner and place mats with an Islamic arabesque pattern, dates, juice and plates at sunset light. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "Hilal Sweets" printed small and neat as the shop/company logo.
+
+GRID G014:
+  top-left [p194-brand]: An open premium printed gift box with gold Islamic pattern and compartments full of dates and nuts, a small gift card beside it. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "MERIDO" printed small and neat as the shop/company logo.
+  top-right [p194-2-brand]: An open premium printed gift box with gold Islamic pattern and compartments full of dates and nuts, a small gift card beside it. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "Fayrouz Cafe" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p194-3-brand]: An open premium printed gift box with gold Islamic pattern and compartments full of dates and nuts, a small gift card beside it. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "QUANTA" printed small and neat as the shop/company logo.
+  bottom-right [p194-4-brand]: An open premium printed gift box with gold Islamic pattern and compartments full of dates and nuts, a small gift card beside it. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "Sultan Grill" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G015:
+  top-left [p194-5-brand]: An open premium printed gift box with gold Islamic pattern and compartments full of dates and nuts, a small gift card beside it. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "VEXA" printed small and neat as the shop/company logo.
+  top-right [p194-6-brand]: An open premium printed gift box with gold Islamic pattern and compartments full of dates and nuts, a small gift card beside it. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "Amal Charity" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p194-7-brand]: An open premium printed gift box with gold Islamic pattern and compartments full of dates and nuts, a small gift card beside it. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "ORVINO" printed small and neat as the shop/company logo.
+  bottom-right [p194-8-brand]: An open premium printed gift box with gold Islamic pattern and compartments full of dates and nuts, a small gift card beside it. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "Nakhla Market" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G016:
+  top-left [p195-brand]: Stacked printed corrugated Ramadan food donation boxes with a crescent and lantern design, one open box showing rice, oil and sugar packs. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "ZAFIRA" printed small and neat as the shop/company logo.
+  top-right [p195-2-brand]: Stacked printed corrugated Ramadan food donation boxes with a crescent and lantern design, one open box showing rice, oil and sugar packs. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "Masr Logistics" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p195-3-brand]: Stacked printed corrugated Ramadan food donation boxes with a crescent and lantern design, one open box showing rice, oil and sugar packs. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "KAVIO" printed small and neat as the shop/company logo.
+  bottom-right [p195-4-brand]: Stacked printed corrugated Ramadan food donation boxes with a crescent and lantern design, one open box showing rice, oil and sugar packs. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "Lotus Clinic" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+
+===================== الجزء 2 من 4 — G017 لحد G032 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop marketplace in Egypt (Ramadan and New-Year corporate gifts season). The products must look REAL and PRINTABLE exactly as shown: real paper/card/plastic/fabric/metal materials, real sizes and real finishing (lamination, gold foil, emboss, laser engraving, die-cut, embroidery) that any print shop can produce. Nothing fantasy or impossible.
+
+FORMAT (VERY IMPORTANT):
+- Every image is ONE landscape 4:3 picture (2048x1536 or larger) split into a 2x2 GRID of 4 equal panels: top-left, top-right, bottom-left, bottom-right.
+- Each panel is a separate, complete product photo of its own item. Thin plain white gap between panels, no borders, no labels, nothing crossing from one panel to another.
+- In EVERY reply send 4 such grid images (= 16 product photos), in list order, then stop and wait.
+- When I write "كمل" continue with the next 4 grid images. Keep going until the list is finished, then write "DONE" and tell me any grid you skipped.
+
+RULES FOR EVERY PANEL:
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail, premium feel.
+- Each item shows a FICTIONAL company/shop name, so customers imagine their own name on it. Print that name exactly as written, spelled correctly, clean and professional (like a real logo: simple wordmark or monogram). It must look printed/engraved/embossed ON the product, not floating on the photo.
+- Arabic text ("رمضان كريم") only where the item asks for it; it must be correct, connected Arabic calligraphy. If you cannot write it correctly, use a decorative crescent instead of text.
+- No other text at all: no slogans, phone numbers, emails, websites, dates or random letters. Calendars and planners show blank grids/lines without readable numbers.
+- No real brands: props must be plain and unbranded; screens turned off.
+- Never write the grid name or the file code on the image.
+
+THE LIST:
+GRID G017:
+  top-left [p195-5-brand]: Stacked printed corrugated Ramadan food donation boxes with a crescent and lantern design, one open box showing rice, oil and sugar packs. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "NOVARA" printed small and neat as the shop/company logo.
+  top-right [p195-6-brand]: Stacked printed corrugated Ramadan food donation boxes with a crescent and lantern design, one open box showing rice, oil and sugar packs. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "Al Waha Group" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p195-7-brand]: Stacked printed corrugated Ramadan food donation boxes with a crescent and lantern design, one open box showing rice, oil and sugar packs. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "ZENTRO" printed small and neat as the shop/company logo.
+  bottom-right [p195-8-brand]: Stacked printed corrugated Ramadan food donation boxes with a crescent and lantern design, one open box showing rice, oil and sugar packs. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "Nile Crest" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G018:
+  top-left [p195-9-brand]: Stacked printed corrugated Ramadan food donation boxes with a crescent and lantern design, one open box showing rice, oil and sugar packs. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "ORBIX" printed small and neat as the shop/company logo.
+  top-right [p196-brand]: Natural canvas tote bags printed with a simple crescent and lantern design filled with groceries, on a light background. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "Qasr Foods" printed small and neat as the shop/company logo.
+  bottom-left [p196-2-brand]: Natural canvas tote bags printed with a simple crescent and lantern design filled with groceries, on a light background. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "VELMORA" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p196-3-brand]: Natural canvas tote bags printed with a simple crescent and lantern design filled with groceries, on a light background. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "Sahra Tech" printed small and neat as the shop/company logo.
+
+GRID G019:
+  top-left [p196-4-brand]: Natural canvas tote bags printed with a simple crescent and lantern design filled with groceries, on a light background. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "LUMIRA" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  top-right [p196-5-brand]: Natural canvas tote bags printed with a simple crescent and lantern design filled with groceries, on a light background. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "Bayt Al Kheir" printed small and neat as the shop/company logo.
+  bottom-left [p197-brand]: Elegant Ramadan greeting cards with gold foil crescent and lantern on deep navy card, with matching envelopes. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "KORVEX" printed small and neat as the shop/company logo.
+  bottom-right [p197-2-brand]: Elegant Ramadan greeting cards with gold foil crescent and lantern on deep navy card, with matching envelopes. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "Marsa Holding" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G020:
+  top-left [p197-3-brand]: Elegant Ramadan greeting cards with gold foil crescent and lantern on deep navy card, with matching envelopes. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "ELARA" printed small and neat as the shop/company logo.
+  top-right [p197-4-brand]: Elegant Ramadan greeting cards with gold foil crescent and lantern on deep navy card, with matching envelopes. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "Delta Pharma Plus" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p197-5-brand]: Elegant Ramadan greeting cards with gold foil crescent and lantern on deep navy card, with matching envelopes. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "TAVRO" printed small and neat as the shop/company logo.
+  bottom-right [p197-6-brand]: Elegant Ramadan greeting cards with gold foil crescent and lantern on deep navy card, with matching envelopes. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "Rawda Dates" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G021:
+  top-left [p197-7-brand]: Elegant Ramadan greeting cards with gold foil crescent and lantern on deep navy card, with matching envelopes. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "AURELO" printed small and neat as the shop/company logo.
+  top-right [p197-8-brand]: Elegant Ramadan greeting cards with gold foil crescent and lantern on deep navy card, with matching envelopes. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "Nour Bakery" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p198-brand]: An open Ramadan daily planner with checklist pages and pastel Islamic patterns, prayer beads and a cup of tea beside it. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "SOLVEN" printed small and neat as the shop/company logo.
+  bottom-right [p198-2-brand]: An open Ramadan daily planner with checklist pages and pastel Islamic patterns, prayer beads and a cup of tea beside it. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "Hilal Sweets" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G022:
+  top-left [p198-3-brand]: An open Ramadan daily planner with checklist pages and pastel Islamic patterns, prayer beads and a cup of tea beside it. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "MERIDO" printed small and neat as the shop/company logo.
+  top-right [p198-4-brand]: An open Ramadan daily planner with checklist pages and pastel Islamic patterns, prayer beads and a cup of tea beside it. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "Fayrouz Cafe" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p198-5-brand]: An open Ramadan daily planner with checklist pages and pastel Islamic patterns, prayer beads and a cup of tea beside it. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "QUANTA" printed small and neat as the shop/company logo.
+  bottom-right [p198-6-brand]: An open Ramadan daily planner with checklist pages and pastel Islamic patterns, prayer beads and a cup of tea beside it. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "Sultan Grill" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G023:
+  top-left [p198-7-brand]: An open Ramadan daily planner with checklist pages and pastel Islamic patterns, prayer beads and a cup of tea beside it. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "VEXA" printed small and neat as the shop/company logo.
+  top-right [p199-brand]: A Ramadan restaurant menu card with a lantern and crescent design standing on a restaurant table with dates and soup. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "Amal Charity" printed small and neat as the shop/company logo.
+  bottom-left [p199-2-brand]: A Ramadan restaurant menu card with a lantern and crescent design standing on a restaurant table with dates and soup. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "ORVINO" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p199-3-brand]: A Ramadan restaurant menu card with a lantern and crescent design standing on a restaurant table with dates and soup. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "Nakhla Market" printed small and neat as the shop/company logo.
+
+GRID G024:
+  top-left [p199-4-brand]: A Ramadan restaurant menu card with a lantern and crescent design standing on a restaurant table with dates and soup. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "ZAFIRA" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  top-right [p199-5-brand]: A Ramadan restaurant menu card with a lantern and crescent design standing on a restaurant table with dates and soup. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "Masr Logistics" printed small and neat as the shop/company logo.
+  bottom-left [p199-6-brand]: A Ramadan restaurant menu card with a lantern and crescent design standing on a restaurant table with dates and soup. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "KAVIO" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p199-7-brand]: A Ramadan restaurant menu card with a lantern and crescent design standing on a restaurant table with dates and soup. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "Lotus Clinic" printed small and neat as the shop/company logo.
+
+GRID G025:
+  top-left [p199-8-brand]: A Ramadan restaurant menu card with a lantern and crescent design standing on a restaurant table with dates and soup. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "NOVARA" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  top-right [p200-brand]: Printed paper takeaway bags and food boxes with a Ramadan crescent and lantern pattern on a restaurant counter. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "Al Waha Group" printed small and neat as the shop/company logo.
+  bottom-left [p200-2-brand]: Printed paper takeaway bags and food boxes with a Ramadan crescent and lantern pattern on a restaurant counter. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "ZENTRO" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p200-3-brand]: Printed paper takeaway bags and food boxes with a Ramadan crescent and lantern pattern on a restaurant counter. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "Nile Crest" printed small and neat as the shop/company logo.
+
+GRID G026:
+  top-left [p200-4-brand]: Printed paper takeaway bags and food boxes with a Ramadan crescent and lantern pattern on a restaurant counter. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "ORBIX" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  top-right [p200-5-brand]: Printed paper takeaway bags and food boxes with a Ramadan crescent and lantern pattern on a restaurant counter. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "Qasr Foods" printed small and neat as the shop/company logo.
+  bottom-left [p200-6-brand]: Printed paper takeaway bags and food boxes with a Ramadan crescent and lantern pattern on a restaurant counter. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "VELMORA" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p200-7-brand]: Printed paper takeaway bags and food boxes with a Ramadan crescent and lantern pattern on a restaurant counter. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "Sahra Tech" printed small and neat as the shop/company logo.
+
+GRID G027:
+  top-left [p200-8-brand]: Printed paper takeaway bags and food boxes with a Ramadan crescent and lantern pattern on a restaurant counter. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "LUMIRA" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  top-right [p201-brand]: A Ramadan roll-up banner stand with a lantern and crescent design at a supermarket entrance. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "Bayt Al Kheir" printed small and neat as the shop/company logo.
+  bottom-left [p201-2-brand]: A Ramadan roll-up banner stand with a lantern and crescent design at a supermarket entrance. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "KORVEX" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p201-3-brand]: A Ramadan roll-up banner stand with a lantern and crescent design at a supermarket entrance. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "Marsa Holding" printed small and neat as the shop/company logo.
+
+GRID G028:
+  top-left [p201-4-brand]: A Ramadan roll-up banner stand with a lantern and crescent design at a supermarket entrance. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "ELARA" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  top-right [p201-5-brand]: A Ramadan roll-up banner stand with a lantern and crescent design at a supermarket entrance. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "Delta Pharma Plus" printed small and neat as the shop/company logo.
+  bottom-left [p201-6-brand]: A Ramadan roll-up banner stand with a lantern and crescent design at a supermarket entrance. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "TAVRO" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-right [p201-7-brand]: A Ramadan roll-up banner stand with a lantern and crescent design at a supermarket entrance. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "Rawda Dates" printed small and neat as the shop/company logo.
+
+GRID G029:
+  top-left [p202-brand]: Round printed Ramadan stickers with crescent and lantern designs on a sheet and sealing kraft gift boxes. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "AURELO" printed small and neat as the shop/company logo.
+  top-right [p202-2-brand]: Round printed Ramadan stickers with crescent and lantern designs on a sheet and sealing kraft gift boxes. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "Nour Bakery" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p202-3-brand]: Round printed Ramadan stickers with crescent and lantern designs on a sheet and sealing kraft gift boxes. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "SOLVEN" printed small and neat as the shop/company logo.
+  bottom-right [p202-4-brand]: Round printed Ramadan stickers with crescent and lantern designs on a sheet and sealing kraft gift boxes. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "Hilal Sweets" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G030:
+  top-left [p202-5-brand]: Round printed Ramadan stickers with crescent and lantern designs on a sheet and sealing kraft gift boxes. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "MERIDO" printed small and neat as the shop/company logo.
+  top-right [p202-6-brand]: Round printed Ramadan stickers with crescent and lantern designs on a sheet and sealing kraft gift boxes. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "Fayrouz Cafe" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p202-7-brand]: Round printed Ramadan stickers with crescent and lantern designs on a sheet and sealing kraft gift boxes. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "QUANTA" printed small and neat as the shop/company logo.
+  bottom-right [p202-8-brand]: Round printed Ramadan stickers with crescent and lantern designs on a sheet and sealing kraft gift boxes. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "Sultan Grill" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G031:
+  top-left [p202-9-brand]: Round printed Ramadan stickers with crescent and lantern designs on a sheet and sealing kraft gift boxes. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "VEXA" printed small and neat as the shop/company logo.
+  top-right [p202-10-brand]: Round printed Ramadan stickers with crescent and lantern designs on a sheet and sealing kraft gift boxes. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "Amal Charity" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+  bottom-left [p202-11-brand]: Round printed Ramadan stickers with crescent and lantern designs on a sheet and sealing kraft gift boxes. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "ORVINO" printed small and neat as the shop/company logo.
+  bottom-right [p202-12-brand]: Round printed Ramadan stickers with crescent and lantern designs on a sheet and sealing kraft gift boxes. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "Nakhla Market" printed small and neat as the shop/company logo, plus elegant Arabic calligraphy "رمضان كريم".
+
+GRID G032:
+  top-left [p203-brand]: A premium printed wall calendar with a large photo and monthly grid hanging on an office wall. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "ZAFIRA" printed small and neat as the shop/company logo.
+  top-right [p203-2-brand]: A premium printed wall calendar with a large photo and monthly grid hanging on an office wall. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "Masr Logistics" printed small and neat as the shop/company logo.
+  bottom-left [p203-3-brand]: A premium printed wall calendar with a large photo and monthly grid hanging on an office wall. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "KAVIO" printed small and neat as the shop/company logo.
+  bottom-right [p203-4-brand]: A premium printed wall calendar with a large photo and monthly grid hanging on an office wall. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "Lotus Clinic" printed small and neat as the shop/company logo.
+
+
+===================== الجزء 3 من 4 — G033 لحد G048 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop marketplace in Egypt (Ramadan and New-Year corporate gifts season). The products must look REAL and PRINTABLE exactly as shown: real paper/card/plastic/fabric/metal materials, real sizes and real finishing (lamination, gold foil, emboss, laser engraving, die-cut, embroidery) that any print shop can produce. Nothing fantasy or impossible.
+
+FORMAT (VERY IMPORTANT):
+- Every image is ONE landscape 4:3 picture (2048x1536 or larger) split into a 2x2 GRID of 4 equal panels: top-left, top-right, bottom-left, bottom-right.
+- Each panel is a separate, complete product photo of its own item. Thin plain white gap between panels, no borders, no labels, nothing crossing from one panel to another.
+- In EVERY reply send 4 such grid images (= 16 product photos), in list order, then stop and wait.
+- When I write "كمل" continue with the next 4 grid images. Keep going until the list is finished, then write "DONE" and tell me any grid you skipped.
+
+RULES FOR EVERY PANEL:
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail, premium feel.
+- Each item shows a FICTIONAL company/shop name, so customers imagine their own name on it. Print that name exactly as written, spelled correctly, clean and professional (like a real logo: simple wordmark or monogram). It must look printed/engraved/embossed ON the product, not floating on the photo.
+- Arabic text ("رمضان كريم") only where the item asks for it; it must be correct, connected Arabic calligraphy. If you cannot write it correctly, use a decorative crescent instead of text.
+- No other text at all: no slogans, phone numbers, emails, websites, dates or random letters. Calendars and planners show blank grids/lines without readable numbers.
+- No real brands: props must be plain and unbranded; screens turned off.
+- Never write the grid name or the file code on the image.
+
+THE LIST:
+GRID G033:
+  top-left [p203-5-brand]: A premium printed wall calendar with a large photo and monthly grid hanging on an office wall. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "NOVARA" printed small and neat as the shop/company logo.
+  top-right [p204-brand]: A spiral-bound tent desk calendar with colorful pages on a modern office desk next to a laptop and coffee. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "Al Waha Group" printed small and neat as the shop/company logo.
+  bottom-left [p204-2-brand]: A spiral-bound tent desk calendar with colorful pages on a modern office desk next to a laptop and coffee. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "ZENTRO" printed small and neat as the shop/company logo.
+  bottom-right [p204-3-brand]: A spiral-bound tent desk calendar with colorful pages on a modern office desk next to a laptop and coffee. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "Nile Crest" printed small and neat as the shop/company logo.
+
+GRID G034:
+  top-left [p204-4-brand]: A spiral-bound tent desk calendar with colorful pages on a modern office desk next to a laptop and coffee. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "ORBIX" printed small and neat as the shop/company logo.
+  top-right [p204-5-brand]: A spiral-bound tent desk calendar with colorful pages on a modern office desk next to a laptop and coffee. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "Qasr Foods" printed small and neat as the shop/company logo.
+  bottom-left [p205-brand]: A premium leather 2027 planner with a gold debossed name on the cover and an elastic strap on a dark wooden desk. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "VELMORA" printed small and neat as the shop/company logo.
+  bottom-right [p205-2-brand]: A premium leather 2027 planner with a gold debossed name on the cover and an elastic strap on a dark wooden desk. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "Sahra Tech" printed small and neat as the shop/company logo.
+
+GRID G035:
+  top-left [p205-3-brand]: A premium leather 2027 planner with a gold debossed name on the cover and an elastic strap on a dark wooden desk. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "LUMIRA" printed small and neat as the shop/company logo.
+  top-right [p205-4-brand]: A premium leather 2027 planner with a gold debossed name on the cover and an elastic strap on a dark wooden desk. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "Bayt Al Kheir" printed small and neat as the shop/company logo.
+  bottom-left [p205-5-brand]: A premium leather 2027 planner with a gold debossed name on the cover and an elastic strap on a dark wooden desk. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "KORVEX" printed small and neat as the shop/company logo.
+  bottom-right [p205-6-brand]: A premium leather 2027 planner with a gold debossed name on the cover and an elastic strap on a dark wooden desk. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "Marsa Holding" printed small and neat as the shop/company logo.
+
+GRID G036:
+  top-left [p205-7-brand]: A premium leather 2027 planner with a gold debossed name on the cover and an elastic strap on a dark wooden desk. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "ELARA" printed small and neat as the shop/company logo.
+  top-right [p205-8-brand]: A premium leather 2027 planner with a gold debossed name on the cover and an elastic strap on a dark wooden desk. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "Delta Pharma Plus" printed small and neat as the shop/company logo.
+  bottom-left [p206-brand]: An open black rigid gift box with foam inserts holding a leather planner, a metal pen and a mug with a company logo. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "TAVRO" printed small and neat as the shop/company logo.
+  bottom-right [p206-2-brand]: An open black rigid gift box with foam inserts holding a leather planner, a metal pen and a mug with a company logo. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "Rawda Dates" printed small and neat as the shop/company logo.
+
+GRID G037:
+  top-left [p206-3-brand]: An open black rigid gift box with foam inserts holding a leather planner, a metal pen and a mug with a company logo. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "AURELO" printed small and neat as the shop/company logo.
+  top-right [p206-4-brand]: An open black rigid gift box with foam inserts holding a leather planner, a metal pen and a mug with a company logo. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "Nour Bakery" printed small and neat as the shop/company logo.
+  bottom-left [p206-5-brand]: An open black rigid gift box with foam inserts holding a leather planner, a metal pen and a mug with a company logo. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "SOLVEN" printed small and neat as the shop/company logo.
+  bottom-right [p206-6-brand]: An open black rigid gift box with foam inserts holding a leather planner, a metal pen and a mug with a company logo. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "Hilal Sweets" printed small and neat as the shop/company logo.
+
+GRID G038:
+  top-left [p206-7-brand]: An open black rigid gift box with foam inserts holding a leather planner, a metal pen and a mug with a company logo. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "MERIDO" printed small and neat as the shop/company logo.
+  top-right [p207-brand]: A neatly arranged employee welcome kit box with a folded T-shirt, ID badge, notebook, pen and water bottle all in matching company colors. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "Fayrouz Cafe" printed small and neat as the shop/company logo.
+  bottom-left [p207-2-brand]: A neatly arranged employee welcome kit box with a folded T-shirt, ID badge, notebook, pen and water bottle all in matching company colors. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "QUANTA" printed small and neat as the shop/company logo.
+  bottom-right [p207-3-brand]: A neatly arranged employee welcome kit box with a folded T-shirt, ID badge, notebook, pen and water bottle all in matching company colors. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "Sultan Grill" printed small and neat as the shop/company logo.
+
+GRID G039:
+  top-left [p207-4-brand]: A neatly arranged employee welcome kit box with a folded T-shirt, ID badge, notebook, pen and water bottle all in matching company colors. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "VEXA" printed small and neat as the shop/company logo.
+  top-right [p207-5-brand]: A neatly arranged employee welcome kit box with a folded T-shirt, ID badge, notebook, pen and water bottle all in matching company colors. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "Amal Charity" printed small and neat as the shop/company logo.
+  bottom-left [p208-brand]: Matte stainless steel thermal water bottles with a laser-engraved company logo standing on an office desk. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "ORVINO" printed small and neat as the shop/company logo.
+  bottom-right [p208-2-brand]: Matte stainless steel thermal water bottles with a laser-engraved company logo standing on an office desk. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "Nakhla Market" printed small and neat as the shop/company logo.
+
+GRID G040:
+  top-left [p208-3-brand]: Matte stainless steel thermal water bottles with a laser-engraved company logo standing on an office desk. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "ZAFIRA" printed small and neat as the shop/company logo.
+  top-right [p208-4-brand]: Matte stainless steel thermal water bottles with a laser-engraved company logo standing on an office desk. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "Masr Logistics" printed small and neat as the shop/company logo.
+  bottom-left [p208-5-brand]: Matte stainless steel thermal water bottles with a laser-engraved company logo standing on an office desk. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "KAVIO" printed small and neat as the shop/company logo.
+  bottom-right [p208-6-brand]: Matte stainless steel thermal water bottles with a laser-engraved company logo standing on an office desk. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "Lotus Clinic" printed small and neat as the shop/company logo.
+
+GRID G041:
+  top-left [p208-7-brand]: Matte stainless steel thermal water bottles with a laser-engraved company logo standing on an office desk. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "NOVARA" printed small and neat as the shop/company logo.
+  top-right [p208-8-brand]: Matte stainless steel thermal water bottles with a laser-engraved company logo standing on an office desk. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "Al Waha Group" printed small and neat as the shop/company logo.
+  bottom-left [p210-brand]: Metal USB flash drives with an engraved company logo in small gift boxes. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "ZENTRO" printed small and neat as the shop/company logo.
+  bottom-right [p210-2-brand]: Metal USB flash drives with an engraved company logo in small gift boxes. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "Nile Crest" printed small and neat as the shop/company logo.
+
+GRID G042:
+  top-left [p210-3-brand]: Metal USB flash drives with an engraved company logo in small gift boxes. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "ORBIX" printed small and neat as the shop/company logo.
+  top-right [p210-4-brand]: Metal USB flash drives with an engraved company logo in small gift boxes. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "Qasr Foods" printed small and neat as the shop/company logo.
+  bottom-left [p210-5-brand]: Metal USB flash drives with an engraved company logo in small gift boxes. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "VELMORA" printed small and neat as the shop/company logo.
+  bottom-right [p211-brand]: Premium new-year corporate greeting cards with gold foil details and matching envelopes on a white desk. Variation: in burgundy and gold color scheme. Text on the product: ONLY the brand name "Sahra Tech" printed small and neat as the shop/company logo.
+
+GRID G043:
+  top-left [p211-2-brand]: Premium new-year corporate greeting cards with gold foil details and matching envelopes on a white desk. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "LUMIRA" printed small and neat as the shop/company logo.
+  top-right [p211-3-brand]: Premium new-year corporate greeting cards with gold foil details and matching envelopes on a white desk. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "Bayt Al Kheir" printed small and neat as the shop/company logo.
+  bottom-left [p211-4-brand]: Premium new-year corporate greeting cards with gold foil details and matching envelopes on a white desk. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "KORVEX" printed small and neat as the shop/company logo.
+  bottom-right [p211-5-brand]: Premium new-year corporate greeting cards with gold foil details and matching envelopes on a white desk. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "Marsa Holding" printed small and neat as the shop/company logo.
+
+GRID G044:
+  top-left [p211-6-brand]: Premium new-year corporate greeting cards with gold foil details and matching envelopes on a white desk. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "ELARA" printed small and neat as the shop/company logo.
+  top-right [p212-brand]: Folded navy hoodies and T-shirts with an embroidered company logo on a light background. Variation: in teal and copper color scheme. Text on the product: ONLY the brand name "Delta Pharma Plus" printed small and neat as the shop/company logo.
+  bottom-left [p212-2-brand]: Folded navy hoodies and T-shirts with an embroidered company logo on a light background. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "TAVRO" printed small and neat as the shop/company logo.
+  bottom-right [p212-3-brand]: Folded navy hoodies and T-shirts with an embroidered company logo on a light background. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "Rawda Dates" printed small and neat as the shop/company logo.
+
+GRID G045:
+  top-left [p213-brand]: Plastic employee ID badges with lanyards printed with a company logo laid out on a desk. Variation: held in a hand (no face), natural light. Text on the product: ONLY the brand name "AURELO" printed small and neat as the shop/company logo.
+  top-right [p213-2-brand]: Plastic employee ID badges with lanyards printed with a company logo laid out on a desk. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "Nour Bakery" printed small and neat as the shop/company logo.
+  bottom-left [p213-3-brand]: Plastic employee ID badges with lanyards printed with a company logo laid out on a desk. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "SOLVEN" printed small and neat as the shop/company logo.
+  bottom-right [p213-4-brand]: Plastic employee ID badges with lanyards printed with a company logo laid out on a desk. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "Hilal Sweets" printed small and neat as the shop/company logo.
+
+GRID G046:
+  top-left [p213-5-brand]: Plastic employee ID badges with lanyards printed with a company logo laid out on a desk. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "MERIDO" printed small and neat as the shop/company logo.
+  top-right [p213-6-brand]: Plastic employee ID badges with lanyards printed with a company logo laid out on a desk. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "Fayrouz Cafe" printed small and neat as the shop/company logo.
+  bottom-left [p214-brand]: A coordinated corporate stationery set with presentation folder, letterhead, envelopes and business cards in matching colors. Variation: in royal purple and gold color scheme. Text on the product: ONLY the brand name "QUANTA" printed small and neat as the shop/company logo.
+  bottom-right [p214-2-brand]: A coordinated corporate stationery set with presentation folder, letterhead, envelopes and business cards in matching colors. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "Sultan Grill" printed small and neat as the shop/company logo.
+
+GRID G047:
+  top-left [p214-3-brand]: A coordinated corporate stationery set with presentation folder, letterhead, envelopes and business cards in matching colors. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "VEXA" printed small and neat as the shop/company logo.
+  top-right [p214-4-brand]: A coordinated corporate stationery set with presentation folder, letterhead, envelopes and business cards in matching colors. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "Amal Charity" printed small and neat as the shop/company logo.
+  bottom-left [p214-5-brand]: A coordinated corporate stationery set with presentation folder, letterhead, envelopes and business cards in matching colors. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "ORVINO" printed small and neat as the shop/company logo.
+  bottom-right [p214-6-brand]: A coordinated corporate stationery set with presentation folder, letterhead, envelopes and business cards in matching colors. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "Nakhla Market" printed small and neat as the shop/company logo.
+
+GRID G048:
+  top-left [p214-7-brand]: A coordinated corporate stationery set with presentation folder, letterhead, envelopes and business cards in matching colors. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "ZAFIRA" printed small and neat as the shop/company logo.
+  top-right [p214-8-brand]: A coordinated corporate stationery set with presentation folder, letterhead, envelopes and business cards in matching colors. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "Masr Logistics" printed small and neat as the shop/company logo.
+  bottom-left [p214-9-brand]: A coordinated corporate stationery set with presentation folder, letterhead, envelopes and business cards in matching colors. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "KAVIO" printed small and neat as the shop/company logo.
+  bottom-right [p215-brand]: A white ceramic mug with a company logo next to its printed gift box on an office desk. Variation: shot from a 45-degree angle on a light oak table. Text on the product: ONLY the brand name "Lotus Clinic" printed small and neat as the shop/company logo.
+
+
+===================== الجزء 4 من 4 — G049 لحد G052 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop marketplace in Egypt (Ramadan and New-Year corporate gifts season). The products must look REAL and PRINTABLE exactly as shown: real paper/card/plastic/fabric/metal materials, real sizes and real finishing (lamination, gold foil, emboss, laser engraving, die-cut, embroidery) that any print shop can produce. Nothing fantasy or impossible.
+
+FORMAT (VERY IMPORTANT):
+- Every image is ONE landscape 4:3 picture (2048x1536 or larger) split into a 2x2 GRID of 4 equal panels: top-left, top-right, bottom-left, bottom-right.
+- Each panel is a separate, complete product photo of its own item. Thin plain white gap between panels, no borders, no labels, nothing crossing from one panel to another.
+- In EVERY reply send 4 such grid images (= 16 product photos), in list order, then stop and wait.
+- When I write "كمل" continue with the next 4 grid images. Keep going until the list is finished, then write "DONE" and tell me any grid you skipped.
+
+RULES FOR EVERY PANEL:
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail, premium feel.
+- Each item shows a FICTIONAL company/shop name, so customers imagine their own name on it. Print that name exactly as written, spelled correctly, clean and professional (like a real logo: simple wordmark or monogram). It must look printed/engraved/embossed ON the product, not floating on the photo.
+- Arabic text ("رمضان كريم") only where the item asks for it; it must be correct, connected Arabic calligraphy. If you cannot write it correctly, use a decorative crescent instead of text.
+- No other text at all: no slogans, phone numbers, emails, websites, dates or random letters. Calendars and planners show blank grids/lines without readable numbers.
+- No real brands: props must be plain and unbranded; screens turned off.
+- Never write the grid name or the file code on the image.
+
+THE LIST:
+GRID G049:
+  top-left [p215-2-brand]: A white ceramic mug with a company logo next to its printed gift box on an office desk. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "NOVARA" printed small and neat as the shop/company logo.
+  top-right [p215-3-brand]: A white ceramic mug with a company logo next to its printed gift box on an office desk. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "Al Waha Group" printed small and neat as the shop/company logo.
+  bottom-left [p215-4-brand]: A white ceramic mug with a company logo next to its printed gift box on an office desk. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "ZENTRO" printed small and neat as the shop/company logo.
+  bottom-right [p215-5-brand]: A white ceramic mug with a company logo next to its printed gift box on an office desk. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "Nile Crest" printed small and neat as the shop/company logo.
+
+GRID G050:
+  top-left [p215-6-brand]: A white ceramic mug with a company logo next to its printed gift box on an office desk. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "ORBIX" printed small and neat as the shop/company logo.
+  top-right [p215-7-brand]: A white ceramic mug with a company logo next to its printed gift box on an office desk. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "Qasr Foods" printed small and neat as the shop/company logo.
+  bottom-left [p215-8-brand]: A white ceramic mug with a company logo next to its printed gift box on an office desk. Variation: in black and gold color scheme, dramatic soft spotlight. Text on the product: ONLY the brand name "VELMORA" printed small and neat as the shop/company logo.
+  bottom-right [p216-brand]: An elegant metal pen with an engraved name resting in an open velvet-lined gift case. Variation: top-down flat lay on a white marble surface. Text on the product: ONLY the brand name "Sahra Tech" printed small and neat as the shop/company logo.
+
+GRID G051:
+  top-left [p216-2-brand]: An elegant metal pen with an engraved name resting in an open velvet-lined gift case. Variation: close-up detail shot showing material texture and finishing. Text on the product: ONLY the brand name "LUMIRA" printed small and neat as the shop/company logo.
+  top-right [p216-3-brand]: An elegant metal pen with an engraved name resting in an open velvet-lined gift case. Variation: in a modern office or home setting, soft daylight. Text on the product: ONLY the brand name "Bayt Al Kheir" printed small and neat as the shop/company logo.
+  bottom-left [p216-4-brand]: An elegant metal pen with an engraved name resting in an open velvet-lined gift case. Variation: in deep navy and gold color scheme, eye-level shot. Text on the product: ONLY the brand name "KORVEX" printed small and neat as the shop/company logo.
+  bottom-right [p216-5-brand]: An elegant metal pen with an engraved name resting in an open velvet-lined gift case. Variation: in emerald green and gold color scheme, warm evening light. Text on the product: ONLY the brand name "Marsa Holding" printed small and neat as the shop/company logo.
+
+GRID G052:
+  top-left [p216-6-brand]: An elegant metal pen with an engraved name resting in an open velvet-lined gift case. Variation: in warm terracotta and cream color scheme. Text on the product: ONLY the brand name "ELARA" printed small and neat as the shop/company logo.
