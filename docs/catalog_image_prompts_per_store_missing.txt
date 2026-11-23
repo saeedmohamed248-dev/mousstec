@@ -1,0 +1,675 @@
+# صور المطابع الناقصة: 447 صورة — كل جزء في محادثة Gemini جديدة
+
+===================== الجزء 1 من 12 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop catalog in Egypt. The products must look REAL and PRINTABLE exactly as shown: real paper/plastic/fabric materials, real sizes and real finishing (lamination, foil, emboss, die-cut, binding) that any print shop can produce. Nothing fantasy or impossible.
+
+RULES FOR EVERY IMAGE:
+- One separate image per item (NOT a grid or collage), landscape 4:3, 1024x768 or larger.
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail.
+- Follow the "Variation" of each item (angle, colors, setting) so images of the same product look clearly DIFFERENT from each other.
+- VERY IMPORTANT: NO readable text, NO letters, NO numbers, NO names, NO logos, NO brand names, NO watermarks anywhere. Do NOT write the file name or the code on the image. Printed designs must be abstract shapes and colors only.
+- Props must be plain and unbranded; screens turned off.
+- Name each image with EXACTLY the file name given.
+
+WORKFLOW:
+- Make 4 images per reply, in list order, then stop and wait.
+- When I write "كمل" continue with the next 4.
+- Keep going until the list is finished, then write "DONE" and list any file name you skipped.
+
+THE LIST (file name — what to show):
+p001-4.png — A neat fanned stack of thick white premium business cards with a minimal abstract navy geometric design, one card standing upright, top-down 3/4 angle. Variation: in fresh green and white color scheme, soft daylight from a window
+p001-5.png — A neat fanned stack of thick white premium business cards with a minimal abstract navy geometric design, one card standing upright, top-down 3/4 angle. Variation: in warm orange and cream color scheme, stacked and fanned out
+p001-6.png — A neat fanned stack of thick white premium business cards with a minimal abstract navy geometric design, one card standing upright, top-down 3/4 angle. Variation: in black and silver color scheme, dramatic soft spotlight
+p002-3.png — Matte black business cards with a glossy spot-UV abstract pattern catching the light, a few cards scattered at an angle. Variation: in fresh green and white color scheme, soft daylight from a window
+p002-4.png — Matte black business cards with a glossy spot-UV abstract pattern catching the light, a few cards scattered at an angle. Variation: in warm orange and cream color scheme, stacked and fanned out
+p002-5.png — Matte black business cards with a glossy spot-UV abstract pattern catching the light, a few cards scattered at an angle. Variation: in black and silver color scheme, dramatic soft spotlight
+p002-6.png — Matte black business cards with a glossy spot-UV abstract pattern catching the light, a few cards scattered at an angle. Variation: in pastel pink and lilac color scheme, airy bright light
+p003-3.png — Close-up of cream business cards with a raised embossed abstract emblem, raking side light showing the relief. Variation: in warm orange and cream color scheme, stacked and fanned out
+p003-4.png — Close-up of cream business cards with a raised embossed abstract emblem, raking side light showing the relief. Variation: in black and silver color scheme, dramatic soft spotlight
+p003-5.png — Close-up of cream business cards with a raised embossed abstract emblem, raking side light showing the relief. Variation: in pastel pink and lilac color scheme, airy bright light
+p003-6.png — Close-up of cream business cards with a raised embossed abstract emblem, raking side light showing the relief. Variation: in red and charcoal color scheme, on a concrete surface
+p004-3.png — Dark navy business cards with shiny gold foil abstract line art, slight reflections, elegant arrangement. Variation: in black and silver color scheme, dramatic soft spotlight
+p004-4.png — Dark navy business cards with shiny gold foil abstract line art, slight reflections, elegant arrangement. Variation: in pastel pink and lilac color scheme, airy bright light
+p004-5.png — Dark navy business cards with shiny gold foil abstract line art, slight reflections, elegant arrangement. Variation: in red and charcoal color scheme, on a concrete surface
+p004-6.png — Dark navy business cards with shiny gold foil abstract line art, slight reflections, elegant arrangement. Variation: held in a hand (no face), natural light
+p005-3.png — Transparent frosted plastic business cards with a simple colored abstract shape, light shining through them. Variation: in pastel pink and lilac color scheme, airy bright light
+p005-4.png — Transparent frosted plastic business cards with a simple colored abstract shape, light shining through them. Variation: in red and charcoal color scheme, on a concrete surface
+p005-5.png — Transparent frosted plastic business cards with a simple colored abstract shape, light shining through them. Variation: held in a hand (no face), natural light
+p005-6.png — Transparent frosted plastic business cards with a simple colored abstract shape, light shining through them. Variation: in teal and coral color scheme, arranged in a neat grid
+p006-3.png — Colorful loyalty stamp cards with a row of empty circles, some stamped with a simple star, next to a rubber stamp. Variation: in red and charcoal color scheme, on a concrete surface
+p006-4.png — Colorful loyalty stamp cards with a row of empty circles, some stamped with a simple star, next to a rubber stamp. Variation: held in a hand (no face), natural light
+p007-3.png — A stack of glossy A5 promotional flyers with vibrant abstract color blocks, one flyer lifted showing the back side. Variation: held in a hand (no face), natural light
+p007-4.png — A stack of glossy A5 promotional flyers with vibrant abstract color blocks, one flyer lifted showing the back side. Variation: in teal and coral color scheme, arranged in a neat grid
+p007-5.png — A stack of glossy A5 promotional flyers with vibrant abstract color blocks, one flyer lifted showing the back side. Variation: shot from a 45-degree angle on a light oak table
+p007-6.png — A stack of glossy A5 promotional flyers with vibrant abstract color blocks, one flyer lifted showing the back side. Variation: top-down flat lay on a white marble surface
+p007-7.png — A stack of glossy A5 promotional flyers with vibrant abstract color blocks, one flyer lifted showing the back side. Variation: close-up detail shot showing paper texture and finishing
+p007-8.png — A stack of glossy A5 promotional flyers with vibrant abstract color blocks, one flyer lifted showing the back side. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p007-9.png — A stack of glossy A5 promotional flyers with vibrant abstract color blocks, one flyer lifted showing the back side. Variation: in deep navy and gold color scheme, eye-level shot
+p008-3.png — An open tri-fold brochure standing upright showing three panels with abstract photos and color blocks. Variation: in teal and coral color scheme, arranged in a neat grid
+p008-4.png — An open tri-fold brochure standing upright showing three panels with abstract photos and color blocks. Variation: shot from a 45-degree angle on a light oak table
+p008-5.png — An open tri-fold brochure standing upright showing three panels with abstract photos and color blocks. Variation: top-down flat lay on a white marble surface
+p008-6.png — An open tri-fold brochure standing upright showing three panels with abstract photos and color blocks. Variation: close-up detail shot showing paper texture and finishing
+p008-7.png — An open tri-fold brochure standing upright showing three panels with abstract photos and color blocks. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p008-8.png — An open tri-fold brochure standing upright showing three panels with abstract photos and color blocks. Variation: in deep navy and gold color scheme, eye-level shot
+p008-9.png — An open tri-fold brochure standing upright showing three panels with abstract photos and color blocks. Variation: in fresh green and white color scheme, soft daylight from a window
+p009-2.png — A thick laminated restaurant menu, folded open on a wooden cafe table, with abstract food-photo blocks and blank lines. Variation: in teal and coral color scheme, arranged in a neat grid
+p009-3.png — A thick laminated restaurant menu, folded open on a wooden cafe table, with abstract food-photo blocks and blank lines. Variation: shot from a 45-degree angle on a light oak table
+p009-4.png — A thick laminated restaurant menu, folded open on a wooden cafe table, with abstract food-photo blocks and blank lines. Variation: top-down flat lay on a white marble surface
+p009-5.png — A thick laminated restaurant menu, folded open on a wooden cafe table, with abstract food-photo blocks and blank lines. Variation: close-up detail shot showing paper texture and finishing
+p009-6.png — A thick laminated restaurant menu, folded open on a wooden cafe table, with abstract food-photo blocks and blank lines. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+
+
+===================== الجزء 2 من 12 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop catalog in Egypt. The products must look REAL and PRINTABLE exactly as shown: real paper/plastic/fabric materials, real sizes and real finishing (lamination, foil, emboss, die-cut, binding) that any print shop can produce. Nothing fantasy or impossible.
+
+RULES FOR EVERY IMAGE:
+- One separate image per item (NOT a grid or collage), landscape 4:3, 1024x768 or larger.
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail.
+- Follow the "Variation" of each item (angle, colors, setting) so images of the same product look clearly DIFFERENT from each other.
+- VERY IMPORTANT: NO readable text, NO letters, NO numbers, NO names, NO logos, NO brand names, NO watermarks anywhere. Do NOT write the file name or the code on the image. Printed designs must be abstract shapes and colors only.
+- Props must be plain and unbranded; screens turned off.
+- Name each image with EXACTLY the file name given.
+
+WORKFLOW:
+- Make 4 images per reply, in list order, then stop and wait.
+- When I write "كمل" continue with the next 4.
+- Keep going until the list is finished, then write "DONE" and list any file name you skipped.
+
+THE LIST (file name — what to show):
+p009-7.png — A thick laminated restaurant menu, folded open on a wooden cafe table, with abstract food-photo blocks and blank lines. Variation: in deep navy and gold color scheme, eye-level shot
+p010-3.png — A stack of light paper delivery menus with colorful abstract food illustrations, slightly fanned. Variation: top-down flat lay on a white marble surface
+p010-4.png — A stack of light paper delivery menus with colorful abstract food illustrations, slightly fanned. Variation: close-up detail shot showing paper texture and finishing
+p010-5.png — A stack of light paper delivery menus with colorful abstract food illustrations, slightly fanned. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p010-6.png — A stack of light paper delivery menus with colorful abstract food illustrations, slightly fanned. Variation: in deep navy and gold color scheme, eye-level shot
+p010-7.png — A stack of light paper delivery menus with colorful abstract food illustrations, slightly fanned. Variation: in fresh green and white color scheme, soft daylight from a window
+p011-3.png — A stapled product catalog booklet lying open, glossy pages with abstract product photo blocks, a closed copy beside it. Variation: close-up detail shot showing paper texture and finishing
+p011-4.png — A stapled product catalog booklet lying open, glossy pages with abstract product photo blocks, a closed copy beside it. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p011-5.png — A stapled product catalog booklet lying open, glossy pages with abstract product photo blocks, a closed copy beside it. Variation: in deep navy and gold color scheme, eye-level shot
+p011-6.png — A stapled product catalog booklet lying open, glossy pages with abstract product photo blocks, a closed copy beside it. Variation: in fresh green and white color scheme, soft daylight from a window
+p011-7.png — A stapled product catalog booklet lying open, glossy pages with abstract product photo blocks, a closed copy beside it. Variation: in warm orange and cream color scheme, stacked and fanned out
+p011-8.png — A stapled product catalog booklet lying open, glossy pages with abstract product photo blocks, a closed copy beside it. Variation: in black and silver color scheme, dramatic soft spotlight
+p012-3.png — Two large posters (A3 and A2) leaning against a wall with bold abstract colorful graphics. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p012-4.png — Two large posters (A3 and A2) leaning against a wall with bold abstract colorful graphics. Variation: in deep navy and gold color scheme, eye-level shot
+p012-5.png — Two large posters (A3 and A2) leaning against a wall with bold abstract colorful graphics. Variation: in fresh green and white color scheme, soft daylight from a window
+p012-6.png — Two large posters (A3 and A2) leaning against a wall with bold abstract colorful graphics. Variation: in warm orange and cream color scheme, stacked and fanned out
+p012-7.png — Two large posters (A3 and A2) leaning against a wall with bold abstract colorful graphics. Variation: in black and silver color scheme, dramatic soft spotlight
+p012-8.png — Two large posters (A3 and A2) leaning against a wall with bold abstract colorful graphics. Variation: in pastel pink and lilac color scheme, airy bright light
+p012-9.png — Two large posters (A3 and A2) leaning against a wall with bold abstract colorful graphics. Variation: in red and charcoal color scheme, on a concrete surface
+p012-10.png — Two large posters (A3 and A2) leaning against a wall with bold abstract colorful graphics. Variation: held in a hand (no face), natural light
+p013-2.png — A spiral-bound notebook with a colorful printed abstract cover, next to a pen on a desk. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p013-3.png — A spiral-bound notebook with a colorful printed abstract cover, next to a pen on a desk. Variation: in deep navy and gold color scheme, eye-level shot
+p013-4.png — A spiral-bound notebook with a colorful printed abstract cover, next to a pen on a desk. Variation: in fresh green and white color scheme, soft daylight from a window
+p013-5.png — A spiral-bound notebook with a colorful printed abstract cover, next to a pen on a desk. Variation: in warm orange and cream color scheme, stacked and fanned out
+p013-6.png — A spiral-bound notebook with a colorful printed abstract cover, next to a pen on a desk. Variation: in black and silver color scheme, dramatic soft spotlight
+p014-2.png — A premium brown leather planner with an elastic strap and a subtle debossed abstract emblem on the cover. Variation: in deep navy and gold color scheme, eye-level shot
+p014-3.png — A premium brown leather planner with an elastic strap and a subtle debossed abstract emblem on the cover. Variation: in fresh green and white color scheme, soft daylight from a window
+p014-4.png — A premium brown leather planner with an elastic strap and a subtle debossed abstract emblem on the cover. Variation: in warm orange and cream color scheme, stacked and fanned out
+p015-2.png — A small stack of A6 pocket notebooks in assorted pastel covers with simple abstract shapes. Variation: in fresh green and white color scheme, soft daylight from a window
+p015-3.png — A small stack of A6 pocket notebooks in assorted pastel covers with simple abstract shapes. Variation: in warm orange and cream color scheme, stacked and fanned out
+p015-4.png — A small stack of A6 pocket notebooks in assorted pastel covers with simple abstract shapes. Variation: in black and silver color scheme, dramatic soft spotlight
+p015-5.png — A small stack of A6 pocket notebooks in assorted pastel covers with simple abstract shapes. Variation: in pastel pink and lilac color scheme, airy bright light
+p015-6.png — A small stack of A6 pocket notebooks in assorted pastel covers with simple abstract shapes. Variation: in red and charcoal color scheme, on a concrete surface
+p015-7.png — A small stack of A6 pocket notebooks in assorted pastel covers with simple abstract shapes. Variation: held in a hand (no face), natural light
+p016-2.png — A wall calendar and a small desk tent calendar with colorful abstract photos, on a clean desk. Variation: in warm orange and cream color scheme, stacked and fanned out
+p016-3.png — A wall calendar and a small desk tent calendar with colorful abstract photos, on a clean desk. Variation: in black and silver color scheme, dramatic soft spotlight
+p016-4.png — A wall calendar and a small desk tent calendar with colorful abstract photos, on a clean desk. Variation: in pastel pink and lilac color scheme, airy bright light
+p016-5.png — A wall calendar and a small desk tent calendar with colorful abstract photos, on a clean desk. Variation: in red and charcoal color scheme, on a concrete surface
+p016-6.png — A wall calendar and a small desk tent calendar with colorful abstract photos, on a clean desk. Variation: held in a hand (no face), natural light
+p017-2.png — Carbon-copy invoice and receipt books, pink white and yellow sheets visible at the edge, with a pen. Variation: in black and silver color scheme, dramatic soft spotlight
+
+
+===================== الجزء 3 من 12 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop catalog in Egypt. The products must look REAL and PRINTABLE exactly as shown: real paper/plastic/fabric materials, real sizes and real finishing (lamination, foil, emboss, die-cut, binding) that any print shop can produce. Nothing fantasy or impossible.
+
+RULES FOR EVERY IMAGE:
+- One separate image per item (NOT a grid or collage), landscape 4:3, 1024x768 or larger.
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail.
+- Follow the "Variation" of each item (angle, colors, setting) so images of the same product look clearly DIFFERENT from each other.
+- VERY IMPORTANT: NO readable text, NO letters, NO numbers, NO names, NO logos, NO brand names, NO watermarks anywhere. Do NOT write the file name or the code on the image. Printed designs must be abstract shapes and colors only.
+- Props must be plain and unbranded; screens turned off.
+- Name each image with EXACTLY the file name given.
+
+WORKFLOW:
+- Make 4 images per reply, in list order, then stop and wait.
+- When I write "كمل" continue with the next 4.
+- Keep going until the list is finished, then write "DONE" and list any file name you skipped.
+
+THE LIST (file name — what to show):
+p017-3.png — Carbon-copy invoice and receipt books, pink white and yellow sheets visible at the edge, with a pen. Variation: in pastel pink and lilac color scheme, airy bright light
+p017-4.png — Carbon-copy invoice and receipt books, pink white and yellow sheets visible at the edge, with a pen. Variation: in red and charcoal color scheme, on a concrete surface
+p017-5.png — Carbon-copy invoice and receipt books, pink white and yellow sheets visible at the edge, with a pen. Variation: held in a hand (no face), natural light
+p017-6.png — Carbon-copy invoice and receipt books, pink white and yellow sheets visible at the edge, with a pen. Variation: in teal and coral color scheme, arranged in a neat grid
+p018-2.png — Kids coloring and activity books with cheerful abstract cartoon-style shapes, crayons around them. Variation: in pastel pink and lilac color scheme, airy bright light
+p018-3.png — Kids coloring and activity books with cheerful abstract cartoon-style shapes, crayons around them. Variation: in red and charcoal color scheme, on a concrete surface
+p018-4.png — Kids coloring and activity books with cheerful abstract cartoon-style shapes, crayons around them. Variation: held in a hand (no face), natural light
+p018-5.png — Kids coloring and activity books with cheerful abstract cartoon-style shapes, crayons around them. Variation: in teal and coral color scheme, arranged in a neat grid
+p020-2.png — A black magic color-changing mug, half of it revealing a colorful abstract picture where hot coffee was poured. Variation: held in a hand (no face), natural light
+p020-3.png — A black magic color-changing mug, half of it revealing a colorful abstract picture where hot coffee was poured. Variation: in teal and coral color scheme, arranged in a neat grid
+p021-2.png — A white ceramic mug with a bright colored handle and colored interior, several color variants in a row. Variation: in teal and coral color scheme, arranged in a neat grid
+p021-3.png — A white ceramic mug with a bright colored handle and colored interior, several color variants in a row. Variation: shot from a 45-degree angle on a light oak table
+p022-2.png — A sleek stainless steel insulated tumbler with a laser-engraved minimal abstract emblem, condensation droplets. Variation: shot from a 45-degree angle on a light oak table
+p022-3.png — A sleek stainless steel insulated tumbler with a laser-engraved minimal abstract emblem, condensation droplets. Variation: top-down flat lay on a white marble surface
+p023-2.png — A frosted glass mug with a soft printed abstract design, warm drink inside. Variation: top-down flat lay on a white marble surface
+p023-3.png — A frosted glass mug with a soft printed abstract design, warm drink inside. Variation: close-up detail shot showing paper texture and finishing
+p024-2.png — A gift box set of two printed ceramic mugs nested in a branded-looking box with tissue paper (no text). Variation: close-up detail shot showing paper texture and finishing
+p024-3.png — A gift box set of two printed ceramic mugs nested in a branded-looking box with tissue paper (no text). Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p025.png — A pile of colorful plastic promotional ballpoint pens in many colors
+p025-2.png — A pile of colorful plastic promotional ballpoint pens in many colors. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p025-3.png — A pile of colorful plastic promotional ballpoint pens in many colors. Variation: in deep navy and gold color scheme, eye-level shot
+p026-2.png — Two heavy metal pens with laser-engraved minimal patterns on a dark slate surface. Variation: in deep navy and gold color scheme, eye-level shot
+p026-3.png — Two heavy metal pens with laser-engraved minimal patterns on a dark slate surface. Variation: in fresh green and white color scheme, soft daylight from a window
+p027-2.png — An open gift box containing a metal pen and a matching keychain on satin. Variation: in fresh green and white color scheme, soft daylight from a window
+p027-3.png — An open gift box containing a metal pen and a matching keychain on satin. Variation: in warm orange and cream color scheme, stacked and fanned out
+p028-2.png — A row of whiteboard markers and highlighters in bright colors with blank clip areas. Variation: in warm orange and cream color scheme, stacked and fanned out
+p028-3.png — A row of whiteboard markers and highlighters in bright colors with blank clip areas. Variation: in black and silver color scheme, dramatic soft spotlight
+p029-2.png — A stylus touch pen resting on a smartphone screen. Variation: in black and silver color scheme, dramatic soft spotlight
+p029-3.png — A stylus touch pen resting on a smartphone screen. Variation: in pastel pink and lilac color scheme, airy bright light
+p030-2.png — An assortment of leather and acrylic keychains with simple abstract shapes. Variation: in pastel pink and lilac color scheme, airy bright light
+p030-3.png — An assortment of leather and acrylic keychains with simple abstract shapes. Variation: in red and charcoal color scheme, on a concrete surface
+p030-4.png — An assortment of leather and acrylic keychains with simple abstract shapes. Variation: held in a hand (no face), natural light
+p030-5.png — An assortment of leather and acrylic keychains with simple abstract shapes. Variation: in teal and coral color scheme, arranged in a neat grid
+p030-6.png — An assortment of leather and acrylic keychains with simple abstract shapes. Variation: shot from a 45-degree angle on a light oak table
+p030-7.png — An assortment of leather and acrylic keychains with simple abstract shapes. Variation: top-down flat lay on a white marble surface
+p030-8.png — An assortment of leather and acrylic keychains with simple abstract shapes. Variation: close-up detail shot showing paper texture and finishing
+p030-9.png — An assortment of leather and acrylic keychains with simple abstract shapes. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p030-10.png — An assortment of leather and acrylic keychains with simple abstract shapes. Variation: in deep navy and gold color scheme, eye-level shot
+p030-11.png — An assortment of leather and acrylic keychains with simple abstract shapes. Variation: in fresh green and white color scheme, soft daylight from a window
+p031-2.png — A slim power bank with a minimal abstract print, a cable plugged in, on a desk. Variation: in red and charcoal color scheme, on a concrete surface
+
+
+===================== الجزء 4 من 12 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop catalog in Egypt. The products must look REAL and PRINTABLE exactly as shown: real paper/plastic/fabric materials, real sizes and real finishing (lamination, foil, emboss, die-cut, binding) that any print shop can produce. Nothing fantasy or impossible.
+
+RULES FOR EVERY IMAGE:
+- One separate image per item (NOT a grid or collage), landscape 4:3, 1024x768 or larger.
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail.
+- Follow the "Variation" of each item (angle, colors, setting) so images of the same product look clearly DIFFERENT from each other.
+- VERY IMPORTANT: NO readable text, NO letters, NO numbers, NO names, NO logos, NO brand names, NO watermarks anywhere. Do NOT write the file name or the code on the image. Printed designs must be abstract shapes and colors only.
+- Props must be plain and unbranded; screens turned off.
+- Name each image with EXACTLY the file name given.
+
+WORKFLOW:
+- Make 4 images per reply, in list order, then stop and wait.
+- When I write "كمل" continue with the next 4.
+- Keep going until the list is finished, then write "DONE" and list any file name you skipped.
+
+THE LIST (file name — what to show):
+p031-3.png — A slim power bank with a minimal abstract print, a cable plugged in, on a desk. Variation: held in a hand (no face), natural light
+p031-4.png — A slim power bank with a minimal abstract print, a cable plugged in, on a desk. Variation: in teal and coral color scheme, arranged in a neat grid
+p031-5.png — A slim power bank with a minimal abstract print, a cable plugged in, on a desk. Variation: shot from a 45-degree angle on a light oak table
+p031-6.png — A slim power bank with a minimal abstract print, a cable plugged in, on a desk. Variation: top-down flat lay on a white marble surface
+p031-7.png — A slim power bank with a minimal abstract print, a cable plugged in, on a desk. Variation: close-up detail shot showing paper texture and finishing
+p031-8.png — A slim power bank with a minimal abstract print, a cable plugged in, on a desk. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p031-9.png — A slim power bank with a minimal abstract print, a cable plugged in, on a desk. Variation: in deep navy and gold color scheme, eye-level shot
+p031-10.png — A slim power bank with a minimal abstract print, a cable plugged in, on a desk. Variation: in fresh green and white color scheme, soft daylight from a window
+p032-2.png — Wooden and card-shaped USB flash drives laid out neatly. Variation: held in a hand (no face), natural light
+p032-3.png — Wooden and card-shaped USB flash drives laid out neatly. Variation: in teal and coral color scheme, arranged in a neat grid
+p032-4.png — Wooden and card-shaped USB flash drives laid out neatly. Variation: shot from a 45-degree angle on a light oak table
+p032-5.png — Wooden and card-shaped USB flash drives laid out neatly. Variation: top-down flat lay on a white marble surface
+p032-6.png — Wooden and card-shaped USB flash drives laid out neatly. Variation: close-up detail shot showing paper texture and finishing
+p032-7.png — Wooden and card-shaped USB flash drives laid out neatly. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p032-8.png — Wooden and card-shaped USB flash drives laid out neatly. Variation: in deep navy and gold color scheme, eye-level shot
+p032-9.png — Wooden and card-shaped USB flash drives laid out neatly. Variation: in fresh green and white color scheme, soft daylight from a window
+p032-10.png — Wooden and card-shaped USB flash drives laid out neatly. Variation: in warm orange and cream color scheme, stacked and fanned out
+p033-2.png — An acrylic award shield and a wooden plaque with an engraved abstract emblem on a stand. Variation: in teal and coral color scheme, arranged in a neat grid
+p033-3.png — An acrylic award shield and a wooden plaque with an engraved abstract emblem on a stand. Variation: shot from a 45-degree angle on a light oak table
+p033-4.png — An acrylic award shield and a wooden plaque with an engraved abstract emblem on a stand. Variation: top-down flat lay on a white marble surface
+p033-5.png — An acrylic award shield and a wooden plaque with an engraved abstract emblem on a stand. Variation: close-up detail shot showing paper texture and finishing
+p033-6.png — An acrylic award shield and a wooden plaque with an engraved abstract emblem on a stand. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p033-7.png — An acrylic award shield and a wooden plaque with an engraved abstract emblem on a stand. Variation: in deep navy and gold color scheme, eye-level shot
+p033-8.png — An acrylic award shield and a wooden plaque with an engraved abstract emblem on a stand. Variation: in fresh green and white color scheme, soft daylight from a window
+p033-9.png — An acrylic award shield and a wooden plaque with an engraved abstract emblem on a stand. Variation: in warm orange and cream color scheme, stacked and fanned out
+p033-10.png — An acrylic award shield and a wooden plaque with an engraved abstract emblem on a stand. Variation: in black and silver color scheme, dramatic soft spotlight
+p034-2.png — An open corporate gift box with a notebook, pen, mug and keychain arranged inside. Variation: shot from a 45-degree angle on a light oak table
+p034-3.png — An open corporate gift box with a notebook, pen, mug and keychain arranged inside. Variation: top-down flat lay on a white marble surface
+p034-4.png — An open corporate gift box with a notebook, pen, mug and keychain arranged inside. Variation: close-up detail shot showing paper texture and finishing
+p034-5.png — An open corporate gift box with a notebook, pen, mug and keychain arranged inside. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p034-6.png — An open corporate gift box with a notebook, pen, mug and keychain arranged inside. Variation: in deep navy and gold color scheme, eye-level shot
+p034-7.png — An open corporate gift box with a notebook, pen, mug and keychain arranged inside. Variation: in fresh green and white color scheme, soft daylight from a window
+p034-8.png — An open corporate gift box with a notebook, pen, mug and keychain arranged inside. Variation: in warm orange and cream color scheme, stacked and fanned out
+p034-9.png — An open corporate gift box with a notebook, pen, mug and keychain arranged inside. Variation: in black and silver color scheme, dramatic soft spotlight
+p034-10.png — An open corporate gift box with a notebook, pen, mug and keychain arranged inside. Variation: in pastel pink and lilac color scheme, airy bright light
+p034-11.png — An open corporate gift box with a notebook, pen, mug and keychain arranged inside. Variation: in red and charcoal color scheme, on a concrete surface
+p035-2.png — A printed mouse pad with a colorful abstract design next to a computer mouse. Variation: top-down flat lay on a white marble surface
+p035-3.png — A printed mouse pad with a colorful abstract design next to a computer mouse. Variation: close-up detail shot showing paper texture and finishing
+p035-4.png — A printed mouse pad with a colorful abstract design next to a computer mouse. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p035-5.png — A printed mouse pad with a colorful abstract design next to a computer mouse. Variation: in deep navy and gold color scheme, eye-level shot
+
+
+===================== الجزء 5 من 12 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop catalog in Egypt. The products must look REAL and PRINTABLE exactly as shown: real paper/plastic/fabric materials, real sizes and real finishing (lamination, foil, emboss, die-cut, binding) that any print shop can produce. Nothing fantasy or impossible.
+
+RULES FOR EVERY IMAGE:
+- One separate image per item (NOT a grid or collage), landscape 4:3, 1024x768 or larger.
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail.
+- Follow the "Variation" of each item (angle, colors, setting) so images of the same product look clearly DIFFERENT from each other.
+- VERY IMPORTANT: NO readable text, NO letters, NO numbers, NO names, NO logos, NO brand names, NO watermarks anywhere. Do NOT write the file name or the code on the image. Printed designs must be abstract shapes and colors only.
+- Props must be plain and unbranded; screens turned off.
+- Name each image with EXACTLY the file name given.
+
+WORKFLOW:
+- Make 4 images per reply, in list order, then stop and wait.
+- When I write "كمل" continue with the next 4.
+- Keep going until the list is finished, then write "DONE" and list any file name you skipped.
+
+THE LIST (file name — what to show):
+p035-6.png — A printed mouse pad with a colorful abstract design next to a computer mouse. Variation: in fresh green and white color scheme, soft daylight from a window
+p035-7.png — A printed mouse pad with a colorful abstract design next to a computer mouse. Variation: in warm orange and cream color scheme, stacked and fanned out
+p035-8.png — A printed mouse pad with a colorful abstract design next to a computer mouse. Variation: in black and silver color scheme, dramatic soft spotlight
+p035-9.png — A printed mouse pad with a colorful abstract design next to a computer mouse. Variation: in pastel pink and lilac color scheme, airy bright light
+p035-10.png — A printed mouse pad with a colorful abstract design next to a computer mouse. Variation: in red and charcoal color scheme, on a concrete surface
+p036-2.png — A few embroidered baseball caps in navy, black and white with a small abstract embroidered emblem. Variation: close-up detail shot showing paper texture and finishing
+p036-3.png — A few embroidered baseball caps in navy, black and white with a small abstract embroidered emblem. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p036-4.png — A few embroidered baseball caps in navy, black and white with a small abstract embroidered emblem. Variation: in deep navy and gold color scheme, eye-level shot
+p036-5.png — A few embroidered baseball caps in navy, black and white with a small abstract embroidered emblem. Variation: in fresh green and white color scheme, soft daylight from a window
+p036-6.png — A few embroidered baseball caps in navy, black and white with a small abstract embroidered emblem. Variation: in warm orange and cream color scheme, stacked and fanned out
+p036-7.png — A few embroidered baseball caps in navy, black and white with a small abstract embroidered emblem. Variation: in black and silver color scheme, dramatic soft spotlight
+p036-8.png — A few embroidered baseball caps in navy, black and white with a small abstract embroidered emblem. Variation: in pastel pink and lilac color scheme, airy bright light
+p036-9.png — A few embroidered baseball caps in navy, black and white with a small abstract embroidered emblem. Variation: in red and charcoal color scheme, on a concrete surface
+p036-10.png — A few embroidered baseball caps in navy, black and white with a small abstract embroidered emblem. Variation: held in a hand (no face), natural light
+p036-11.png — A few embroidered baseball caps in navy, black and white with a small abstract embroidered emblem. Variation: in teal and coral color scheme, arranged in a neat grid
+p037-3.png — Natural cotton tote bags hanging and folded, with a simple printed abstract shape. Variation: in deep navy and gold color scheme, eye-level shot
+p037-4.png — Natural cotton tote bags hanging and folded, with a simple printed abstract shape. Variation: in fresh green and white color scheme, soft daylight from a window
+p037-5.png — Natural cotton tote bags hanging and folded, with a simple printed abstract shape. Variation: in warm orange and cream color scheme, stacked and fanned out
+p037-6.png — Natural cotton tote bags hanging and folded, with a simple printed abstract shape. Variation: in black and silver color scheme, dramatic soft spotlight
+p037-7.png — Natural cotton tote bags hanging and folded, with a simple printed abstract shape. Variation: in pastel pink and lilac color scheme, airy bright light
+p037-8.png — Natural cotton tote bags hanging and folded, with a simple printed abstract shape. Variation: in red and charcoal color scheme, on a concrete surface
+p037-9.png — Natural cotton tote bags hanging and folded, with a simple printed abstract shape. Variation: held in a hand (no face), natural light
+p038-3.png — Laser engraving on a wooden board and leather patch with a detailed abstract pattern, a laser beam glow. Variation: in fresh green and white color scheme, soft daylight from a window
+p038-4.png — Laser engraving on a wooden board and leather patch with a detailed abstract pattern, a laser beam glow. Variation: in warm orange and cream color scheme, stacked and fanned out
+p038-5.png — Laser engraving on a wooden board and leather patch with a detailed abstract pattern, a laser beam glow. Variation: in black and silver color scheme, dramatic soft spotlight
+p038-6.png — Laser engraving on a wooden board and leather patch with a detailed abstract pattern, a laser beam glow. Variation: in pastel pink and lilac color scheme, airy bright light
+p038-7.png — Laser engraving on a wooden board and leather patch with a detailed abstract pattern, a laser beam glow. Variation: in red and charcoal color scheme, on a concrete surface
+p038-8.png — Laser engraving on a wooden board and leather patch with a detailed abstract pattern, a laser beam glow. Variation: held in a hand (no face), natural light
+p038-9.png — Laser engraving on a wooden board and leather patch with a detailed abstract pattern, a laser beam glow. Variation: in teal and coral color scheme, arranged in a neat grid
+p038-10.png — Laser engraving on a wooden board and leather patch with a detailed abstract pattern, a laser beam glow. Variation: shot from a 45-degree angle on a light oak table
+p039-3.png — Folded and flat 100% cotton t-shirts in several colors with a bold abstract DTF print. Variation: in warm orange and cream color scheme, stacked and fanned out
+p039-4.png — Folded and flat 100% cotton t-shirts in several colors with a bold abstract DTF print. Variation: in black and silver color scheme, dramatic soft spotlight
+p039-5.png — Folded and flat 100% cotton t-shirts in several colors with a bold abstract DTF print. Variation: in pastel pink and lilac color scheme, airy bright light
+p039-6.png — Folded and flat 100% cotton t-shirts in several colors with a bold abstract DTF print. Variation: in red and charcoal color scheme, on a concrete surface
+p040-3.png — A restaurant staff uniform set: polo shirt, cap and apron neatly arranged, plain colors with a small abstract emblem. Variation: in black and silver color scheme, dramatic soft spotlight
+p040-4.png — A restaurant staff uniform set: polo shirt, cap and apron neatly arranged, plain colors with a small abstract emblem. Variation: in pastel pink and lilac color scheme, airy bright light
+p040-5.png — A restaurant staff uniform set: polo shirt, cap and apron neatly arranged, plain colors with a small abstract emblem. Variation: in red and charcoal color scheme, on a concrete surface
+p041-3.png — Corporate pique polo shirts in navy and white with a small embroidered abstract emblem on the chest. Variation: in pastel pink and lilac color scheme, airy bright light
+p041-4.png — Corporate pique polo shirts in navy and white with a small embroidered abstract emblem on the chest. Variation: in red and charcoal color scheme, on a concrete surface
+p041-5.png — Corporate pique polo shirts in navy and white with a small embroidered abstract emblem on the chest. Variation: held in a hand (no face), natural light
+
+
+===================== الجزء 6 من 12 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop catalog in Egypt. The products must look REAL and PRINTABLE exactly as shown: real paper/plastic/fabric materials, real sizes and real finishing (lamination, foil, emboss, die-cut, binding) that any print shop can produce. Nothing fantasy or impossible.
+
+RULES FOR EVERY IMAGE:
+- One separate image per item (NOT a grid or collage), landscape 4:3, 1024x768 or larger.
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail.
+- Follow the "Variation" of each item (angle, colors, setting) so images of the same product look clearly DIFFERENT from each other.
+- VERY IMPORTANT: NO readable text, NO letters, NO numbers, NO names, NO logos, NO brand names, NO watermarks anywhere. Do NOT write the file name or the code on the image. Printed designs must be abstract shapes and colors only.
+- Props must be plain and unbranded; screens turned off.
+- Name each image with EXACTLY the file name given.
+
+WORKFLOW:
+- Make 4 images per reply, in list order, then stop and wait.
+- When I write "كمل" continue with the next 4.
+- Keep going until the list is finished, then write "DONE" and list any file name you skipped.
+
+THE LIST (file name — what to show):
+p041-6.png — Corporate pique polo shirts in navy and white with a small embroidered abstract emblem on the chest. Variation: in teal and coral color scheme, arranged in a neat grid
+p042-3.png — Medical scrubs in teal and navy, folded, with a small embroidered abstract emblem. Variation: in red and charcoal color scheme, on a concrete surface
+p042-4.png — Medical scrubs in teal and navy, folded, with a small embroidered abstract emblem. Variation: held in a hand (no face), natural light
+p042-5.png — Medical scrubs in teal and navy, folded, with a small embroidered abstract emblem. Variation: in teal and coral color scheme, arranged in a neat grid
+p043-3.png — Heavy cotton hoodies and sweatshirts in grey and black with a large abstract print. Variation: held in a hand (no face), natural light
+p043-4.png — Heavy cotton hoodies and sweatshirts in grey and black with a large abstract print. Variation: in teal and coral color scheme, arranged in a neat grid
+p043-5.png — Heavy cotton hoodies and sweatshirts in grey and black with a large abstract print. Variation: shot from a 45-degree angle on a light oak table
+p044-3.png — A school uniform set: shirt, trousers and sweater with a small embroidered abstract crest. Variation: in teal and coral color scheme, arranged in a neat grid
+p044-4.png — A school uniform set: shirt, trousers and sweater with a small embroidered abstract crest. Variation: shot from a 45-degree angle on a light oak table
+p044-5.png — A school uniform set: shirt, trousers and sweater with a small embroidered abstract crest. Variation: top-down flat lay on a white marble surface
+p044-6.png — A school uniform set: shirt, trousers and sweater with a small embroidered abstract crest. Variation: close-up detail shot showing paper texture and finishing
+p045-3.png — Light dri-fit event and marathon t-shirts in bright colors laid out in a row. Variation: shot from a 45-degree angle on a light oak table
+p045-4.png — Light dri-fit event and marathon t-shirts in bright colors laid out in a row. Variation: top-down flat lay on a white marble surface
+p046-3.png — High-visibility reflective safety vests in orange and yellow with reflective strips. Variation: top-down flat lay on a white marble surface
+p046-4.png — High-visibility reflective safety vests in orange and yellow with reflective strips. Variation: close-up detail shot showing paper texture and finishing
+p046-5.png — High-visibility reflective safety vests in orange and yellow with reflective strips. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p046-6.png — High-visibility reflective safety vests in orange and yellow with reflective strips. Variation: in deep navy and gold color scheme, eye-level shot
+p047-3.png — A roll-up banner stand standing in an exhibition hall with bold abstract graphics. Variation: close-up detail shot showing paper texture and finishing
+p047-4.png — A roll-up banner stand standing in an exhibition hall with bold abstract graphics. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p047-5.png — A roll-up banner stand standing in an exhibition hall with bold abstract graphics. Variation: in deep navy and gold color scheme, eye-level shot
+p048-3.png — A large vinyl flex banner with metal eyelets hanging on a shop front, abstract colorful design. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p049-3.png — An illuminated shop sign with glowing LED light box and raised 3D shapes at night. Variation: in deep navy and gold color scheme, eye-level shot
+p049-4.png — An illuminated shop sign with glowing LED light box and raised 3D shapes at night. Variation: in fresh green and white color scheme, soft daylight from a window
+p049-5.png — An illuminated shop sign with glowing LED light box and raised 3D shapes at night. Variation: in warm orange and cream color scheme, stacked and fanned out
+p050-2.png — A car partially wrapped with a colorful abstract vinyl design, and a glass storefront with frosted vinyl. Variation: in deep navy and gold color scheme, eye-level shot
+p050-3.png — A car partially wrapped with a colorful abstract vinyl design, and a glass storefront with frosted vinyl. Variation: in fresh green and white color scheme, soft daylight from a window
+p050-4.png — A car partially wrapped with a colorful abstract vinyl design, and a glass storefront with frosted vinyl. Variation: in warm orange and cream color scheme, stacked and fanned out
+p051-3.png — Acrylic office door signs and arrow wayfinding signs on a clean wall, abstract icons only. Variation: in warm orange and cream color scheme, stacked and fanned out
+p051-4.png — Acrylic office door signs and arrow wayfinding signs on a clean wall, abstract icons only. Variation: in black and silver color scheme, dramatic soft spotlight
+p052-3.png — A large backdrop wall with a repeated abstract pattern at a conference, spotlight lighting. Variation: in black and silver color scheme, dramatic soft spotlight
+p052-4.png — A large backdrop wall with a repeated abstract pattern at a conference, spotlight lighting. Variation: in pastel pink and lilac color scheme, airy bright light
+p053-3.png — Die-cut vinyl stickers in fun abstract shapes, glossy, scattered on a laptop. Variation: in pastel pink and lilac color scheme, airy bright light
+p053-4.png — Die-cut vinyl stickers in fun abstract shapes, glossy, scattered on a laptop. Variation: in red and charcoal color scheme, on a concrete surface
+p053-5.png — Die-cut vinyl stickers in fun abstract shapes, glossy, scattered on a laptop. Variation: held in a hand (no face), natural light
+p053-6.png — Die-cut vinyl stickers in fun abstract shapes, glossy, scattered on a laptop. Variation: in teal and coral color scheme, arranged in a neat grid
+p053-7.png — Die-cut vinyl stickers in fun abstract shapes, glossy, scattered on a laptop. Variation: shot from a 45-degree angle on a light oak table
+p053-8.png — Die-cut vinyl stickers in fun abstract shapes, glossy, scattered on a laptop. Variation: top-down flat lay on a white marble surface
+p053-9.png — Die-cut vinyl stickers in fun abstract shapes, glossy, scattered on a laptop. Variation: close-up detail shot showing paper texture and finishing
+p053-10.png — Die-cut vinyl stickers in fun abstract shapes, glossy, scattered on a laptop. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p054-3.png — A roll of printed product labels next to small jars with blank colorful labels applied. Variation: in red and charcoal color scheme, on a concrete surface
+
+
+===================== الجزء 7 من 12 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop catalog in Egypt. The products must look REAL and PRINTABLE exactly as shown: real paper/plastic/fabric materials, real sizes and real finishing (lamination, foil, emboss, die-cut, binding) that any print shop can produce. Nothing fantasy or impossible.
+
+RULES FOR EVERY IMAGE:
+- One separate image per item (NOT a grid or collage), landscape 4:3, 1024x768 or larger.
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail.
+- Follow the "Variation" of each item (angle, colors, setting) so images of the same product look clearly DIFFERENT from each other.
+- VERY IMPORTANT: NO readable text, NO letters, NO numbers, NO names, NO logos, NO brand names, NO watermarks anywhere. Do NOT write the file name or the code on the image. Printed designs must be abstract shapes and colors only.
+- Props must be plain and unbranded; screens turned off.
+- Name each image with EXACTLY the file name given.
+
+WORKFLOW:
+- Make 4 images per reply, in list order, then stop and wait.
+- When I write "كمل" continue with the next 4.
+- Keep going until the list is finished, then write "DONE" and list any file name you skipped.
+
+THE LIST (file name — what to show):
+p054-4.png — A roll of printed product labels next to small jars with blank colorful labels applied. Variation: held in a hand (no face), natural light
+p054-5.png — A roll of printed product labels next to small jars with blank colorful labels applied. Variation: in teal and coral color scheme, arranged in a neat grid
+p054-6.png — A roll of printed product labels next to small jars with blank colorful labels applied. Variation: shot from a 45-degree angle on a light oak table
+p054-7.png — A roll of printed product labels next to small jars with blank colorful labels applied. Variation: top-down flat lay on a white marble surface
+p054-8.png — A roll of printed product labels next to small jars with blank colorful labels applied. Variation: close-up detail shot showing paper texture and finishing
+p054-9.png — A roll of printed product labels next to small jars with blank colorful labels applied. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p054-10.png — A roll of printed product labels next to small jars with blank colorful labels applied. Variation: in deep navy and gold color scheme, eye-level shot
+p054-11.png — A roll of printed product labels next to small jars with blank colorful labels applied. Variation: in fresh green and white color scheme, soft daylight from a window
+p055-3.png — Sheets of colorful kids reward stickers with simple stars, hearts and animals. Variation: held in a hand (no face), natural light
+p055-4.png — Sheets of colorful kids reward stickers with simple stars, hearts and animals. Variation: in teal and coral color scheme, arranged in a neat grid
+p055-5.png — Sheets of colorful kids reward stickers with simple stars, hearts and animals. Variation: shot from a 45-degree angle on a light oak table
+p055-6.png — Sheets of colorful kids reward stickers with simple stars, hearts and animals. Variation: top-down flat lay on a white marble surface
+p055-7.png — Sheets of colorful kids reward stickers with simple stars, hearts and animals. Variation: close-up detail shot showing paper texture and finishing
+p055-8.png — Sheets of colorful kids reward stickers with simple stars, hearts and animals. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p055-9.png — Sheets of colorful kids reward stickers with simple stars, hearts and animals. Variation: in deep navy and gold color scheme, eye-level shot
+p055-10.png — Sheets of colorful kids reward stickers with simple stars, hearts and animals. Variation: in fresh green and white color scheme, soft daylight from a window
+p055-11.png — Sheets of colorful kids reward stickers with simple stars, hearts and animals. Variation: in warm orange and cream color scheme, stacked and fanned out
+p055-12.png — Sheets of colorful kids reward stickers with simple stars, hearts and animals. Variation: in black and silver color scheme, dramatic soft spotlight
+p056-3.png — Holographic tamper-evident security seal stickers on a sealed cardboard box, rainbow shimmer. Variation: in teal and coral color scheme, arranged in a neat grid
+p056-4.png — Holographic tamper-evident security seal stickers on a sealed cardboard box, rainbow shimmer. Variation: shot from a 45-degree angle on a light oak table
+p056-5.png — Holographic tamper-evident security seal stickers on a sealed cardboard box, rainbow shimmer. Variation: top-down flat lay on a white marble surface
+p056-6.png — Holographic tamper-evident security seal stickers on a sealed cardboard box, rainbow shimmer. Variation: close-up detail shot showing paper texture and finishing
+p056-7.png — Holographic tamper-evident security seal stickers on a sealed cardboard box, rainbow shimmer. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p056-8.png — Holographic tamper-evident security seal stickers on a sealed cardboard box, rainbow shimmer. Variation: in deep navy and gold color scheme, eye-level shot
+p056-9.png — Holographic tamper-evident security seal stickers on a sealed cardboard box, rainbow shimmer. Variation: in fresh green and white color scheme, soft daylight from a window
+p056-10.png — Holographic tamper-evident security seal stickers on a sealed cardboard box, rainbow shimmer. Variation: in warm orange and cream color scheme, stacked and fanned out
+p057-3.png — Printed cardboard product boxes in vibrant colors with abstract graphics, stacked. Variation: shot from a 45-degree angle on a light oak table
+p057-4.png — Printed cardboard product boxes in vibrant colors with abstract graphics, stacked. Variation: top-down flat lay on a white marble surface
+p057-5.png — Printed cardboard product boxes in vibrant colors with abstract graphics, stacked. Variation: close-up detail shot showing paper texture and finishing
+p057-6.png — Printed cardboard product boxes in vibrant colors with abstract graphics, stacked. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p058-3.png — Kraft paper shopping bags with twisted handles and a simple abstract print. Variation: top-down flat lay on a white marble surface
+p058-4.png — Kraft paper shopping bags with twisted handles and a simple abstract print. Variation: close-up detail shot showing paper texture and finishing
+p059-3.png — Printed pizza boxes and burger boxes stacked with simple abstract graphics. Variation: close-up detail shot showing paper texture and finishing
+p059-4.png — Printed pizza boxes and burger boxes stacked with simple abstract graphics. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p059-5.png — Printed pizza boxes and burger boxes stacked with simple abstract graphics. Variation: in deep navy and gold color scheme, eye-level shot
+p059-6.png — Printed pizza boxes and burger boxes stacked with simple abstract graphics. Variation: in fresh green and white color scheme, soft daylight from a window
+p060-3.png — A rigid magnetic-closure gift box, half open, satin lining, matte finish. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p060-4.png — A rigid magnetic-closure gift box, half open, satin lining, matte finish. Variation: in deep navy and gold color scheme, eye-level shot
+p060-5.png — A rigid magnetic-closure gift box, half open, satin lining, matte finish. Variation: in fresh green and white color scheme, soft daylight from a window
+p061-3.png — Printed plastic shopping bags with colorful abstract graphics. Variation: in deep navy and gold color scheme, eye-level shot
+
+
+===================== الجزء 8 من 12 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop catalog in Egypt. The products must look REAL and PRINTABLE exactly as shown: real paper/plastic/fabric materials, real sizes and real finishing (lamination, foil, emboss, die-cut, binding) that any print shop can produce. Nothing fantasy or impossible.
+
+RULES FOR EVERY IMAGE:
+- One separate image per item (NOT a grid or collage), landscape 4:3, 1024x768 or larger.
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail.
+- Follow the "Variation" of each item (angle, colors, setting) so images of the same product look clearly DIFFERENT from each other.
+- VERY IMPORTANT: NO readable text, NO letters, NO numbers, NO names, NO logos, NO brand names, NO watermarks anywhere. Do NOT write the file name or the code on the image. Printed designs must be abstract shapes and colors only.
+- Props must be plain and unbranded; screens turned off.
+- Name each image with EXACTLY the file name given.
+
+WORKFLOW:
+- Make 4 images per reply, in list order, then stop and wait.
+- When I write "كمل" continue with the next 4.
+- Keep going until the list is finished, then write "DONE" and list any file name you skipped.
+
+THE LIST (file name — what to show):
+p061-4.png — Printed plastic shopping bags with colorful abstract graphics. Variation: in fresh green and white color scheme, soft daylight from a window
+p062-3.png — A designer desk with a tablet showing several abstract logo concept sketches and color swatches. Variation: in fresh green and white color scheme, soft daylight from a window
+p063-3.png — A brand identity mockup flat lay: business card, letterhead, envelope, and color palette swatches, abstract emblem. Variation: in warm orange and cream color scheme, stacked and fanned out
+p063-4.png — A brand identity mockup flat lay: business card, letterhead, envelope, and color palette swatches, abstract emblem. Variation: in black and silver color scheme, dramatic soft spotlight
+p065-3.png — A menu design spread on a cafe table next to a coffee cup, abstract food blocks. Variation: in pastel pink and lilac color scheme, airy bright light
+p065-4.png — A menu design spread on a cafe table next to a coffee cup, abstract food blocks. Variation: in red and charcoal color scheme, on a concrete surface
+p066-2.png — A computer screen showing a crisp vector logo with bezier handles visible, abstract shape. Variation: in pastel pink and lilac color scheme, airy bright light
+p066-3.png — A computer screen showing a crisp vector logo with bezier handles visible, abstract shape. Variation: in red and charcoal color scheme, on a concrete surface
+p067-2.png — A smartphone grid of colorful social media post designs (abstract), flat lay with plants. Variation: in red and charcoal color scheme, on a concrete surface
+p067-3.png — A smartphone grid of colorful social media post designs (abstract), flat lay with plants. Variation: held in a hand (no face), natural light
+p068-2.png — A laptop showing a social media profile page with a cover banner and profile picture (abstract). Variation: held in a hand (no face), natural light
+p069-2.png — A smartphone showing vertical story templates with bold abstract graphics. Variation: in teal and coral color scheme, arranged in a neat grid
+p069-3.png — A smartphone showing vertical story templates with bold abstract graphics. Variation: shot from a 45-degree angle on a light oak table
+p070-2.png — A smartphone showing an eye-catching sponsored ad design with abstract product imagery. Variation: shot from a 45-degree angle on a light oak table
+p071-3.png — Elegant wedding invitation cards with gold foil floral line art, envelopes and wax seal, on silk. Variation: close-up detail shot showing paper texture and finishing
+p072-2.png — Engagement and celebration invitation cards with soft pastel floral patterns and ribbons. Variation: close-up detail shot showing paper texture and finishing
+p072-3.png — Engagement and celebration invitation cards with soft pastel floral patterns and ribbons. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p073-2.png — Wedding favor tags and small chocolate boxes with satin ribbon, pastel colors. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p074-2.png — Conference name badges with lanyards on a table, blank name areas. Variation: in deep navy and gold color scheme, eye-level shot
+p074-3.png — Conference name badges with lanyards on a table, blank name areas. Variation: in fresh green and white color scheme, soft daylight from a window
+p075-3.png — Letterhead paper and matching envelopes with a minimal abstract emblem on a desk. Variation: in warm orange and cream color scheme, stacked and fanned out
+p075-4.png — Letterhead paper and matching envelopes with a minimal abstract emblem on a desk. Variation: in black and silver color scheme, dramatic soft spotlight
+p075-5.png — Letterhead paper and matching envelopes with a minimal abstract emblem on a desk. Variation: in pastel pink and lilac color scheme, airy bright light
+p076-3.png — A prescription pad and appointment cards on a doctor desk with a stethoscope. Variation: in black and silver color scheme, dramatic soft spotlight
+p076-4.png — A prescription pad and appointment cards on a doctor desk with a stethoscope. Variation: in pastel pink and lilac color scheme, airy bright light
+p076-5.png — A prescription pad and appointment cards on a doctor desk with a stethoscope. Variation: in red and charcoal color scheme, on a concrete surface
+p076-6.png — A prescription pad and appointment cards on a doctor desk with a stethoscope. Variation: held in a hand (no face), natural light
+p077-3.png — Glossy presentation pocket folders with documents inside, abstract design. Variation: in pastel pink and lilac color scheme, airy bright light
+p077-4.png — Glossy presentation pocket folders with documents inside, abstract design. Variation: in red and charcoal color scheme, on a concrete surface
+p077-5.png — Glossy presentation pocket folders with documents inside, abstract design. Variation: held in a hand (no face), natural light
+p077-6.png — Glossy presentation pocket folders with documents inside, abstract design. Variation: in teal and coral color scheme, arranged in a neat grid
+p078-2.png — Numbered warranty cards and quality certificates with a guilloche border pattern (no readable text). Variation: in pastel pink and lilac color scheme, airy bright light
+p078-3.png — Numbered warranty cards and quality certificates with a guilloche border pattern (no readable text). Variation: in red and charcoal color scheme, on a concrete surface
+p078-4.png — Numbered warranty cards and quality certificates with a guilloche border pattern (no readable text). Variation: held in a hand (no face), natural light
+p079-3.png — A self-inking office stamp and an ink impression of an abstract round seal on paper. Variation: held in a hand (no face), natural light
+p079-4.png — A self-inking office stamp and an ink impression of an abstract round seal on paper. Variation: in teal and coral color scheme, arranged in a neat grid
+p079-5.png — A self-inking office stamp and an ink impression of an abstract round seal on paper. Variation: shot from a 45-degree angle on a light oak table
+p080-3.png — Natural brown kraft paper business cards with a minimal abstract stamp-like emblem, twine and dried leaves beside them. Variation: in teal and coral color scheme, arranged in a neat grid
+p080-4.png — Natural brown kraft paper business cards with a minimal abstract stamp-like emblem, twine and dried leaves beside them. Variation: shot from a 45-degree angle on a light oak table
+p080-5.png — Natural brown kraft paper business cards with a minimal abstract stamp-like emblem, twine and dried leaves beside them. Variation: top-down flat lay on a white marble surface
+
+
+===================== الجزء 9 من 12 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop catalog in Egypt. The products must look REAL and PRINTABLE exactly as shown: real paper/plastic/fabric materials, real sizes and real finishing (lamination, foil, emboss, die-cut, binding) that any print shop can produce. Nothing fantasy or impossible.
+
+RULES FOR EVERY IMAGE:
+- One separate image per item (NOT a grid or collage), landscape 4:3, 1024x768 or larger.
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail.
+- Follow the "Variation" of each item (angle, colors, setting) so images of the same product look clearly DIFFERENT from each other.
+- VERY IMPORTANT: NO readable text, NO letters, NO numbers, NO names, NO logos, NO brand names, NO watermarks anywhere. Do NOT write the file name or the code on the image. Printed designs must be abstract shapes and colors only.
+- Props must be plain and unbranded; screens turned off.
+- Name each image with EXACTLY the file name given.
+
+WORKFLOW:
+- Make 4 images per reply, in list order, then stop and wait.
+- When I write "كمل" continue with the next 4.
+- Keep going until the list is finished, then write "DONE" and list any file name you skipped.
+
+THE LIST (file name — what to show):
+p081-3.png — A stack of thick luxury business cards showing brightly painted colored edges, close-up side view. Variation: shot from a 45-degree angle on a light oak table
+p082-3.png — Die-cut business cards in unusual shapes (circle, leaf, rounded) scattered on a light surface. Variation: top-down flat lay on a white marble surface
+p082-4.png — Die-cut business cards in unusual shapes (circle, leaf, rounded) scattered on a light surface. Variation: close-up detail shot showing paper texture and finishing
+p082-5.png — Die-cut business cards in unusual shapes (circle, leaf, rounded) scattered on a light surface. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p083-3.png — A matte black smart NFC card being tapped against a smartphone, soft glow between them. Variation: close-up detail shot showing paper texture and finishing
+p083-4.png — A matte black smart NFC card being tapped against a smartphone, soft glow between them. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p084-2.png — Small thank-you cards tucked into an open kraft shipping box with tissue paper. Variation: close-up detail shot showing paper texture and finishing
+p084-3.png — Small thank-you cards tucked into an open kraft shipping box with tissue paper. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p085-2.png — Elegant gift voucher cards with abstract patterns, inside small envelopes tied with ribbon. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p087-3.png — Pastel appointment cards next to a pen and a small plant on a salon counter. Variation: in warm orange and cream color scheme, stacked and fanned out
+p087-4.png — Pastel appointment cards next to a pen and a small plant on a salon counter. Variation: in black and silver color scheme, dramatic soft spotlight
+p087-5.png — Pastel appointment cards next to a pen and a small plant on a salon counter. Variation: in pastel pink and lilac color scheme, airy bright light
+p088-3.png — A thick stack of thin colorful handout flyers with abstract color blocks, slightly fanned. Variation: in black and silver color scheme, dramatic soft spotlight
+p089-3.png — An open bi-fold brochure standing on a desk showing abstract photo blocks and color panels. Variation: in pastel pink and lilac color scheme, airy bright light
+p089-4.png — An open bi-fold brochure standing on a desk showing abstract photo blocks and color panels. Variation: in red and charcoal color scheme, on a concrete surface
+p091-3.png — A colorful door hanger with abstract pattern hanging on a hotel room door handle. Variation: held in a hand (no face), natural light
+p091-4.png — A colorful door hanger with abstract pattern hanging on a hotel room door handle. Variation: in teal and coral color scheme, arranged in a neat grid
+p092-3.png — A large bold abstract poster pasted on a city wall with a second poster rolled beside it. Variation: in teal and coral color scheme, arranged in a neat grid
+p093.png — Bright shelf talker price tags clipped to supermarket shelves with colorful products (no text)
+p093-2.png — Bright shelf talker price tags clipped to supermarket shelves with colorful products (no text). Variation: in teal and coral color scheme, arranged in a neat grid
+p093-3.png — Bright shelf talker price tags clipped to supermarket shelves with colorful products (no text). Variation: shot from a 45-degree angle on a light oak table
+p093-4.png — Bright shelf talker price tags clipped to supermarket shelves with colorful products (no text). Variation: top-down flat lay on a white marble surface
+p094-3.png — A stack of perforated discount coupons with dashed tear lines and abstract color stripes. Variation: top-down flat lay on a white marble surface
+p094-4.png — A stack of perforated discount coupons with dashed tear lines and abstract color stripes. Variation: close-up detail shot showing paper texture and finishing
+p095-3.png — A thick dated annual planner with a ribbon bookmark and a hard cover with a subtle emblem, on an office desk. Variation: close-up detail shot showing paper texture and finishing
+p097-3.png — Numbered carbonless delivery note books in white and yellow sheets, with a pen. Variation: in deep navy and gold color scheme, eye-level shot
+p098-3.png — A small desk calendar on a wooden base with abstract colorful monthly pages, beside a coffee cup. Variation: in fresh green and white color scheme, soft daylight from a window
+p099-3.png — An A5 notebook with a brown faux leather cover and a debossed abstract emblem, pen on top. Variation: in warm orange and cream color scheme, stacked and fanned out
+p105-3.png — Natural bamboo ballpoint pens with laser-engraved minimal emblem, on recycled paper. Variation: shot from a 45-degree angle on a light oak table
+p109-5.png — Colorful printed fridge magnets with abstract shapes stuck on a white refrigerator door. Variation: in warm orange and cream color scheme, stacked and fanned out
+p109-6.png — Colorful printed fridge magnets with abstract shapes stuck on a white refrigerator door. Variation: in black and silver color scheme, dramatic soft spotlight
+p111-4.png — An open colorful umbrella with abstract printed panels, light rain in the background. Variation: in black and silver color scheme, dramatic soft spotlight
+p111-5.png — An open colorful umbrella with abstract printed panels, light rain in the background. Variation: in pastel pink and lilac color scheme, airy bright light
+p112-4.png — A wooden phone stand and a clear acrylic stand holding smartphones on a desk. Variation: in pastel pink and lilac color scheme, airy bright light
+p112-5.png — A wooden phone stand and a clear acrylic stand holding smartphones on a desk. Variation: in red and charcoal color scheme, on a concrete surface
+p112-6.png — A wooden phone stand and a clear acrylic stand holding smartphones on a desk. Variation: held in a hand (no face), natural light
+p112-7.png — A wooden phone stand and a clear acrylic stand holding smartphones on a desk. Variation: in teal and coral color scheme, arranged in a neat grid
+p113-4.png — A soft velvet square cushion with a colorful abstract print on a sofa. Variation: in red and charcoal color scheme, on a concrete surface
+p113-5.png — A soft velvet square cushion with a colorful abstract print on a sofa. Variation: held in a hand (no face), natural light
+p113-6.png — A soft velvet square cushion with a colorful abstract print on a sofa. Variation: in teal and coral color scheme, arranged in a neat grid
+
+
+===================== الجزء 10 من 12 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop catalog in Egypt. The products must look REAL and PRINTABLE exactly as shown: real paper/plastic/fabric materials, real sizes and real finishing (lamination, foil, emboss, die-cut, binding) that any print shop can produce. Nothing fantasy or impossible.
+
+RULES FOR EVERY IMAGE:
+- One separate image per item (NOT a grid or collage), landscape 4:3, 1024x768 or larger.
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail.
+- Follow the "Variation" of each item (angle, colors, setting) so images of the same product look clearly DIFFERENT from each other.
+- VERY IMPORTANT: NO readable text, NO letters, NO numbers, NO names, NO logos, NO brand names, NO watermarks anywhere. Do NOT write the file name or the code on the image. Printed designs must be abstract shapes and colors only.
+- Props must be plain and unbranded; screens turned off.
+- Name each image with EXACTLY the file name given.
+
+WORKFLOW:
+- Make 4 images per reply, in list order, then stop and wait.
+- When I write "كمل" continue with the next 4.
+- Keep going until the list is finished, then write "DONE" and list any file name you skipped.
+
+THE LIST (file name — what to show):
+p113-7.png — A soft velvet square cushion with a colorful abstract print on a sofa. Variation: shot from a 45-degree angle on a light oak table
+p114-3.png — A partially assembled jigsaw puzzle with a colorful abstract landscape picture, loose pieces around. Variation: in red and charcoal color scheme, on a concrete surface
+p115-3.png — Clear acrylic keychains in various shapes with colorful abstract prints, on a key ring. Variation: held in a hand (no face), natural light
+p115-4.png — Clear acrylic keychains in various shapes with colorful abstract prints, on a key ring. Variation: in teal and coral color scheme, arranged in a neat grid
+p115-5.png — Clear acrylic keychains in various shapes with colorful abstract prints, on a key ring. Variation: shot from a 45-degree angle on a light oak table
+p115-6.png — Clear acrylic keychains in various shapes with colorful abstract prints, on a key ring. Variation: top-down flat lay on a white marble surface
+p115-7.png — Clear acrylic keychains in various shapes with colorful abstract prints, on a key ring. Variation: close-up detail shot showing paper texture and finishing
+p116-3.png — A pile of round colorful button pin badges with abstract patterns. Variation: in teal and coral color scheme, arranged in a neat grid
+p116-4.png — A pile of round colorful button pin badges with abstract patterns. Variation: shot from a 45-degree angle on a light oak table
+p116-5.png — A pile of round colorful button pin badges with abstract patterns. Variation: top-down flat lay on a white marble surface
+p116-6.png — A pile of round colorful button pin badges with abstract patterns. Variation: close-up detail shot showing paper texture and finishing
+p116-7.png — A pile of round colorful button pin badges with abstract patterns. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p116-8.png — A pile of round colorful button pin badges with abstract patterns. Variation: in deep navy and gold color scheme, eye-level shot
+p116-9.png — A pile of round colorful button pin badges with abstract patterns. Variation: in fresh green and white color scheme, soft daylight from a window
+p117-3.png — A modern dark grey laptop backpack with a small embroidered abstract emblem, studio shot. Variation: shot from a 45-degree angle on a light oak table
+p117-4.png — A modern dark grey laptop backpack with a small embroidered abstract emblem, studio shot. Variation: top-down flat lay on a white marble surface
+p118-3.png — Shiny gold sports trophies and medals with colorful ribbons on a podium. Variation: top-down flat lay on a white marble surface
+p118-4.png — Shiny gold sports trophies and medals with colorful ribbons on a podium. Variation: close-up detail shot showing paper texture and finishing
+p118-5.png — Shiny gold sports trophies and medals with colorful ribbons on a podium. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p118-6.png — Shiny gold sports trophies and medals with colorful ribbons on a podium. Variation: in deep navy and gold color scheme, eye-level shot
+p118-7.png — Shiny gold sports trophies and medals with colorful ribbons on a podium. Variation: in fresh green and white color scheme, soft daylight from a window
+p120-3.png — A black canvas kitchen apron with a small emblem hanging next to a white chef jacket. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p120-4.png — A black canvas kitchen apron with a small emblem hanging next to a white chef jacket. Variation: in deep navy and gold color scheme, eye-level shot
+p121-3.png — A row of matching colorful T-shirts in different sizes laid flat, playful abstract print. Variation: in deep navy and gold color scheme, eye-level shot
+p122-3.png — A dark padded winter jacket with a small embroidered emblem on a mannequin. Variation: in fresh green and white color scheme, soft daylight from a window
+p122-4.png — A dark padded winter jacket with a small embroidered emblem on a mannequin. Variation: in warm orange and cream color scheme, stacked and fanned out
+p124-3.png — Knitted winter beanies in several colors with small embroidered patches. Variation: in black and silver color scheme, dramatic soft spotlight
+p124-4.png — Knitted winter beanies in several colors with small embroidered patches. Variation: in pastel pink and lilac color scheme, airy bright light
+p124-5.png — Knitted winter beanies in several colors with small embroidered patches. Variation: in red and charcoal color scheme, on a concrete surface
+p131-3.png — A frosted acrylic door sign with metal standoffs on a modern office door (no readable text). Variation: close-up detail shot showing paper texture and finishing
+p132-3.png — Glass jars of honey and jam with clear printed labels showing abstract shapes. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p132-4.png — Glass jars of honey and jam with clear printed labels showing abstract shapes. Variation: in deep navy and gold color scheme, eye-level shot
+p132-5.png — Glass jars of honey and jam with clear printed labels showing abstract shapes. Variation: in fresh green and white color scheme, soft daylight from a window
+p132-6.png — Glass jars of honey and jam with clear printed labels showing abstract shapes. Variation: in warm orange and cream color scheme, stacked and fanned out
+p132-7.png — Glass jars of honey and jam with clear printed labels showing abstract shapes. Variation: in black and silver color scheme, dramatic soft spotlight
+p133-2.png — A laptop lid covered with colorful die-cut vinyl stickers of abstract shapes. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p133-3.png — A laptop lid covered with colorful die-cut vinyl stickers of abstract shapes. Variation: in deep navy and gold color scheme, eye-level shot
+p133-4.png — A laptop lid covered with colorful die-cut vinyl stickers of abstract shapes. Variation: in fresh green and white color scheme, soft daylight from a window
+p134-3.png — A colorful kiss-cut sticker sheet with many small abstract cute shapes, beside a planner. Variation: in fresh green and white color scheme, soft daylight from a window
+p135-3.png — A kraft paper bag sealed with a round glossy sticker with an abstract emblem. Variation: in warm orange and cream color scheme, stacked and fanned out
+
+
+===================== الجزء 11 من 12 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop catalog in Egypt. The products must look REAL and PRINTABLE exactly as shown: real paper/plastic/fabric materials, real sizes and real finishing (lamination, foil, emboss, die-cut, binding) that any print shop can produce. Nothing fantasy or impossible.
+
+RULES FOR EVERY IMAGE:
+- One separate image per item (NOT a grid or collage), landscape 4:3, 1024x768 or larger.
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail.
+- Follow the "Variation" of each item (angle, colors, setting) so images of the same product look clearly DIFFERENT from each other.
+- VERY IMPORTANT: NO readable text, NO letters, NO numbers, NO names, NO logos, NO brand names, NO watermarks anywhere. Do NOT write the file name or the code on the image. Printed designs must be abstract shapes and colors only.
+- Props must be plain and unbranded; screens turned off.
+- Name each image with EXACTLY the file name given.
+
+WORKFLOW:
+- Make 4 images per reply, in list order, then stop and wait.
+- When I write "كمل" continue with the next 4.
+- Keep going until the list is finished, then write "DONE" and list any file name you skipped.
+
+THE LIST (file name — what to show):
+p135-4.png — A kraft paper bag sealed with a round glossy sticker with an abstract emblem. Variation: in black and silver color scheme, dramatic soft spotlight
+p135-5.png — A kraft paper bag sealed with a round glossy sticker with an abstract emblem. Variation: in pastel pink and lilac color scheme, airy bright light
+p135-6.png — A kraft paper bag sealed with a round glossy sticker with an abstract emblem. Variation: in red and charcoal color scheme, on a concrete surface
+p136-3.png — A roll of white barcode price labels next to a handheld label printer. Variation: in black and silver color scheme, dramatic soft spotlight
+p136-4.png — A roll of white barcode price labels next to a handheld label printer. Variation: in pastel pink and lilac color scheme, airy bright light
+p136-5.png — A roll of white barcode price labels next to a handheld label printer. Variation: in red and charcoal color scheme, on a concrete surface
+p136-6.png — A roll of white barcode price labels next to a handheld label printer. Variation: held in a hand (no face), natural light
+p137-3.png — A glass office partition with frosted film stripes and a subtle abstract pattern. Variation: in pastel pink and lilac color scheme, airy bright light
+p137-4.png — A glass office partition with frosted film stripes and a subtle abstract pattern. Variation: in red and charcoal color scheme, on a concrete surface
+p139-3.png — An elegant pastry box with a clear window showing assorted chocolates and macarons. Variation: held in a hand (no face), natural light
+p139-4.png — An elegant pastry box with a clear window showing assorted chocolates and macarons. Variation: in teal and coral color scheme, arranged in a neat grid
+p140-3.png — Small luxury perfume and cosmetic boxes with gold foil abstract lines, a perfume bottle beside them. Variation: in teal and coral color scheme, arranged in a neat grid
+p140-4.png — Small luxury perfume and cosmetic boxes with gold foil abstract lines, a perfume bottle beside them. Variation: shot from a 45-degree angle on a light oak table
+p140-5.png — Small luxury perfume and cosmetic boxes with gold foil abstract lines, a perfume bottle beside them. Variation: top-down flat lay on a white marble surface
+p142-3.png — A stack of colorful non-woven shopping bags with a simple printed abstract emblem. Variation: top-down flat lay on a white marble surface
+p142-4.png — A stack of colorful non-woven shopping bags with a simple printed abstract emblem. Variation: close-up detail shot showing paper texture and finishing
+p142-5.png — A stack of colorful non-woven shopping bags with a simple printed abstract emblem. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p147-2.png — A designer laptop showing an abstract multi-page layout, printed spreads beside it. Variation: in fresh green and white color scheme, soft daylight from a window
+p147-3.png — A designer laptop showing an abstract multi-page layout, printed spreads beside it. Variation: in warm orange and cream color scheme, stacked and fanned out
+p148-2.png — Product bottles and jars with fresh abstract label designs, color swatches on the table. Variation: in warm orange and cream color scheme, stacked and fanned out
+p148-3.png — Product bottles and jars with fresh abstract label designs, color swatches on the table. Variation: in black and silver color scheme, dramatic soft spotlight
+p153-2.png — Pastel baby invitation cards with tiny cute abstract shapes, ribbons and small favor boxes. Variation: in teal and coral color scheme, arranged in a neat grid
+p153-3.png — Pastel baby invitation cards with tiny cute abstract shapes, ribbons and small favor boxes. Variation: shot from a 45-degree angle on a light oak table
+p156-2.png — An elegant floral wedding photo backdrop with soft lights and a few chairs (no text). Variation: close-up detail shot showing paper texture and finishing
+p156-3.png — An elegant floral wedding photo backdrop with soft lights and a few chairs (no text). Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p158-2.png — A brass wax seal stamp with red wax seals on envelopes and a small branding iron. Variation: in deep navy and gold color scheme, eye-level shot
+p159-2.png — Blank-design plastic employee ID cards with lanyards and clear holders on a desk. Variation: in fresh green and white color scheme, soft daylight from a window
+p159-3.png — Blank-design plastic employee ID cards with lanyards and clear holders on a desk. Variation: in warm orange and cream color scheme, stacked and fanned out
+p159-4.png — Blank-design plastic employee ID cards with lanyards and clear holders on a desk. Variation: in black and silver color scheme, dramatic soft spotlight
+p159-5.png — Blank-design plastic employee ID cards with lanyards and clear holders on a desk. Variation: in pastel pink and lilac color scheme, airy bright light
+p160-2.png — A fanned set of envelopes in different sizes with a minimal abstract emblem. Variation: in warm orange and cream color scheme, stacked and fanned out
+p160-3.png — A fanned set of envelopes in different sizes with a minimal abstract emblem. Variation: in black and silver color scheme, dramatic soft spotlight
+p160-4.png — A fanned set of envelopes in different sizes with a minimal abstract emblem. Variation: in pastel pink and lilac color scheme, airy bright light
+p161-2.png — Numbered voucher books with carbon copies, a calculator and a pen on an accountant desk. Variation: in black and silver color scheme, dramatic soft spotlight
+p162-2.png — Colored patient file folders and medical report forms on a clinic desk with a stethoscope. Variation: in pastel pink and lilac color scheme, airy bright light
+p162-3.png — Colored patient file folders and medical report forms on a clinic desk with a stethoscope. Variation: in red and charcoal color scheme, on a concrete surface
+p163-2.png — A large stretched canvas print with a colorful abstract landscape hanging above a sofa. Variation: in red and charcoal color scheme, on a concrete surface
+p164-2.png — A gallery wall of black and natural wood frames with abstract photo prints. Variation: held in a hand (no face), natural light
+p166-2.png — A three-panel canvas wall art triptych with a flowing abstract design above a console table. Variation: shot from a 45-degree angle on a light oak table
+p167-2.png — A scattered stack of glossy photo prints with colorful abstract scenes, some instant-style. Variation: top-down flat lay on a white marble surface
+
+
+===================== الجزء 12 من 12 (محادثة جديدة) =====================
+You are a professional product photographer. Create photorealistic product photos for an online print-shop catalog in Egypt. The products must look REAL and PRINTABLE exactly as shown: real paper/plastic/fabric materials, real sizes and real finishing (lamination, foil, emboss, die-cut, binding) that any print shop can produce. Nothing fantasy or impossible.
+
+RULES FOR EVERY IMAGE:
+- One separate image per item (NOT a grid or collage), landscape 4:3, 1024x768 or larger.
+- Photorealistic e-commerce product photography, soft natural shadow, sharp focus, high detail.
+- Follow the "Variation" of each item (angle, colors, setting) so images of the same product look clearly DIFFERENT from each other.
+- VERY IMPORTANT: NO readable text, NO letters, NO numbers, NO names, NO logos, NO brand names, NO watermarks anywhere. Do NOT write the file name or the code on the image. Printed designs must be abstract shapes and colors only.
+- Props must be plain and unbranded; screens turned off.
+- Name each image with EXACTLY the file name given.
+
+WORKFLOW:
+- Make 4 images per reply, in list order, then stop and wait.
+- When I write "كمل" continue with the next 4.
+- Keep going until the list is finished, then write "DONE" and list any file name you skipped.
+
+THE LIST (file name — what to show):
+p169-2.png — Polaroid-style photo prints clipped with wooden pegs on a warm LED fairy light string. Variation: in a modern office desk setting with a plant and a laptop (screen off)
+p170-2.png — A photo printed on a natural wooden plank showing visible wood grain, on a shelf. Variation: in deep navy and gold color scheme, eye-level shot
+p170-3.png — A photo printed on a natural wooden plank showing visible wood grain, on a shelf. Variation: in fresh green and white color scheme, soft daylight from a window
+p172.png — School report cards and certificates with decorative borders and a gold seal on a desk
+p177-2.png — A hardbound thesis with a dark leather cover and gold foil lines, next to a graduation cap. Variation: in teal and coral color scheme, arranged in a neat grid
+p185-2.png — A burger half-wrapped in printed greaseproof paper with a repeating abstract pattern. Variation: in black and silver color scheme, dramatic soft spotlight
+p188-2.png — Kraft paper food containers with clear lids holding colorful salads, abstract printed band. Variation: held in a hand (no face), natural light
