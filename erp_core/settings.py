@@ -67,7 +67,7 @@ PAYMOB_IFRAME_ID = env('PAYMOB_IFRAME_ID', default='')
 # 💳 زرار «ادفع بالكارت» للاشتراكات (PAYMOB_SETUP.md): مقفول لحد ما يتجرّب في Test Mode
 PAYMOB_CARD_SUBSCRIPTIONS = env.bool('PAYMOB_CARD_SUBSCRIPTIONS', default=False)
 # 🛟 واتساب الدعم (بالصيغة الدولية من غير +) — صفحات الدفع وخط الدعم الأولوية
-SUPPORT_WHATSAPP = os.getenv('SUPPORT_WHATSAPP', '201094850763')
+SUPPORT_WHATSAPP = os.getenv('SUPPORT_WHATSAPP', '201132852978')
 # 🏦 إنستاباي المنصة: العنوان + لينك الدفع (ipn.eg) اللي بيفتح التطبيق والعنوان جاهز.
 # 🐛 [FIX]: صفحات الدفع كانت بتعرض «01094850763@instapay» — مش عنوان إنستاباي المالك، فالتحويل مايوصلش.
 INSTAPAY_HANDLE = os.getenv('INSTAPAY_HANDLE', 'saeed.mohamed.123@instapay')
