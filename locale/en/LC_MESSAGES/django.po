@@ -29607,3 +29607,6 @@ msgstr "The text will be visible to you after the customer pays."
 
 msgid "تقدر تكتب هنا الموبايل والإيميل اللي هيتطبعوا — المطبعة بتشوفهم بعد الدفع بس."
 msgstr "You can write the phone and email to be printed here — the print shop sees them only after payment."
+
+msgid "مش قادرين نقرا الصورة — ارفعها JPG أو PNG."
+msgstr "We couldn't read the image — please upload it as JPG or PNG."

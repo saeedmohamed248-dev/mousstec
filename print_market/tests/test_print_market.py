@@ -442,6 +442,33 @@ class PrintMarketFlowTests(_TenantDomainMixin, TestCase):
         self.assertEqual(self.shop_c.get(file_url).status_code, 200)
         self.assertEqual(Client().get(file_url).status_code, 404)
 
+    def test_iphone_heic_images_are_converted_to_jpeg(self):
+        """🐛 صور الآيفون (HEIC) كانت بتترفض في الإيصال/المنتج، وملف العميل كان بيوصل للمطبعة HEIC مابيتفتحش."""
+        import io
+
+        import pillow_heif
+        from PIL import Image
+        pillow_heif.register_heif_opener()
+        buf = io.BytesIO()
+        Image.new('RGB', (40, 30), 'red').save(buf, format='HEIF')
+        heic = lambda n: SimpleUploadedFile(n, buf.getvalue(), content_type='image/heic')  # noqa: E731
+        url = reverse('print_market:order_new', args=[self.shop.pk])
+        r = self.cust_c.post(url, {'title': 'كروت', 'details': '500 كارت', 'quantity': '500',
+                                   'logo': heic('logo.HEIC'), 'images': [heic('IMG_2.heic')]})
+        self.assertEqual(r.status_code, 302)
+        order = MarketOrder.objects.get(customer=self.cust)
+        names = list(order.files.values_list('file', flat=True))
+        self.assertEqual(len(names), 2)
+        self.assertTrue(all(n.endswith('.jpg') for n in names), names)
+        f = order.files.first()
+        with f.file.open('rb') as fh:
+            self.assertEqual(Image.open(fh).size, (40, 30))   # نفس الدقة — من غير تصغير
+        # صورة HEIC بايظة في ملف المنتج ⇒ رسالة واضحة بدل ما تتحفظ صورة مابتتعرضش
+        from print_market.views import _web_image
+        from django.core.exceptions import ValidationError
+        with self.assertRaises(ValidationError):
+            _web_image(SimpleUploadedFile('x.heic', b'nope'))
+
     def test_notifications_page_and_bell(self):
         self._new_order()
         n = MarketNotification.objects.get(account=self.shop)

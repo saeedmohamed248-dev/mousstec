@@ -17,6 +17,7 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
 from clients.models import PartCarMake, PartListing
+from clients.services.search_text import text_filter
 from clients.views._shared import _marketplace_auth
 
 logger = logging.getLogger('mouss_tec_core')
@@ -100,11 +101,9 @@ def parts_feed(request, section=None):
     if q:
         # 🐛 [FIX]: البحث كان على العنوان والوصف بس، رغم إن الخانة بتقول
         #    "اسم قطعة، موديل، رقم OEM".
-        listings = listings.filter(
-            Q(title__icontains=q) | Q(description__icontains=q)
-            | Q(part_number__icontains=q) | Q(car_model__icontains=q)
-            | Q(engine_code__icontains=q)
-        )
+        # 🐛 [FIX]: + بحث متسامح (كل كلمة لوحدها، همزات، شرط رقم القطعة، أرقام عربي) واسم الماركة
+        listings = listings.filter(text_filter(q, ('title', 'description', 'part_number', 'car_model',
+                                                   'engine_code', 'car_make__name')))
     if condition and condition in dict(PartListing.CONDITION_CHOICES):
         listings = listings.filter(condition=condition)
     if sort == 'price_low':

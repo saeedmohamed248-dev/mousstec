@@ -58,6 +58,21 @@ GOVERNORATES = (
 PROOF_MAX_MB = 50
 ATTACH_MAX_MB = 20
 ORDER_FILES_TOTAL_MB = 60   # مجموع كل ملفات الطلب الواحد
+_HEIC = ('heic', 'heif')
+WEB_IMAGE_EXT = IMAGE_EXT + _HEIC
+
+
+def _web_image(f, *, max_dim=2000, required=True):
+    """🐛 [FIX]: صور الآيفون HEIC — المتصفح مابيعرضهاش وكانت بتترفض (منتج/لوجو/إيصال).
+    دلوقتي بتتحوّل JPEG. max_dim=None ⇒ نفس الدقة (ملفات الطباعة). required=False ⇒ لو التحويل
+    فشل نسيب الأصل (ملف العميل للمطبعة) بدل ما نرفضه."""
+    if not f or (f.name or '').lower().rsplit('.', 1)[-1] not in _HEIC:
+        return f
+    from inventory.services.image_normalize import normalize_image_to_jpeg
+    out = normalize_image_to_jpeg(f, max_dim=max_dim)
+    if out is None and required:
+        raise ValidationError(_('مش قادرين نقرا الصورة — ارفعها JPG أو PNG.'))
+    return out or f
 IMAGE_MAX_MB = 5
 
 
@@ -357,8 +372,8 @@ def _product_from_post(request, shop, product):
     product.is_active = request.POST.get('is_active', 'on') == 'on'
     img = request.FILES.get('image')
     if img:
-        check_upload(img, IMAGE_EXT, IMAGE_MAX_MB)
-        product.image = img
+        check_upload(img, WEB_IMAGE_EXT, IMAGE_MAX_MB)
+        product.image = _web_image(img)
     product.save()
     return product
 
@@ -421,8 +436,8 @@ def account_settings(request):
                 acc.whatsapp = _clean_whatsapp(request.POST.get('whatsapp'))
                 logo = request.FILES.get('logo')
                 if logo:
-                    check_upload(logo, IMAGE_EXT, IMAGE_MAX_MB)
-                    acc.logo = logo
+                    check_upload(logo, WEB_IMAGE_EXT, IMAGE_MAX_MB)
+                    acc.logo = _web_image(logo)
             new_pw = request.POST.get('new_password') or ''
             if new_pw:
                 if not acc.check_password(request.POST.get('current_password') or ''):
@@ -494,6 +509,9 @@ def order_new(request, shop_id):
                 raise ValidationError(_('أقصى عدد %(n)s صور.') % {'n': MarketOrderFile.MAX_IMAGES})
             for f in images:
                 check_upload(f, ORDER_IMAGE_EXT, ATTACH_MAX_MB)
+            # المطبعة غالباً على ويندوز ومش بتفتح HEIC — نحوّلها JPEG بنفس الدقة
+            logo = _web_image(logo, max_dim=None, required=False)
+            images = [_web_image(f, max_dim=None, required=False) for f in images]
             total = sum(getattr(f, 'size', 0) or 0 for f in [att, logo, *images] if f)
             if total > ORDER_FILES_TOTAL_MB * 1024 * 1024:
                 raise ValidationError(_('مجموع الملفات أكبر من %(mb)s ميجا.') % {'mb': ORDER_FILES_TOTAL_MB})
@@ -601,7 +619,8 @@ def payment_submit(request, order):
         raise ValidationError(_('اختار طريقة الدفع.'))
     if not reference or not receipt:
         raise ValidationError(_('اكتب رقم العملية وارفع صورة الإيصال.'))
-    check_upload(receipt, IMAGE_EXT, IMAGE_MAX_MB)
+    check_upload(receipt, WEB_IMAGE_EXT, IMAGE_MAX_MB)
+    receipt = _web_image(receipt)
     pay = MarketPayment.submit(order, request.pm_account, method, reference, receipt)
     _owner('سوق المطابع: إيصال دفع مستني تأكيدك',
            f'«{order.title}» — {pay.total} ج.م ({pay.get_method_display()}) — رقم العملية: {pay.reference}\n'
