@@ -53,7 +53,8 @@ jobs:
         run: |
           missing=""
           [ -n "$KEYSTORE_B64" ] || missing="$missing ANDROID_KEYSTORE_BASE64"
-          [ -n "$PLAY_JSON" ] || missing="$missing PLAY_SERVICE_ACCOUNT_JSON"
+          # PLAY_SERVICE_ACCOUNT_JSON اختياري: من غيره الـ AAB بيتبني ويتحط في Artifacts وترفعه يدوي
+          # (وأول نسخة على Google Play لازم تترفع يدوي أصلاً)
           if [ -n "$missing" ]; then
             echo "::error::ناقص Secrets:$missing — راجع docs/MOBILE_RELEASE.md"; exit 1
           fi
@@ -88,6 +89,7 @@ jobs:
           path: mobile_app/build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
       - name: رفع على Google Play
+        if: env.PLAY_JSON != ''
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
