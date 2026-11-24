@@ -17,6 +17,7 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from django import forms
+from django.conf import settings
 from django.core.cache import cache
 from django.db import IntegrityError, transaction
 from django.db.models import Count, F
@@ -158,7 +159,7 @@ def seller_join(request):
                 notify_owner(f'بائع جديد في السوق ({store.get_sector_display()})',
                              f'{store.name} — {seller.owner_name} — {seller.phone} — {store.city}\n'
                              'المتجر مستني موافقتك عشان يظهر للعملاء.',
-                             f'/admin/clients/marketseller/{seller.pk}/change/')
+                             f'/{settings.ADMIN_URL}/clients/marketseller/{seller.pk}/change/')
                 return svc.login_response(redirect('/marketplace/seller/?welcome=1'), seller)
     return render(request, 'clients/marketplace/seller/join.html', {'form': form, 'sector': initial_sector})
 
@@ -337,7 +338,7 @@ def _notify_owner_review(store, n):
     from clients.services.owner_notify import notify_owner
     notify_owner(f'منتجات بائع مستنية مراجعة — {store.name}',
                  f'{store.name} ضاف/عدّل منتجات ومستنية موافقتك قبل ما تظهر للعملاء.',
-                 f'/admin/clients/catalogitem/?pending_review__exact=1&store__id__exact={store.pk}')
+                 f'/{settings.ADMIN_URL}/clients/catalogitem/?pending_review__exact=1&store__id__exact={store.pk}')
 
 
 def _cell(v):

@@ -30268,3 +30268,18 @@ msgstr "Some prices are invalid — write the number only (e.g. 350)."
 
 msgid "اكتب سعر بند واحد على الأقل."
 msgstr "Enter at least one price."
+
+msgid "متاجر بائعين جديدة مستنية موافقتك"
+msgstr "New seller stores awaiting your approval"
+
+msgid "منتجات بائعين مستنية مراجعة"
+msgstr "Seller products awaiting review"
+
+msgid "بائعين السوق"
+msgstr "Market sellers"
+
+msgid "المطابع والمحلات المسجّلة في السوق بس"
+msgstr "Print shops and stores registered on the market only"
+
+msgid "الأسعار اليومية والأسعار الشاذة"
+msgstr "Daily prices and outliers"

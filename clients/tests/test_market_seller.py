@@ -77,6 +77,19 @@ class MarketSellerTests(_TenantDomainMixin, TestCase):
         self.assertTrue(seller.check_password('secret123'))
         self.assertEqual(Client.objects.count(), tenants_before)   # مفيش شركة ولا schema
         owner.assert_called_once()
+        # 🐛 [FIX]: لينك إشعار صاحب المنصة كان /admin/… والأدمن على ADMIN_URL (secure-portal) ⇒ 404
+        from django.conf import settings as dj
+        link = owner.call_args.args[2]
+        self.assertTrue(link.startswith(f'/{dj.ADMIN_URL}/clients/marketseller/'), link)
+        from django.contrib.auth.models import User
+        boss = HttpClient()
+        boss.force_login(User.objects.create(username='seller_boss', is_staff=True, is_superuser=True))
+        self.assertEqual(boss.get(link).status_code, 200)
+        # 🐛 [FIX]: البائع الجديد ماكانش بيظهر في صفحة السوبر أدمن
+        sa = boss.get('/superadmin/').content.decode()
+        self.assertIn('متاجر بائعين جديدة مستنية موافقتك', sa)
+        self.assertIn(f'/{dj.ADMIN_URL}/clients/marketseller/', sa)
+        self.assertEqual(boss.get(f'/{dj.ADMIN_URL}/clients/marketseller/?store__is_active__exact=0').status_code, 200)
         dash = c.get('/marketplace/seller/').content.decode()
         self.assertIn('تحت المراجعة', dash)
         self.assertNotIn('/system/', dash)
