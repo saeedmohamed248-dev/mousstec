@@ -115,6 +115,8 @@ class CatalogItem(_Localized, models.Model):
     is_active = models.BooleanField(default=True, db_index=True)
     # 🏪 منتج ضافه/عدّله بائع السوق ⇒ مخفي لحد ما Mouss Tec تراجعه (من الأدمن: «اعتماد»)
     pending_review = models.BooleanField(default=False, db_index=True, verbose_name=_("مستني مراجعة"))
+    # 🙈 Mouss Tec خبّت المنتج من الأدمن ⇒ البائع مايقدرش يرجّعه بنفسه (منتجات البائعين بتظهر على طول غير كده)
+    admin_hidden = models.BooleanField(default=False, verbose_name=_("مخفي من Mouss Tec"))
     sort = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -208,8 +210,8 @@ class MarketSeller(models.Model):
     """🏪 بائع في السوق بس — مطبعة أو محل قطع غيار بيعرض منتجاته ويتابع عملاءه.
 
     مالوش أي علاقة بسيستم الإدارة (فواتير/مخزون/حسابات): مفيش schema ولا Tenant. حسابه
-    موبايل + كلمة سر، وليه متجر واحد في الكتالوج. المتجر بيظهر للعملاء بعد ما Mouss Tec
-    توافق عليه، وكل منتج بيضيفه بيتراجع قبل ما يظهر.
+    موبايل + كلمة سر، وليه متجر واحد في الكتالوج. المتجر ومنتجاته بيظهروا للعملاء على طول،
+    وصاحب المنصة بيوصله إشعار ويقدر يخفي أي متجر أو منتج من الأدمن.
     لو حب بعدين يستخدم برنامج الإدارة ⇒ «ترقية» بتعمله شركة كاملة ومتجره يفضل زي ما هو.
     """
     uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
