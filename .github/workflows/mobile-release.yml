@@ -47,6 +47,9 @@ jobs:
       KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
       GS_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
+      KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
     steps:
       - uses: actions/checkout@v4
       - name: التأكد من المفاتيح
@@ -69,14 +72,25 @@ jobs:
       - run: flutter pub get
       - name: ملفات التوقيع و Firebase
         run: |
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
-          cat > key.properties.tmp <<EOF2
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          storeFile=$RUNNER_TEMP/upload.jks
-          EOF2
+          # 🐛 [FIX]: القيم الملزوقة في Secrets ممكن يبقى فيها مسافة أو سطر جديد زيادة → «keystore password was incorrect»
+          #          بنشيل المسافات والأسطر من الأطراف قبل ما نستخدمها
+          trim() { printf '%s' "$1" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | tr -d '\n'; }
+          printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/upload.jks"
+          {
+            echo "storePassword=$(trim "$KS_PASS")"
+            echo "keyPassword=$(trim "$KEY_PASS")"
+            echo "keyAlias=$(trim "$KEY_ALIAS")"
+            echo "storeFile=$RUNNER_TEMP/upload.jks"
+          } > key.properties.tmp
           if [ -n "$GS_JSON" ]; then echo "$GS_JSON" > firebase/google-services.json; fi
+      - name: التأكد من كلمة سر المفتاح (قبل البناء الطويل)
+        run: |
+          P=$(sed -n 's/^storePassword=//p' key.properties.tmp)
+          A=$(sed -n 's/^keyAlias=//p' key.properties.tmp)
+          if ! keytool -list -keystore "$RUNNER_TEMP/upload.jks" -storepass "$P" -alias "$A" >/dev/null 2>&1; then
+            echo "::error::كلمة السر أو الـ alias مش مطابقين للمفتاح — راجع ANDROID_KEYSTORE_PASSWORD و ANDROID_KEY_ALIAS (طول كلمة السر: ${#P})"; exit 1
+          fi
+          echo "✅ المفتاح وكلمة السر مظبوطين"
       - name: قشرة أندرويد + الأيقونة
         run: |
           python3 tool/setup_native.py
