@@ -20,7 +20,7 @@
 | `ai_rooms` | public (مشتركة للمنصة) | 1 |
 | `blog` | public (مشتركة للمنصة) | 1 |
 | `bmw_ecu` | جوه schema كل شركة | 17 |
-| `clients` | public (مشتركة للمنصة) | 80 |
+| `clients` | public (مشتركة للمنصة) | 81 |
 | `diagnostics_catalog` | public (مشتركة للمنصة) | 5 |
 | `hr` | جوه schema كل شركة | 13 |
 | `inventory` | جوه schema كل شركة | 70 |
@@ -115,6 +115,7 @@
 | `GlobalB2BMarketplace` | `clients_globalb2bmarketplace` | — |
 | `ImportAssistRequest` | `clients_importassistrequest` | — |
 | `ManualPaymentReceipt` | `clients_manualpaymentreceipt` | auth.User |
+| `MarketSeller` | `clients_marketseller` | — |
 | `MarketplaceCustomer` | `clients_marketplacecustomer` | auth.User |
 | `MarketplacePayout` | `clients_marketplacepayout` | auth.User |
 | `OBDDevice` | `clients_obddevice` | — |

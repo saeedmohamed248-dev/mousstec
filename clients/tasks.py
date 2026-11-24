@@ -1113,7 +1113,7 @@ def _notify_tenant(tenant, subject, line, link, tpl_setting='MARKETPLACE_REQUEST
 def notify_merchant_offer_accepted(offer_id):
     """✅ العميل قبل عرض الشركة ⇒ إيميل + واتساب فوراً عشان تكلّمه (العميل بيتقاله «التاجر هيتواصل معاك»)."""
     from clients.models import TenderOffer
-    offer = (TenderOffer.objects.select_related('merchant', 'service_request', 'service_request__customer')
+    offer = (TenderOffer.objects.select_related('merchant', 'seller', 'service_request', 'service_request__customer')
              .prefetch_related('merchant__domains').filter(pk=offer_id, status='accepted').first())
     if offer is None:
         return False
@@ -1121,6 +1121,11 @@ def notify_merchant_offer_accepted(offer_id):
     who = cust.company_name or cust.full_name
     line = (f'🎉 {who} قبل عرضك ({offer.price:g} ج.م) على «{req.title[:100]}» — '
             f'كلّمه دلوقتي على {cust.phone} عشان تقفلوا الصفقة.')
+    if offer.seller_id:
+        # 🏪 بائع السوق مالوش لوحة شركة — واتساب + إيميل على بياناته، واللينك لوحة البائع
+        from clients.services.market_seller import notify_seller
+        notify_seller(offer.seller, f'Mouss Tec — عرضك اتقبل: {req.title[:80]}', line, '/marketplace/seller/')
+        return True
     link = _tenant_link(offer.merchant, '/marketplace/merchant/feed/')
     _notify_tenant(offer.merchant, f'Mouss Tec — عرضك اتقبل: {req.title[:80]}', line, link)
     return True

@@ -1,0 +1,20 @@
+{% extends "clients/marketplace/seller/_base.html" %}{% load i18n %}
+{% block title %}{% trans "برنامج الإدارة" %}{% endblock %}
+{% block content %}
+<h1 style="font-size:1.3rem">{% trans "برنامج الإدارة (اختياري)" %}</h1>
+{% if seller.upgraded_to %}
+<div class="notice ok">{% blocktrans with n=seller.upgraded_to.name %}حسابك متربط بشركة «{{ n }}» على Mouss Tec. متجرك في السوق شغّال زي ما هو.{% endblocktrans %}</div>
+{% else %}
+<div class="card">
+    <p>{% trans "حسابك في السوق كفاية عشان تعرض منتجاتك وتتابع عملاءك. لو محتاج كمان تدير شغلك من جوه:" %}</p>
+    <ul>
+        <li>{% trans "فواتير بيع وشراء وكاشير" %}</li>
+        <li>{% trans "مخزون وخامات" %}</li>
+        <li>{% trans "خزائن وحسابات وآجل العملاء" %}</li>
+        <li>{% trans "موظفين ومرتبات" %}</li>
+    </ul>
+    <p class="muted">{% trans "التفعيل بيعمل لك شركة على Mouss Tec ببياناتك. متجرك ومنتجاتك وعروضك في السوق بيفضلوا زي ما هم." %}</p>
+    <a class="btn" href="/connect/signup/?industry={{ store.sector }}"><i class="fas fa-rocket"></i> {% trans "فعّل برنامج الإدارة" %}</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -148,7 +148,7 @@
             </div>
             {# الشركة بتقارن الجودة مش السعر بس — التقييم ظاهر قبل القبول (الاسم والرقم بعده) #}
             <div class="offer-detail">
-                <div class="val">{% if offer.merchant_reviews %}<i class="fas fa-star" style="color:#f59e0b"></i> {{ offer.merchant.market_rating|floatformat:"1u" }} <small style="color:var(--muted)">({{ offer.merchant_reviews }})</small>{% else %}<small>{% trans "جديدة — مالهاش تقييمات" %}</small>{% endif %}</div>
+                <div class="val">{% if offer.merchant_reviews %}<i class="fas fa-star" style="color:#f59e0b"></i> {{ offer.provider_rating|floatformat:"1u" }} <small style="color:var(--muted)">({{ offer.merchant_reviews }})</small>{% else %}<small>{% trans "جديدة — مالهاش تقييمات" %}</small>{% endif %}</div>
                 <div class="lbl">{% trans "تقييم الشركة" %}</div>
             </div>
         </div>
@@ -171,11 +171,11 @@
         {% if offer.status == 'accepted' %}
         <div class="merchant-reveal">
             <h5><i class="fas fa-handshake"></i> بيانات التاجر</h5>
-            <p><i class="fas fa-store"></i> <strong>{{ offer.merchant.name }}</strong></p>
-            <p><i class="fas fa-phone"></i> <a href="tel:{{ offer.merchant.phone }}" dir="ltr" style="color:inherit;">{{ offer.merchant.phone }}</a></p>
+            <p><i class="fas fa-store"></i> <strong>{{ offer.provider_name }}</strong></p>
+            <p><i class="fas fa-phone"></i> <a href="tel:{{ offer.provider_phone }}" dir="ltr" style="color:inherit;">{{ offer.provider_phone }}</a></p>
             {# 🐛 [FIX]: الرقم كان نص عادي — العميل لازم ينسخه بإيده عشان يكلّم التاجر #}
             <div class="d-flex gap-2 flex-wrap mb-2">
-                {% if offer.whatsapp_number %}<a class="btn btn-sm btn-success" href="tel:{{ offer.merchant.phone }}"><i class="fas fa-phone"></i> {% trans "اتصل" %}</a>
+                {% if offer.whatsapp_number %}<a class="btn btn-sm btn-success" href="tel:{{ offer.provider_phone }}"><i class="fas fa-phone"></i> {% trans "اتصل" %}</a>
                 <a class="btn btn-sm btn-outline-success" target="_blank" rel="noopener" href="https://wa.me/{{ offer.whatsapp_number }}"><i class="fab fa-whatsapp"></i> {% trans "واتساب" %}</a>{% endif %}
             </div>
             {% if offer.merchant_address %}

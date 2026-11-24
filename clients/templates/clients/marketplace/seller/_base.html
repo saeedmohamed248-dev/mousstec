@@ -1,0 +1,57 @@
+{% load i18n %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<html lang="{{ LANGUAGE_CODE|default:'ar' }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>{% block title %}{% trans "لوحة البائع" %}{% endblock %} — {% trans "سوق Mouss Tec" %}</title>
+    {% include "clients/marketplace/_catalog_style.html" %}
+    <style>
+        .snav { display:flex; gap:6px; overflow-x:auto; padding:10px 0; scrollbar-width:none; }
+        .snav::-webkit-scrollbar { display:none; }
+        .snav a { flex:0 0 auto; text-decoration:none; border:1px solid var(--mt-line-2); background:var(--mt-card); border-radius:999px; padding:8px 14px; font-size:.9rem; white-space:nowrap; }
+        .snav a.on { background:var(--mt-brand); border-color:var(--mt-brand); color:#fff; }
+        .snav .dot { background:#dc2626; color:#fff; border-radius:999px; padding:0 7px; font-size:.75rem; margin-inline-start:4px; }
+        .card { background:var(--mt-card); border:1px solid var(--mt-line); border-radius:14px; padding:14px 16px; margin:10px 0; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; }
+        .stat .n { font-size:1.7rem; font-weight:800; color:var(--mt-brand); }
+        .stat .l { color:var(--mt-muted); font-size:.85rem; }
+        .muted { color:var(--mt-muted); }
+        .btn { display:inline-flex; align-items:center; gap:6px; border:0; border-radius:10px; padding:10px 16px; font:inherit; font-weight:700; cursor:pointer; text-decoration:none; background:var(--mt-brand); color:#fff; }
+        .btn.ghost { background:transparent; color:var(--mt-brand); border:1px solid var(--mt-brand); }
+        .btn.green { background:#16a34a; }
+        .btn.sm { padding:6px 12px; font-size:.85rem; }
+        .notice { border-radius:12px; padding:12px 14px; margin:10px 0; font-weight:600; }
+        .notice.ok { background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; }
+        .notice.warn { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; }
+        .notice.err { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; }
+        .tag { display:inline-block; border-radius:999px; padding:2px 10px; font-size:.78rem; font-weight:700; }
+        .tag.live { background:#dcfce7; color:#166534; } .tag.wait { background:#fef3c7; color:#92400e; } .tag.off { background:#f1f5f9; color:#475569; }
+        form.f p { margin:0 0 12px; } form.f label { display:block; font-weight:700; margin-bottom:4px; font-size:.9rem; }
+        form.f input:not([type=checkbox]):not([type=file]), form.f select, form.f textarea { width:100%; border:1px solid var(--mt-line-2); background:var(--mt-card); border-radius:10px; padding:10px 12px; font:inherit; }
+        form.f textarea { min-height:90px; }
+        .errorlist { color:#b91c1c; margin:4px 0; padding:0; list-style:none; font-size:.85rem; }
+        .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+        .row .sp { flex:1; }
+        table.t { width:100%; border-collapse:collapse; } table.t td, table.t th { padding:8px; border-bottom:1px solid var(--mt-line); text-align:start; vertical-align:top; font-size:.9rem; }
+    </style>
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="/marketplace/seller/"><i class="fas fa-store"></i> {% if store %}{{ store.name }}{% else %}{% trans "سوق Mouss Tec" %}{% endif %}</a><span class="sp"></span>
+    {% if seller %}<form method="post" action="/marketplace/seller/logout/" style="margin:0">{% csrf_token %}<button class="lnk" style="border:0;background:none;cursor:pointer;color:var(--mt-muted);font:inherit;font-size:.9rem;"><i class="fas fa-right-from-bracket"></i> {% trans "خروج" %}</button></form>{% endif %}
+    <span class="lang">{% include "clients/_language_switcher.html" %}</span></div></header>
+<main class="wrap">
+    {% if seller %}
+    <nav class="snav" aria-label="{% trans 'لوحة البائع' %}">
+        <a href="/marketplace/seller/" class="{% if active == 'home' %}on{% endif %}"><i class="fas fa-house"></i> {% trans "الرئيسية" %}</a>
+        <a href="/marketplace/seller/products/" class="{% if active == 'products' %}on{% endif %}"><i class="fas fa-boxes-stacked"></i> {% trans "منتجاتي" %}{% if pending_count %}<span class="tag wait" style="margin-inline-start:4px">{{ pending_count }}</span>{% endif %}</a>
+        <a href="/marketplace/seller/customers/" class="{% if active == 'customers' %}on{% endif %}"><i class="fas fa-users"></i> {% trans "عملائي" %}{% if new_quotes %}<span class="dot">{{ new_quotes }}</span>{% endif %}</a>
+        <a href="/marketplace/seller/requests/" class="{% if active == 'requests' %}on{% endif %}"><i class="fas fa-bullhorn"></i> {% trans "السوق المفتوح" %}</a>
+        <a href="/marketplace/seller/store/" class="{% if active == 'store' %}on{% endif %}"><i class="fas fa-gear"></i> {% trans "بيانات المتجر" %}</a>
+    </nav>
+    {% if not store.is_active %}<div class="notice warn"><i class="fas fa-hourglass-half"></i> {% trans "متجرك تحت المراجعة — هيظهر للعملاء أول ما فريق Mouss Tec يوافق عليه. تقدر تضيف منتجاتك من دلوقتي." %}</div>{% endif %}
+    {% endif %}
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

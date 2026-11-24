@@ -1,0 +1,33 @@
+{% extends "clients/marketplace/seller/_base.html" %}{% load i18n %}
+{% block title %}{% trans "عملائي" %}{% endblock %}
+{% block content %}
+<h1 style="font-size:1.3rem">{% trans "عملائي — طلبات الأسعار على منتجاتك" %}</h1>
+<p class="muted">{% trans "كلّم العميل مباشرة، وغيّر حالة الطلب عشان تفتكر وصلت لفين. لما الطلب يتنفّذ بيطلعلك لينك تقييم تبعته للعميل." %}</p>
+<div class="chips">
+    <a class="chip {% if not status %}on{% endif %}" href="?">{% trans "الكل" %}</a>
+    {% for k, label, n in statuses %}<a class="chip {% if status == k %}on{% endif %}" href="?status={{ k }}">{{ label }} · {{ n }}</a>{% endfor %}
+</div>
+{% for r in page %}
+<div class="card">
+    <div class="row"><b>{{ r.item_title }}</b><span class="sp"></span><span class="muted" style="font-size:.85rem"><span dir="ltr">{{ r.created_at|date:"Y-m-d H:i" }}</span></span></div>
+    <div style="margin:6px 0">{{ r.name }} — <a href="tel:{{ r.phone }}"><span dir="ltr">{{ r.phone }}</span></a>
+        {% if r.wa %}<a class="btn green sm" href="https://wa.me/{{ r.wa }}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> {% trans "واتساب" %}</a>{% endif %}</div>
+    {% if r.quantity %}<div class="muted">{% trans "الكمية" %}: {{ r.quantity }}</div>{% endif %}
+    {% if r.options %}<div class="muted">{% for k, v in r.options.items %}{% if k != 'color_key' and k != 'color_hex' %}{{ v }}{% if not forloop.last %} · {% endif %}{% endif %}{% endfor %}</div>{% endif %}
+    {% if r.car_info %}<div class="muted">{% trans "العربية" %}: {{ r.car_info }}</div>{% endif %}
+    {% if r.details %}<div style="white-space:pre-line;margin-top:4px">{{ r.details }}</div>{% endif %}
+    {% if r.attachment %}<a href="{{ r.attachment.url }}" target="_blank" rel="noopener"><i class="fas fa-paperclip"></i> {% trans "ملف العميل" %}</a>{% endif %}
+    <form method="post" action="/marketplace/seller/customers/{{ r.request_code }}/" class="row" style="margin-top:8px">{% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <select name="status" aria-label="{% trans 'حالة الطلب' %}" style="border:1px solid var(--mt-line-2);border-radius:10px;padding:7px 10px;font:inherit">
+            {% for k, label, n in statuses %}<option value="{{ k }}" {% if r.status == k %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <button class="btn sm">{% trans "حفظ" %}</button>
+        {% if r.review_url %}<span class="muted" style="font-size:.85rem">{% trans "لينك التقييم:" %} <a href="{{ r.review_url }}" dir="ltr">{{ r.review_url }}</a></span>{% endif %}
+    </form>
+</div>
+{% empty %}
+<div class="card muted">{% trans "مفيش طلبات هنا لسه." %}</div>
+{% endfor %}
+{% if page.has_other_pages %}<div class="row">{% if page.has_previous %}<a class="btn ghost sm" href="?status={{ status }}&page={{ page.previous_page_number }}">{% trans "السابق" %}</a>{% endif %}{% if page.has_next %}<a class="btn ghost sm" href="?status={{ status }}&page={{ page.next_page_number }}">{% trans "التالي" %}</a>{% endif %}</div>{% endif %}
+{% endblock %}

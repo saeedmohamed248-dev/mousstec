@@ -232,6 +232,9 @@ def _notify_merchants_of_new_request(svc_request, exclude_tenant=None):
                 except Exception:  # noqa: BLE001 — من غير Celery/Redis نبعت على طول
                     notify_merchants_new_request(code, ids)
             transaction.on_commit(_dispatch)
+        # 🏪 بائعين السوق (من غير برنامج الإدارة) في نفس القطاع
+        from clients.services.market_seller import notify_sellers_new_request
+        notify_sellers_new_request(svc_request)
     except Exception as e:
         logger.error(f"[MARKETPLACE NOTIFY] Failed: {e}")
 

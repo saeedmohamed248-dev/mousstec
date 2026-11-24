@@ -20,7 +20,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.cache import cache
 from django.db import connection, transaction
-from django.db.models import Avg, Count, F
+from django.db.models import F
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -105,6 +105,8 @@ def _flag_offer_accepted_for_merchant(offer):
     """🐛 [FIX]: التاجر ماكانش بيعرف إن عرضه اتقبل غير لو فتح صفحة السوق بالصدفة.
     بنعلّم العرض «جديد» عند التاجر (العداد في لوحة الشركة) لحد ما يفتح صفحة السوق."""
     try:
+        if not offer.merchant_id:   # بائع السوق بيشوف عروضه المقبولة في لوحته على طول
+            return
         key = _accepted_offers_cache_key(offer.merchant_id)
         ids = set(cache.get(key) or [])
         ids.add(offer.pk)
@@ -122,7 +124,7 @@ def _accept_tender_offer(offer_code, customer):
        ويزودوا عداد صفقات التاجرين. دلوقتي select_for_update على الطلب.
     """
     with transaction.atomic():
-        offer = TenderOffer.objects.select_related('merchant').filter(offer_code=offer_code).first()
+        offer = TenderOffer.objects.select_related('merchant', 'seller__store').filter(offer_code=offer_code).first()
         if offer is None:
             return None, JsonResponse({"error": "العرض غير موجود"}, status=404)
         svc_request = ServiceRequest.objects.select_for_update().get(pk=offer.service_request_id)
@@ -150,9 +152,8 @@ def _accept_tender_offer(offer_code, customer):
         MarketplaceCustomer.objects.filter(pk=customer.pk).update(
             total_accepted_offers=F('total_accepted_offers') + 1
         )
-        Client.objects.filter(pk=offer.merchant_id).update(
-            successful_deals=F('successful_deals') + 1
-        )
+        from clients.services.market_seller import bump_deals
+        bump_deals(offer)   # شركة أو بائع سوق
     offer.service_request = svc_request
     _flag_offer_accepted_for_merchant(offer)
     # 🐛 [FIX — دورة ناقصة]: الشركة كانت بتعرف بالقبول من عدّاد في لوحتها بس، والعميل بيتقاله
@@ -802,15 +803,14 @@ def marketplace_request_detail(request, request_code):
         return redirect('/marketplace/')
 
     svc_request = get_object_or_404(ServiceRequest, request_code=request_code, customer=customer)
-    offers = list(svc_request.offers.select_related('merchant').order_by('price'))
+    offers = list(svc_request.offers.select_related('merchant', 'seller__store').order_by('price'))
     # ⭐ عدد تقييمات كل تاجر — التقييم الافتراضي ٥ لتاجر جديد مايتعرضش كأنه تقييم حقيقي
-    rated = dict(TenderOffer.objects.filter(merchant_id__in={o.merchant_id for o in offers},
-                                            customer_rating__isnull=False)
-                 .values_list('merchant_id').annotate(n=Count('id')))
+    from clients.services.market_seller import review_counts
+    rated = review_counts(offers)
     for o in offers:
-        o.merchant_reviews = rated.get(o.merchant_id, 0)
+        o.merchant_reviews = rated.get(o.provider_key, 0)
         # رقم واتساب دولي (مصري: 01xxxxxxxxx ⇒ 201xxxxxxxxx) لزرار «واتساب» بعد القبول
-        digits = ''.join(ch for ch in (o.merchant.phone or '') if ch.isdigit())
+        digits = ''.join(ch for ch in (o.provider_phone or '') if ch.isdigit())
         if digits.startswith('0') and len(digits) == 11:
             digits = '20' + digits[1:]
         o.whatsapp_number = digits
@@ -840,8 +840,8 @@ def marketplace_accept_offer(request, offer_code):
     return JsonResponse({
         "status": "success",
         "message": "تم قبول العرض بنجاح! سيتم التواصل معك من التاجر.",
-        "merchant_name": offer.merchant.name,
-        "merchant_phone": offer.merchant.phone,
+        "merchant_name": offer.provider_name,
+        "merchant_phone": offer.provider_phone,
         "merchant_address": offer.merchant_address,
     })
 
@@ -892,11 +892,8 @@ def marketplace_rate_offer(request, offer_code):
     offer.service_request.save(update_fields=['status', 'completed_at'])
 
     # Update merchant rating
-    merchant = offer.merchant
-    avg = TenderOffer.objects.filter(
-        merchant=merchant, customer_rating__isnull=False
-    ).aggregate(avg=Avg('customer_rating'))['avg'] or Decimal('5.00')
-    Client.objects.filter(pk=merchant.pk).update(market_rating=avg)
+    from clients.services.market_seller import refresh_rating
+    refresh_rating(offer)   # تقييم الشركة أو بائع السوق
 
     return JsonResponse({"status": "success", "message": "شكراً لتقييمك!"})
 
@@ -967,7 +964,7 @@ def marketplace_merchant_feed(request):
     #    العروض اللي جاتله أو يقبل واحد منها — الدورة كانت بتقف عند النشر.
     my_b2b_requests = list(
         ServiceRequest.objects.filter(customer__phone=_b2b_buyer_phone(tenant))
-        .prefetch_related('offers', 'offers__merchant')
+        .prefetch_related('offers', 'offers__merchant', 'offers__seller__store')
         .order_by('-created_at')[:30]
     )
     for r in my_b2b_requests:
@@ -1267,8 +1264,8 @@ def marketplace_merchant_accept_offer(request, offer_code):
     return JsonResponse({
         "status": "success",
         "message": "تم قبول العرض! تواصل مع التاجر المورّد.",
-        "merchant_name": offer.merchant.name,
-        "merchant_phone": offer.merchant.phone,
+        "merchant_name": offer.provider_name,
+        "merchant_phone": offer.provider_phone,
         "merchant_address": offer.merchant_address,
     })
 

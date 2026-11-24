@@ -29737,3 +29737,389 @@ msgstr "Full copy with customer data"
 
 msgid "وقت من غير رد"
 msgstr "Time without reply"
+
+# 🏪 بائع السوق
+msgid "سجّل متجرك في السوق"
+msgstr "Register your store on the market"
+
+msgid "سجّل متجرك في سوق Mouss Tec"
+msgstr "Register your store on the Mouss Tec market"
+
+msgid "حساب بائع بس: تعرض منتجاتك وتستقبل طلبات العملاء وتتابعهم — من غير فواتير ولا مخزون ولا حسابات."
+msgstr "A seller account only: list your products, receive customer requests and follow up — no invoices, stock or accounting."
+
+msgid "سجّل متجري"
+msgstr "Register my store"
+
+msgid "عندك حساب بائع؟"
+msgstr "Already have a seller account?"
+
+msgid "ادخل من هنا"
+msgstr "Log in here"
+
+msgid "ارفع شيت منتجات"
+msgstr "Upload a products sheet"
+
+msgid "شيت Excel (.xlsx) أو CSV — أول صف فيه أسماء الأعمدة، وكل صف بعده منتج:"
+msgstr "An Excel (.xlsx) or CSV sheet — the first row has the column names, and every row after it is a product:"
+
+msgid "العمود"
+msgstr "Column"
+
+msgid "مطلوب؟"
+msgstr "Required?"
+
+msgid "أيوه"
+msgstr "Yes"
+
+msgid "لأ — لو مش مكتوب أو مش معروف بيتحط في أول قسم وتقدر تعدّله"
+msgstr "No — if missing or unknown it goes in the first category and you can edit it"
+
+msgid "الموديلات"
+msgstr "Models"
+
+msgid "الأقسام المتاحة:"
+msgstr "Available categories:"
+
+msgid "ارفع"
+msgstr "Upload"
+
+#, python-format
+msgid "لحد %(n)s منتج في المرة. الصور تضيفها بعدين من «تعديل» لكل منتج."
+msgstr "Up to %(n)s products at a time. Add photos later from “Edit” on each product."
+
+msgid "اتسجّلت! ابدأ ضيف منتجاتك — كل منتج بيظهر للعملاء بعد مراجعة سريعة من فريق Mouss Tec."
+msgstr "You're registered! Start adding your products — each one appears to customers after a quick review by the Mouss Tec team."
+
+msgid "من هنا بتعرض منتجاتك وبتتابع العملاء اللي طلبوا منك."
+msgstr "From here you list your products and follow up with customers who asked you for a quote."
+
+msgid "منتج ظاهر للعملاء"
+msgstr "products visible to customers"
+
+msgid "منتج مستني مراجعة"
+msgstr "products awaiting review"
+
+msgid "طلب سعر في آخر ٣٠ يوم"
+msgstr "quote requests in the last 30 days"
+
+msgid "طلب مفتوح في السوق تقدر تقدّم عليه"
+msgstr "open market requests you can bid on"
+
+msgid "عرض اتقبل"
+msgstr "accepted offers"
+
+msgid "ضيف منتج"
+msgstr "Add a product"
+
+msgid "شوف متجرك زي العميل"
+msgstr "View your store as a customer"
+
+msgid "آخر طلبات العملاء"
+msgstr "Latest customer requests"
+
+msgid "لسه مفيش طلبات — أول ما عميل يطلب سعر على منتج من منتجاتك هيظهر هنا ويوصلك واتساب."
+msgstr "No requests yet — as soon as a customer asks for a quote on one of your products it shows up here and you get a WhatsApp message."
+
+msgid "محتاج برنامج إدارة لشغلك؟"
+msgstr "Need a management system for your business?"
+
+msgid "مش لازم خالص — حسابك في السوق شغّال لوحده. لو حبيت بعدين فواتير ومخزون وحسابات، تقدر تفعّلها ومتجرك يفضل زي ما هو."
+msgstr "Not required at all — your market account works on its own. If you later want invoices, stock and accounting, you can turn them on and your store stays as it is."
+
+msgid "اعرف أكتر"
+msgstr "Learn more"
+
+#, python-format
+msgid "أهلاً %(n)s"
+msgstr "Hello %(n)s"
+
+msgid "دخول البائعين"
+msgstr "Seller login"
+
+msgid "سجّل متجرك"
+msgstr "Register your store"
+
+msgid "نسيت كلمة السر؟ كلّم دعم Mouss Tec على واتساب وهنساعدك."
+msgstr "Forgot your password? Message Mouss Tec support on WhatsApp and we'll help."
+
+msgid "عملائي"
+msgstr "My customers"
+
+msgid "عملائي — طلبات الأسعار على منتجاتك"
+msgstr "My customers — quote requests on your products"
+
+msgid "كلّم العميل مباشرة، وغيّر حالة الطلب عشان تفتكر وصلت لفين. لما الطلب يتنفّذ بيطلعلك لينك تقييم تبعته للعميل."
+msgstr "Contact the customer directly and update the request status to keep track. When it's done you get a review link to send to the customer."
+
+msgid "ملف العميل"
+msgstr "Customer's file"
+
+msgid "لينك التقييم:"
+msgstr "Review link:"
+
+msgid "مفيش طلبات هنا لسه."
+msgstr "No requests here yet."
+
+msgid "السوق المفتوح — طلبات العملاء في قطاعك"
+msgstr "Open market — customer requests in your sector"
+
+msgid "العميل بيشوف عرضك من غير اسمك، ولما يقبله بيظهرله اسم متجرك ورقمك ويوصلك إشعار."
+msgstr "The customer sees your offer without your name; when they accept it they see your store name and number and you get notified."
+
+msgid "عرضك اتبعت للعميل! هيوصلك إشعار لو قبله."
+msgstr "Your offer was sent! You'll be notified if the customer accepts it."
+
+msgid "السعر والتفاصيل مطلوبين."
+msgstr "Price and details are required."
+
+msgid "السعر مش مظبوط."
+msgstr "Invalid price."
+
+msgid "مدة التنفيذ أو الضمان مش مظبوطة."
+msgstr "Invalid delivery or warranty period."
+
+msgid "العميل طالب صور مع العرض — ارفع صورة واحدة على الأقل."
+msgstr "The customer wants photos with offers — upload at least one image."
+
+msgid "حجم الملف المرفق أكبر من ١٠ ميجا."
+msgstr "The attached file is larger than 10 MB."
+
+msgid "إنت قدّمت عرض على الطلب ده قبل كده."
+msgstr "You already sent an offer on this request."
+
+msgid "الطلب ده قفل."
+msgstr "This request is closed."
+
+msgid "الميزانية حتى"
+msgstr "Budget up to"
+
+msgid "قدّم عرضك"
+msgstr "Send your offer"
+
+msgid "أيام التنفيذ"
+msgstr "Delivery days"
+
+msgid "أيام الضمان"
+msgstr "Warranty days"
+
+msgid "صورة (مطلوبة)"
+msgstr "Image (required)"
+
+msgid "صورة (اختياري)"
+msgstr "Image (optional)"
+
+msgid "مفيش طلبات مفتوحة في قطاعك دلوقتي — أول ما ييجي طلب جديد هيوصلك واتساب."
+msgstr "No open requests in your sector right now — you'll get a WhatsApp message when a new one comes in."
+
+msgid "عروضي"
+msgstr "My offers"
+
+msgid "اسحب العرض"
+msgstr "Withdraw offer"
+
+msgid "لسه ماقدّمتش عروض."
+msgstr "You haven't sent any offers yet."
+
+msgid "بيانات المتجر"
+msgstr "Store details"
+
+msgid "اسم المتجر"
+msgstr "Store name"
+
+msgid "لتغيير الاسم كلّم دعم Mouss Tec."
+msgstr "To change the name, contact Mouss Tec support."
+
+msgid "برنامج الإدارة"
+msgstr "Management system"
+
+msgid "برنامج الإدارة (اختياري)"
+msgstr "Management system (optional)"
+
+msgid "حسابك في السوق كفاية عشان تعرض منتجاتك وتتابع عملاءك. لو محتاج كمان تدير شغلك من جوه:"
+msgstr "Your market account is enough to list products and follow up with customers. If you also need to run your business from inside:"
+
+msgid "فواتير بيع وشراء وكاشير"
+msgstr "Sales & purchase invoices and POS"
+
+msgid "مخزون وخامات"
+msgstr "Stock and materials"
+
+msgid "خزائن وحسابات وآجل العملاء"
+msgstr "Cash boxes, accounts and customer credit"
+
+msgid "موظفين ومرتبات"
+msgstr "Employees and payroll"
+
+msgid "التفعيل بيعمل لك شركة على Mouss Tec ببياناتك. متجرك ومنتجاتك وعروضك في السوق بيفضلوا زي ما هم."
+msgstr "Activating creates a Mouss Tec company with your details. Your store, products and market offers stay as they are."
+
+msgid "فعّل برنامج الإدارة"
+msgstr "Activate the management system"
+
+#, python-format
+msgid "حسابك متربط بشركة «%(n)s» على Mouss Tec. متجرك في السوق شغّال زي ما هو."
+msgstr "Your account is linked to the company “%(n)s” on Mouss Tec. Your market store keeps working as is."
+
+msgid "لوحة البائع"
+msgstr "Seller dashboard"
+
+msgid "متجرك تحت المراجعة — هيظهر للعملاء أول ما فريق Mouss Tec يوافق عليه. تقدر تضيف منتجاتك من دلوقتي."
+msgstr "Your store is under review — it will appear to customers once the Mouss Tec team approves it. You can add your products now."
+
+msgid "أي منتج جديد أو تعديل بيستخبى لحد ما فريق Mouss Tec يراجعه — عادةً في نفس اليوم."
+msgstr "Any new or edited product is hidden until the Mouss Tec team reviews it — usually the same day."
+
+msgid "احفظ وابعته للمراجعة"
+msgstr "Save and send for review"
+
+msgid "اتحفظ — المنتج هيظهر للعملاء بعد مراجعة فريق Mouss Tec."
+msgstr "Saved — the product will appear to customers after the Mouss Tec team reviews it."
+
+msgid "ارفع شيت"
+msgstr "Upload sheet"
+
+msgid "ظاهر للعملاء"
+msgstr "Visible to customers"
+
+msgid "مستني مراجعة"
+msgstr "Awaiting review"
+
+msgid "اعرضه تاني"
+msgstr "Show again"
+
+msgid "لسه مضفتش منتجات. ضيف أول منتج أو ارفع شيت Excel فيه كل منتجاتك مرة واحدة."
+msgstr "You haven't added products yet. Add your first product or upload an Excel sheet with all of them at once."
+
+#, python-format
+msgid "اترفع %(n)s منتج من الشيت — هيظهروا بعد المراجعة."
+msgstr "%(n)s products uploaded from the sheet — they'll appear after review."
+
+msgid "اسم المتجر ورقم موبايلك بس — في دقيقة. حساب للسوق بس، من غير فواتير ولا مخزون ولا حسابات."
+msgstr "Just your store name and mobile number — in a minute. A market-only account, no invoices, stock or accounting."
+
+msgid "ضيف منتجاتك"
+msgstr "Add your products"
+
+msgid "بالصور والوصف وأقل كمية، أو ارفع شيت Excel مرة واحدة — وفريق Mouss Tec بيراجعها وتظهر للعملاء."
+msgstr "With photos, descriptions and minimum quantities, or upload one Excel sheet — the Mouss Tec team reviews them and they go live."
+
+msgid "تابع عملاءك"
+msgstr "Follow up with your customers"
+
+msgid "طلبات الأسعار على منتجاتك بتوصلك واتساب وفي لوحتك، وكمان طلبات «السوق المفتوح» في قطاعك تقدّم عليها عرض سعرك."
+msgstr "Quote requests on your products reach you on WhatsApp and in your dashboard, plus “Open market” requests in your sector you can send offers on."
+
+msgid "سجّل متجرك دلوقتي"
+msgstr "Register your store now"
+
+msgid "محتاج كمان برنامج إدارة لشغلك (فواتير ومخزون وحسابات)؟ ده اختياري — تقدر تفعّله بعدين من لوحتك، أو"
+msgstr "Also need a management system (invoices, stock, accounting)? It's optional — turn it on later from your dashboard, or"
+
+msgid "سجّل شركة كاملة"
+msgstr "register a full company"
+
+msgid "متجر مستقل — صاحبه بيكلّمك مباشرة"
+msgstr "Independent store — the owner contacts you directly"
+
+msgid "بتطلب سعر، وبيكلّمك يا فريق Mouss Tec يا صاحب المتجر لو متجر مستقل — ونتابع معاك لحد ما تستلم."
+msgstr "Request a quote and either the Mouss Tec team or, for independent stores, the store owner contacts you — and we follow up until you receive your order."
+
+msgid "اسم المطبعة أو المحل"
+msgstr "Print shop or store name"
+
+msgid "اسم المسؤول"
+msgstr "Contact person"
+
+msgid "مطبعة / تصميم"
+msgstr "Printing / design"
+
+msgid "قطع غيار سيارات"
+msgstr "Car spare parts"
+
+msgid "المحافظة / المدينة"
+msgstr "Governorate / city"
+
+msgid "الإيميل (اختياري)"
+msgstr "Email (optional)"
+
+msgid "جملة عن شغلك (اختياري)"
+msgstr "A line about your business (optional)"
+
+msgid "اكتب اسم المتجر كامل."
+msgstr "Write the full store name."
+
+msgid "الرقم ده عنده حساب بائع — ادخل بيه."
+msgstr "This number already has a seller account — log in with it."
+
+msgid "محاولات تسجيل كتير من نفس الجهاز — جرّب بعد ساعة."
+msgstr "Too many sign-ups from this device — try again in an hour."
+
+msgid "محاولات كتير — استنى دقيقة وجرّب تاني."
+msgstr "Too many attempts — wait a minute and try again."
+
+msgid "محاولات كتير على الرقم ده — جرّب بعد ربع ساعة."
+msgstr "Too many attempts on this number — try again in 15 minutes."
+
+msgid "رقم الموبايل أو كلمة السر غلط."
+msgstr "Wrong mobile number or password."
+
+msgid "الصورة أكبر من ٨ ميجا — صغّرها وجرّب تاني."
+msgstr "The image is larger than 8 MB — make it smaller and try again."
+
+msgid "السعر مينفعش يبقى بالسالب."
+msgstr "The price can't be negative."
+
+msgid "ابعت الشيت Excel (.xlsx) أو CSV."
+msgstr "Send the sheet as Excel (.xlsx) or CSV."
+
+msgid "اختار ملف الشيت."
+msgstr "Choose the sheet file."
+
+msgid "الشيت أكبر من ٥ ميجا."
+msgstr "The sheet is larger than 5 MB."
+
+msgid "مقدرناش نقرا الشيت — اتأكد إنه Excel أو CSV وأول صف فيه أسماء الأعمدة."
+msgstr "We couldn't read the sheet — make sure it's Excel or CSV with column names in the first row."
+
+msgid "مالقيناش منتجات في الشيت — لازم عمود «اسم المنتج»."
+msgstr "No products found in the sheet — an “اسم المنتج” (product name) column is required."
+
+msgid "كلمة سر جديدة (سيبها فاضية لو مش هتغيّرها)"
+msgstr "New password (leave empty to keep the current one)"
+
+msgid "اكتب رقم موبايل المتجر، وهيوصلك كود من ٦ أرقام على إيميل المتجر من Mouss Tec."
+msgstr "Enter the store's mobile number and Mouss Tec will email a 6-digit code to the store's email."
+
+msgid "لو الرقم ده عنده حساب بائع بإيميل، الكود هيوصل على الإيميل خلال دقيقة — بُص في الـ Spam لو ماوصلش. الكود صالح ١٠ دقايق."
+msgstr "If this number has a seller account with an email, the code will arrive within a minute — check Spam if you don't see it. The code is valid for 10 minutes."
+
+msgid "عندي الكود"
+msgstr "I have the code"
+
+msgid "حسابك مالوش إيميل أو الإيميل اتغيّر؟ كلّم دعم Mouss Tec على واتساب."
+msgstr "No email on your account, or it changed? Message Mouss Tec support on WhatsApp."
+
+msgid "ابعت كود جديد"
+msgstr "Send a new code"
+
+msgid "اتغيّرت كلمة السر ودخلت على حسابك."
+msgstr "Your password was changed and you're logged in."
+
+msgid "ضيف إيميل المتجر من «بيانات المتجر» — عليه بيوصلك كود تغيير كلمة السر لو نسيتها."
+msgstr "Add the store email from “Store details” — that's where the password reset code is sent."
+
+msgid "إيميل المتجر"
+msgstr "Store email"
+
+msgid "عليه بيوصلك كود تغيير كلمة السر لو نسيتها."
+msgstr "The password reset code is sent here if you forget it."
+
+msgid "طلبات كتير — جرّب بعد ساعة."
+msgstr "Too many requests — try again in an hour."
+
+msgid "الكود اللي وصلك على الإيميل"
+msgstr "The code you received by email"
+
+msgid "الكود غلط أو انتهت صلاحيته — اطلب كود جديد."
+msgstr "Wrong or expired code — request a new one."

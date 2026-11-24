@@ -394,7 +394,11 @@ class TenderOffer(models.Model):
 
     offer_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE, related_name='offers', verbose_name=_("طلب الخدمة"))
-    merchant = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='tender_offers', verbose_name=_("التاجر"))
+    # التاجر: يا شركة على السيستم (merchant) يا بائع سوق من غير برنامج الإدارة (seller) — واحد بس.
+    merchant = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='tender_offers', verbose_name=_("التاجر"),
+                                 null=True, blank=True)
+    seller = models.ForeignKey('clients.MarketSeller', on_delete=models.CASCADE, related_name='tender_offers',
+                               null=True, blank=True, verbose_name=_("بائع السوق"))
 
     price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("السعر المقترح"))
     description = models.TextField(verbose_name=_("تفاصيل العرض"))
@@ -422,11 +426,42 @@ class TenderOffer(models.Model):
     class Meta:
         verbose_name = _("عرض سعر تاجر")
         verbose_name_plural = _("عروض أسعار التجار")
-        unique_together = ('service_request', 'merchant')
         ordering = ['price']
+        constraints = [
+            models.UniqueConstraint(fields=['service_request', 'merchant'], name='tenderoffer_one_per_merchant',
+                                    condition=models.Q(merchant__isnull=False)),
+            models.UniqueConstraint(fields=['service_request', 'seller'], name='tenderoffer_one_per_seller',
+                                    condition=models.Q(seller__isnull=False)),
+            models.CheckConstraint(condition=models.Q(merchant__isnull=False) ^ models.Q(seller__isnull=False),
+                                   name='tenderoffer_merchant_xor_seller'),
+        ]
 
     def __str__(self):
         return f"OFFER-{str(self.offer_code)[:8]} | {self.price} EGP"
+
+    # 🏪 بيانات صاحب العرض — شركة أو بائع سوق (التمبلتس والإشعارات بتستخدم دول)
+    @property
+    def provider_name(self):
+        if self.merchant_id:
+            return self.merchant.name
+        return self.seller.store.name if self.seller_id else ''
+
+    @property
+    def provider_phone(self):
+        if self.merchant_id:
+            return self.merchant.phone
+        return self.seller.phone if self.seller_id else ''
+
+    @property
+    def provider_rating(self):
+        if self.merchant_id:
+            return self.merchant.market_rating
+        return self.seller.market_rating if self.seller_id else None
+
+    @property
+    def provider_key(self):
+        """مفتاح ثابت لصاحب العرض (لعدّ التقييمات)."""
+        return ('m', self.merchant_id) if self.merchant_id else ('s', self.seller_id)
 
     @property
     def merchant_display_name(self):
