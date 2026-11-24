@@ -1,0 +1,16 @@
+{% extends "clients/marketplace/seller/_base.html" %}{% load i18n %}
+{% block title %}{% trans "دخول البائعين" %}{% endblock %}
+{% block content %}
+<section class="hero"><h1>{% trans "دخول البائعين" %}</h1></section>
+<div class="card" style="max-width:440px">
+    <form method="post" class="f">{% csrf_token %}
+        {% if error %}<div class="notice err">{{ error }}</div>{% endif %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <p><label for="phone">{% trans "رقم الموبايل" %}</label><input id="phone" name="phone" type="tel" dir="ltr" value="{{ phone }}" required autocomplete="tel"></p>
+        <p><label for="password">{% trans "كلمة السر" %}</label><input id="password" name="password" type="password" required autocomplete="current-password"></p>
+        <button class="btn" type="submit"><i class="fas fa-right-to-bracket"></i> {% trans "دخول" %}</button>
+    </form>
+    <p class="muted" style="margin-top:14px">{% trans "مالكش حساب؟" %} <a href="/marketplace/seller/join/">{% trans "سجّل متجرك" %}</a></p>
+    <p class="muted" style="font-size:.85rem">{% trans "نسيت كلمة السر؟ كلّم دعم Mouss Tec على واتساب وهنساعدك." %}</p>
+</div>
+{% endblock %}

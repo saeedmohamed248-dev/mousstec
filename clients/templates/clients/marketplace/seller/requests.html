@@ -1,0 +1,39 @@
+{% extends "clients/marketplace/seller/_base.html" %}{% load i18n %}
+{% block title %}{% trans "السوق المفتوح" %}{% endblock %}
+{% block content %}
+<h1 style="font-size:1.3rem">{% trans "السوق المفتوح — طلبات العملاء في قطاعك" %}</h1>
+<p class="muted">{% trans "العميل بيشوف عرضك من غير اسمك، ولما يقبله بيظهرله اسم متجرك ورقمك ويوصلك إشعار." %}</p>
+{% if sent %}<div class="notice ok">{% trans "عرضك اتبعت للعميل! هيوصلك إشعار لو قبله." %}</div>{% endif %}
+{% if error %}<div class="notice err">{% if error == 'missing' %}{% trans "السعر والتفاصيل مطلوبين." %}{% elif error == 'price' %}{% trans "السعر مش مظبوط." %}{% elif error == 'days' %}{% trans "مدة التنفيذ أو الضمان مش مظبوطة." %}{% elif error == 'images' %}{% trans "العميل طالب صور مع العرض — ارفع صورة واحدة على الأقل." %}{% elif error == 'file' %}{% trans "حجم الملف المرفق أكبر من ١٠ ميجا." %}{% elif error == 'dup' %}{% trans "إنت قدّمت عرض على الطلب ده قبل كده." %}{% else %}{% trans "الطلب ده قفل." %}{% endif %}</div>{% endif %}
+{% for r in requests %}
+<div class="card" id="req-{{ r.request_code }}">
+    <div class="row"><b>{{ r.title }}</b><span class="sp"></span>{% if r.max_budget %}<span class="tag off">{% trans "الميزانية حتى" %} {{ r.max_budget|floatformat:"-2" }} {% trans "ج.م" %}</span>{% endif %}</div>
+    {% if r.description %}<div style="white-space:pre-line;margin:6px 0">{{ r.description|truncatechars:600 }}</div>{% endif %}
+    <div class="muted" style="font-size:.85rem">{% if r.city %}{{ r.city }} · {% endif %}{% trans "ينتهي" %} <span dir="ltr">{{ r.expires_at|date:"Y-m-d H:i" }}</span> · {% blocktrans with n=r.offers_count %}{{ n }} عرض{% endblocktrans %}</div>
+    <details {% if focus == r.request_code|stringformat:"s" %}open{% endif %} style="margin-top:8px"><summary class="btn sm" style="display:inline-flex">{% trans "قدّم عرضك" %}</summary>
+        <form method="post" enctype="multipart/form-data" action="/marketplace/seller/requests/{{ r.request_code }}/offer/" class="f" style="margin-top:10px">{% csrf_token %}
+            <p><label>{% trans "السعر (ج.م)" %}</label><input name="price" type="number" min="1" step="0.01" required dir="ltr"></p>
+            <p><label>{% trans "تفاصيل العرض" %}</label><textarea name="description" required></textarea></p>
+            <div class="grid"><p><label>{% trans "أيام التنفيذ" %}</label><input name="estimated_days" type="number" min="1" max="365" value="1"></p>
+            <p><label>{% trans "أيام الضمان" %}</label><input name="warranty_days" type="number" min="0" max="3650" value="0"></p></div>
+            <p><label>{% trans "المدينة" %}</label><input name="merchant_city" value="{{ store.city }}"></p>
+            <p><label>{% if r.wants_images %}{% trans "صورة (مطلوبة)" %}{% else %}{% trans "صورة (اختياري)" %}{% endif %}</label><input type="file" name="image_1" accept="image/*" {% if r.wants_images %}required{% endif %}></p>
+            <button class="btn" type="submit"><i class="fas fa-paper-plane"></i> {% trans "ابعت العرض" %}</button>
+        </form>
+    </details>
+</div>
+{% empty %}
+<div class="card muted">{% trans "مفيش طلبات مفتوحة في قطاعك دلوقتي — أول ما ييجي طلب جديد هيوصلك واتساب." %}</div>
+{% endfor %}
+<div class="sec-title"><i class="fas fa-tags"></i> {% trans "عروضي" %}</div>
+{% for o in my_offers %}
+<div class="card">
+    <div class="row"><b>{{ o.service_request.title }}</b><span class="sp"></span><span class="tag {% if o.status == 'accepted' %}live{% elif o.status == 'pending' %}wait{% else %}off{% endif %}">{{ o.get_status_display }}</span></div>
+    <div class="muted">{{ o.price|floatformat:"-2" }} {% trans "ج.م" %} · <span dir="ltr">{{ o.created_at|date:"Y-m-d" }}</span></div>
+    {% if o.status == 'accepted' %}{% with c=o.service_request.customer %}<div style="margin-top:6px"><i class="fas fa-handshake"></i> {% trans "العميل:" %} {{ c.company_name|default:c.full_name }} — <a href="tel:{{ c.phone }}"><span dir="ltr">{{ c.phone }}</span></a>{% if c.city %} — {{ c.city }}{% endif %}</div>{% endwith %}{% endif %}
+    {% if o.status == 'pending' %}<form method="post" action="/marketplace/seller/offers/{{ o.offer_code }}/withdraw/" style="margin-top:6px">{% csrf_token %}<button class="btn ghost sm">{% trans "اسحب العرض" %}</button></form>{% endif %}
+</div>
+{% empty %}
+<div class="card muted">{% trans "لسه ماقدّمتش عروض." %}</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "clients/marketplace/seller/_base.html" %}{% load i18n %}
+{% block title %}{% trans "سجّل متجرك في السوق" %}{% endblock %}
+{% block content %}
+<section class="hero">
+    <h1>{% trans "سجّل متجرك في سوق Mouss Tec" %}</h1>
+    <p>{% trans "حساب بائع بس: تعرض منتجاتك وتستقبل طلبات العملاء وتتابعهم — من غير فواتير ولا مخزون ولا حسابات." %}</p>
+</section>
+<div class="card" style="max-width:560px">
+    <form method="post" class="f" novalidate>{% csrf_token %}
+        {% if form.non_field_errors %}<div class="notice err">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+        {{ form.as_p }}
+        <button class="btn" type="submit"><i class="fas fa-store"></i> {% trans "سجّل متجري" %}</button>
+    </form>
+    <p class="muted" style="margin-top:14px">{% trans "عندك حساب بائع؟" %} <a href="/marketplace/seller/login/">{% trans "ادخل من هنا" %}</a></p>
+</div>
+{% endblock %}

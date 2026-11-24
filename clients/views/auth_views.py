@@ -225,6 +225,10 @@ def register_new_tenant_saas(request):
                                 email_verify_deadline=_ev.grace_deadline(),
                             )
 
+                            # 🏪 بائع سوق بيرقّي حسابه لبرنامج الإدارة ⇒ نربط الشركة بمتجره
+                            from clients.services.market_seller import link_upgrade
+                            link_upgrade(request, tenant)
+
                             with schema_context(schema_name):
                                 # 🐛 [FIX]: full_name قد يجي فاضي بعد strip — نمنع IndexError.
                                 full_name_safe = (data.get('full_name') or company_name).strip()
@@ -413,10 +417,17 @@ def register_new_tenant_saas(request):
         if initial_industry not in ('automotive', 'printing'):
             initial_industry = ''
         default_btype = {'automotive': 'service_center', 'printing': 'print_shop'}.get(initial_industry, '')
-        form = TenantSignupForm(initial={
-            'industry': initial_industry,
-            'business_type': default_btype,
-        })
+        initial = {'industry': initial_industry, 'business_type': default_btype}
+        # 🏪 بائع السوق بيرقّي ⇒ بياناته متعبّية
+        from clients.services.market_seller import local_phone, seller_from_request
+        _seller = seller_from_request(request)
+        if _seller and not _seller.upgraded_to_id:
+            initial.update({'company_name': _seller.store.name, 'full_name': _seller.owner_name,
+                            'phone': local_phone(_seller.phone), 'email': _seller.email,
+                            'industry': initial_industry or _seller.store.sector})
+            initial['business_type'] = default_btype or {'automotive': 'service_center',
+                                                         'printing': 'print_shop'}[initial['industry']]
+        form = TenantSignupForm(initial=initial)
 
     return render(request, 'clients/signup_register.html', {'form': form, **sub_intent_ctx})
 

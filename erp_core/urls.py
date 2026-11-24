@@ -28,6 +28,7 @@ from clients.views import platform_finance_views as platform_finance_views
 from clients.views import agent_api as agent_api_views
 from clients.views import screen_recording_views as screen_rec_views
 from clients.views import catalog_views as catalog_views
+from clients.views import market_seller_views as seller_views
 from clients.views import meta_feed_views as meta_feed_views
 from omnichannel import saas_admin_views as omnichannel_saas_views
 from clients.views import support_views as support_views
@@ -857,6 +858,23 @@ urlpatterns = [
     path('marketplace/catalog/item/<uuid:item_code>/', catalog_views.catalog_item, name='catalog_item'),
     path('marketplace/catalog/review/<uuid:token>/', catalog_views.catalog_review, name='catalog_review'),
     path('marketplace/sell/', catalog_views.catalog_sell, name='catalog_sell'),
+    # 🏪 بائع السوق — متجر ومنتجات وعملاء بس، من غير برنامج الإدارة
+    path('marketplace/seller/join/', seller_views.seller_join, name='seller_join'),
+    path('marketplace/seller/login/', seller_views.seller_login, name='seller_login'),
+    path('marketplace/seller/logout/', seller_views.seller_logout, name='seller_logout'),
+    path('marketplace/seller/', seller_views.seller_dashboard, name='seller_dashboard'),
+    path('marketplace/seller/products/', seller_views.seller_products, name='seller_products'),
+    path('marketplace/seller/products/new/', seller_views.seller_product_edit, name='seller_product_new'),
+    path('marketplace/seller/products/import/', seller_views.seller_products_import, name='seller_products_import'),
+    path('marketplace/seller/products/<uuid:item_code>/', seller_views.seller_product_edit, name='seller_product_edit'),
+    path('marketplace/seller/products/<uuid:item_code>/visibility/', seller_views.seller_product_hide, name='seller_product_hide'),
+    path('marketplace/seller/customers/', seller_views.seller_customers, name='seller_customers'),
+    path('marketplace/seller/customers/<uuid:request_code>/', seller_views.seller_customer_update, name='seller_customer_update'),
+    path('marketplace/seller/requests/', seller_views.seller_requests, name='seller_requests'),
+    path('marketplace/seller/requests/<uuid:request_code>/offer/', seller_views.seller_submit_offer, name='seller_submit_offer'),
+    path('marketplace/seller/offers/<uuid:offer_code>/withdraw/', seller_views.seller_withdraw_offer, name='seller_withdraw_offer'),
+    path('marketplace/seller/store/', seller_views.seller_store, name='seller_store'),
+    path('marketplace/seller/upgrade/', seller_views.seller_upgrade, name='seller_upgrade'),
     # 📣 Feed منتجات المطابع لكتالوج ميتا (فيسبوك/إنستجرام)
     path('feeds/meta/printing.csv', meta_feed_views.meta_printing_feed, name='meta_printing_feed'),
     path('superadmin/catalog/requests/', catalog_views.catalog_requests_admin, name='catalog_requests_admin'),

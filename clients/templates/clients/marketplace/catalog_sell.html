@@ -47,16 +47,20 @@
     {% if offer %}<div class="offer">🎁 {{ offer }}</div>{% endif %}
 
     <div class="sec-title"><i class="fas fa-list-ol"></i> {% trans "إزاي تبدأ" %}</div>
+    {% comment %}🐛 [FIX]: الخطوة الأولى كانت «حساب على Mouss Tec… برنامج إدارة كامل» والزرار بيعمل شركة كاملة —
+       المطبعة اللي عايزة تبيع في السوق بس مالهاش دعوة بالحسابات. دلوقتي حساب بائع خفيف.{% endcomment %}
     <div class="steps">
-        <div class="step"><b>١. {% trans "سجّل شركتك" %}</b>{% trans "حساب على Mouss Tec في دقيقتين — وبيبقى معاك برنامج إدارة كامل (فواتير، مخزون، حسابات)." %}</div>
-        <div class="step"><b>٢. {% trans "ابعتلنا منتجاتك" %}</b>{% trans "صور وأوصاف وأقل كمية، أو شيت إكسل — وفريق Mouss Tec بيرفعها في السوق." %}</div>
-        <div class="step"><b>٣. {% trans "استقبل طلبات العملاء" %}</b>{% trans "من «السوق المفتوح» جوه لوحتك بتشوف طلبات العملاء في قطاعك وتقدّم عرض سعرك." %}</div>
+        <div class="step"><b>١. {% trans "سجّل متجرك" %}</b>{% trans "اسم المتجر ورقم موبايلك بس — في دقيقة. حساب للسوق بس، من غير فواتير ولا مخزون ولا حسابات." %}</div>
+        <div class="step"><b>٢. {% trans "ضيف منتجاتك" %}</b>{% trans "بالصور والوصف وأقل كمية، أو ارفع شيت Excel مرة واحدة — وفريق Mouss Tec بيراجعها وتظهر للعملاء." %}</div>
+        <div class="step"><b>٣. {% trans "تابع عملاءك" %}</b>{% trans "طلبات الأسعار على منتجاتك بتوصلك واتساب وفي لوحتك، وكمان طلبات «السوق المفتوح» في قطاعك تقدّم عليها عرض سعرك." %}</div>
     </div>
 
     <div class="cta">
-        <a href="/connect/signup/" style="background:var(--mt-brand); color:#fff;"><i class="fas fa-user-plus"></i> {% trans "سجّل شركتك دلوقتي" %}</a>
+        <a href="/marketplace/seller/join/" style="background:var(--mt-brand); color:#fff;"><i class="fas fa-store"></i> {% trans "سجّل متجرك دلوقتي" %}</a>
+        <a href="/marketplace/seller/login/" style="border:1px solid var(--mt-brand); color:var(--mt-brand);"><i class="fas fa-right-to-bracket"></i> {% trans "دخول البائعين" %}</a>
         {% if whatsapp %}<a href="https://wa.me/{{ whatsapp }}?text={% filter urlencode %}{% trans 'عندي مطبعة/محل وعاوز أعرض منتجاتي في سوق Mouss Tec' %}{% endfilter %}" target="_blank" rel="noopener" style="background:#16a34a; color:#fff;"><i class="fab fa-whatsapp"></i> {% trans "كلّمنا واتساب" %}</a>{% endif %}
     </div>
+    <p style="color:var(--mt-muted); font-size:.85rem; margin-top:-16px;">{% trans "محتاج كمان برنامج إدارة لشغلك (فواتير ومخزون وحسابات)؟ ده اختياري — تقدر تفعّله بعدين من لوحتك، أو" %} <a href="/connect/signup/">{% trans "سجّل شركة كاملة" %}</a>.</p>
 </main>
 </body>
 </html>

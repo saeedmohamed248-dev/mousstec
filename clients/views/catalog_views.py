@@ -425,6 +425,13 @@ def catalog_item(request, item_code):
                 logger.exception('[CATALOG] event log failed')
             from django.db import transaction
             transaction.on_commit(lambda: notify_owner_async(req.pk))
+            # 🏪 منتج بائع سوق ⇒ الطلب يوصل للبائع نفسه كمان (هو اللي هيكلّم العميل)
+            seller = item.store.seller_or_none
+            if seller and not seller.is_blocked:
+                from clients.services.market_seller import notify_seller
+                notify_seller(seller, f'Mouss Tec — طلب سعر جديد: {item.title[:80]}',
+                              f'طلب سعر جديد على «{item.title[:100]}» من {req.name[:60]} — {req.phone}.',
+                              '/marketplace/seller/customers/')
             _track_quote_lead(request, req)
             return redirect(f'/marketplace/catalog/item/{item.item_code}/?sent=1#quote')
     related = list(_with_photo_first(CatalogItem.objects.filter(store=item.store, is_active=True)

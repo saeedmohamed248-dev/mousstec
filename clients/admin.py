@@ -1383,15 +1383,71 @@ class CatalogStoreAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
 
 @admin.register(CatalogItem)
 class CatalogItemAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ('title', 'store', 'category', 'car_make', 'has_image', 'price_from', 'is_active')
-    list_filter = ('store__sector', 'category', 'is_active', 'store')
+    list_display = ('title', 'store', 'category', 'car_make', 'has_image', 'price_from', 'pending_review', 'is_active')
+    list_filter = ('pending_review', 'store__sector', 'category', 'is_active', 'store')
     list_editable = ('price_from', 'is_active')
     search_fields = ('title', 'description', 'car_make', 'car_models', 'store__name')
     autocomplete_fields = ('store',)
+    actions = ('approve_items', 'reject_items')
+
+    # 🏪 منتجات بائعين السوق بتستنى مراجعة قبل ما تظهر
+    @admin.action(description='✅ اعتماد المنتجات (تظهر للعملاء)')
+    def approve_items(self, request, queryset):
+        n = queryset.update(is_active=True, pending_review=False)
+        self.message_user(request, f'اتعتمد {n} منتج.')
+
+    @admin.action(description='⛔ رفض المنتجات (تفضل مخفية)')
+    def reject_items(self, request, queryset):
+        n = queryset.update(is_active=False, pending_review=False)
+        self.message_user(request, f'اترفض {n} منتج.')
 
     @admin.display(boolean=True, description='صورة')
     def has_image(self, obj):
         return bool(obj.image)
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser
+
+
+from .models import MarketSeller  # noqa: E402
+
+
+@admin.register(MarketSeller)
+class MarketSellerAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
+    """🏪 بائعين السوق (من غير برنامج الإدارة) — الموافقة على المتجر = تفعيله."""
+    list_display = ('store', 'owner_name', 'phone', 'sector_display', 'store_live', 'pending_items',
+                    'is_blocked', 'upgraded_to', 'created_at')
+    list_filter = ('store__sector', 'store__is_active', 'is_blocked')
+    search_fields = ('owner_name', 'phone', 'email', 'store__name')
+    readonly_fields = ('uid', 'store', 'phone', 'upgraded_to', 'market_rating', 'successful_deals',
+                       'last_login_at', 'created_at')
+    exclude = ('password_hash', 'session_token')
+    actions = ('approve_stores', 'hide_stores')
+
+    @admin.display(description='النشاط')
+    def sector_display(self, obj):
+        return obj.store.get_sector_display()
+
+    @admin.display(boolean=True, description='المتجر ظاهر')
+    def store_live(self, obj):
+        return obj.store.is_active
+
+    @admin.display(description='منتجات مستنية')
+    def pending_items(self, obj):
+        return obj.store.items.filter(pending_review=True).count()
+
+    @admin.action(description='✅ الموافقة على المتجر (يظهر للعملاء)')
+    def approve_stores(self, request, queryset):
+        n = CatalogStore.objects.filter(seller__in=queryset).update(is_active=True)
+        self.message_user(request, f'اتفعّل {n} متجر.')
+
+    @admin.action(description='🙈 إخفاء المتجر')
+    def hide_stores(self, request, queryset):
+        n = CatalogStore.objects.filter(seller__in=queryset).update(is_active=False)
+        self.message_user(request, f'اتخفى {n} متجر.')
+
+    def has_add_permission(self, request):
+        return False
 
     def has_module_permission(self, request):
         return connection.schema_name == 'public' and request.user.is_superuser

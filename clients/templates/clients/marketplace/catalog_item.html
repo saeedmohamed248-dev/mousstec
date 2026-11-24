@@ -71,7 +71,7 @@
                     <span><b>{{ store.l_name }}</b><small>{{ store.l_tagline }}</small></span>
                 </a>
                 <div style="display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0;">
-                    <span class="badge-mt"><i class="fas fa-circle-check"></i> {% trans "بيتنفّذ عن طريق Mouss Tec" %}</span>
+                    {% if store.is_seller_store %}<span class="badge-mt"><i class="fas fa-store"></i> {% trans "متجر مستقل — صاحبه بيكلّمك مباشرة" %}</span>{% else %}<span class="badge-mt"><i class="fas fa-circle-check"></i> {% trans "بيتنفّذ عن طريق Mouss Tec" %}</span>{% endif %}
                     {% include "clients/marketplace/_catalog_badges.html" with s=store %}
                 </div>
                 {% if item.week_requests or item.last_request %}
