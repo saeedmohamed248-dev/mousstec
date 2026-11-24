@@ -702,6 +702,10 @@ def super_admin_dashboard(request):
     # 🛍️ طلبات أسعار جديدة من كتالوج السوق (متاجر Mouss Tec)
     from clients.models import CatalogQuoteRequest
     catalog_new = CatalogQuoteRequest.objects.filter(status='new').count()
+    # 🏪 بائعين السوق: بيظهروا على طول — هنا للعلم (المتاجر الجديدة في آخر ٧ أيام) عشان تراجعها وتخفي لو لزم
+    # 🐛 [FIX]: البائع اللي بيسجّل ماكانش بيظهر هنا خالص (كان في أدمن Django بس)
+    from clients.models import MarketSeller
+    sellers_new = MarketSeller.objects.filter(created_at__gte=timezone.now() - timedelta(days=7)).count()
     # 🖨️ سوق المطابع: إيصالات/مشاكل/تحويلات للمطابع — كانت بتوصل إيميل بس (notify_owner)
     #    ومش ظاهرة هنا، فلو الإيميل مش متظبط العميل يدفع والمطبعة ماتبدأش أبداً.
     from print_market.models import MarketOrder, MarketPayment
@@ -711,7 +715,7 @@ def super_admin_dashboard(request):
     # ↩️ طلبات اتلغت لصالح العميل بعد ما دفع — فلوسه لسه على المنصة لحد ما تتسجّل راجعة
     pm_refunds_due = MarketOrder.refunds_due().count()
     attention_total = (
-        catalog_new + pm_payments_pending + pm_disputes + pm_payouts_due + pm_refunds_due +
+        catalog_new + sellers_new + pm_payments_pending + pm_disputes + pm_payouts_due + pm_refunds_due +
         uploaded_receipts_count + support_unseen + len(pending_refund_orders)
         + len(pending_design_purchases) + len(pending_marketplace_requests)
         + len(pending_parts_listings) + print_needs_action
@@ -739,6 +743,7 @@ def super_admin_dashboard(request):
         'pm_payouts_due': pm_payouts_due,
         'pm_refunds_due': pm_refunds_due,
         'catalog_new': catalog_new,
+        'sellers_new': sellers_new,
         'pending_design_purchases': pending_design_purchases,
         'pending_manual_receipts': pending_manual_receipts,
         'unsubmitted_receipts': unsubmitted_receipts,

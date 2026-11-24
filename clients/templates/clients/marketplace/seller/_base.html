@@ -50,7 +50,7 @@
         {% if store.sector == 'printing' %}<a href="/marketplace/seller/prices/" class="{% if active == 'prices' %}on{% endif %}"><i class="fas fa-chart-line"></i> {% trans "أسعاري اليومية" %}</a>{% endif %}
         <a href="/marketplace/seller/store/" class="{% if active == 'store' %}on{% endif %}"><i class="fas fa-gear"></i> {% trans "بيانات المتجر" %}</a>
     </nav>
-    {% if not store.is_active %}<div class="notice warn"><i class="fas fa-hourglass-half"></i> {% trans "متجرك تحت المراجعة — هيظهر للعملاء أول ما فريق Mouss Tec يوافق عليه. تقدر تضيف منتجاتك من دلوقتي." %}</div>{% endif %}
+    {% if not store.is_active %}<div class="notice warn"><i class="fas fa-hourglass-half"></i> {% trans "متجرك متخفي عن العملاء حالياً — كلّم دعم Mouss Tec." %}</div>{% endif %}
     {% endif %}
     {% block content %}{% endblock %}
 </main>

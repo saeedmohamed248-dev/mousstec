@@ -36,23 +36,30 @@ class CatalogStoreAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
 
 @admin.register(CatalogItem)
 class CatalogItemAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ('title', 'store', 'category', 'car_make', 'has_image', 'price_from', 'pending_review', 'is_active')
-    list_filter = ('pending_review', 'store__sector', 'category', 'is_active', 'store')
+    list_display = ('title', 'store', 'category', 'car_make', 'has_image', 'price_from', 'admin_hidden', 'is_active')
+    list_filter = ('admin_hidden', 'store__sector', 'category', 'is_active', 'store')
     list_editable = ('price_from', 'is_active')
     search_fields = ('title', 'description', 'car_make', 'car_models', 'store__name')
     autocomplete_fields = ('store',)
     actions = ('approve_items', 'reject_items')
 
-    # 🏪 منتجات بائعين السوق بتستنى مراجعة قبل ما تظهر
-    @admin.action(description='✅ اعتماد المنتجات (تظهر للعملاء)')
+    # 🏪 منتجات بائعين السوق بتظهر على طول — صاحب المنصة يقدر يخفيها (والبائع مايقدرش يرجّعها)
+    @admin.action(description='✅ إظهار المنتجات للعملاء')
     def approve_items(self, request, queryset):
-        n = queryset.update(is_active=True, pending_review=False)
-        self.message_user(request, f'اتعتمد {n} منتج.')
+        n = queryset.update(is_active=True, pending_review=False, admin_hidden=False)
+        self.message_user(request, f'ظهر {n} منتج.')
 
-    @admin.action(description='⛔ رفض المنتجات (تفضل مخفية)')
+    @admin.action(description='🙈 إخفاء المنتجات (البائع مايقدرش يرجّعها)')
     def reject_items(self, request, queryset):
-        n = queryset.update(is_active=False, pending_review=False)
-        self.message_user(request, f'اترفض {n} منتج.')
+        n = queryset.update(is_active=False, pending_review=False, admin_hidden=True)
+        self.message_user(request, f'اتخفى {n} منتج.')
+
+    def save_model(self, request, obj, form, change):
+        # إخفاء منتج بائع من الأدمن (حتى من عمود «is_active») ⇒ يفضل مخفي والبائع مايرجّعوش
+        if obj.store.is_seller_store:
+            obj.admin_hidden = not obj.is_active
+            obj.pending_review = False
+        super().save_model(request, obj, form, change)
 
     @admin.display(boolean=True, description='صورة')
     def has_image(self, obj):
@@ -85,11 +92,11 @@ class MarketSellerAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
     def store_live(self, obj):
         return obj.store.is_active
 
-    @admin.display(description='منتجات مستنية')
+    @admin.display(description='المنتجات الظاهرة')
     def pending_items(self, obj):
-        return obj.store.items.filter(pending_review=True).count()
+        return obj.store.items.filter(is_active=True).count()
 
-    @admin.action(description='✅ الموافقة على المتجر (يظهر للعملاء)')
+    @admin.action(description='✅ إظهار المتجر للعملاء')
     def approve_stores(self, request, queryset):
         n = CatalogStore.objects.filter(seller__in=queryset).update(is_active=True)
         self.message_user(request, f'اتفعّل {n} متجر.')

@@ -1,8 +1,8 @@
 {% extends "clients/marketplace/seller/_base.html" %}{% load i18n %}
 {% block title %}{% trans "منتجاتي" %}{% endblock %}
 {% block content %}
-{% if saved %}<div class="notice ok">{% trans "اتحفظ — المنتج هيظهر للعملاء بعد مراجعة فريق Mouss Tec." %}</div>{% endif %}
-{% if imported %}<div class="notice ok">{% blocktrans with n=imported %}اترفع {{ n }} منتج من الشيت — هيظهروا بعد المراجعة.{% endblocktrans %}</div>{% endif %}
+{% if saved %}<div class="notice ok">{% trans "اتحفظ — والمنتج ظاهر للعملاء." %}</div>{% endif %}
+{% if imported %}<div class="notice ok">{% blocktrans with n=imported %}اترفع {{ n }} منتج من الشيت وظهروا للعملاء.{% endblocktrans %}</div>{% endif %}
 <div class="row" style="margin:10px 0">
     <h1 style="margin:0;font-size:1.3rem">{% trans "منتجاتي" %}</h1><span class="sp"></span>
     <a class="btn sm" href="/marketplace/seller/products/new/"><i class="fas fa-plus"></i> {% trans "ضيف منتج" %}</a>
@@ -12,11 +12,11 @@
 <div class="card row">
     {% if it.image %}<img src="{{ it.image.url }}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:10px">{% else %}<i class="fas {{ it.icon }}" style="font-size:1.6rem;color:var(--mt-brand);width:56px;text-align:center"></i>{% endif %}
     <div style="flex:1;min-width:180px"><b>{{ it.title }}</b><div class="muted" style="font-size:.85rem">{{ it.category_label }}{% if it.min_qty %} · {% trans "أقل كمية" %}: {{ it.min_qty }}{% endif %}{% if it.price_from %} · {% trans "من" %} {{ it.price_from|floatformat:"-2" }} {% trans "ج.م" %}{% endif %}</div></div>
-    {% if it.is_active %}<span class="tag live">{% trans "ظاهر للعملاء" %}</span>{% elif it.pending_review %}<span class="tag wait">{% trans "مستني مراجعة" %}</span>{% else %}<span class="tag off">{% trans "مخفي" %}</span>{% endif %}
+    {% if it.is_active %}<span class="tag live">{% trans "ظاهر للعملاء" %}</span>{% elif it.admin_hidden %}<span class="tag wait">{% trans "مخفي من Mouss Tec" %}</span>{% else %}<span class="tag off">{% trans "مخفي" %}</span>{% endif %}
     <a class="btn ghost sm" href="/marketplace/seller/products/{{ it.item_code }}/">{% trans "تعديل" %}</a>
     <form method="post" action="/marketplace/seller/products/{{ it.item_code }}/visibility/" style="margin:0">{% csrf_token %}
-        {% if it.is_active or it.pending_review %}<button class="btn ghost sm" name="action" value="hide">{% trans "إخفاء" %}</button>
-        {% else %}<button class="btn ghost sm" name="action" value="show">{% trans "اعرضه تاني" %}</button>{% endif %}
+        {% if it.is_active %}<button class="btn ghost sm" name="action" value="hide">{% trans "إخفاء" %}</button>
+        {% elif not it.admin_hidden %}<button class="btn ghost sm" name="action" value="show">{% trans "اعرضه تاني" %}</button>{% endif %}
     </form>
 </div>
 {% empty %}

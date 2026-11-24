@@ -1,7 +1,7 @@
 """
 🏪 بائع السوق — مطبعة/محل بيعرض منتجاته ويتابع عملاءه من غير برنامج الإدارة:
 * صفحة «اعرض منتجاتك» بتودّي على تسجيل البائع (مش تسجيل شركة ERP)، ومفيهاش وعد «فواتير، مخزون، حسابات».
-* التسجيل بيعمل متجر «تحت المراجعة» وحساب بائع — ومن غير أي شركة/schema.
+* التسجيل بيعمل متجر ظاهر على طول وحساب بائع — ومن غير أي شركة/schema.
 * المنتج اللي البائع يضيفه مخفي لحد اعتماد Mouss Tec، والمتجر مخفي لحد الموافقة.
 * طلب السعر على منتجه بيظهر في «عملائي» عنده بس، وتغيير الحالة لـ«اتنفّذ» بيطلّع لينك تقييم.
 * السوق المفتوح: البائع يقدّم عرض، والعميل يقبله ⇒ الصفقة والتقييم بيتحسبوا للبائع.
@@ -72,16 +72,33 @@ class MarketSellerTests(_TenantDomainMixin, TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertEqual(r['Location'], '/marketplace/seller/?welcome=1')
         seller = MarketSeller.objects.get(phone=svc.normalize_phone(data['phone']))
-        self.assertFalse(seller.store.is_active)
+        self.assertTrue(seller.store.is_active)   # ظاهر على طول من غير موافقة
         self.assertEqual(seller.store.sector, 'printing')
         self.assertTrue(seller.check_password('secret123'))
         self.assertEqual(Client.objects.count(), tenants_before)   # مفيش شركة ولا schema
         owner.assert_called_once()
-        dash = c.get('/marketplace/seller/').content.decode()
-        self.assertIn('تحت المراجعة', dash)
+        # 🐛 [FIX]: لينك إشعار صاحب المنصة كان /admin/… والأدمن على ADMIN_URL (secure-portal) ⇒ 404
+        from django.conf import settings as dj
+        link = owner.call_args.args[2]
+        self.assertTrue(link.startswith(f'/{dj.ADMIN_URL}/clients/marketseller/'), link)
+        from django.contrib.auth.models import User
+        boss = HttpClient()
+        boss.force_login(User.objects.create(username='seller_boss', is_staff=True, is_superuser=True))
+        self.assertEqual(boss.get(link).status_code, 200)
+        # 🐛 [FIX]: البائع الجديد ماكانش بيظهر في صفحة السوبر أدمن
+        sa = boss.get('/superadmin/').content.decode()
+        self.assertIn('متاجر بائعين جديدة في آخر ٧ أيام', sa)
+        self.assertIn(f'/{dj.ADMIN_URL}/clients/marketseller/', sa)
+        dash = c.get('/marketplace/seller/?welcome=1').content.decode()
+        self.assertIn('متجرك ظاهر للعملاء', dash)
         self.assertNotIn('/system/', dash)
-        # المتجر مش ظاهر للعملاء قبل الموافقة
+        # 🐛 [FIX]: اسم عربي كان بيعمل slug عربي ⇒ صفحة المتجر 404
+        self.assertRegex(seller.store.slug, r'^[-a-z0-9]+$')
+        self.assertEqual(HttpClient().get(f'/marketplace/catalog/store/{seller.store.slug}/').status_code, 200)
+        # صاحب المنصة يخفي المتجر ⇒ يختفي للعملاء والبائع بيتقاله
+        CatalogStore.objects.filter(pk=seller.store_id).update(is_active=False)
         self.assertEqual(HttpClient().get(f'/marketplace/catalog/store/{seller.store.slug}/').status_code, 404)
+        self.assertIn('متجرك متخفي عن العملاء', c.get('/marketplace/seller/').content.decode())
 
     def test_join_rejects_bad_and_duplicate_phone(self):
         _c, r, _d, _o = self._join(phone='123')
@@ -111,7 +128,7 @@ class MarketSellerTests(_TenantDomainMixin, TestCase):
         self.assertIn('موقوف', r.content.decode())
 
     # ── المنتجات ──
-    def test_product_hidden_until_reviewed(self):
+    def test_product_live_immediately_and_admin_hide_sticks(self):
         c, _r, data, _o = self._join()
         seller = MarketSeller.objects.get()
         self._approve(seller)
@@ -121,25 +138,35 @@ class MarketSellerTests(_TenantDomainMixin, TestCase):
                 'min_qty': '١٠٠ كارت', 'price_from': '250'})
         self.assertEqual(r.status_code, 302, r.content.decode()[:500])
         item = CatalogItem.objects.get(store=seller.store)
-        self.assertFalse(item.is_active)
-        self.assertTrue(item.pending_review)
-        self.assertEqual(HttpClient().get(f'/marketplace/catalog/item/{item.item_code}/').status_code, 404)
-        # اعتماد من الأدمن
-        CatalogItem.objects.filter(pk=item.pk).update(is_active=True, pending_review=False)
+        self.assertEqual((item.is_active, item.pending_review), (True, False))   # ظاهر على طول
         html = HttpClient().get(f'/marketplace/catalog/item/{item.item_code}/').content.decode()
         self.assertIn('كروت شخصية مط', html)
         self.assertIn('متجر مستقل', html)
         self.assertNotIn('بيتنفّذ عن طريق Mouss Tec', html)
-        # تعديل ⇒ يرجع للمراجعة
+        # تعديل ⇒ يفضل ظاهر
         with mock.patch('clients.services.owner_notify.notify_owner'):
             c.post(f'/marketplace/seller/products/{item.item_code}/', {
                 'title': 'كروت شخصية لامع', 'category': 'cards', 'min_qty': '', 'price_from': ''})
         item.refresh_from_db()
-        self.assertEqual((item.title, item.is_active, item.pending_review), ('كروت شخصية لامع', False, True))
-        # إخفاء
+        self.assertEqual((item.title, item.is_active), ('كروت شخصية لامع', True))
+        # البائع يخفي ويرجّع
         c.post(f'/marketplace/seller/products/{item.item_code}/visibility/', {'action': 'hide'})
         item.refresh_from_db()
-        self.assertEqual((item.is_active, item.pending_review), (False, False))
+        self.assertFalse(item.is_active)
+        c.post(f'/marketplace/seller/products/{item.item_code}/visibility/', {'action': 'show'})
+        item.refresh_from_db()
+        self.assertTrue(item.is_active)
+        # 🙈 صاحب المنصة يخفيه من الأدمن ⇒ البائع مايقدرش يرجّعه (لا بزرار ولا بتعديل)
+        from clients.admin_catalog import CatalogItemAdmin
+        from django.contrib.admin.sites import site
+        CatalogItemAdmin(CatalogItem, site).reject_items(mock.Mock(), CatalogItem.objects.filter(pk=item.pk))
+        c.post(f'/marketplace/seller/products/{item.item_code}/visibility/', {'action': 'show'})
+        with mock.patch('clients.services.owner_notify.notify_owner'):
+            c.post(f'/marketplace/seller/products/{item.item_code}/', {
+                'title': 'تاني', 'category': 'cards', 'min_qty': '', 'price_from': ''})
+        item.refresh_from_db()
+        self.assertEqual((item.is_active, item.admin_hidden), (False, True))
+        self.assertIn('مخفي من Mouss Tec', c.get('/marketplace/seller/products/').content.decode())
 
     def test_other_category_needs_type_and_details(self):
         c, *_ = self._join()
@@ -162,7 +189,6 @@ class MarketSellerTests(_TenantDomainMixin, TestCase):
         self.assertEqual(r.status_code, 302)
         item = CatalogItem.objects.get(store=seller.store)
         self.assertEqual((item.category, item.custom_category), ('other', 'ستاندات رول أب'))
-        CatalogItem.objects.filter(pk=item.pk).update(is_active=True, pending_review=False)
         page = HttpClient().get(f'/marketplace/catalog/item/{item.item_code}/').content.decode()
         self.assertIn('ستاندات رول أب', page)
         self.assertIn('ستاندات رول أب', c.get('/marketplace/seller/products/').content.decode())
@@ -197,7 +223,7 @@ class MarketSellerTests(_TenantDomainMixin, TestCase):
         self.assertEqual(items['كوباية مطبوعة'].category, 'mugs')
         self.assertEqual(str(items['كوباية مطبوعة'].price_from), '40.00')
         self.assertIsNone(items['قلم'].price_from)
-        self.assertTrue(all(i.pending_review and not i.is_active for i in items.values()))
+        self.assertTrue(all(i.is_active and not i.pending_review for i in items.values()))
         bad = SimpleUploadedFile('p.pdf', b'%PDF', 'application/pdf')
         r = c.post('/marketplace/seller/products/import/', {'sheet': bad})
         self.assertIn('Excel', r.content.decode())
