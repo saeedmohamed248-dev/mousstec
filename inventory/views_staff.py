@@ -472,7 +472,6 @@ def edit_employee(request, user_id):
         prof.save()
 
         # 🏢 صلاحيات الفروع الإضافية: لكل فرع select قيمته '', 'view', أو 'edit'
-        from .models import BranchAccess
         _sync_branch_access(prof, request.POST, branches)
 
         return render(request, 'inventory/edit_employee.html',
