@@ -135,3 +135,31 @@ class CatalogReviewAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
 
     def has_module_permission(self, request):
         return connection.schema_name == 'public' and request.user.is_superuser
+
+
+# 📈 بورصة أسعار المطابع — البنود (تتعدّل/تتزوّد) والأسعار (للمراجعة: الشاذ بيتعلّم لوحده)
+from .models import PriceQuote, PriceSpec  # noqa: E402
+
+
+@admin.register(PriceSpec)
+class PriceSpecAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ('name', 'spec', 'unit', 'kind', 'is_active', 'sort')
+    list_filter = ('kind', 'is_active', 'sector')
+    list_editable = ('is_active', 'sort')
+    search_fields = ('name', 'name_en', 'code')
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser
+
+
+@admin.register(PriceQuote)
+class PriceQuoteAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ('spec', 'price', 'governorate', 'quoted_on', 'seller', 'merchant', 'is_outlier')
+    list_filter = ('is_outlier', 'quoted_on', 'governorate', 'spec')
+    list_editable = ('is_outlier',)
+    search_fields = ('seller__store__name', 'merchant__name', 'spec__name')
+    raw_id_fields = ('seller', 'merchant')
+    date_hierarchy = 'quoted_on'
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser

@@ -1165,3 +1165,7 @@ def notify_merchants_new_request(request_code, tenant_ids):
                                    text='' if tpl else f'🛒 Mouss Tec\n{tenant.name}، {line}\n{link}')
         sent += 1
     return sent
+
+
+# 📈 بورصة أسعار المطابع — التاسك متعرّفة هناك، والـ import ده عشان الـ worker يسجّلها
+from clients.services.price_board import send_daily_price_reminders  # noqa: E402, F401

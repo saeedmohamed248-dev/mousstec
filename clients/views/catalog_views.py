@@ -156,6 +156,16 @@ def _categories(meta):
     return [(k, meta['categories_en'].get(k, v[0]) if en else v[0], v[1]) for k, v in meta['categories'].items()]
 
 
+OTHER_CATEGORY = 'other'
+
+
+def item_category_label(meta, item):
+    """اسم قسم المنتج — ولو «أخرى» بيظهر النوع اللي البائع كتبه."""
+    if item.category == OTHER_CATEGORY:
+        return item.custom_category or _('أخرى')
+    return _category_label(meta, item.category)
+
+
 def _category_label(meta, key):
     if _is_en() and key in meta['categories_en']:
         return meta['categories_en'][key]
@@ -327,7 +337,7 @@ def _item_ld(item):
     url = f'/marketplace/catalog/item/{item.item_code}/'
     prod = {'@context': 'https://schema.org', '@type': 'Product', 'name': item.title,
             'description': (item.description or item.title)[:500],
-            'category': _category_label(meta, item.category) or None,
+            'category': item_category_label(meta, item) or None,
             'image': (item.image.url if item.image.url.startswith('http') else public_base() + item.image.url)
             if item.image else None,
             'brand': {'@type': 'Brand', 'name': store.name}, 'url': public_base() + url}
@@ -446,7 +456,7 @@ def catalog_item(request, item_code):
         'item': item, 'store': item.store, 'sector': item.store.sector, 'meta': SECTORS[item.store.sector],
         'form': form, 'errors': errors, 'related': related, 'customer': customer,
         'sent': request.GET.get('sent') == '1',
-        'category_label': _category_label(SECTORS[item.store.sector], item.category),
+        'category_label': item_category_label(SECTORS[item.store.sector], item),
         'seo_jsonld': _item_ld(item),
     })
 
@@ -682,7 +692,7 @@ def catalog_sell(request):
     stats = catalog_stats.merchant_pitch_stats()
     for c in stats['top_categories']:
         meta = SECTORS.get(c['sector'])
-        c['label'] = _category_label(meta, c['item__category']) if meta else c['item__category']
+        c['label'] = (_category_label(meta, c['item__category']) or _('أخرى')) if meta else c['item__category']
     return render(request, 'clients/marketplace/catalog_sell.html', {
         'stats': stats,
         'offer': _merchant_offer(settings),

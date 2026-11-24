@@ -17,6 +17,12 @@
     <a class="btn ghost" href="/marketplace/seller/products/import/"><i class="fas fa-file-excel"></i> {% trans "ارفع شيت منتجات" %}</a>
     {% if store.is_active %}<a class="btn ghost" href="/marketplace/catalog/store/{{ store.slug }}/" target="_blank" rel="noopener"><i class="fas fa-eye"></i> {% trans "شوف متجرك زي العميل" %}</a>{% endif %}
 </div>
+{% if store.sector == 'printing' and not stats.priced_today %}
+<a class="card row" href="/marketplace/seller/prices/" style="text-decoration:none;background:#eef2ff;border-color:#c7d2fe">
+    <i class="fas fa-chart-line" style="font-size:1.4rem;color:var(--mt-brand)"></i>
+    <span style="flex:1"><b>{% trans "سعّر النهارده في بورصة أسعار المطابع" %}</b><br><small class="muted">{% trans "دقيقة واحدة — وتشوف متوسط أسعار السوق في محافظتك." %}</small></span>
+    <span class="btn sm">{% trans "سعّر دلوقتي" %}</span></a>
+{% endif %}
 <div class="sec-title"><i class="fas fa-users"></i> {% trans "آخر طلبات العملاء" %}</div>
 {% for r in recent %}
 <div class="card row"><div><b>{{ r.item_title }}</b><div class="muted">{{ r.name }} — <span dir="ltr">{{ r.phone }}</span> — <span dir="ltr">{{ r.created_at|date:"Y-m-d H:i" }}</span></div></div><span class="sp"></span><span class="tag {% if r.status == 'new' %}wait{% else %}off{% endif %}">{{ r.get_status_display }}</span></div>

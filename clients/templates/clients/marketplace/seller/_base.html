@@ -47,6 +47,7 @@
         <a href="/marketplace/seller/products/" class="{% if active == 'products' %}on{% endif %}"><i class="fas fa-boxes-stacked"></i> {% trans "منتجاتي" %}{% if pending_count %}<span class="tag wait" style="margin-inline-start:4px">{{ pending_count }}</span>{% endif %}</a>
         <a href="/marketplace/seller/customers/" class="{% if active == 'customers' %}on{% endif %}"><i class="fas fa-users"></i> {% trans "عملائي" %}{% if new_quotes %}<span class="dot">{{ new_quotes }}</span>{% endif %}</a>
         <a href="/marketplace/seller/requests/" class="{% if active == 'requests' %}on{% endif %}"><i class="fas fa-bullhorn"></i> {% trans "السوق المفتوح" %}</a>
+        {% if store.sector == 'printing' %}<a href="/marketplace/seller/prices/" class="{% if active == 'prices' %}on{% endif %}"><i class="fas fa-chart-line"></i> {% trans "أسعاري اليومية" %}</a>{% endif %}
         <a href="/marketplace/seller/store/" class="{% if active == 'store' %}on{% endif %}"><i class="fas fa-gear"></i> {% trans "بيانات المتجر" %}</a>
     </nav>
     {% if not store.is_active %}<div class="notice warn"><i class="fas fa-hourglass-half"></i> {% trans "متجرك تحت المراجعة — هيظهر للعملاء أول ما فريق Mouss Tec يوافق عليه. تقدر تضيف منتجاتك من دلوقتي." %}</div>{% endif %}

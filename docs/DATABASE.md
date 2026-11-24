@@ -20,7 +20,7 @@
 | `ai_rooms` | public (مشتركة للمنصة) | 1 |
 | `blog` | public (مشتركة للمنصة) | 1 |
 | `bmw_ecu` | جوه schema كل شركة | 17 |
-| `clients` | public (مشتركة للمنصة) | 81 |
+| `clients` | public (مشتركة للمنصة) | 83 |
 | `diagnostics_catalog` | public (مشتركة للمنصة) | 5 |
 | `hr` | جوه schema كل شركة | 13 |
 | `inventory` | جوه schema كل شركة | 70 |
@@ -137,6 +137,8 @@
 | `PlatformLiabilityDisclaimer` | `clients_platformliabilitydisclaimer` | — |
 | `PlatformModule` | `clients_platformmodule` | auth.User |
 | `PlatformUserMFA` | `clients_platformusermfa` | auth.User |
+| `PriceQuote` | `clients_pricequote` | — |
+| `PriceSpec` | `clients_pricespec` | — |
 | `ReferralReward` | `clients_referralreward` | — |
 | `SavedPaymentCard` | `clients_savedpaymentcard` | — |
 | `ScreenChunk` | `clients_screenchunk` | — |
