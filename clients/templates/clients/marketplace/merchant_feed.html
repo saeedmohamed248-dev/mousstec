@@ -68,6 +68,7 @@
     <h2><i class="fas fa-store"></i> سوق العملاء — {{ tenant.name }}</h2>
     <div style="display:flex; gap:16px; align-items:center;">
         {% if tenant.industry == 'automotive' %}<a href="/marketplace/merchant/parts/"><i class="fas fa-cogs"></i> بيع قطع غيار</a>{% endif %}
+        {% if tenant.industry == 'printing' %}<a href="/marketplace/merchant/prices/"><i class="fas fa-chart-line"></i> {% trans "أسعاري اليومية" %}</a>{% endif %}
         <a href="/secure-portal/"><i class="fas fa-arrow-right"></i> العودة للوحة التحكم</a>
     </div>
 </div>

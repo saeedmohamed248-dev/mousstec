@@ -222,6 +222,9 @@ def seller_dashboard(request):
         .exclude(offers__seller=request.seller).count(),
         'accepted': TenderOffer.objects.filter(seller=request.seller, status='accepted').count(),
     }
+    if store.sector == 'printing':   # 📈 بورصة الأسعار: سعّر النهارده ولا لسه؟
+        from clients.services import price_board as pb
+        stats['priced_today'] = pb.submitted_today(pb.Provider('seller', request.seller))
     recent = (CatalogQuoteRequest.objects.filter(item__store=store).select_related('item')
               .order_by('-created_at')[:5])
     return render(request, 'clients/marketplace/seller/dashboard.html', _ctx(

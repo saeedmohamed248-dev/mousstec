@@ -29,6 +29,7 @@ from clients.views import agent_api as agent_api_views
 from clients.views import screen_recording_views as screen_rec_views
 from clients.views import catalog_views as catalog_views
 from clients.views import market_seller_views as seller_views
+from clients.views import price_board_views
 from clients.views import meta_feed_views as meta_feed_views
 from omnichannel import saas_admin_views as omnichannel_saas_views
 from clients.views import support_views as support_views
@@ -877,6 +878,11 @@ urlpatterns = [
     path('marketplace/seller/offers/<uuid:offer_code>/withdraw/', seller_views.seller_withdraw_offer, name='seller_withdraw_offer'),
     path('marketplace/seller/store/', seller_views.seller_store, name='seller_store'),
     path('marketplace/seller/upgrade/', seller_views.seller_upgrade, name='seller_upgrade'),
+    # 📈 بورصة أسعار المطابع
+    path('marketplace/seller/prices/', price_board_views.seller_prices, name='seller_prices'),
+    path('marketplace/merchant/prices/', price_board_views.merchant_prices, name='merchant_prices'),
+    path('marketplace/prices/', price_board_views.prices_index, name='prices_index'),
+    path('marketplace/prices/confirm/<str:token>/', price_board_views.prices_confirm, name='prices_confirm'),
     # 📣 Feed منتجات المطابع لكتالوج ميتا (فيسبوك/إنستجرام)
     path('feeds/meta/printing.csv', meta_feed_views.meta_printing_feed, name='meta_printing_feed'),
     path('superadmin/catalog/requests/', catalog_views.catalog_requests_admin, name='catalog_requests_admin'),

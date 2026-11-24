@@ -1,0 +1,17 @@
+{% load i18n %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<html lang="{{ LANGUAGE_CODE|default:'ar' }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="robots" content="noindex">
+    <title>{% trans "أسعاري اليومية — بورصة أسعار المطابع" %}</title>
+    {% include "clients/marketplace/_catalog_style.html" %}
+    {% include "clients/marketplace/price_board/_page_style.html" %}
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="/marketplace/merchant/feed/"><i class="fas fa-chart-line"></i> {{ tenant.name }}</a><span class="sp"></span>
+    <a class="lnk" href="/marketplace/merchant/feed/">{% trans "السوق المفتوح" %}</a><span class="lang">{% include "clients/_language_switcher.html" %}</span></div></header>
+<main class="wrap">
+    <h1 style="font-size:1.3rem">{% trans "أسعاري اليومية — بورصة أسعار المطابع" %}</h1>
+    {% include "clients/marketplace/price_board/_form.html" %}
+</main>
+</body>
+</html>

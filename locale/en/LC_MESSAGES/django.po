@@ -30141,3 +30141,130 @@ msgstr "With “Other”, describe the product in more detail (at least 20 chara
 
 msgid "لأ — لو مكتوب قسم مش من أقسامنا بيتحط في «أخرى» باسمه زي ما كتبته"
 msgstr "No — a category we don't have goes under “Other” with the name you wrote"
+
+# 📈 بورصة أسعار المطابع
+msgid "أسعاري اليومية"
+msgstr "My daily prices"
+
+msgid "أسعاري اليومية — بورصة أسعار المطابع"
+msgstr "My daily prices — Print Price Board"
+
+msgid "شوف مؤشر الأسعار زي ما العملاء بيشوفوه"
+msgstr "See the price index as customers see it"
+
+msgid "سعّر النهارده في بورصة أسعار المطابع"
+msgstr "Post today's prices on the Print Price Board"
+
+msgid "دقيقة واحدة — وتشوف متوسط أسعار السوق في محافظتك."
+msgstr "One minute — and you see the average market prices in your governorate."
+
+msgid "سعّر دلوقتي"
+msgstr "Post prices now"
+
+msgid "سعّر البنود دي بالمواصفة المكتوبة بالظبط عشان الأسعار تتقارن ببعض. اللي مابتعملوش سيبه فاضي."
+msgstr "Price these items at exactly the stated spec so prices are comparable. Leave empty what you don't make."
+
+msgid "أسعارك زي امبارح؟"
+msgstr "Same prices as yesterday?"
+
+msgid "أكّدها بضغطة وشوف متوسط السوق."
+msgstr "Confirm in one tap and see the market average."
+
+msgid "أسعاري زي امبارح"
+msgstr "Same as yesterday"
+
+msgid "الخامات (سعر الشراء)"
+msgstr "Materials (purchase price)"
+
+msgid "احفظ أسعار النهارده"
+msgstr "Save today's prices"
+
+#, python-format
+msgid "اتحفظ %(n)s سعر — شوف متوسط السوق جنب كل بند."
+msgstr "%(n)s prices saved — see the market average next to each item."
+
+#, python-format
+msgid "العملاء بيشوفوا نطاق الأسعار بس (من غير اسمك)، ولما يبقى فيه %(n)s مطابع على الأقل. السعر بيفضل محسوب %(d)s أيام من آخر تأكيد."
+msgstr "Customers only see the price range (without your name), and only once at least %(n)s print shops have posted. A price counts for %(d)s days from its last confirmation."
+
+msgid "سعرك (ج.م)"
+msgstr "Your price (EGP)"
+
+msgid "متوسط محافظتك"
+msgstr "Your governorate's average"
+
+msgid "مصر كلها"
+msgstr "All of Egypt"
+
+msgid "سعّر النهارده وشوف"
+msgstr "Post today to see"
+
+msgid "أكّد أسعار النهارده"
+msgstr "Confirm today's prices"
+
+msgid "بورصة أسعار المطابع"
+msgstr "Print Price Board"
+
+msgid "اللينك ده خلص — هيوصلك لينك جديد بكرة الصبح، أو ادخل حسابك وعدّل أسعارك."
+msgstr "This link has expired — you'll get a new one tomorrow morning, or log in and update your prices."
+
+msgid "اتأكّدت أسعارك النهارده — ودي أسعار السوق دلوقتي:"
+msgstr "Your prices are confirmed for today — here are the market prices now:"
+
+msgid "لسه مسجّلتش أسعار قبل كده — ادخل حسابك وسجّلها أول مرة."
+msgstr "You haven't posted prices before — log in and post them for the first time."
+
+msgid "أسعارك متحدّثة النهارده."
+msgstr "Your prices are up to date today."
+
+msgid "سعرك"
+msgstr "Your price"
+
+msgid "عدّل أسعاري"
+msgstr "Edit my prices"
+
+#, python-format
+msgid "متوسط %(g)s"
+msgstr "%(g)s average"
+
+msgid "مؤشر أسعار الطباعة في مصر"
+msgstr "Egypt Printing Price Index"
+
+msgid "لسه بنجمّع أسعار كفاية — ارجع قريب. وإنت مطبعة؟ سجّل أسعارك وشوف متوسط السوق."
+msgstr "We're still collecting enough prices — check back soon. Run a print shop? Post your prices and see the market average."
+
+msgid "مفيش أسعار كفاية لسه"
+msgstr "Not enough prices yet"
+
+msgid "أسعار الخامات"
+msgstr "Material prices"
+
+msgid "عندك مطبعة؟ سجّل أسعارك"
+msgstr "Run a print shop? Post your prices"
+
+msgid "أسعار الكروت الشخصية والبنرات والفلايرات والستيكرز النهارده من مطابع حقيقية — بتتحدّث كل يوم."
+msgstr "Today's prices for business cards, banners, flyers and stickers from real print shops — updated daily."
+
+#, python-format
+msgid "أسعار الطباعة في %(g)s النهارده"
+msgstr "Printing prices in %(g)s today"
+
+#, python-format
+msgid "أسعار حقيقية من مطابع مسجّلة في Mouss Tec، بتتحدّث كل يوم. بنعرض النطاق بس لما يبقى فيه %(n)s مطابع على الأقل، والسعر محسوب لو اتأكّد في آخر %(d)s أيام."
+msgstr "Real prices from print shops registered on Mouss Tec, updated daily. We show a range only once at least %(n)s shops have posted, counting prices confirmed in the last %(d)s days."
+
+#, python-format
+msgid "المتوسط %(a)s ج.م من %(n)s مطبعة"
+msgstr "Average %(a)s EGP from %(n)s shops"
+
+msgid "رقم مش مظبوط"
+msgstr "Invalid number"
+
+msgid "اختار المحافظة."
+msgstr "Choose the governorate."
+
+msgid "فيه أسعار مش مظبوطة — اكتب الرقم بس (زي 350)."
+msgstr "Some prices are invalid — write the number only (e.g. 350)."
+
+msgid "اكتب سعر بند واحد على الأقل."
+msgstr "Enter at least one price."

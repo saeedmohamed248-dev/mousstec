@@ -1,0 +1,48 @@
+{% load i18n %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<html lang="{{ LANGUAGE_CODE|default:'ar' }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if gov_label %}{% blocktrans with g=gov_label %}أسعار الطباعة في {{ g }} النهارده{% endblocktrans %}{% else %}{% trans "مؤشر أسعار الطباعة في مصر" %}{% endif %} — Mouss Tec</title>
+    <meta name="description" content="{% trans 'أسعار الكروت الشخصية والبنرات والفلايرات والستيكرز النهارده من مطابع حقيقية — بتتحدّث كل يوم.' %}">
+    {% include "clients/marketplace/_catalog_style.html" %}
+    {% include "clients/marketplace/price_board/_page_style.html" %}
+    <style>
+        .pi { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:10px; margin:8px 0 20px; }
+        .pi .card { margin:0; } .pi .rng { font-size:1.35rem; font-weight:800; color:var(--mt-brand); margin:6px 0 2px; }
+        .pi .sp2 { color:var(--mt-muted); font-size:.8rem; }
+    </style>
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="/marketplace/"><i class="fas fa-store"></i> {% trans "سوق Mouss Tec" %}</a><span class="sp"></span>
+    <a class="lnk" href="/marketplace/catalog/printing/">{% trans "الطباعة" %}</a><span class="lang">{% include "clients/_language_switcher.html" %}</span></div></header>
+<main class="wrap">
+    <section class="hero">
+        <h1>{% if gov_label %}{% blocktrans with g=gov_label %}أسعار الطباعة في {{ g }} النهارده{% endblocktrans %}{% else %}{% trans "مؤشر أسعار الطباعة في مصر" %}{% endif %}</h1>
+        <p>{% blocktrans with n=min_providers d=fresh_days %}أسعار حقيقية من مطابع مسجّلة في Mouss Tec، بتتحدّث كل يوم. بنعرض النطاق بس لما يبقى فيه {{ n }} مطابع على الأقل، والسعر محسوب لو اتأكّد في آخر {{ d }} أيام.{% endblocktrans %}</p>
+    </section>
+    {% if governorates %}
+    <div class="chips"><a class="chip {% if not gov %}on{% endif %}" href="?">{% trans "مصر كلها" %}</a>{% for k, label in governorates %}<a class="chip {% if gov == k %}on{% endif %}" href="?gov={{ k }}">{{ label }}</a>{% endfor %}</div>
+    {% endif %}
+    {% if not any_data %}<div class="notice warn">{% trans "لسه بنجمّع أسعار كفاية — ارجع قريب. وإنت مطبعة؟ سجّل أسعارك وشوف متوسط السوق." %}</div>{% endif %}
+    <div class="sec-title"><i class="fas fa-print"></i> {% trans "المنتجات" %}</div>
+    <div class="pi">{% for s, st in products %}
+        <div class="card"><b>{{ s.l_name }}</b><div class="sp2">{{ s.l_spec }} — {{ s.l_unit }}</div>
+            {% if st %}<div class="rng"><span dir="ltr">{{ st.min|floatformat:"0" }} – {{ st.max|floatformat:"0" }}</span> {% trans "ج.م" %}</div>
+            <div class="sp2">{% blocktrans with a=st.avg n=st.n %}المتوسط {{ a }} ج.م من {{ n }} مطبعة{% endblocktrans %} · <span dir="ltr">{{ st.updated|date:"Y-m-d" }}</span></div>
+            {% else %}<div class="sp2" style="margin-top:8px">{% trans "مفيش أسعار كفاية لسه" %}</div>{% endif %}
+        </div>{% endfor %}</div>
+    {% if materials %}
+    <div class="sec-title"><i class="fas fa-layer-group"></i> {% trans "أسعار الخامات" %}</div>
+    <div class="pi">{% for s, st in materials %}
+        <div class="card"><b>{{ s.l_name }}</b><div class="sp2">{{ s.l_spec }} — {{ s.l_unit }}</div>
+            {% if st %}<div class="rng"><span dir="ltr">{{ st.min|floatformat:"0" }} – {{ st.max|floatformat:"0" }}</span> {% trans "ج.م" %}</div><div class="sp2">{% blocktrans with a=st.avg n=st.n %}المتوسط {{ a }} ج.م من {{ n }} مطبعة{% endblocktrans %}</div>
+            {% else %}<div class="sp2" style="margin-top:8px">{% trans "مفيش أسعار كفاية لسه" %}</div>{% endif %}
+        </div>{% endfor %}</div>
+    {% endif %}
+    <div class="row" style="margin:10px 0 30px">
+        <a class="btn" href="/marketplace/catalog/printing/"><i class="fas fa-paper-plane"></i> {% trans "اطلب عرض سعر" %}</a>
+        <a class="btn ghost" href="/marketplace/sell/"><i class="fas fa-store"></i> {% trans "عندك مطبعة؟ سجّل أسعارك" %}</a>
+    </div>
+</main>
+</body>
+</html>

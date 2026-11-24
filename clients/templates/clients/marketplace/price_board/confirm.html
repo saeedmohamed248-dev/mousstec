@@ -1,0 +1,38 @@
+{% load i18n %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<html lang="{{ LANGUAGE_CODE|default:'ar' }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="robots" content="noindex">
+    <title>{% trans "أكّد أسعار النهارده" %}</title>
+    {% include "clients/marketplace/_catalog_style.html" %}
+    {% include "clients/marketplace/price_board/_page_style.html" %}
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="/marketplace/prices/"><i class="fas fa-chart-line"></i> {% trans "بورصة أسعار المطابع" %}</a><span class="sp"></span><span class="lang">{% include "clients/_language_switcher.html" %}</span></div></header>
+<main class="wrap" style="max-width:760px">
+{% if expired %}
+    <div class="notice warn" style="margin-top:20px">{% trans "اللينك ده خلص — هيوصلك لينك جديد بكرة الصبح، أو ادخل حسابك وعدّل أسعارك." %}</div>
+{% else %}
+    <h1 style="font-size:1.3rem">{{ provider_name }}</h1>
+    {% if confirmed %}<div class="notice ok"><i class="fas fa-circle-check"></i> {% trans "اتأكّدت أسعارك النهارده — ودي أسعار السوق دلوقتي:" %}</div>
+    {% elif not has_last %}<div class="notice warn">{% trans "لسه مسجّلتش أسعار قبل كده — ادخل حسابك وسجّلها أول مرة." %}</div>
+    {% elif done_today %}<div class="notice ok">{% trans "أسعارك متحدّثة النهارده." %}</div>
+    {% else %}
+    <form method="post" class="card row" style="background:#ecfdf5;border-color:#a7f3d0">{% csrf_token %}
+        <span style="flex:1;min-width:200px"><b>{% trans "أسعارك زي امبارح؟" %}</b> {% trans "أكّدها بضغطة وشوف متوسط السوق." %}</span>
+        <button class="btn green" type="submit"><i class="fas fa-check-double"></i> {% trans "أسعاري زي امبارح" %}</button>
+    </form>
+    {% endif %}
+    <div class="card">
+        <table class="t" style="width:100%;border-collapse:collapse">
+            <tr><th style="text-align:start">{% trans "البند" %}</th><th style="text-align:start">{% trans "سعرك" %}</th><th style="text-align:start">{% if gov_label %}{% blocktrans with g=gov_label %}متوسط {{ g }}{% endblocktrans %}{% else %}{% trans "متوسط محافظتك" %}{% endif %}</th></tr>
+            {% for r in rows %}{% if r.last %}
+            <tr><td style="padding:6px 0">{{ r.spec.l_name }} <small class="muted">— {{ r.spec.l_unit }}</small></td><td>{{ r.last.price|floatformat:"-2" }}</td>
+                <td>{% if done_today %}{% if r.market %}<b>{{ r.market.avg }}</b> <small class="muted">({{ r.market.min|floatformat:"-2" }}–{{ r.market.max|floatformat:"-2" }})</small>{% else %}—{% endif %}{% else %}<i class="fas fa-lock muted"></i>{% endif %}</td></tr>
+            {% endif %}{% endfor %}
+        </table>
+    </div>
+    {% if edit_url %}<a class="btn ghost" href="{{ edit_url }}"><i class="fas fa-pen"></i> {% trans "عدّل أسعاري" %}</a>{% endif %}
+{% endif %}
+</main>
+</body>
+</html>
