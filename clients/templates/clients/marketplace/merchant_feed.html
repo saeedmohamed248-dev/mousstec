@@ -68,6 +68,7 @@
     <h2><i class="fas fa-store"></i> سوق العملاء — {{ tenant.name }}</h2>
     <div style="display:flex; gap:16px; align-items:center;">
         {% if tenant.industry == 'automotive' %}<a href="/marketplace/merchant/parts/"><i class="fas fa-cogs"></i> بيع قطع غيار</a>{% endif %}
+        {% if tenant.industry == 'printing' %}<a href="/marketplace/merchant/prices/"><i class="fas fa-chart-line"></i> {% trans "أسعاري اليومية" %}</a>{% endif %}
         <a href="/secure-portal/"><i class="fas fa-arrow-right"></i> العودة للوحة التحكم</a>
     </div>
 </div>
@@ -277,7 +278,7 @@
                     {% if o.status == 'pending' and r.status == 'open' %}
                     <button class="btn-offer" onclick="acceptB2BOffer('{{ o.offer_code|escapejs }}')"><i class="fas fa-check"></i> اقبل</button>
                     {% elif o.status == 'accepted' %}
-                    <div style="font-size:0.88rem; color:#6ee7b7;"><i class="fas fa-handshake"></i> {{ o.merchant.name }} — <a href="tel:{{ o.merchant.phone }}" dir="ltr" style="color:var(--accent);">{{ o.merchant.phone }}</a>{% if o.merchant_address %} — {{ o.merchant_address }}{% endif %}</div>
+                    <div style="font-size:0.88rem; color:#6ee7b7;"><i class="fas fa-handshake"></i> {{ o.provider_name }} — <a href="tel:{{ o.provider_phone }}" dir="ltr" style="color:var(--accent);">{{ o.provider_phone }}</a>{% if o.merchant_address %} — {{ o.merchant_address }}{% endif %}</div>
                     {% else %}
                     <small style="color:var(--muted);">{{ o.get_status_display }}</small>
                     {% endif %}

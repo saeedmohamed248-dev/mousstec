@@ -1,0 +1,16 @@
+{% load i18n %}
+<table class="pb-table">
+    <tr><th>{% trans "البند" %}</th><th>{% trans "سعرك (ج.م)" %}</th><th class="pb-hide-sm">{% trans "متوسط محافظتك" %}</th><th class="pb-hide-sm">{% trans "مصر كلها" %}</th></tr>
+    {% for r in rows %}
+    <tr>
+        <td><b>{{ r.spec.l_name }}</b><div class="pb-spec">{{ r.spec.l_spec }} — {{ r.spec.l_unit }}</div></td>
+        <td><input type="text" inputmode="decimal" dir="ltr" name="p_{{ r.spec.pk }}" value="{{ r.value }}" aria-label="{{ r.spec.l_name }}">
+            {% if r.error %}<div class="pb-err">{{ r.error }}</div>{% endif %}
+            {% if r.last %}<div class="pb-spec">{% trans "آخر تحديث" %} <span dir="ltr">{{ r.last.quoted_on|date:"Y-m-d" }}</span></div>{% endif %}</td>
+        <td class="pb-mkt pb-hide-sm">{% if done_today %}{% if r.market %}<b>{{ r.market.avg }}</b> <span class="muted">({{ r.market.min|floatformat:"-2" }}–{{ r.market.max|floatformat:"-2" }}، {% blocktrans with n=r.market.n %}{{ n }} مطبعة{% endblocktrans %})</span>{% else %}<span class="muted">—</span>{% endif %}{% else %}<span class="pb-lock"><i class="fas fa-lock"></i> {% trans "سعّر النهارده وشوف" %}</span>{% endif %}</td>
+        <td class="pb-mkt pb-hide-sm">{% if done_today %}{% if r.national %}<b>{{ r.national.avg }}</b> <span class="muted">({{ r.national.n }})</span>{% else %}<span class="muted">—</span>{% endif %}{% else %}<span class="pb-lock"><i class="fas fa-lock"></i></span>{% endif %}</td>
+    </tr>
+    {% if done_today and r.market %}<tr class="pb-sm-only"><td colspan="2" class="pb-mkt" style="border-top:0;padding-top:0">{% trans "متوسط محافظتك" %}: <b>{{ r.market.avg }}</b> ({{ r.market.min|floatformat:"-2" }}–{{ r.market.max|floatformat:"-2" }})</td></tr>{% endif %}
+    {% endfor %}
+</table>
+<style>@media (min-width:641px) { .pb-sm-only { display:none; } }</style>

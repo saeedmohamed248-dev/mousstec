@@ -10,7 +10,7 @@ import uuid
 from django.db import models
 from django.utils.translation import get_language, gettext_lazy as _
 
-__all__ = ['CatalogStore', 'CatalogItem', 'CatalogQuoteRequest', 'CatalogReview']
+__all__ = ['CatalogStore', 'CatalogItem', 'CatalogQuoteRequest', 'CatalogReview', 'MarketSeller']
 
 def _is_en():
     return (get_language() or 'ar').startswith('en')
@@ -69,6 +69,19 @@ class CatalogStore(_Localized, models.Model):
     def __str__(self):
         return f"{self.name} ({self.get_sector_display()})"
 
+    @property
+    def seller_or_none(self):
+        """البائع صاحب المتجر (لو متجر بائع مش متجر Mouss Tec)."""
+        try:
+            return self.seller
+        except AttributeError:
+            # RelatedObjectDoesNotExist — و _Localized.__getattr__ بتحوّلها AttributeError عادي
+            return None
+
+    @property
+    def is_seller_store(self):
+        return self.seller_or_none is not None
+
 
 class CatalogItem(_Localized, models.Model):
     store = models.ForeignKey(CatalogStore, on_delete=models.CASCADE, related_name='items')
@@ -76,6 +89,8 @@ class CatalogItem(_Localized, models.Model):
     title = models.CharField(max_length=200, verbose_name=_("اسم المنتج"))
     description = models.TextField(blank=True, verbose_name=_("الوصف"))
     category = models.CharField(max_length=40, db_index=True, verbose_name=_("القسم"))
+    # 🆕 «أخرى»: منتج مش في أقسامنا ⇒ category='other' والبائع بيكتب نوعه هنا
+    custom_category = models.CharField(max_length=80, blank=True, verbose_name=_("نوع المنتج (لو أخرى)"))
     icon = models.CharField(max_length=50, default='fa-box')
     image = models.ImageField(upload_to='catalog/', blank=True, null=True, verbose_name=_("صورة (اختياري)"))
     # قطع الغيار
@@ -98,6 +113,8 @@ class CatalogItem(_Localized, models.Model):
     price_from = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
                                      verbose_name=_("السعر يبدأ من (لكتالوج ميتا)"))
     is_active = models.BooleanField(default=True, db_index=True)
+    # 🏪 منتج ضافه/عدّله بائع السوق ⇒ مخفي لحد ما Mouss Tec تراجعه (من الأدمن: «اعتماد»)
+    pending_review = models.BooleanField(default=False, db_index=True, verbose_name=_("مستني مراجعة"))
     sort = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -185,3 +202,52 @@ class CatalogReview(models.Model):
         if not parts:
             return ''
         return parts[0] + (f' {parts[1][0]}.' if len(parts) > 1 and parts[1] else '')
+
+
+class MarketSeller(models.Model):
+    """🏪 بائع في السوق بس — مطبعة أو محل قطع غيار بيعرض منتجاته ويتابع عملاءه.
+
+    مالوش أي علاقة بسيستم الإدارة (فواتير/مخزون/حسابات): مفيش schema ولا Tenant. حسابه
+    موبايل + كلمة سر، وليه متجر واحد في الكتالوج. المتجر بيظهر للعملاء بعد ما Mouss Tec
+    توافق عليه، وكل منتج بيضيفه بيتراجع قبل ما يظهر.
+    لو حب بعدين يستخدم برنامج الإدارة ⇒ «ترقية» بتعمله شركة كاملة ومتجره يفضل زي ما هو.
+    """
+    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    store = models.OneToOneField(CatalogStore, on_delete=models.CASCADE, related_name='seller',
+                                 verbose_name=_("المتجر"))
+    owner_name = models.CharField(max_length=120, verbose_name=_("اسم المسؤول"))
+    phone = models.CharField(max_length=20, unique=True, db_index=True, verbose_name=_("رقم الموبايل"))
+    email = models.EmailField(blank=True, verbose_name=_("البريد الإلكتروني"))
+    password_hash = models.CharField(max_length=128, blank=True)
+    session_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    is_blocked = models.BooleanField(default=False, verbose_name=_("موقوف"))
+    # ⬆️ لو اترقّى لشركة كاملة على Mouss Tec
+    upgraded_to = models.ForeignKey('clients.Client', on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='market_sellers', verbose_name=_("الشركة بعد الترقية"))
+    # ⭐ من عروض «السوق المفتوح» (زي Client.market_rating / successful_deals)
+    market_rating = models.DecimalField(max_digits=3, decimal_places=2, default=5.00)
+    successful_deals = models.PositiveIntegerField(default=0)
+    last_login_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _("بائع في السوق")
+        verbose_name_plural = _("🏪 بائعين السوق (من غير برنامج الإدارة)")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.store.name} — {self.owner_name}"
+
+    @property
+    def sector(self):
+        return self.store.sector
+
+    def set_password(self, raw_password):
+        from django.contrib.auth.hashers import make_password
+        self.password_hash = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        from django.contrib.auth.hashers import check_password
+        if not self.password_hash or not raw_password:
+            return False
+        return check_password(raw_password, self.password_hash)

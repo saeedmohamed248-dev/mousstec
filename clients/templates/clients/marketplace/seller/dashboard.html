@@ -1,0 +1,37 @@
+{% extends "clients/marketplace/seller/_base.html" %}{% load i18n %}
+{% block content %}
+{% if request.GET.reset %}<div class="notice ok"><i class="fas fa-circle-check"></i> {% trans "اتغيّرت كلمة السر ودخلت على حسابك." %}</div>{% endif %}
+{% if not seller.email %}<div class="notice warn">{% trans "ضيف إيميل المتجر من «بيانات المتجر» — عليه بيوصلك كود تغيير كلمة السر لو نسيتها." %}</div>{% endif %}
+{% if welcome %}<div class="notice ok"><i class="fas fa-circle-check"></i> {% trans "اتسجّلت! ابدأ ضيف منتجاتك — كل منتج بيظهر للعملاء بعد مراجعة سريعة من فريق Mouss Tec." %}</div>{% endif %}
+<section class="hero"><h1>{% blocktrans with n=seller.owner_name %}أهلاً {{ n }}{% endblocktrans %}</h1>
+<p>{% trans "من هنا بتعرض منتجاتك وبتتابع العملاء اللي طلبوا منك." %}</p></section>
+<div class="grid">
+    <a class="card stat" href="/marketplace/seller/products/" style="text-decoration:none"><div class="n">{{ stats.live }}</div><div class="l">{% trans "منتج ظاهر للعملاء" %}</div></a>
+    <a class="card stat" href="/marketplace/seller/products/" style="text-decoration:none"><div class="n">{{ stats.pending }}</div><div class="l">{% trans "منتج مستني مراجعة" %}</div></a>
+    <a class="card stat" href="/marketplace/seller/customers/" style="text-decoration:none"><div class="n">{{ stats.quotes_30 }}</div><div class="l">{% trans "طلب سعر في آخر ٣٠ يوم" %}</div></a>
+    <a class="card stat" href="/marketplace/seller/requests/" style="text-decoration:none"><div class="n">{{ stats.open_requests }}</div><div class="l">{% trans "طلب مفتوح في السوق تقدر تقدّم عليه" %}</div></a>
+    <div class="card stat"><div class="n">{{ stats.accepted }}</div><div class="l">{% trans "عرض اتقبل" %}</div></div>
+</div>
+<div class="row" style="margin:12px 0">
+    <a class="btn" href="/marketplace/seller/products/new/"><i class="fas fa-plus"></i> {% trans "ضيف منتج" %}</a>
+    <a class="btn ghost" href="/marketplace/seller/products/import/"><i class="fas fa-file-excel"></i> {% trans "ارفع شيت منتجات" %}</a>
+    {% if store.is_active %}<a class="btn ghost" href="/marketplace/catalog/store/{{ store.slug }}/" target="_blank" rel="noopener"><i class="fas fa-eye"></i> {% trans "شوف متجرك زي العميل" %}</a>{% endif %}
+</div>
+{% if store.sector == 'printing' and not stats.priced_today %}
+<a class="card row" href="/marketplace/seller/prices/" style="text-decoration:none;background:#eef2ff;border-color:#c7d2fe">
+    <i class="fas fa-chart-line" style="font-size:1.4rem;color:var(--mt-brand)"></i>
+    <span style="flex:1"><b>{% trans "سعّر النهارده في بورصة أسعار المطابع" %}</b><br><small class="muted">{% trans "دقيقة واحدة — وتشوف متوسط أسعار السوق في محافظتك." %}</small></span>
+    <span class="btn sm">{% trans "سعّر دلوقتي" %}</span></a>
+{% endif %}
+<div class="sec-title"><i class="fas fa-users"></i> {% trans "آخر طلبات العملاء" %}</div>
+{% for r in recent %}
+<div class="card row"><div><b>{{ r.item_title }}</b><div class="muted">{{ r.name }} — <span dir="ltr">{{ r.phone }}</span> — <span dir="ltr">{{ r.created_at|date:"Y-m-d H:i" }}</span></div></div><span class="sp"></span><span class="tag {% if r.status == 'new' %}wait{% else %}off{% endif %}">{{ r.get_status_display }}</span></div>
+{% empty %}
+<div class="card muted">{% trans "لسه مفيش طلبات — أول ما عميل يطلب سعر على منتج من منتجاتك هيظهر هنا ويوصلك واتساب." %}</div>
+{% endfor %}
+<div class="card" style="margin-top:18px">
+    <b><i class="fas fa-rocket"></i> {% trans "محتاج برنامج إدارة لشغلك؟" %}</b>
+    <p class="muted" style="margin:6px 0 10px">{% trans "مش لازم خالص — حسابك في السوق شغّال لوحده. لو حبيت بعدين فواتير ومخزون وحسابات، تقدر تفعّلها ومتجرك يفضل زي ما هو." %}</p>
+    <a class="btn ghost sm" href="/marketplace/seller/upgrade/">{% trans "اعرف أكتر" %}</a>
+</div>
+{% endblock %}

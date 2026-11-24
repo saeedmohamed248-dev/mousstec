@@ -22,3 +22,15 @@ app.autodiscover_tasks()
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):
     print(f'Request: {self.request!r}')
+
+
+@app.on_after_configure.connect
+def _extra_periodic_tasks(sender, **kwargs):
+    """جداول زيادة على CELERY_BEAT_SCHEDULE (settings.py عند حد حجمه — test_codebase_structure)."""
+    from celery.schedules import crontab
+    # 📈 بورصة أسعار المطابع: تذكير واتساب الصبح للي لسه ماسعّرش النهارده (لينك تأكيد بضغطة)
+    sender.add_periodic_task(
+        crontab(hour=9, minute=7),
+        sender.signature('clients.services.price_board.send_daily_price_reminders'),
+        name='price_board_daily_reminder',
+    )

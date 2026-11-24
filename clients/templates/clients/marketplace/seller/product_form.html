@@ -1,0 +1,29 @@
+{% extends "clients/marketplace/seller/_base.html" %}{% load i18n %}
+{% block title %}{% if item %}{% trans "تعديل منتج" %}{% else %}{% trans "منتج جديد" %}{% endif %}{% endblock %}
+{% block content %}
+<h1 style="font-size:1.3rem">{% if item %}{% trans "تعديل منتج" %}{% else %}{% trans "منتج جديد" %}{% endif %}</h1>
+<div class="notice warn" style="font-weight:500">{% trans "أي منتج جديد أو تعديل بيستخبى لحد ما فريق Mouss Tec يراجعه — عادةً في نفس اليوم." %}</div>
+<div class="card" style="max-width:640px">
+    <form method="post" enctype="multipart/form-data" class="f" novalidate>{% csrf_token %}
+        {{ form.as_p }}
+        <script>
+        // 🆕 «أخرى» ⇒ يظهر «نوع المنتج» وتتعلّم «التفاصيل» إنها مطلوبة (من غير JS الحقول ظاهرة دايماً)
+        (function () {
+            var cat = document.getElementById('id_category');
+            var box = document.getElementById('id_custom_category');
+            if (!cat || !box) return;
+            var row = box.closest('p'), desc = document.getElementById('id_description');
+            function sync() {
+                var other = cat.value === 'other';
+                row.style.display = other ? '' : 'none';
+                box.required = other;
+                if (desc) desc.required = other;
+            }
+            cat.addEventListener('change', sync); sync();
+        })();
+        </script>
+        <div class="row"><button class="btn" type="submit"><i class="fas fa-floppy-disk"></i> {% trans "احفظ وابعته للمراجعة" %}</button>
+        <a class="btn ghost" href="/marketplace/seller/products/">{% trans "رجوع" %}</a></div>
+    </form>
+</div>
+{% endblock %}

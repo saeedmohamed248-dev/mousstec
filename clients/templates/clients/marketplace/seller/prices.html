@@ -1,0 +1,7 @@
+{% extends "clients/marketplace/seller/_base.html" %}{% load i18n %}
+{% block title %}{% trans "أسعاري اليومية" %}{% endblock %}
+{% block content %}
+<h1 style="font-size:1.3rem">{% trans "أسعاري اليومية — بورصة أسعار المطابع" %}</h1>
+{% include "clients/marketplace/price_board/_form.html" %}
+<p class="muted" style="font-size:.85rem"><a href="/marketplace/prices/" target="_blank" rel="noopener">{% trans "شوف مؤشر الأسعار زي ما العملاء بيشوفوه" %}</a></p>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "clients/marketplace/seller/_base.html" %}{% load i18n %}
+{% block title %}{% trans "بيانات المتجر" %}{% endblock %}
+{% block content %}
+<h1 style="font-size:1.3rem">{% trans "بيانات المتجر" %}</h1>
+{% if saved %}<div class="notice ok">{% trans "اتحفظ." %}</div>{% endif %}
+<div class="card" style="max-width:640px">
+    <p class="muted">{% trans "اسم المتجر" %}: <b>{{ store.name }}</b> — {% trans "لتغيير الاسم كلّم دعم Mouss Tec." %}<br>{% trans "رقم الموبايل" %}: <span dir="ltr">{{ seller.phone }}</span></p>
+    <form method="post" class="f" novalidate>{% csrf_token %}
+        {{ sform.as_p }}
+        {{ aform.as_p }}
+        <button class="btn" type="submit"><i class="fas fa-floppy-disk"></i> {% trans "حفظ" %}</button>
+    </form>
+</div>
+{% endblock %}

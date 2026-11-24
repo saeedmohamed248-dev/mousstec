@@ -1,0 +1,36 @@
+{% load i18n %}
+{% comment %}📈 فورم أسعار المطبعة — مشترك بين بائع السوق والشركة. «ادّي تاخد»: متوسط السوق بيظهر بس لو سعّرت النهارده.{% endcomment %}
+<style>
+    .pb-table { width:100%; border-collapse:collapse; }
+    .pb-table th, .pb-table td { padding:8px 6px; border-bottom:1px solid var(--mt-line); text-align:start; vertical-align:middle; font-size:.9rem; }
+    .pb-table input[type=text] { width:110px; border:1px solid var(--mt-line-2); border-radius:8px; padding:8px; font:inherit; }
+    .pb-spec { color:var(--mt-muted); font-size:.8rem; }
+    .pb-mkt { font-size:.82rem; white-space:nowrap; }
+    .pb-mkt b { color:var(--mt-brand); }
+    .pb-err { color:#b91c1c; font-size:.8rem; }
+    .pb-lock { color:var(--mt-muted); font-size:.8rem; }
+    @media (max-width:640px) { .pb-table .pb-hide-sm { display:none; } }
+</style>
+{% if saved %}<div class="notice ok"><i class="fas fa-circle-check"></i> {% blocktrans with n=saved %}اتحفظ {{ n }} سعر — شوف متوسط السوق جنب كل بند.{% endblocktrans %}</div>{% endif %}
+{% if form_error %}<div class="notice err">{{ form_error }}</div>{% endif %}
+<div class="card">
+    <p style="margin:0 0 8px">{% trans "سعّر البنود دي بالمواصفة المكتوبة بالظبط عشان الأسعار تتقارن ببعض. اللي مابتعملوش سيبه فاضي." %}</p>
+    <p class="muted" style="margin:0;font-size:.85rem">{% blocktrans with n=min_providers d=fresh_days %}العملاء بيشوفوا نطاق الأسعار بس (من غير اسمك)، ولما يبقى فيه {{ n }} مطابع على الأقل. السعر بيفضل محسوب {{ d }} أيام من آخر تأكيد.{% endblocktrans %}</p>
+</div>
+{% if has_last and not done_today %}
+<form method="post" class="card row" style="background:#ecfdf5;border-color:#a7f3d0">{% csrf_token %}
+    <span style="flex:1;min-width:200px"><b>{% trans "أسعارك زي امبارح؟" %}</b> {% trans "أكّدها بضغطة وشوف متوسط السوق." %}</span>
+    <button class="btn green" name="action" value="confirm"><i class="fas fa-check-double"></i> {% trans "أسعاري زي امبارح" %}</button>
+</form>
+{% endif %}
+<form method="post" class="f card">{% csrf_token %}
+    <p style="max-width:320px"><label for="pb-gov">{% trans "المحافظة" %}</label>
+        <select id="pb-gov" name="governorate" required><option value="">—</option>{% for k, label in governorates %}<option value="{{ k }}" {% if gov == k %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></p>
+    <div class="sec-title"><i class="fas fa-print"></i> {% trans "المنتجات" %}</div>
+    {% include "clients/marketplace/price_board/_rows.html" with rows=products %}
+    {% if materials %}
+    <div class="sec-title"><i class="fas fa-layer-group"></i> {% trans "الخامات (سعر الشراء)" %}</div>
+    {% include "clients/marketplace/price_board/_rows.html" with rows=materials %}
+    {% endif %}
+    <button class="btn" type="submit" style="margin-top:12px"><i class="fas fa-floppy-disk"></i> {% trans "احفظ أسعار النهارده" %}</button>
+</form>
