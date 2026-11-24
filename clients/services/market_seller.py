@@ -128,3 +128,59 @@ def link_upgrade(request, tenant):
     except Exception:  # noqa: BLE001
         log.exception('[SELLER] upgrade link failed')
         return None
+
+
+def signup_initial(request, initial):
+    """⬆️ فورم تسجيل الشركة متعبّي ببيانات البائع الداخل (لو لسه مارقّاش)."""
+    seller = seller_from_request(request)
+    if seller is None or seller.upgraded_to_id:
+        return initial
+    industry = initial.get('industry') or seller.store.sector
+    return {**initial, 'company_name': seller.store.name, 'full_name': seller.owner_name,
+            'phone': local_phone(seller.phone), 'email': seller.email, 'industry': industry,
+            'business_type': initial.get('business_type') or {'automotive': 'service_center',
+                                                              'printing': 'print_shop'}[industry]}
+
+
+# ─────────────── عروض «السوق المفتوح» — الشركة أو البائع ───────────────
+
+def bump_deals(offer):
+    """عرض اتقبل ⇒ +١ صفقة لصاحبه (شركة أو بائع)."""
+    from django.db.models import F
+
+    from clients.models import Client, MarketSeller
+    if offer.merchant_id:
+        Client.objects.filter(pk=offer.merchant_id).update(successful_deals=F('successful_deals') + 1)
+    elif offer.seller_id:
+        MarketSeller.objects.filter(pk=offer.seller_id).update(successful_deals=F('successful_deals') + 1)
+
+
+def refresh_rating(offer):
+    """متوسط تقييمات صاحب العرض (شركة أو بائع) بعد تقييم جديد — ٥ لو مفيش."""
+    from decimal import Decimal
+
+    from django.db.models import Avg
+
+    from clients.models import Client, MarketSeller, TenderOffer
+    field, model = ('merchant_id', Client) if offer.merchant_id else ('seller_id', MarketSeller)
+    owner = getattr(offer, field)
+    if not owner:
+        return
+    avg = TenderOffer.objects.filter(**{field: owner}, customer_rating__isnull=False) \
+        .aggregate(avg=Avg('customer_rating'))['avg'] or Decimal('5.00')
+    model.objects.filter(pk=owner).update(market_rating=avg)
+
+
+def review_counts(offers):
+    """{provider_key: عدد التقييمات} لعروض طلب واحد."""
+    from django.db.models import Count
+
+    from clients.models import TenderOffer
+    rated = TenderOffer.objects.filter(customer_rating__isnull=False)
+    out = {}
+    for tag, field in (('m', 'merchant_id'), ('s', 'seller_id')):
+        ids = {getattr(o, field) for o in offers if getattr(o, field)}
+        if ids:
+            out.update({(tag, k): n for k, n in rated.filter(**{f'{field}__in': ids})
+                        .values_list(field).annotate(n=Count('id'))})
+    return out

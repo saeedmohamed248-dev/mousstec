@@ -20,7 +20,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.cache import cache
 from django.db import connection, transaction
-from django.db.models import Avg, Count, F
+from django.db.models import F
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -152,11 +152,8 @@ def _accept_tender_offer(offer_code, customer):
         MarketplaceCustomer.objects.filter(pk=customer.pk).update(
             total_accepted_offers=F('total_accepted_offers') + 1
         )
-        if offer.merchant_id:
-            Client.objects.filter(pk=offer.merchant_id).update(successful_deals=F('successful_deals') + 1)
-        else:
-            from clients.models import MarketSeller
-            MarketSeller.objects.filter(pk=offer.seller_id).update(successful_deals=F('successful_deals') + 1)
+        from clients.services.market_seller import bump_deals
+        bump_deals(offer)   # شركة أو بائع سوق
     offer.service_request = svc_request
     _flag_offer_accepted_for_merchant(offer)
     # 🐛 [FIX — دورة ناقصة]: الشركة كانت بتعرف بالقبول من عدّاد في لوحتها بس، والعميل بيتقاله
@@ -808,11 +805,8 @@ def marketplace_request_detail(request, request_code):
     svc_request = get_object_or_404(ServiceRequest, request_code=request_code, customer=customer)
     offers = list(svc_request.offers.select_related('merchant', 'seller__store').order_by('price'))
     # ⭐ عدد تقييمات كل تاجر — التقييم الافتراضي ٥ لتاجر جديد مايتعرضش كأنه تقييم حقيقي
-    rated_q = TenderOffer.objects.filter(customer_rating__isnull=False)
-    rated = {('m', k): n for k, n in rated_q.filter(merchant_id__in={o.merchant_id for o in offers if o.merchant_id})
-             .values_list('merchant_id').annotate(n=Count('id'))}
-    rated.update({('s', k): n for k, n in rated_q.filter(seller_id__in={o.seller_id for o in offers if o.seller_id})
-                  .values_list('seller_id').annotate(n=Count('id'))})
+    from clients.services.market_seller import review_counts
+    rated = review_counts(offers)
     for o in offers:
         o.merchant_reviews = rated.get(o.provider_key, 0)
         # رقم واتساب دولي (مصري: 01xxxxxxxxx ⇒ 201xxxxxxxxx) لزرار «واتساب» بعد القبول
@@ -898,17 +892,8 @@ def marketplace_rate_offer(request, offer_code):
     offer.service_request.save(update_fields=['status', 'completed_at'])
 
     # Update merchant rating
-    if offer.merchant_id:
-        avg = TenderOffer.objects.filter(
-            merchant_id=offer.merchant_id, customer_rating__isnull=False
-        ).aggregate(avg=Avg('customer_rating'))['avg'] or Decimal('5.00')
-        Client.objects.filter(pk=offer.merchant_id).update(market_rating=avg)
-    elif offer.seller_id:
-        from clients.models import MarketSeller
-        avg = TenderOffer.objects.filter(
-            seller_id=offer.seller_id, customer_rating__isnull=False
-        ).aggregate(avg=Avg('customer_rating'))['avg'] or Decimal('5.00')
-        MarketSeller.objects.filter(pk=offer.seller_id).update(market_rating=avg)
+    from clients.services.market_seller import refresh_rating
+    refresh_rating(offer)   # تقييم الشركة أو بائع السوق
 
     return JsonResponse({"status": "success", "message": "شكراً لتقييمك!"})
 
