@@ -30123,3 +30123,21 @@ msgstr "The code you received by email"
 
 msgid "الكود غلط أو انتهت صلاحيته — اطلب كود جديد."
 msgstr "Wrong or expired code — request a new one."
+
+msgid "أخرى — منتج مش في القائمة"
+msgstr "Other — a product not in the list"
+
+msgid "مثلاً: ستاندات رول أب، أختام، ميداليات أكريليك…"
+msgstr "e.g. roll-up stands, stamps, acrylic keychains…"
+
+msgid "مع «أخرى»: اكتب تفاصيل أكتر — الخامة والمقاسات والألوان واستخدام المنتج."
+msgstr "With “Other”: add more details — material, sizes, colours and what the product is for."
+
+msgid "اكتب نوع المنتج لما تختار «أخرى»."
+msgstr "Write the product type when you choose “Other”."
+
+msgid "مع «أخرى» اكتب تفاصيل أكتر عن المنتج (٢٠ حرف على الأقل)."
+msgstr "With “Other”, describe the product in more detail (at least 20 characters)."
+
+msgid "لأ — لو مكتوب قسم مش من أقسامنا بيتحط في «أخرى» باسمه زي ما كتبته"
+msgstr "No — a category we don't have goes under “Other” with the name you wrote"

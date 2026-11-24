@@ -38,7 +38,7 @@ from clients.models import (
 )
 from clients.services import market_seller as svc
 
-from .catalog_views import SECTORS, _categories, _category_label
+from .catalog_views import OTHER_CATEGORY, SECTORS, _categories, item_category_label
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -233,20 +233,37 @@ def seller_dashboard(request):
 class SellerItemForm(forms.ModelForm):
     class Meta:
         model = CatalogItem
-        fields = ('title', 'description', 'category', 'image', 'min_qty', 'price_from',
+        fields = ('title', 'category', 'custom_category', 'description', 'image', 'min_qty', 'price_from',
                   'car_make', 'car_models', 'part_number', 'condition')
 
     def __init__(self, *args, sector='printing', **kwargs):
         super().__init__(*args, **kwargs)
         self.sector = sector
+        # 🐛 [FIX]: البائع كان لازم يختار من أقسامنا بس — منتج مش في القائمة مالوش مكان.
+        #    دلوقتي «أخرى» ⇒ يكتب نوع المنتج + تفاصيل أكتر (الاتنين إجباري مع «أخرى»).
         self.fields['category'] = forms.ChoiceField(
-            choices=[(k, label) for k, label, _icon in _categories(SECTORS[sector])], label=_l('القسم'))
+            choices=[(k, label) for k, label, _icon in _categories(SECTORS[sector])]
+            + [(OTHER_CATEGORY, _l('أخرى — منتج مش في القائمة'))], label=_l('القسم'))
+        self.fields['custom_category'].label = _l('نوع المنتج')
+        self.fields['custom_category'].help_text = _l('مثلاً: ستاندات رول أب، أختام، ميداليات أكريليك…')
         self.fields['description'].required = False
+        self.fields['description'].help_text = _l('مع «أخرى»: اكتب تفاصيل أكتر — الخامة والمقاسات والألوان واستخدام المنتج.')
         if sector != 'automotive':
             for f in ('car_make', 'car_models', 'part_number', 'condition'):
                 del self.fields[f]
         self.fields['price_from'].label = _l('السعر يبدأ من (اختياري)')
         self.fields['price_from'].min_value = 0
+
+    def clean(self):
+        data = super().clean()
+        if data.get('category') == OTHER_CATEGORY:
+            if len((data.get('custom_category') or '').strip()) < 3:
+                self.add_error('custom_category', _('اكتب نوع المنتج لما تختار «أخرى».'))
+            if len((data.get('description') or '').strip()) < 20:
+                self.add_error('description', _('مع «أخرى» اكتب تفاصيل أكتر عن المنتج (٢٠ حرف على الأقل).'))
+        else:
+            data['custom_category'] = ''
+        return data
 
     def clean_image(self):
         img = self.cleaned_data.get('image')
@@ -267,7 +284,7 @@ def seller_products(request):
     items = list(store.items.order_by('-pending_review', '-is_active', '-created_at'))
     meta = SECTORS[store.sector]
     for it in items:
-        it.category_label = _category_label(meta, it.category)
+        it.category_label = item_category_label(meta, it)
     return render(request, 'clients/marketplace/seller/products.html', _ctx(
         request, 'products', items=items, imported=request.GET.get('imported'),
         saved=request.GET.get('saved') == '1'))
@@ -283,6 +300,8 @@ def seller_product_edit(request, item_code=None):
         obj.store = store
         meta = SECTORS[store.sector]
         obj.icon = meta['categories'].get(obj.category, ('', 'fa-box'))[1]
+        if obj.category != OTHER_CATEGORY:
+            obj.custom_category = ''
         # 🛡️ أي إضافة أو تعديل ⇒ يختفي لحد ما Mouss Tec تراجعه
         obj.is_active = False
         obj.pending_review = True
@@ -368,11 +387,13 @@ def _pick(row, key):
 
 
 def _match_category(meta, raw):
-    raw = (raw or '').strip().lower()
+    """(القسم، النوع لو أخرى). قسم مش معروف ⇒ «أخرى» واسمه زي ما اتكتب (مش أول قسم بالغلط)."""
+    clean = ' '.join((raw or '').split())
+    low = clean.lower()
     for k, (ar, _icon) in meta['categories'].items():
-        if raw in (k, ar.lower(), meta['categories_en'].get(k, '').lower()):
-            return k
-    return next(iter(meta['categories']))
+        if low in (k, ar.lower(), meta['categories_en'].get(k, '').lower()):
+            return k, ''
+    return OTHER_CATEGORY, clean[:80]
 
 
 @_seller_required
@@ -400,10 +421,10 @@ def seller_products_import(request):
                             price = None
                     except InvalidOperation:
                         price = None
-                    cat = _match_category(meta, _pick(row, 'category'))
+                    cat, custom = _match_category(meta, _pick(row, 'category'))
                     new.append(CatalogItem(
                         store=store, title=title, description=_pick(row, 'description')[:3000], category=cat,
-                        icon=meta['categories'][cat][1], min_qty=_pick(row, 'min_qty')[:60], price_from=price,
+                        custom_category=custom, icon=meta['categories'].get(cat, ('', 'fa-box'))[1], min_qty=_pick(row, 'min_qty')[:60], price_from=price,
                         car_make=_pick(row, 'car_make')[:60], car_models=_pick(row, 'car_models')[:200],
                         part_number=_pick(row, 'part_number')[:80],
                         is_active=False, pending_review=True,

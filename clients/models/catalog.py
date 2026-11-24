@@ -89,6 +89,8 @@ class CatalogItem(_Localized, models.Model):
     title = models.CharField(max_length=200, verbose_name=_("اسم المنتج"))
     description = models.TextField(blank=True, verbose_name=_("الوصف"))
     category = models.CharField(max_length=40, db_index=True, verbose_name=_("القسم"))
+    # 🆕 «أخرى»: منتج مش في أقسامنا ⇒ category='other' والبائع بيكتب نوعه هنا
+    custom_category = models.CharField(max_length=80, blank=True, verbose_name=_("نوع المنتج (لو أخرى)"))
     icon = models.CharField(max_length=50, default='fa-box')
     image = models.ImageField(upload_to='catalog/', blank=True, null=True, verbose_name=_("صورة (اختياري)"))
     # قطع الغيار

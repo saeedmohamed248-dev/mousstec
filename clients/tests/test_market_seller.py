@@ -141,6 +141,38 @@ class MarketSellerTests(_TenantDomainMixin, TestCase):
         item.refresh_from_db()
         self.assertEqual((item.is_active, item.pending_review), (False, False))
 
+    def test_other_category_needs_type_and_details(self):
+        c, *_ = self._join()
+        seller = MarketSeller.objects.get()
+        self._approve(seller)
+        form = c.get('/marketplace/seller/products/new/').content.decode()
+        self.assertIn('value="other"', form)
+        with mock.patch('clients.services.owner_notify.notify_owner'):
+            r = c.post('/marketplace/seller/products/new/', {'title': 'ستاند رول أب', 'category': 'other',
+                                                             'custom_category': '', 'description': 'قصير'})
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn('اكتب نوع المنتج', html)
+        self.assertIn('تفاصيل أكتر', html)
+        self.assertFalse(CatalogItem.objects.filter(store=seller.store).exists())
+        with mock.patch('clients.services.owner_notify.notify_owner'):
+            r = c.post('/marketplace/seller/products/new/', {
+                'title': 'ستاند رول أب', 'category': 'other', 'custom_category': 'ستاندات رول أب',
+                'description': 'ستاند ألومنيوم ٨٥×٢٠٠ سم مع شنطة، طباعة فينيل عالي الجودة'})
+        self.assertEqual(r.status_code, 302)
+        item = CatalogItem.objects.get(store=seller.store)
+        self.assertEqual((item.category, item.custom_category), ('other', 'ستاندات رول أب'))
+        CatalogItem.objects.filter(pk=item.pk).update(is_active=True, pending_review=False)
+        page = HttpClient().get(f'/marketplace/catalog/item/{item.item_code}/').content.decode()
+        self.assertIn('ستاندات رول أب', page)
+        self.assertIn('ستاندات رول أب', c.get('/marketplace/seller/products/').content.decode())
+        # الرجوع لقسم عادي بيمسح النوع
+        with mock.patch('clients.services.owner_notify.notify_owner'):
+            c.post(f'/marketplace/seller/products/{item.item_code}/', {
+                'title': 'بنر', 'category': 'banners', 'custom_category': 'كلام قديم', 'description': ''})
+        item.refresh_from_db()
+        self.assertEqual((item.category, item.custom_category), ('banners', ''))
+
     def test_seller_cannot_touch_other_store(self):
         c1, *_ = self._join()
         c2, *_ = self._join(store_name='محل تاني')
@@ -160,6 +192,8 @@ class MarketSellerTests(_TenantDomainMixin, TestCase):
             r = c.post('/marketplace/seller/products/import/', {'sheet': sheet})
         self.assertEqual(r['Location'], '/marketplace/seller/products/?imported=2')
         items = {i.title: i for i in CatalogItem.objects.filter(store__seller__isnull=False)}
+        # قسم مش من أقسامنا ⇒ «أخرى» باسمه زي ما اتكتب (مش أول قسم بالغلط)
+        self.assertEqual((items['قلم'].category, items['قلم'].custom_category), ('other', 'أقسام مش موجودة'))
         self.assertEqual(items['كوباية مطبوعة'].category, 'mugs')
         self.assertEqual(str(items['كوباية مطبوعة'].price_from), '40.00')
         self.assertIsNone(items['قلم'].price_from)
