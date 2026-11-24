@@ -30087,3 +30087,39 @@ msgstr "No products found in the sheet — an “اسم المنتج” (product
 
 msgid "كلمة سر جديدة (سيبها فاضية لو مش هتغيّرها)"
 msgstr "New password (leave empty to keep the current one)"
+
+msgid "اكتب رقم موبايل المتجر، وهيوصلك كود من ٦ أرقام على إيميل المتجر من Mouss Tec."
+msgstr "Enter the store's mobile number and Mouss Tec will email a 6-digit code to the store's email."
+
+msgid "لو الرقم ده عنده حساب بائع بإيميل، الكود هيوصل على الإيميل خلال دقيقة — بُص في الـ Spam لو ماوصلش. الكود صالح ١٠ دقايق."
+msgstr "If this number has a seller account with an email, the code will arrive within a minute — check Spam if you don't see it. The code is valid for 10 minutes."
+
+msgid "عندي الكود"
+msgstr "I have the code"
+
+msgid "حسابك مالوش إيميل أو الإيميل اتغيّر؟ كلّم دعم Mouss Tec على واتساب."
+msgstr "No email on your account, or it changed? Message Mouss Tec support on WhatsApp."
+
+msgid "ابعت كود جديد"
+msgstr "Send a new code"
+
+msgid "اتغيّرت كلمة السر ودخلت على حسابك."
+msgstr "Your password was changed and you're logged in."
+
+msgid "ضيف إيميل المتجر من «بيانات المتجر» — عليه بيوصلك كود تغيير كلمة السر لو نسيتها."
+msgstr "Add the store email from “Store details” — that's where the password reset code is sent."
+
+msgid "إيميل المتجر"
+msgstr "Store email"
+
+msgid "عليه بيوصلك كود تغيير كلمة السر لو نسيتها."
+msgstr "The password reset code is sent here if you forget it."
+
+msgid "طلبات كتير — جرّب بعد ساعة."
+msgstr "Too many requests — try again in an hour."
+
+msgid "الكود اللي وصلك على الإيميل"
+msgstr "The code you received by email"
+
+msgid "الكود غلط أو انتهت صلاحيته — اطلب كود جديد."
+msgstr "Wrong or expired code — request a new one."

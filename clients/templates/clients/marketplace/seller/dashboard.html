@@ -1,5 +1,7 @@
 {% extends "clients/marketplace/seller/_base.html" %}{% load i18n %}
 {% block content %}
+{% if request.GET.reset %}<div class="notice ok"><i class="fas fa-circle-check"></i> {% trans "اتغيّرت كلمة السر ودخلت على حسابك." %}</div>{% endif %}
+{% if not seller.email %}<div class="notice warn">{% trans "ضيف إيميل المتجر من «بيانات المتجر» — عليه بيوصلك كود تغيير كلمة السر لو نسيتها." %}</div>{% endif %}
 {% if welcome %}<div class="notice ok"><i class="fas fa-circle-check"></i> {% trans "اتسجّلت! ابدأ ضيف منتجاتك — كل منتج بيظهر للعملاء بعد مراجعة سريعة من فريق Mouss Tec." %}</div>{% endif %}
 <section class="hero"><h1>{% blocktrans with n=seller.owner_name %}أهلاً {{ n }}{% endblocktrans %}</h1>
 <p>{% trans "من هنا بتعرض منتجاتك وبتتابع العملاء اللي طلبوا منك." %}</p></section>

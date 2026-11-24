@@ -7,6 +7,7 @@
 * السوق المفتوح: البائع يقدّم عرض، والعميل يقبله ⇒ الصفقة والتقييم بيتحسبوا للبائع.
 * شيت Excel/CSV، والحماية: كلمة سر غلط، حساب موقوف، بائع مايلمسش منتجات غيره.
 """
+import re
 import uuid
 from datetime import timedelta
 from unittest import mock
@@ -42,7 +43,7 @@ class MarketSellerTests(_TenantDomainMixin, TestCase):
     def _join(self, c=None, **over):
         c = c or HttpClient()
         data = {'store_name': 'مطبعة النيل', 'owner_name': 'أحمد', 'phone': _phone(), 'password': 'secret123',
-                'sector': 'printing', 'city': 'القاهرة', 'email': '', 'tagline': ''}
+                'sector': 'printing', 'city': 'القاهرة', 'email': f'shop{uuid.uuid4().hex[:6]}@example.com', 'tagline': ''}
         data.update(over)
         with mock.patch('clients.services.owner_notify.notify_owner') as owner:
             r = c.post('/marketplace/seller/join/', data)
@@ -267,6 +268,56 @@ class MarketSellerTests(_TenantDomainMixin, TestCase):
         seller.refresh_from_db()
         self.assertEqual(seller.upgraded_to, tenant)
         self.assertIn(tenant.name, c.get('/marketplace/seller/upgrade/').content.decode())
+
+
+    # ── نسيت كلمة السر ──
+    def test_join_requires_email(self):
+        _c, r, _d, _o = self._join(email='')
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(MarketSeller.objects.exists())
+
+    def test_password_reset_by_email_code(self):
+        from django.core import mail
+        _c, _r, data, _o = self._join()
+        seller = MarketSeller.objects.get()
+        c = HttpClient()
+        r = c.post('/marketplace/seller/password/forgot/', {'phone': data['phone']})
+        self.assertIn('/marketplace/seller/password/reset/', r.content.decode())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [data['email']])
+        code = re.search(r'\b(\d{6})\b', mail.outbox[0].body).group(1)
+        # رقم مش متسجّل ⇒ نفس الرد ومفيش إيميل
+        r2 = c.post('/marketplace/seller/password/forgot/', {'phone': _phone()})
+        self.assertIn('/marketplace/seller/password/reset/', r2.content.decode())
+        self.assertEqual(len(mail.outbox), 1)
+        # كود غلط
+        wrong = '000000' if code != '000000' else '111111'
+        r = c.post('/marketplace/seller/password/reset/', {'phone': data['phone'], 'code': wrong, 'password': 'newpass99'})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('الكود غلط', r.content.decode())
+        old_token = seller.session_token
+        r = c.post('/marketplace/seller/password/reset/', {'phone': data['phone'], 'code': code, 'password': 'newpass99'})
+        self.assertEqual(r['Location'], '/marketplace/seller/?reset=1')
+        seller.refresh_from_db()
+        self.assertTrue(seller.check_password('newpass99'))
+        self.assertNotEqual(seller.session_token, old_token)   # الأجهزة التانية خرجت
+        self.assertEqual(c.get('/marketplace/seller/').status_code, 200)
+        # الكود مايتستخدمش مرتين
+        r = c.post('/marketplace/seller/password/reset/', {'phone': data['phone'], 'code': code, 'password': 'again999'})
+        self.assertIn('الكود غلط', r.content.decode())
+
+    def test_reset_code_dies_after_five_wrong_tries(self):
+        from django.core import mail
+        _c, _r, data, _o = self._join()
+        c = HttpClient()
+        c.post('/marketplace/seller/password/forgot/', {'phone': data['phone']})
+        code = re.search(r'\b(\d{6})\b', mail.outbox[-1].body).group(1)
+        wrong = '000000' if code != '000000' else '111111'
+        for _ in range(5):
+            c.post('/marketplace/seller/password/reset/', {'phone': data['phone'], 'code': wrong, 'password': 'newpass99'})
+        r = c.post('/marketplace/seller/password/reset/', {'phone': data['phone'], 'code': code, 'password': 'newpass99'})
+        self.assertIn('الكود غلط', r.content.decode())
+        self.assertFalse(MarketSeller.objects.get().check_password('newpass99'))
 
 
 class PhoneNormalizeTests(TestCase):

@@ -107,7 +107,8 @@ class SellerSignupForm(forms.Form):
     sector = forms.ChoiceField(choices=(('printing', _l('مطبعة / تصميم')), ('automotive', _l('قطع غيار سيارات'))),
                                label=_l('النشاط'))
     city = forms.CharField(max_length=60, label=_l('المحافظة / المدينة'))
-    email = forms.EmailField(required=False, label=_l('الإيميل (اختياري)'))
+    # 📧 إجباري: عليه بيوصل كود «نسيت كلمة السر» وإشعارات الطلبات
+    email = forms.EmailField(label=_l('إيميل المتجر'), help_text=_l('عليه بيوصلك كود تغيير كلمة السر لو نسيتها.'))
     tagline = forms.CharField(max_length=200, required=False, label=_l('جملة عن شغلك (اختياري)'))
 
     def clean_store_name(self):
@@ -147,7 +148,7 @@ def seller_join(request):
                         sort=1000,
                     )
                     seller = MarketSeller(store=store, owner_name=d['owner_name'], phone=d['phone'],
-                                          email=d['email'] or '', last_login_at=timezone.now())
+                                          email=d['email'].strip().lower(), last_login_at=timezone.now())
                     seller.set_password(d['password'])
                     seller.save()
             except IntegrityError:
@@ -576,7 +577,7 @@ class SellerStoreForm(forms.ModelForm):
 
 class SellerAccountForm(forms.Form):
     owner_name = forms.CharField(max_length=120, label=_l('اسم المسؤول'))
-    email = forms.EmailField(required=False, label=_l('الإيميل (اختياري)'))
+    email = forms.EmailField(label=_l('إيميل المتجر'), help_text=_l('عليه بيوصلك كود تغيير كلمة السر لو نسيتها.'))
     new_password = forms.CharField(required=False, min_length=6, max_length=128, widget=forms.PasswordInput,
                                    label=_l('كلمة سر جديدة (سيبها فاضية لو مش هتغيّرها)'))
 
@@ -591,7 +592,7 @@ def seller_store(request):
     if request.method == 'POST' and sform.is_valid() and aform.is_valid():
         sform.save()
         seller.owner_name = aform.cleaned_data['owner_name']
-        seller.email = aform.cleaned_data['email'] or ''
+        seller.email = aform.cleaned_data['email'].strip().lower()
         fields = ['owner_name', 'email']
         if aform.cleaned_data['new_password']:
             seller.set_password(aform.cleaned_data['new_password'])
@@ -610,3 +611,102 @@ def seller_upgrade(request):
     return render(request, 'clients/marketplace/seller/upgrade.html', _ctx(request, 'upgrade'))
 
 
+
+
+# ─────────────────────────── 🔑 نسيت كلمة السر (كود على إيميل المتجر) ───────────────────────────
+
+RESET_TTL = 600            # ١٠ دقايق
+RESET_MAX_TRIES = 5        # محاولات الكود الغلط قبل ما يتلغي
+RESET_SENDS_PER_HOUR = 3
+RESET_IP_PER_HOUR = 10
+
+
+def _reset_key(seller_pk):
+    return f'seller_pwreset:{seller_pk}'
+
+
+def _reset_hash(seller_pk, code):
+    import hashlib
+    import hmac
+
+    from django.conf import settings
+    return hmac.new(settings.SECRET_KEY.encode(), f'seller:{seller_pk}:{code}'.encode(), hashlib.sha256).hexdigest()
+
+
+def _send_reset_email(seller, code):
+    from django.conf import settings
+    from django.core.mail import send_mail
+    body = (f'أهلاً {seller.owner_name}،\n\n'
+            f'كود تغيير كلمة السر لحساب «{seller.store.name}» في سوق Mouss Tec:\n\n    {code}\n\n'
+            'الكود صالح ١٠ دقايق. لو مش إنت اللي طلبته تجاهل الرسالة — كلمة السر مش هتتغيّر.\n\n— فريق Mouss Tec')
+    try:
+        return bool(send_mail('Mouss Tec — كود تغيير كلمة السر', body, settings.DEFAULT_FROM_EMAIL,
+                              [seller.email], fail_silently=False))
+    except Exception:  # noqa: BLE001
+        logger.exception('[SELLER PW-RESET] email failed for seller %s', seller.pk)
+        return False
+
+
+def seller_password_forgot(request):
+    """الخطوة ١: رقم الموبايل ⇒ كود ٦ أرقام على إيميل المتجر (من إيميل Mouss Tec).
+
+    🛡️ الرد واحد سواء الرقم متسجّل أو لأ، والكود متخزّن hash ١٠ دقايق، وفيه حدود إرسال.
+    """
+    import secrets
+
+    from erp_core.client_ip import client_ip
+    sent = False
+    error = ''
+    phone_raw = (request.POST.get('phone') or '').strip()
+    if request.method == 'POST':
+        phone = svc.normalize_phone(phone_raw)
+        if not phone:
+            error = _('رقم الموبايل مش مظبوط — اكتبه زي 01012345678.')
+        elif _hit(f'seller_pwreset_ip:{client_ip(request) or "x"}', RESET_IP_PER_HOUR, 3600):
+            error = _('طلبات كتير — جرّب بعد ساعة.')
+        else:
+            seller = MarketSeller.objects.select_related('store').filter(phone=phone, is_blocked=False).first()
+            if seller and seller.email and not _hit(f'seller_pwreset_sends:{seller.pk}', RESET_SENDS_PER_HOUR, 3600):
+                code = f'{secrets.randbelow(1_000_000):06d}'
+                cache.set(_reset_key(seller.pk), {'h': _reset_hash(seller.pk, code), 'tries': 0}, RESET_TTL)
+                _send_reset_email(seller, code)
+            sent = True   # نفس الرد في كل الحالات
+    return render(request, 'clients/marketplace/seller/password_forgot.html', {
+        'sent': sent, 'error': error, 'phone': phone_raw,
+    })
+
+
+class SellerResetForm(forms.Form):
+    phone = forms.CharField(max_length=30, label=_l('رقم الموبايل'))
+    code = forms.CharField(max_length=6, min_length=6, label=_l('الكود اللي وصلك على الإيميل'))
+    password = forms.CharField(min_length=6, max_length=128, widget=forms.PasswordInput,
+                               label=_l('كلمة السر الجديدة'))
+
+
+def seller_password_reset(request):
+    """الخطوة ٢: الكود + كلمة سر جديدة ⇒ تتغيّر، والأجهزة التانية تخرج، ويدخل على طول."""
+    form = SellerResetForm(request.POST or None, initial={'phone': request.GET.get('phone', '')[:30]})
+    if request.method == 'POST' and form.is_valid():
+        d = form.cleaned_data
+        phone = svc.normalize_phone(d['phone'])
+        seller = MarketSeller.objects.filter(phone=phone, is_blocked=False).first() if phone else None
+        entry = cache.get(_reset_key(seller.pk)) if seller else None
+        import hmac
+        if not entry or entry['tries'] >= RESET_MAX_TRIES or not hmac.compare_digest(
+                entry['h'], _reset_hash(seller.pk, d['code'].strip())):
+            if entry:
+                entry['tries'] += 1
+                if entry['tries'] >= RESET_MAX_TRIES:
+                    cache.delete(_reset_key(seller.pk))
+                else:
+                    cache.set(_reset_key(seller.pk), entry, RESET_TTL)
+            form.add_error('code', _('الكود غلط أو انتهت صلاحيته — اطلب كود جديد.'))
+        else:
+            cache.delete(_reset_key(seller.pk))
+            seller.set_password(d['password'])
+            seller.session_token = uuid.uuid4()
+            seller.last_login_at = timezone.now()
+            seller.save(update_fields=['password_hash', 'session_token', 'last_login_at'])
+            cache.delete(f'seller_login_fail:{phone}')
+            return svc.login_response(redirect('/marketplace/seller/?reset=1'), seller)
+    return render(request, 'clients/marketplace/seller/password_reset.html', {'form': form})
