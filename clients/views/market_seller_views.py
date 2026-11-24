@@ -2,8 +2,9 @@
 🏪 لوحة بائع السوق — مطبعة أو محل قطع غيار بيعرض منتجاته ويتابع عملاءه بس.
 
 مالهاش أي علاقة ببرنامج الإدارة (فواتير/مخزون/حسابات): مفيش Tenant ولا schema.
-* تسجيل خفيف: اسم المتجر + المسؤول + الموبايل + كلمة سر + القطاع ⇒ متجر «تحت المراجعة».
-* منتجاتي: إضافة/تعديل/إخفاء + رفع شيت Excel — كل منتج جديد أو متعدّل بيستنى مراجعة Mouss Tec.
+* تسجيل خفيف: اسم المتجر + المسؤول + الموبايل + كلمة سر + القطاع ⇒ المتجر ظاهر على طول.
+* منتجاتي: إضافة/تعديل/إخفاء + رفع شيت Excel — بتظهر على طول، وصاحب المنصة بيوصله إشعار
+  ويقدر يخفي أي منتج (admin_hidden ⇒ البائع مايقدرش يرجّعه).
 * عملائي: طلبات الأسعار على منتجاته — بيكلّم العميل مباشرة ويغيّر حالة الطلب.
 * السوق المفتوح: طلبات العملاء في قطاعه + يقدّم عرض سعر.
 * ترقية اختيارية لبرنامج الإدارة (التسجيل العادي وهو داخل بحسابه ⇒ الشركة بتتربط بيه).
@@ -82,7 +83,9 @@ def _hit(key, limit, window):
 
 
 def _unique_slug(name, sector):
-    base = slugify(name, allow_unicode=True)[:60] or sector
+    # 🐛 [FIX]: كان slugify(allow_unicode=True) ⇒ «مطبعة-النيل» — ومسار <slug:slug> بيقبل إنجليزي بس
+    #    ⇒ صفحة المتجر 404 لأي اسم عربي. دلوقتي ASCII دايماً، والاسم العربي ⇒ «printing-a1b2c».
+    base = slugify(name)[:60] or f'{sector}-{uuid.uuid4().hex[:5]}'
     slug = base
     while CatalogStore.objects.filter(slug=slug).exists():
         slug = f'{base}-{uuid.uuid4().hex[:5]}'
@@ -92,7 +95,7 @@ def _unique_slug(name, sector):
 def _ctx(request, active, **extra):
     seller = request.seller
     store = seller.store
-    pending = store.items.filter(pending_review=True).count()
+    pending = store.items.filter(admin_hidden=True).count()   # منتجات Mouss Tec خبّتها
     new_quotes = CatalogQuoteRequest.objects.filter(item__store=store, status='new').count()
     return {'seller': seller, 'store': store, 'sector': store.sector, 'meta': SECTORS[store.sector],
             'active': active, 'pending_count': pending, 'new_quotes': new_quotes, **extra}
@@ -145,7 +148,8 @@ def seller_join(request):
                     store = CatalogStore.objects.create(
                         sector=d['sector'], name=d['store_name'], slug=_unique_slug(d['store_name'], d['sector']),
                         tagline=d['tagline'], city=d['city'], icon=meta['icon'], color=meta['color'],
-                        is_active=False,   # بيظهر للعملاء بعد مراجعة Mouss Tec
+                        # 🐛 [FIX]: كان مخفي لحد موافقة صاحب المنصة ⇒ المطبعة تسجّل وتستنى. دلوقتي ظاهر على طول
+                        is_active=True,
                         sort=1000,
                     )
                     seller = MarketSeller(store=store, owner_name=d['owner_name'], phone=d['phone'],
@@ -158,7 +162,7 @@ def seller_join(request):
                 from clients.services.owner_notify import notify_owner
                 notify_owner(f'بائع جديد في السوق ({store.get_sector_display()})',
                              f'{store.name} — {seller.owner_name} — {seller.phone} — {store.city}\n'
-                             'المتجر مستني موافقتك عشان يظهر للعملاء.',
+                             'المتجر ظاهر للعملاء دلوقتي — لو فيه حاجة مش مظبوطة اخفيه من الأدمن.',
                              f'/{settings.ADMIN_URL}/clients/marketseller/{seller.pk}/change/')
                 return svc.login_response(redirect('/marketplace/seller/?welcome=1'), seller)
     return render(request, 'clients/marketplace/seller/join.html', {'form': form, 'sector': initial_sector})
@@ -215,7 +219,6 @@ def seller_dashboard(request):
     items = store.items.all()
     stats = {
         'live': items.filter(is_active=True).count(),
-        'pending': items.filter(pending_review=True).count(),
         'quotes_30': CatalogQuoteRequest.objects.filter(
             item__store=store, created_at__gte=timezone.now() - timedelta(days=30)).count(),
         'open_requests': ServiceRequest.objects.filter(
@@ -285,7 +288,7 @@ class SellerItemForm(forms.ModelForm):
 @_seller_required
 def seller_products(request):
     store = request.seller.store
-    items = list(store.items.order_by('-pending_review', '-is_active', '-created_at'))
+    items = list(store.items.order_by('-is_active', '-created_at'))
     meta = SECTORS[store.sector]
     for it in items:
         it.category_label = item_category_label(meta, it)
@@ -306,11 +309,11 @@ def seller_product_edit(request, item_code=None):
         obj.icon = meta['categories'].get(obj.category, ('', 'fa-box'))[1]
         if obj.category != OTHER_CATEGORY:
             obj.custom_category = ''
-        # 🛡️ أي إضافة أو تعديل ⇒ يختفي لحد ما Mouss Tec تراجعه
-        obj.is_active = False
-        obj.pending_review = True
+        # بيظهر على طول — إلا لو Mouss Tec مخبّياه من الأدمن
+        obj.is_active = not obj.admin_hidden
+        obj.pending_review = False
         obj.save()
-        _notify_owner_review(store, 1)
+        _notify_owner_new_items(store)
         return redirect('/marketplace/seller/products/?saved=1')
     return render(request, 'clients/marketplace/seller/product_form.html', _ctx(
         request, 'products', form=form, item=item))
@@ -319,26 +322,22 @@ def seller_product_edit(request, item_code=None):
 @_seller_required
 @require_POST
 def seller_product_hide(request, item_code):
-    """إخفاء منتج من السوق (أو إلغاء طلب مراجعته) — الإظهار تاني بيرجع للمراجعة."""
+    """إخفاء منتج من السوق أو إظهاره تاني (إلا لو Mouss Tec مخبّياه)."""
     item = get_object_or_404(CatalogItem, item_code=item_code, store=request.seller.store)
-    if request.POST.get('action') == 'show':
-        item.pending_review = True
-        _notify_owner_review(request.seller.store, 1)
-    else:
-        item.pending_review = False
-    item.is_active = False
+    item.is_active = request.POST.get('action') == 'show' and not item.admin_hidden
+    item.pending_review = False
     item.save(update_fields=['is_active', 'pending_review'])
     return redirect('/marketplace/seller/products/')
 
 
-def _notify_owner_review(store, n):
+def _notify_owner_new_items(store):
     # إشعار واحد كل ساعة لكل متجر — مايغرّقش صاحب المنصة لو البائع بيضيف كتير ورا بعض
     if not cache.add(f'seller_review_ping:{store.pk}', 1, 3600):
         return
     from clients.services.owner_notify import notify_owner
-    notify_owner(f'منتجات بائع مستنية مراجعة — {store.name}',
-                 f'{store.name} ضاف/عدّل منتجات ومستنية موافقتك قبل ما تظهر للعملاء.',
-                 f'/{settings.ADMIN_URL}/clients/catalogitem/?pending_review__exact=1&store__id__exact={store.pk}')
+    notify_owner(f'منتجات جديدة من بائع — {store.name}',
+                 f'{store.name} ضاف/عدّل منتجات وظهرت للعملاء — لو فيه حاجة مش مظبوطة اخفيها من الأدمن.',
+                 f'/{settings.ADMIN_URL}/clients/catalogitem/?store__id__exact={store.pk}')
 
 
 def _cell(v):
@@ -402,7 +401,7 @@ def _match_category(meta, raw):
 
 @_seller_required
 def seller_products_import(request):
-    """📄 رفع شيت منتجات — كل صف منتج «مستني مراجعة»."""
+    """📄 رفع شيت منتجات — كل صف منتج بيظهر على طول."""
     store = request.seller.store
     meta = SECTORS[store.sector]
     errors = []
@@ -431,7 +430,7 @@ def seller_products_import(request):
                         custom_category=custom, icon=meta['categories'].get(cat, ('', 'fa-box'))[1], min_qty=_pick(row, 'min_qty')[:60], price_from=price,
                         car_make=_pick(row, 'car_make')[:60], car_models=_pick(row, 'car_models')[:200],
                         part_number=_pick(row, 'part_number')[:80],
-                        is_active=False, pending_review=True,
+                        is_active=True, pending_review=False,
                     ))
                     if len(new) >= IMPORT_MAX_ROWS:
                         break
@@ -445,7 +444,7 @@ def seller_products_import(request):
                     errors.append(_('مالقيناش منتجات في الشيت — لازم عمود «اسم المنتج».'))
                 else:
                     CatalogItem.objects.bulk_create(new)
-                    _notify_owner_review(store, len(new))
+                    _notify_owner_new_items(store)
                     return redirect(f'/marketplace/seller/products/?imported={len(new)}')
     return render(request, 'clients/marketplace/seller/import.html', _ctx(
         request, 'products', errors=errors, categories=_categories(meta), max_rows=IMPORT_MAX_ROWS))

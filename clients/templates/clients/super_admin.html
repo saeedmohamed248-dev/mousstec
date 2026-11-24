@@ -295,16 +295,10 @@
                 <span class="min-w-0"><span class="num block">{{ catalog_new }}</span><span class="lbl block">{% trans "طلبات أسعار جديدة من الكتالوج" %}</span></span>
             </a>
             {% endif %}
-            {% if sellers_pending %}
-            <a href="/{{ admin_url }}/clients/marketseller/?store__is_active__exact=0" class="sa-alert hot">
+            {% if sellers_new %}
+            <a href="/{{ admin_url }}/clients/marketseller/" class="sa-alert">
                 <span class="sa-ico sm tone-violet"><i class="fas fa-store"></i></span>
-                <span class="min-w-0"><span class="num block">{{ sellers_pending }}</span><span class="lbl block">{% trans "متاجر بائعين جديدة مستنية موافقتك" %}</span></span>
-            </a>
-            {% endif %}
-            {% if seller_items_pending %}
-            <a href="/{{ admin_url }}/clients/catalogitem/?pending_review__exact=1" class="sa-alert">
-                <span class="sa-ico sm tone-amber"><i class="fas fa-box-open"></i></span>
-                <span class="min-w-0"><span class="num block">{{ seller_items_pending }}</span><span class="lbl block">{% trans "منتجات بائعين مستنية مراجعة" %}</span></span>
+                <span class="min-w-0"><span class="num block">{{ sellers_new }}</span><span class="lbl block">{% trans "متاجر بائعين جديدة في آخر ٧ أيام — ظاهرة للعملاء، راجعها" %}</span></span>
             </a>
             {% endif %}
             {% if support_unseen %}

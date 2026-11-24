@@ -2,12 +2,11 @@
 {% block content %}
 {% if request.GET.reset %}<div class="notice ok"><i class="fas fa-circle-check"></i> {% trans "اتغيّرت كلمة السر ودخلت على حسابك." %}</div>{% endif %}
 {% if not seller.email %}<div class="notice warn">{% trans "ضيف إيميل المتجر من «بيانات المتجر» — عليه بيوصلك كود تغيير كلمة السر لو نسيتها." %}</div>{% endif %}
-{% if welcome %}<div class="notice ok"><i class="fas fa-circle-check"></i> {% trans "اتسجّلت! ابدأ ضيف منتجاتك — كل منتج بيظهر للعملاء بعد مراجعة سريعة من فريق Mouss Tec." %}</div>{% endif %}
+{% if welcome %}<div class="notice ok"><i class="fas fa-circle-check"></i> {% trans "اتسجّلت ومتجرك ظاهر للعملاء! ابدأ ضيف منتجاتك — بتظهر على طول." %}</div>{% endif %}
 <section class="hero"><h1>{% blocktrans with n=seller.owner_name %}أهلاً {{ n }}{% endblocktrans %}</h1>
 <p>{% trans "من هنا بتعرض منتجاتك وبتتابع العملاء اللي طلبوا منك." %}</p></section>
 <div class="grid">
     <a class="card stat" href="/marketplace/seller/products/" style="text-decoration:none"><div class="n">{{ stats.live }}</div><div class="l">{% trans "منتج ظاهر للعملاء" %}</div></a>
-    <a class="card stat" href="/marketplace/seller/products/" style="text-decoration:none"><div class="n">{{ stats.pending }}</div><div class="l">{% trans "منتج مستني مراجعة" %}</div></a>
     <a class="card stat" href="/marketplace/seller/customers/" style="text-decoration:none"><div class="n">{{ stats.quotes_30 }}</div><div class="l">{% trans "طلب سعر في آخر ٣٠ يوم" %}</div></a>
     <a class="card stat" href="/marketplace/seller/requests/" style="text-decoration:none"><div class="n">{{ stats.open_requests }}</div><div class="l">{% trans "طلب مفتوح في السوق تقدر تقدّم عليه" %}</div></a>
     <div class="card stat"><div class="n">{{ stats.accepted }}</div><div class="l">{% trans "عرض اتقبل" %}</div></div>

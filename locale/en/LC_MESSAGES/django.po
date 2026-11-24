@@ -30283,3 +30283,25 @@ msgstr "Print shops and stores registered on the market only"
 
 msgid "الأسعار اليومية والأسعار الشاذة"
 msgstr "Daily prices and outliers"
+
+msgid "متاجر بائعين جديدة في آخر ٧ أيام — ظاهرة للعملاء، راجعها"
+msgstr "New seller stores in the last 7 days — live for customers, review them"
+
+msgid "متجرك متخفي عن العملاء حالياً — كلّم دعم Mouss Tec."
+msgstr "Your store is currently hidden from customers — contact Mouss Tec support."
+
+msgid "اتسجّلت ومتجرك ظاهر للعملاء! ابدأ ضيف منتجاتك — بتظهر على طول."
+msgstr "You're registered and your store is live! Start adding products — they appear right away."
+
+msgid "اتحفظ — والمنتج ظاهر للعملاء."
+msgstr "Saved — the product is live for customers."
+
+#, python-format
+msgid "اترفع %(n)s منتج من الشيت وظهروا للعملاء."
+msgstr "%(n)s products uploaded from the sheet and are now live."
+
+msgid "مخفي من Mouss Tec"
+msgstr "Hidden by Mouss Tec"
+
+msgid "بالصور والوصف وأقل كمية، أو ارفع شيت Excel مرة واحدة — وبتظهر للعملاء على طول."
+msgstr "With photos, descriptions and minimum quantities, or upload one Excel sheet — they go live right away."
