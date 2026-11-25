@@ -30862,3 +30862,6 @@ msgstr "No products found in the file."
 
 msgid "مقدرناش نفهم الملف ده لوحدنا، والمساعد الذكي مش متاح دلوقتي — ارفع شيت فيه عمود «اسم المنتج» أو «البند»، أو ابعت الملف لدعم Mouss Tec."
 msgstr "We couldn't understand this file automatically and the smart assistant isn't available right now — upload a sheet with a “product name” or “item” column, or send the file to Mouss Tec support."
+
+msgid "فرع واحد · خزينة واحدة"
+msgstr "1 branch · 1 treasury"

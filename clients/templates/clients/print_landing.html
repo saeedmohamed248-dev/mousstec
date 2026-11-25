@@ -303,10 +303,10 @@
                 <div class="text-pink-400 font-bold text-sm mb-2">{{ plan.name }}</div>
                 <div class="text-4xl font-black text-white mb-6">{{ plan.price|num:"-2" }} <span class="text-lg text-slate-500">{{ tenant_currency_symbol|default:'ج.م' }}/{% trans "شهر" %}</span></div>
                 <ul class="text-right text-sm text-slate-400 space-y-3 mb-8">
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% blocktrans with b=plan.max_branches t=plan.max_treasuries %}{{ b }} فرع · {{ t }} خزينة{% endblocktrans %}</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% blocktrans with u=plan.max_users %}{{ u }} مستخدم{% endblocktrans %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {# 🐛 [FIX]: «1 branches · 1 treasuries» بالإنجليزي — المفرد ليه جملة لوحده #}{% if plan.max_branches == 1 and plan.max_treasuries == 1 %}{% trans "فرع واحد · خزينة واحدة" %}{% else %}{% blocktrans with b=plan.max_branches t=plan.max_treasuries %}{{ b }} فرع · {{ t }} خزينة{% endblocktrans %}{% endif %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% if plan.max_users == 1 %}{% trans "مستخدم واحد" %}{% else %}{% blocktrans with u=plan.max_users %}{{ u }} مستخدم{% endblocktrans %}{% endif %}</li>
                     {% if plan.ai_quota %}<li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% blocktrans with q=plan.ai_quota %}{{ q }} تصميم AI/شهر{% endblocktrans %}</li>{% endif %}
-                    {% for line in plan.features %}<li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {{ line }}</li>{% empty %}<li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "طلبات طباعة" %}</li>{% endfor %}
+                    {% for line in plan.features %}{% if plan.ai_quota and 'AI/شهر' in line and 'تصم' in line %}{% else %}<li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {{ line }}</li>{% endif %}{% empty %}<li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "طلبات طباعة" %}</li>{% endfor %}
                 </ul>
                 <a href="{% url 'saas_customer_signup' %}?industry=printing" class="block {% if plan.is_popular %}btn-pink text-white{% else %}bg-pink-500/10 border border-pink-500/20 text-pink-400 hover:bg-pink-600 hover:text-white transition{% endif %} font-bold py-3 rounded-xl">{% trans "ابدأ مجانا" %}</a>
             </div>
