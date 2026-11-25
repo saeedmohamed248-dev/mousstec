@@ -9,7 +9,7 @@ name: Print App
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, 'feature/mousstec-print-app']
     paths: ['print_app/**', '.github/workflows/print-app.yml']
 
 concurrency:
