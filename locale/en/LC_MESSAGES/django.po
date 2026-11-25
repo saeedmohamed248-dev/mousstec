@@ -29738,6 +29738,26 @@ msgstr "Full copy with customer data"
 msgid "وقت من غير رد"
 msgstr "Time without reply"
 
+msgid "ده إيميلك انت"
+msgstr "That's your own email"
+
+msgid "موقوف — تقدر ترجّعه من صفحة بياناته"
+msgstr "Deactivated — you can reactivate them from their page"
+
+msgid "اتضاف قبل كده ولسه مافعّلش حسابه — ابعتله رابط الدعوة تاني"
+msgstr "Already added but hasn't activated yet — resend the invite link"
+
+msgid "حسابه شغّال"
+msgstr "Account active"
+
+msgid "ابعتله رابط الدعوة تاني"
+msgstr "Resend invite link"
+
+msgid "افتح بياناته"
+msgstr "Open their details"
+
+msgid "لو ده شخص تاني، اكتب إيميل مختلف تحت."
+msgstr "If this is someone else, enter a different email below."
 # 🏪 بائع السوق
 msgid "سجّل متجرك في السوق"
 msgstr "Register your store on the market"

@@ -238,6 +238,24 @@ def _parse_commission_rate(raw, errors, fallback):
         return fallback
 
 
+def _existing_employee_info(actor, user) -> dict:
+    """بيانات الموظف اللي ماسك الإيميل: اسمه، حالته، وهل المدير يقدر يعدّله."""
+    if user.pk == actor.pk:
+        status, tone = _t('ده إيميلك انت'), 'self'
+    elif not user.is_active:
+        status, tone = _t('موقوف — تقدر ترجّعه من صفحة بياناته'), 'off'
+    elif not user.has_usable_password():
+        status, tone = _t('اتضاف قبل كده ولسه مافعّلش حسابه — ابعتله رابط الدعوة تاني'), 'pending'
+    else:
+        status, tone = _t('حسابه شغّال'), 'active'
+    prof = getattr(user, 'employee_profile', None)
+    return {
+        'user': user, 'name': user.get_full_name() or user.username, 'status': status, 'tone': tone,
+        'role': prof.get_role_display() if prof and hasattr(prof, 'get_role_display') else '',
+        'can_manage': user.pk != actor.pk and _can_manage(actor, user),
+    }
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
@@ -263,8 +281,11 @@ def add_employee(request):
             errors.append('اكتب إيميل صحيح.')
         if role not in valid_roles:
             errors.append('اختر دوراً وظيفياً صحيحاً.')
-        if email and (User.objects.filter(email__iexact=email).exists()
-                      or User.objects.filter(username__iexact=email).exists()):
+        existing = None
+        if email:
+            existing = (User.objects.filter(email__iexact=email).first()
+                        or User.objects.filter(username__iexact=email).first())
+        if existing:
             errors.append('فيه موظف مسجّل بنفس الإيميل ده بالفعل.')
         try:
             max_discount = Decimal(max_discount_raw or '0')
@@ -277,6 +298,11 @@ def add_employee(request):
             request.POST.get('commission_rate_pct'), errors, Decimal('0'))
 
         if errors:
+            # 🐛 [FIX]: الرسالة كانت بتقول «موجود» وبس — المدير مايعرفش مين ولا يعمل إيه
+            #    (غالباً الموظف اتضاف قبل كده ولسه مافعّلش حسابه). بنعرض الموظف الموجود وحالته
+            #    وزرار يفتح بياناته / يبعتله رابط الدعوة تاني.
+            if existing:
+                ctx['existing'] = _existing_employee_info(request.user, existing)
             ctx.update({'errors': errors, 'form': request.POST})
             return render(request, 'inventory/add_employee.html', ctx)
 
@@ -446,7 +472,6 @@ def edit_employee(request, user_id):
         prof.save()
 
         # 🏢 صلاحيات الفروع الإضافية: لكل فرع select قيمته '', 'view', أو 'edit'
-        from .models import BranchAccess
         _sync_branch_access(prof, request.POST, branches)
 
         return render(request, 'inventory/edit_employee.html',
