@@ -1,10 +1,11 @@
-{% load i18n %}
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{# 🐛 [FIX]: الصفحة كانت RTL دايماً — بالإنجليزي الأرقام كانت بتتلخبط («request a 936 quote») #}
+<html lang="{{ LANGUAGE_CODE|default:'ar' }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحتي | {{ sector_ui.label }} — Mouss Tec</title>
+    <title>{% trans "لوحتي" %} | {{ sector_ui.label }} — Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <link href="/static/vendor/bootstrap/bootstrap.rtl.min.css" rel="stylesheet">
@@ -51,6 +52,9 @@
             display:flex; align-items:center; justify-content:center; color:#fff; font-size:1rem;
             box-shadow: 0 6px 20px {{ sector_ui.color }}55;
         }
+        /* 🐛 [FIX]: اسم السوق كان بيتكسر على ٣ سطور في الموبايل */
+        .brand .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
+        @media (max-width: 480px) { .brand .name { font-size: 1rem; } }
         .brand .name { background: linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
         .topbar-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
         .sector-pill {
@@ -644,7 +648,7 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">الميزانية القصوى (اختياري)</label>
-                    <input type="number" class="form-control" name="max_budget" placeholder="مخفي عن التجار" dir="ltr">
+                    <input type="number" class="form-control" name="max_budget" placeholder="{% trans 'مخفي عن التجار' %}" dir="ltr">
                 </div>
             </div>
             <div class="mb-3">

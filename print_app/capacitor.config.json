@@ -4,14 +4,28 @@
   "webDir": "www",
   "backgroundColor": "#FFF7ED",
   "server": {
-    "url": "https://mousstec.com/marketplace/print-market/",
+    "url": "https://mousstec.com/marketplace/catalog/printing/",
     "androidScheme": "https",
-    "allowNavigation": ["mousstec.com", "*.mousstec.com"],
+    "allowNavigation": [
+      "mousstec.com",
+      "*.mousstec.com"
+    ],
     "errorPath": "offline.html"
   },
-  "android": { "allowMixedContent": false },
+  "android": {
+    "allowMixedContent": false
+  },
   "plugins": {
-    "SplashScreen": { "launchShowDuration": 1200, "launchAutoHide": true, "backgroundColor": "#FFF7ED", "showSpinner": false },
-    "StatusBar": { "backgroundColor": "#E8590C", "style": "DARK" }
-  }
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "launchAutoHide": true,
+      "backgroundColor": "#FFF7ED",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "backgroundColor": "#E8590C",
+      "style": "DARK"
+    }
+  },
+  "appendUserAgent": "MousstecPrintApp"
 }

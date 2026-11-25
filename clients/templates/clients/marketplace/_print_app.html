@@ -1,0 +1,8 @@
+{# 🖨️ تطبيق Mousstec Print: بيفتح الكتالوج — بنخفي لينكات قطع الغيار والحسابات جوه التطبيق (UA فيه MousstecPrintApp) #}
+<script>if((navigator.userAgent||'').indexOf('MousstecPrintApp')>-1){document.documentElement.classList.add('in-print-app');}</script>
+<style>
+.in-print-app [data-app-hide]{display:none!important}
+/* 🐛 [FIX]: اسم السوق في الهيدر كان بيتكسر على ٤ سطور في الموبايل */
+header.top .brand{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62vw}
+@media (max-width:480px){header.top .brand{font-size:1rem}}
+</style>
