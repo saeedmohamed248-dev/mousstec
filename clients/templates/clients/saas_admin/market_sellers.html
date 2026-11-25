@@ -1,0 +1,91 @@
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% trans "بائعين السوق" %} — Mouss Tec Super Admin</title>
+    {% include "clients/saas_admin/_ms_style.html" %}
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/superadmin/">{% trans "لوحة المشرف الأعلى" %}</a> / {% trans "بائعين السوق" %}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;justify-content:space-between">
+        <div><h1><i class="fas fa-store"></i> {% trans "بائعين السوق" %}</h1>
+            <div class="sub">{% trans "المطابع والمحلات اللي بتعرض في السوق من غير برنامج الإدارة — كل بائع وأرقامه وتحكم كامل فيه." %}</div></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <a class="btn btn-ghost btn-sm" href="{% url 'catalog_requests_admin' %}"><i class="fas fa-tags"></i> {% trans "طلبات الأسعار" %}</a>
+            <a class="btn btn-ghost btn-sm" href="/marketplace/prices/" target="_blank" rel="noopener"><i class="fas fa-chart-line"></i> {% trans "مؤشر الأسعار" %}</a>
+            <a class="btn btn-ghost btn-sm" href="/marketplace/seller/join/" target="_blank" rel="noopener"><i class="fas fa-user-plus"></i> {% trans "صفحة التسجيل" %}</a>
+        </div>
+    </div>
+    {% for m in messages %}<div class="flash {{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <div class="kpis">
+        <div class="kpi"><div class="n">{{ kpis.total }}</div><div class="l">{% trans "بائع مسجّل" %}</div></div>
+        <div class="kpi"><div class="n">{{ kpis.live }}</div><div class="l">{% trans "متجر ظاهر للعملاء" %}</div></div>
+        <div class="kpi"><div class="n">{{ kpis.new7 }}</div><div class="l">{% trans "جديد في آخر ٧ أيام" %}</div></div>
+        <div class="kpi"><div class="n">{{ kpis.items }}</div><div class="l">{% trans "منتج ظاهر من البائعين" %}</div></div>
+        <div class="kpi"><div class="n">{{ kpis.quotes30 }}</div><div class="l">{% trans "طلب سعر على منتجاتهم (٣٠ يوم)" %}</div></div>
+        <div class="kpi"><div class="n">{{ kpis.won }}</div><div class="l">{% trans "عرض اتقبل في السوق المفتوح" %}</div></div>
+        <div class="kpi"><div class="n">{{ kpis.priced_today }}</div><div class="l">{% trans "سعّر النهارده في البورصة" %}</div></div>
+        <div class="kpi"><div class="n" style="{% if kpis.blocked %}color:var(--red){% endif %}">{{ kpis.blocked }}</div><div class="l">{% trans "حساب موقوف" %}</div></div>
+    </div>
+
+    <form method="get" class="toolbar">
+        <input type="search" name="q" value="{{ f.q }}" placeholder="{% trans 'اسم، موبايل، إيميل، عنوان…' %}" aria-label="{% trans 'بحث' %}">
+        <select class="f" name="sector" aria-label="{% trans 'النشاط' %}"><option value="">{% trans "كل الأنشطة" %}</option>
+            <option value="printing" {% if f.sector == 'printing' %}selected{% endif %}>{% trans "طباعة وتصميم" %}</option>
+            <option value="automotive" {% if f.sector == 'automotive' %}selected{% endif %}>{% trans "قطع غيار سيارات" %}</option></select>
+        <select class="f" name="gov" aria-label="{% trans 'المحافظة' %}"><option value="">{% trans "كل المحافظات" %}</option>{% for k, label in governorates %}<option value="{{ k }}" {% if f.gov == k %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <select class="f" name="spec" aria-label="{% trans 'التخصص' %}">{% for k, label in spec_opts %}<option value="{{ k }}" {% if f.spec == k %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <select class="f" name="sort" aria-label="{% trans 'الترتيب' %}">{% for k, label in sorts %}<option value="{{ k }}" {% if f.sort == k %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <input type="hidden" name="status" value="{{ f.status }}">
+        <button class="btn btn-navy btn-sm"><i class="fas fa-filter"></i> {% trans "فلتر" %}</button>
+        {% if f.q or f.sector or f.gov or f.spec or f.status %}<a class="btn btn-ghost btn-sm" href="?">{% trans "مسح" %}</a>{% endif %}
+    </form>
+    <div class="tabs">
+        <a href="?{% if f.q %}q={{ f.q|urlencode }}&{% endif %}{% if f.sector %}sector={{ f.sector }}&{% endif %}{% if f.gov %}gov={{ f.gov }}&{% endif %}{% if f.spec %}spec={{ f.spec }}{% endif %}" class="{% if not f.status %}on{% endif %}">{% trans "الكل" %}</a>
+        {% for k, label in status_filters %}<a href="?status={{ k }}{% if f.q %}&q={{ f.q|urlencode }}{% endif %}{% if f.sector %}&sector={{ f.sector }}{% endif %}{% if f.gov %}&gov={{ f.gov }}{% endif %}{% if f.spec %}&spec={{ f.spec }}{% endif %}" class="{% if f.status == k %}on{% endif %}">{{ label }}</a>{% endfor %}
+    </div>
+
+    <form method="post" action="{% url 'market_sellers_bulk' %}" id="bulk">{% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <div class="card" style="padding:0;overflow-x:auto">
+        <table class="t">
+            <tr><th style="width:28px"><input type="checkbox" aria-label="{% trans 'اختيار الكل' %}" onclick="document.querySelectorAll('.pick').forEach(c=>c.checked=this.checked)"></th>
+                <th>{% trans "المتجر" %}</th><th class="hide-sm">{% trans "التخصص" %}</th><th>{% trans "الحالة" %}</th>
+                <th>{% trans "منتجات" %}</th><th class="hide-sm">{% trans "طلبات ٣٠ يوم" %}</th><th class="hide-sm">{% trans "عروض / اتقبل" %}</th>
+                <th class="hide-sm">{% trans "البروفايل" %}</th><th class="hide-sm">{% trans "آخر دخول" %}</th><th></th></tr>
+            {% for s in page %}
+            <tr>
+                <td><input type="checkbox" class="pick" name="ids" value="{{ s.pk }}" aria-label="{{ s.store.name }}"></td>
+                <td><a href="{% url 'market_seller_detail' s.pk %}" style="font-weight:800;text-decoration:none;color:var(--navy)">{{ s.store.name }}</a>
+                    <div class="muted" style="font-size:12px">{{ s.owner_name }} · <a href="tel:{{ s.phone }}"><span dir="ltr">{{ s.local_phone }}</span></a>{% if s.gov_label %} · {{ s.gov_label }}{% endif %}</div>
+                    <div class="muted" style="font-size:11.5px">{{ s.store.get_sector_display }} · {% trans "سجّل" %} <span dir="ltr" style="white-space:nowrap">{{ s.created_at|date:"Y-m-d" }}</span></div></td>
+                <td class="hide-sm"><div class="chips">{% for k, label, icon in s.spec_items %}<span class="pill">{{ label }}</span>{% empty %}<span class="pill warn">{% trans "مش محدد" %}</span>{% endfor %}</div></td>
+                <td>{% if s.is_blocked %}<span class="pill bad">{% trans "موقوف" %}</span>{% elif s.store.is_active %}<span class="pill live">{% trans "ظاهر" %}</span>{% else %}<span class="pill off">{% trans "متخفي" %}</span>{% endif %}
+                    {% if s.upgraded_to_id %}<span class="pill new">{% trans "اترقّى" %}</span>{% endif %}</td>
+                <td>{{ s.n_items }}{% if s.n_hidden %} <span class="muted" style="font-size:11px">(+{{ s.n_hidden }} {% trans "مخفي" %})</span>{% endif %}</td>
+                <td class="hide-sm">{{ s.n_quotes }}</td>
+                <td class="hide-sm">{{ s.n_offers }} / {{ s.n_won }}</td>
+                <td class="hide-sm"><div class="meter" title="{{ s.profile.pct }}%"><span style="width:{{ s.profile.pct }}%"></span></div><span class="muted" style="font-size:11px">{{ s.profile.pct }}%</span></td>
+                <td class="hide-sm" style="white-space:nowrap">{% if s.last_login_at %}<span dir="ltr">{{ s.last_login_at|date:"Y-m-d" }}</span>{% else %}—{% endif %}</td>
+                <td style="white-space:nowrap"><a class="btn btn-ghost btn-sm" href="{% url 'market_seller_detail' s.pk %}">{% trans "إدارة" %}</a>
+                    {% if s.wa %}<a class="btn btn-green btn-sm" href="https://wa.me/{{ s.wa }}" target="_blank" rel="noopener" aria-label="{% trans 'واتساب' %}"><i class="fab fa-whatsapp"></i></a>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="10" class="muted" style="padding:24px;text-align:center">{% trans "مفيش بائعين بالفلاتر دي." %}</td></tr>
+            {% endfor %}
+        </table>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <span class="muted" style="font-size:12px">{% trans "للمحدّدين:" %}</span>
+        <button class="btn btn-ghost btn-sm" name="action" value="show"><i class="fas fa-eye"></i> {% trans "إظهار المتجر" %}</button>
+        <button class="btn btn-ghost btn-sm" name="action" value="hide"><i class="fas fa-eye-slash"></i> {% trans "إخفاء المتجر" %}</button>
+        <button class="btn btn-ghost btn-sm" name="action" value="unblock"><i class="fas fa-unlock"></i> {% trans "تفعيل الحساب" %}</button>
+        <button class="btn btn-red btn-sm" name="action" value="block" onclick="return confirm('{% trans "إيقاف الحسابات المحدّدة؟ هيخرجوا ومتاجرهم هتتخفى." %}')"><i class="fas fa-ban"></i> {% trans "إيقاف" %}</button>
+    </div>
+    </form>
+    {% if page.has_other_pages %}<div style="display:flex;gap:6px;margin-top:12px">{% if page.has_previous %}<a class="btn btn-ghost btn-sm" href="?{{ keep }}&sort={{ f.sort }}&page={{ page.previous_page_number }}">{% trans "السابق" %}</a>{% endif %}<span class="muted" style="align-self:center;font-size:12px">{{ page.number }} / {{ page.paginator.num_pages }}</span>{% if page.has_next %}<a class="btn btn-ghost btn-sm" href="?{{ keep }}&sort={{ f.sort }}&page={{ page.next_page_number }}">{% trans "التالي" %}</a>{% endif %}</div>{% endif %}
+</div>
+</body>
+</html>

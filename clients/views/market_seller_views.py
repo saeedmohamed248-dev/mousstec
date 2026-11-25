@@ -12,13 +12,11 @@
 from __future__ import annotations
 
 import logging
-import os
 import uuid
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from django import forms
-from django.conf import settings
 from django.core.cache import cache
 from django.db import IntegrityError, transaction
 from django.db.models import Count, F
@@ -46,7 +44,6 @@ logger = logging.getLogger('mouss_tec_core')
 
 SIGNUPS_PER_IP_HOUR = 5
 LOGIN_FAILS_PER_PHONE = 10
-IMPORT_MAX_ROWS = 300
 IMAGE_MAX = 8 * 1024 * 1024
 # حالات طلب السعر اللي البائع يقدر يحطها (نفس حالات الطلب في الكتالوج)
 SELLER_STATUSES = ('new', 'contacted', 'quoted', 'done', 'cancelled')
@@ -103,14 +100,66 @@ def _ctx(request, active, **extra):
 
 # ─────────────────────────── التسجيل والدخول ───────────────────────────
 
-class SellerSignupForm(forms.Form):
+def _gov_choices():
+    from clients.services.price_board import gov_choices
+    return [('', '—')] + gov_choices()
+
+
+class SellerProfileFields(forms.Form):
+    """🧭 حقول بروفايل البائع المشتركة بين التسجيل وصفحة «بيانات المتجر».
+
+    التخصصات والإمكانيات بتتعرض لكل قطاع (specialties_printing …) والـ clean بياخد بتاعة القطاع المختار.
+    """
+    governorate = forms.ChoiceField(label=_l('المحافظة'))
+    address = forms.CharField(max_length=250, label=_l('العنوان'),
+                              help_text=_l('المنطقة والشارع — بيساعد العميل يختار الأقرب ليه.'))
+    whatsapp = forms.CharField(max_length=30, required=False, label=_l('رقم واتساب (لو غير الموبايل)'))
+    years_in_business = forms.IntegerField(min_value=0, max_value=80, required=False, label=_l('سنين الخبرة'))
+
+    def __init__(self, *args, sectors=('printing', 'automotive'), **kwargs):
+        super().__init__(*args, **kwargs)
+        from clients.services import seller_profile as sp
+        self.fields['governorate'].choices = _gov_choices()
+        self.sectors = sectors
+        for sec in sectors:
+            self.fields[f'specialties_{sec}'] = forms.MultipleChoiceField(
+                choices=sp.specialty_choices(sec), required=False, widget=forms.CheckboxSelectMultiple,
+                label=_l('بتشتغل في إيه؟ (اختار كل اللي بتعمله)'))
+            self.fields[f'capabilities_{sec}'] = forms.MultipleChoiceField(
+                choices=sp.capability_choices(sec), required=False, widget=forms.CheckboxSelectMultiple,
+                label=_l('إمكانياتك وخدماتك') if sec == 'automotive' else _l('طرق الطباعة والخدمات'))
+
+    def clean_whatsapp(self):
+        raw = (self.cleaned_data.get('whatsapp') or '').strip()
+        if not raw:
+            return ''
+        v = svc.normalize_phone(raw)
+        if not v:
+            raise forms.ValidationError(_('رقم الواتساب مش مظبوط — اكتبه زي 01012345678.'))
+        return v
+
+    def profile_for(self, sector):
+        """القيم النهائية للقطاع (بعد is_valid)."""
+        d = self.cleaned_data
+        return {
+            'specialties': list(d.get(f'specialties_{sector}') or []),
+            'capabilities': list(d.get(f'capabilities_{sector}') or []),
+            'governorate': d.get('governorate') or '', 'address': d.get('address') or '',
+            'whatsapp': d.get('whatsapp') or '', 'years_in_business': d.get('years_in_business'),
+        }
+
+    def check_specialties(self, sector):
+        if not self.cleaned_data.get(f'specialties_{sector}'):
+            self.add_error(f'specialties_{sector}', _('اختار تخصص واحد على الأقل — العملاء بيدوّروا بيه.'))
+
+
+class SellerSignupForm(SellerProfileFields):
     store_name = forms.CharField(max_length=120, label=_l('اسم المطبعة أو المحل'))
     owner_name = forms.CharField(max_length=120, label=_l('اسم المسؤول'))
     phone = forms.CharField(max_length=30, label=_l('رقم الموبايل'))
     password = forms.CharField(min_length=6, max_length=128, widget=forms.PasswordInput, label=_l('كلمة السر'))
     sector = forms.ChoiceField(choices=(('printing', _l('مطبعة / تصميم')), ('automotive', _l('قطع غيار سيارات'))),
                                label=_l('النشاط'))
-    city = forms.CharField(max_length=60, label=_l('المحافظة / المدينة'))
     # 📧 إجباري: عليه بيوصل كود «نسيت كلمة السر» وإشعارات الطلبات
     email = forms.EmailField(label=_l('إيميل المتجر'), help_text=_l('عليه بيوصلك كود تغيير كلمة السر لو نسيتها.'))
     tagline = forms.CharField(max_length=200, required=False, label=_l('جملة عن شغلك (اختياري)'))
@@ -129,6 +178,12 @@ class SellerSignupForm(forms.Form):
             raise forms.ValidationError(_('الرقم ده عنده حساب بائع — ادخل بيه.'))
         return phone
 
+    def clean(self):
+        data = super().clean()
+        if data.get('sector') in SECTORS:
+            self.check_specialties(data['sector'])
+        return data
+
 
 def seller_join(request):
     """📝 تسجيل بائع جديد — متجر في السوق بس، من غير برنامج الإدارة."""
@@ -145,27 +200,35 @@ def seller_join(request):
             try:
                 with transaction.atomic():
                     meta = SECTORS[d['sector']]
+                    from clients.services.price_board import gov_label
+                    profile = form.profile_for(d['sector'])
                     store = CatalogStore.objects.create(
                         sector=d['sector'], name=d['store_name'], slug=_unique_slug(d['store_name'], d['sector']),
-                        tagline=d['tagline'], city=d['city'], icon=meta['icon'], color=meta['color'],
+                        tagline=d['tagline'], city=str(gov_label(profile['governorate']))[:60],
+                        icon=meta['icon'], color=meta['color'],
                         # 🐛 [FIX]: كان مخفي لحد موافقة صاحب المنصة ⇒ المطبعة تسجّل وتستنى. دلوقتي ظاهر على طول
                         is_active=True,
                         sort=1000,
                     )
                     seller = MarketSeller(store=store, owner_name=d['owner_name'], phone=d['phone'],
-                                          email=d['email'].strip().lower(), last_login_at=timezone.now())
+                                          email=d['email'].strip().lower(), last_login_at=timezone.now(),
+                                          **profile)
                     seller.set_password(d['password'])
                     seller.save()
             except IntegrityError:
                 form.add_error('phone', _('الرقم ده عنده حساب بائع — ادخل بيه.'))
             else:
                 from clients.services.owner_notify import notify_owner
+                from clients.services.seller_profile import specialty_items
+                specs = '، '.join(str(lbl) for _k, lbl, _i in specialty_items(store.sector, seller.specialties))
                 notify_owner(f'بائع جديد في السوق ({store.get_sector_display()})',
-                             f'{store.name} — {seller.owner_name} — {seller.phone} — {store.city}\n'
+                             f'{store.name} — {seller.owner_name} — {seller.phone} — {store.city} — {seller.address}\n'
+                             f'التخصصات: {specs}\n'
                              'المتجر ظاهر للعملاء دلوقتي — لو فيه حاجة مش مظبوطة اخفيه من الأدمن.',
-                             f'/{settings.ADMIN_URL}/clients/marketseller/{seller.pk}/change/')
+                             f'/superadmin/market/sellers/{seller.pk}/')
                 return svc.login_response(redirect('/marketplace/seller/?welcome=1'), seller)
-    return render(request, 'clients/marketplace/seller/join.html', {'form': form, 'sector': initial_sector})
+    return render(request, 'clients/marketplace/seller/join.html', {
+        'form': form, 'sector': (request.POST.get('sector') if request.POST.get('sector') in SECTORS else initial_sector)})
 
 
 def seller_login(request):
@@ -231,8 +294,9 @@ def seller_dashboard(request):
         stats['priced_today'] = pb.submitted_today(pb.Provider('seller', request.seller))
     recent = (CatalogQuoteRequest.objects.filter(item__store=store).select_related('item')
               .order_by('-created_at')[:5])
+    from clients.services.seller_profile import completeness
     return render(request, 'clients/marketplace/seller/dashboard.html', _ctx(
-        request, 'home', stats=stats, recent=recent, welcome=request.GET.get('welcome') == '1'))
+        request, 'home', stats=stats, recent=recent, profile=completeness(request.seller), welcome=request.GET.get('welcome') == '1'))
 
 
 # ─────────────────────────── منتجاتي ───────────────────────────
@@ -337,117 +401,84 @@ def _notify_owner_new_items(store):
     from clients.services.owner_notify import notify_owner
     notify_owner(f'منتجات جديدة من بائع — {store.name}',
                  f'{store.name} ضاف/عدّل منتجات وظهرت للعملاء — لو فيه حاجة مش مظبوطة اخفيها من الأدمن.',
-                 f'/{settings.ADMIN_URL}/clients/catalogitem/?store__id__exact={store.pk}')
+                 f'/superadmin/market/sellers/{store.seller.pk}/?tab=products')
 
 
-def _cell(v):
-    return ' '.join(str(v).split()) if v is not None else ''
+# ─────────────── 🤖 المساعد الذكي للاستيراد (أي ملف ⇒ مراجعة ⇒ حفظ) ───────────────
 
-
-def _read_sheet(upload):
-    """صفوف الشيت (xlsx أو csv) كـ dicts بأسماء الأعمدة (أول صف)."""
-    ext = os.path.splitext(upload.name or '')[1].lower()
-    if ext == '.xlsx':
-        from openpyxl import load_workbook
-        ws = load_workbook(upload, read_only=True, data_only=True).active
-        rows = ws.iter_rows(values_only=True)
-    elif ext == '.csv':
-        import csv
-        import io
-        text = upload.read().decode('utf-8-sig', errors='replace')
-        rows = csv.reader(io.StringIO(text))
-    else:
-        raise ValueError(_('ابعت الشيت Excel (.xlsx) أو CSV.'))
-    header = None
-    for row in rows:
-        cells = [_cell(c) for c in row]
-        if header is None:
-            if any(cells):
-                header = [c.lower() for c in cells]
-            continue
-        if any(cells):
-            yield dict(zip(header, cells))
-
-
-# أسماء الأعمدة المقبولة (عربي أو إنجليزي)
-_COLS = {
-    'title': ('اسم المنتج', 'المنتج', 'الاسم', 'title', 'name', 'product'),
-    'description': ('الوصف', 'description', 'details'),
-    'category': ('القسم', 'category'),
-    'min_qty': ('أقل كمية', 'اقل كمية', 'الكمية', 'min qty', 'min_qty', 'minimum'),
-    'price_from': ('السعر', 'السعر يبدأ من', 'price', 'price_from'),
-    'car_make': ('الماركة', 'make', 'car_make'),
-    'car_models': ('الموديلات', 'models', 'car_models'),
-    'part_number': ('رقم القطعة', 'part number', 'part_number'),
-}
-
-
-def _pick(row, key):
-    for name in _COLS[key]:
-        if row.get(name.lower()):
-            return row[name.lower()]
-    return ''
-
-
-def _match_category(meta, raw):
-    """(القسم، النوع لو أخرى). قسم مش معروف ⇒ «أخرى» واسمه زي ما اتكتب (مش أول قسم بالغلط)."""
-    clean = ' '.join((raw or '').split())
-    low = clean.lower()
-    for k, (ar, _icon) in meta['categories'].items():
-        if low in (k, ar.lower(), meta['categories_en'].get(k, '').lower()):
-            return k, ''
-    return OTHER_CATEGORY, clean[:80]
+def _import_key(seller, token):
+    return f'seller_import:{seller.pk}:{token}'
 
 
 @_seller_required
 def seller_products_import(request):
-    """📄 رفع شيت منتجات — كل صف منتج بيظهر على طول."""
-    store = request.seller.store
+    """🤖 ارفع أي ملف (Excel / CSV / PDF / صورة) ⇒ المساعد يطلّع المنتجات ⇒ تراجعها ⇒ تتحفظ.
+
+    🐛 [FIX]: كان بيقبل شيت بعناوين محددة في أول صف بس ⇒ قوائم الأسعار الحقيقية كانت بتترفض.
+    """
+    from clients.services import smart_import as si
+    seller = request.seller
+    store = seller.store
     meta = SECTORS[store.sector]
+    cat_choices = [(k, label) for k, label, _i in _categories(meta)] + [(OTHER_CATEGORY, _('أخرى'))]
+    token = request.GET.get('review') or request.POST.get('token') or ''
     errors = []
-    if request.method == 'POST':
+
+    if request.method == 'POST' and request.POST.get('action') == 'confirm':
+        data = cache.get(_import_key(seller, token))
+        if not data:
+            errors.append(_('المراجعة دي خلصت — ارفع الملف تاني.'))
+        else:
+            picked = {int(i) for i in request.POST.getlist('pick') if i.isdigit()}
+            new = []
+            for i, r in enumerate(data['rows']):
+                if i not in picked:
+                    continue
+                cat = request.POST.get(f'cat_{i}', r['category'])
+                if cat not in dict(cat_choices):
+                    cat = r['category']
+                custom = (r['custom_category'] or r.get('section') or r['title'])[:80] if cat == OTHER_CATEGORY else ''
+                new.append(CatalogItem(
+                    store=store, title=r['title'], description=r['description'], category=cat,
+                    custom_category=custom, icon=meta['categories'].get(cat, ('', 'fa-box'))[1],
+                    min_qty=r['min_qty'], price_from=r['price'], is_active=True, pending_review=False))
+            if new:
+                CatalogItem.objects.bulk_create(new)
+                cache.delete(_import_key(seller, token))
+                _notify_owner_new_items(store)
+                return redirect(f'/marketplace/seller/products/?imported={len(new)}')
+            errors.append(_('اختار منتج واحد على الأقل.'))
+
+    elif request.method == 'POST':
+        from erp_core.client_ip import client_ip
         upload = request.FILES.get('sheet')
         if not upload:
-            errors.append(_('اختار ملف الشيت.'))
-        elif upload.size > 5 * 1024 * 1024:
-            errors.append(_('الشيت أكبر من ٥ ميجا.'))
+            errors.append(_('اختار الملف.'))
+        elif _hit(f'seller_import:{seller.pk}', 20, 3600) or _hit(f'seller_import_ip:{client_ip(request)}', 40, 3600):
+            errors.append(_('رفعت ملفات كتير — جرّب بعد ساعة.'))
         else:
             try:
-                new = []
-                for row in _read_sheet(upload):
-                    title = _pick(row, 'title')[:200]
-                    if not title:
-                        continue
-                    try:
-                        price = Decimal(_pick(row, 'price_from').replace(',', '')) if _pick(row, 'price_from') else None
-                        if price is not None and (not price.is_finite() or price < 0):
-                            price = None
-                    except InvalidOperation:
-                        price = None
-                    cat, custom = _match_category(meta, _pick(row, 'category'))
-                    new.append(CatalogItem(
-                        store=store, title=title, description=_pick(row, 'description')[:3000], category=cat,
-                        custom_category=custom, icon=meta['categories'].get(cat, ('', 'fa-box'))[1], min_qty=_pick(row, 'min_qty')[:60], price_from=price,
-                        car_make=_pick(row, 'car_make')[:60], car_models=_pick(row, 'car_models')[:200],
-                        part_number=_pick(row, 'part_number')[:80],
-                        is_active=True, pending_review=False,
-                    ))
-                    if len(new) >= IMPORT_MAX_ROWS:
-                        break
-            except ValueError as e:
+                rows, how = si.read_any(upload, store.sector)
+            except si.ImportFailed as e:
                 errors.append(str(e))
-            except Exception:  # noqa: BLE001 — ملف بايظ
-                logger.exception('[SELLER] sheet import failed for store %s', store.pk)
-                errors.append(_('مقدرناش نقرا الشيت — اتأكد إنه Excel أو CSV وأول صف فيه أسماء الأعمدة.'))
             else:
-                if not new:
-                    errors.append(_('مالقيناش منتجات في الشيت — لازم عمود «اسم المنتج».'))
-                else:
-                    CatalogItem.objects.bulk_create(new)
-                    _notify_owner_new_items(store)
-                    return redirect(f'/marketplace/seller/products/?imported={len(new)}')
+                existing = {si._norm(t) for t in store.items.values_list('title', flat=True)}
+                for r in rows:
+                    r['exists'] = si._norm(r['title']) in existing
+                token = uuid.uuid4().hex
+                cache.set(_import_key(seller, token), {'rows': rows, 'how': how, 'name': upload.name[:120]}, 3600)
+                return redirect(f'/marketplace/seller/products/import/?review={token}')
+
+    data = cache.get(_import_key(seller, token)) if token else None
+    if data:
+        rows = data['rows']
+        return render(request, 'clients/marketplace/seller/import_review.html', _ctx(
+            request, 'products', rows=rows, token=token, how=data['how'], file_name=data['name'],
+            cat_choices=cat_choices, errors=errors, priced=sum(1 for r in rows if r['price']),
+            dupes=sum(1 for r in rows if r.get('exists'))))
     return render(request, 'clients/marketplace/seller/import.html', _ctx(
-        request, 'products', errors=errors, categories=_categories(meta), max_rows=IMPORT_MAX_ROWS))
+        request, 'products', errors=errors, categories=_categories(meta), accept=si.ACCEPT,
+        ai_on=si._ai_available()))
 
 
 # ─────────────────────────── عملائي (طلبات الأسعار على منتجاتي) ───────────────────────────
@@ -596,12 +627,21 @@ def seller_withdraw_offer(request, offer_code):
 class SellerStoreForm(forms.ModelForm):
     class Meta:
         model = CatalogStore
-        fields = ('tagline', 'description', 'city')
+        fields = ('tagline', 'description', 'logo')
+        labels = {'tagline': _l('جملة عن شغلك'), 'description': _l('عن المتجر'), 'logo': _l('اللوجو')}
+
+    def clean_logo(self):
+        img = self.cleaned_data.get('logo')
+        if img and hasattr(img, 'size') and img.size > 3 * 1024 * 1024:
+            raise forms.ValidationError(_('اللوجو أكبر من ٣ ميجا.'))
+        return img
 
 
 class SellerAccountForm(forms.Form):
     owner_name = forms.CharField(max_length=120, label=_l('اسم المسؤول'))
     email = forms.EmailField(label=_l('إيميل المتجر'), help_text=_l('عليه بيوصلك كود تغيير كلمة السر لو نسيتها.'))
+    website = forms.URLField(required=False, label=_l('صفحة فيسبوك / موقع (اختياري)'))
+    working_hours = forms.CharField(max_length=120, required=False, label=_l('مواعيد العمل (اختياري)'))
     new_password = forms.CharField(required=False, min_length=6, max_length=128, widget=forms.PasswordInput,
                                    label=_l('كلمة سر جديدة (سيبها فاضية لو مش هتغيّرها)'))
 
@@ -610,23 +650,46 @@ class SellerAccountForm(forms.Form):
 def seller_store(request):
     seller = request.seller
     store = seller.store
-    sform = SellerStoreForm(request.POST or None, instance=store, prefix='s')
-    aform = SellerAccountForm(request.POST or None, prefix='a',
-                              initial={'owner_name': seller.owner_name, 'email': seller.email})
-    if request.method == 'POST' and sform.is_valid() and aform.is_valid():
-        sform.save()
-        seller.owner_name = aform.cleaned_data['owner_name']
-        seller.email = aform.cleaned_data['email'].strip().lower()
-        fields = ['owner_name', 'email']
-        if aform.cleaned_data['new_password']:
-            seller.set_password(aform.cleaned_data['new_password'])
-            seller.session_token = uuid.uuid4()   # الأجهزة التانية تخرج
-            fields += ['password_hash', 'session_token']
-        seller.save(update_fields=fields)
-        resp = redirect('/marketplace/seller/store/?saved=1')
-        return svc.login_response(resp, seller) if 'session_token' in fields else resp
+    sform = SellerStoreForm(request.POST or None, request.FILES or None, instance=store, prefix='s')
+    pform = SellerProfileFields(request.POST or None, prefix='p', sectors=(store.sector,), initial={
+        'governorate': seller.governorate, 'address': seller.address,
+        'whatsapp': seller_profile_local(seller.whatsapp), 'years_in_business': seller.years_in_business,
+        f'specialties_{store.sector}': seller.specialties, f'capabilities_{store.sector}': seller.capabilities})
+    aform = SellerAccountForm(request.POST or None, prefix='a', initial={
+        'owner_name': seller.owner_name, 'email': seller.email, 'website': seller.website,
+        'working_hours': seller.working_hours})
+    if request.method == 'POST':
+        ok = sform.is_valid() & pform.is_valid() & aform.is_valid()
+        if ok:
+            pform.check_specialties(store.sector)
+            ok = not pform.errors
+        if ok:
+            from clients.services.price_board import gov_label
+            sform.save()
+            prof = pform.profile_for(store.sector)
+            for k, v in prof.items():
+                setattr(seller, k, v)
+            CatalogStore.objects.filter(pk=store.pk).update(city=str(gov_label(prof['governorate']))[:60])
+            a = aform.cleaned_data
+            seller.owner_name = a['owner_name']
+            seller.email = a['email'].strip().lower()
+            seller.website = a['website'] or ''
+            seller.working_hours = a['working_hours'] or ''
+            fields = ['owner_name', 'email', 'website', 'working_hours', *prof.keys()]
+            if a['new_password']:
+                seller.set_password(a['new_password'])
+                seller.session_token = uuid.uuid4()   # الأجهزة التانية تخرج
+                fields += ['password_hash', 'session_token']
+            seller.save(update_fields=fields)
+            resp = redirect('/marketplace/seller/store/?saved=1')
+            return svc.login_response(resp, seller) if 'session_token' in fields else resp
     return render(request, 'clients/marketplace/seller/store.html', _ctx(
-        request, 'store', sform=sform, aform=aform, saved=request.GET.get('saved') == '1'))
+        request, 'store', sform=sform, pform=pform, aform=aform, saved=request.GET.get('saved') == '1',
+        spec_field=pform[f'specialties_{store.sector}'], cap_field=pform[f'capabilities_{store.sector}']))
+
+
+def seller_profile_local(phone):
+    return svc.local_phone(phone) if phone else ''
 
 
 @_seller_required

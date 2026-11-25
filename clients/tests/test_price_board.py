@@ -163,6 +163,26 @@ class PriceBoardTests(_TenantDomainMixin, TestCase):
         self.assertEqual(_login(s).get('/marketplace/seller/prices/')['Location'], '/marketplace/seller/')
 
 
+    def test_upload_price_list_prefills_suggestions(self):
+        """🤖 ملف أسعار ⇒ الأسعار المقترحة بتتملى (مش بتتحفظ) — سعر القطعة بيتحوّل لسعر الـ ١٠٠٠."""
+        s = _seller()
+        c = _login(s)
+        csv_bytes = ('اسم البند,وحدة التسعير,السعر / من\nكارت شخصي وجهين,قطعة,2.2\n'
+                     'بانر فليكس خارجي,متر,65\nحاجة تانية,قطعة,5\n').encode('utf-8')
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        r = c.post('/marketplace/seller/prices/', {'action': 'import',
+                                                   'price_file': SimpleUploadedFile('prices.csv', csv_bytes)})
+        self.assertEqual(r['Location'], '/marketplace/seller/prices/?suggested=1')
+        self.assertFalse(PriceQuote.objects.exists())          # لسه ماتحفظش
+        html = c.get(r['Location']).content.decode()
+        self.assertIn('المساعد ملا 2 سعر', html)
+        self.assertIn(f'name="p_{self.cards.pk}" value="2200"', html)
+        self.assertIn(f'name="p_{self.banner.pk}" value="65"', html)
+        r = c.post('/marketplace/seller/prices/', {'action': 'import',
+                                                   'price_file': SimpleUploadedFile('x.csv', b'a,b\n1,2\n')})
+        self.assertEqual(r.status_code, 200)
+
+
 class GovernorateGuessTests(TestCase):
     def test_guess(self):
         self.assertEqual(pb.guess_governorate('القاهرة - مدينة نصر'), 'cairo')

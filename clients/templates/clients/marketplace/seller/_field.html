@@ -1,0 +1,2 @@
+{% comment %}حقل واحد في فورم البائع: label + input + help + errors{% endcomment %}
+<p>{{ f.label_tag }}{{ f }}{% if f.help_text %}<span class="helptext">{{ f.help_text }}</span>{% endif %}{% if f.errors %}<span class="errorlist">{{ f.errors|join:" " }}</span>{% endif %}</p>

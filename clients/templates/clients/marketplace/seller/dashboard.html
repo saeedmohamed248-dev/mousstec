@@ -5,6 +5,15 @@
 {% if welcome %}<div class="notice ok"><i class="fas fa-circle-check"></i> {% trans "اتسجّلت ومتجرك ظاهر للعملاء! ابدأ ضيف منتجاتك — بتظهر على طول." %}</div>{% endif %}
 <section class="hero"><h1>{% blocktrans with n=seller.owner_name %}أهلاً {{ n }}{% endblocktrans %}</h1>
 <p>{% trans "من هنا بتعرض منتجاتك وبتتابع العملاء اللي طلبوا منك." %}</p></section>
+{% if profile.pct < 100 %}
+<div class="card">
+    <div class="row"><b><i class="fas fa-list-check"></i> {% blocktrans with p=profile.pct %}بروفايل متجرك مكتمل {{ p }}٪{% endblocktrans %}</b><span class="sp"></span><span class="muted" style="font-size:.85rem">{% trans "المتاجر المكتملة بتطلع للعملاء الأول وبتاخد طلبات أكتر" %}</span></div>
+    <div class="meter" style="margin:10px 0"><span style="width:{{ profile.pct }}%"></span></div>
+    <ul style="list-style:none;padding:0;margin:0;display:grid;gap:6px">
+        {% for done, label, url in profile.steps %}{% if not done %}<li><a href="{{ url }}" style="text-decoration:none"><i class="far fa-circle" style="color:var(--mt-muted)"></i> {{ label }} <i class="fas fa-chevron-left" style="font-size:.7rem;color:var(--mt-muted)"></i></a></li>{% endif %}{% endfor %}
+    </ul>
+</div>
+{% endif %}
 <div class="grid">
     <a class="card stat" href="/marketplace/seller/products/" style="text-decoration:none"><div class="n">{{ stats.live }}</div><div class="l">{% trans "منتج ظاهر للعملاء" %}</div></a>
     <a class="card stat" href="/marketplace/seller/customers/" style="text-decoration:none"><div class="n">{{ stats.quotes_30 }}</div><div class="l">{% trans "طلب سعر في آخر ٣٠ يوم" %}</div></a>

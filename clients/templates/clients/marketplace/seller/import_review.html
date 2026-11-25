@@ -1,0 +1,38 @@
+{% extends "clients/marketplace/seller/_base.html" %}{% load i18n %}
+{% block title %}{% trans "راجع المنتجات قبل الحفظ" %}{% endblock %}
+{% block content %}
+<h1 style="font-size:1.3rem"><i class="fas fa-list-check"></i> {% trans "راجع المنتجات قبل الحفظ" %}</h1>
+{% for e in errors %}<div class="notice err">{{ e }}</div>{% endfor %}
+<div class="notice ok" style="font-weight:500">
+    {% blocktrans with n=rows|length p=priced f=file_name %}المساعد لقى {{ n }} منتج في «{{ f }}» — منهم {{ p }} بسعر.{% endblocktrans %}
+    {% if how == 'ai' %}{% trans "(اتقرا بالذكاء الاصطناعي — راجع الأسماء والأسعار كويس)" %}{% endif %}
+    {% if dupes %}<br>{% blocktrans with d=dupes %}{{ d }} منتج موجودين عندك قبل كده — مش متعلّمين.{% endblocktrans %}{% endif %}
+</div>
+<form method="post" class="f">{% csrf_token %}
+    <input type="hidden" name="action" value="confirm"><input type="hidden" name="token" value="{{ token }}">
+    <div class="row" style="margin:8px 0">
+        <button type="button" class="btn ghost sm" onclick="document.querySelectorAll('.pick').forEach(c=>c.checked=true)">{% trans "علّم الكل" %}</button>
+        <button type="button" class="btn ghost sm" onclick="document.querySelectorAll('.pick').forEach(c=>c.checked=false)">{% trans "شيل الكل" %}</button>
+        <span class="sp"></span>
+        <button class="btn" type="submit"><i class="fas fa-file-import"></i> {% trans "استورد المتعلّم" %}</button>
+    </div>
+    <div class="card" style="padding:0;overflow-x:auto">
+    <table class="t">
+        <tr><th style="width:30px"></th><th>{% trans "المنتج" %}</th><th>{% trans "القسم" %}</th><th>{% trans "السعر من" %}</th></tr>
+        {% for r in rows %}
+        <tr{% if r.exists %} style="opacity:.6"{% endif %}>
+            <td><input type="checkbox" class="pick" name="pick" value="{{ forloop.counter0 }}" {% if not r.exists %}checked{% endif %} aria-label="{{ r.title }}"></td>
+            <td><b>{{ r.title }}</b>{% if r.exists %} <span class="tag off">{% trans "موجود" %}</span>{% endif %}
+                {% if r.description %}<div class="muted" style="font-size:.8rem">{{ r.description|truncatechars:90 }}</div>{% endif %}
+                {% if r.min_qty %}<div class="muted" style="font-size:.78rem">{% trans "أقل كمية" %}: {{ r.min_qty }}</div>{% endif %}</td>
+            <td><select name="cat_{{ forloop.counter0 }}" style="border:1px solid var(--mt-line-2);border-radius:8px;padding:6px;font:inherit;font-size:.82rem;min-width:120px;max-width:180px" aria-label="{% trans 'القسم' %}">
+                {% for k, label in cat_choices %}<option value="{{ k }}" {% if k == r.category %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                {% if r.category == 'other' and r.custom_category %}<div class="muted" style="font-size:.75rem">{{ r.custom_category }}</div>{% endif %}</td>
+            <td style="white-space:nowrap">{% if r.price %}{{ r.price|floatformat:"-2" }} {% if r.unit %}<span class="muted" style="font-size:.75rem">/ {{ r.unit }}</span>{% endif %}{% else %}<span class="muted">{% trans "حسب الطلب" %}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </table></div>
+    <button class="btn" type="submit" style="margin-top:12px"><i class="fas fa-file-import"></i> {% trans "استورد المتعلّم" %}</button>
+    <a class="btn ghost" href="/marketplace/seller/products/import/" style="margin-top:12px">{% trans "ارفع ملف تاني" %}</a>
+</form>
+{% endblock %}

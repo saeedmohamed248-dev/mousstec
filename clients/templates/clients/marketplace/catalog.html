@@ -26,7 +26,7 @@
 <main class="wrap">
     {% if store %}
     <section class="hero" style="display:flex; gap:14px; align-items:center;">
-        <span class="ico" style="width:64px; height:64px; border-radius:16px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.7rem; background:{{ store.color }}; flex:0 0 auto;"><i class="fas {{ store.icon }}"></i></span>
+        {% if store.logo %}<img src="{{ store.logo.url }}" alt="{{ store.l_name }}" style="width:64px; height:64px; border-radius:16px; object-fit:cover; flex:0 0 auto; border:1px solid var(--mt-line);">{% else %}        <span class="ico" style="width:64px; height:64px; border-radius:16px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.7rem; background:{{ store.color }}; flex:0 0 auto;"><i class="fas {{ store.icon }}"></i></span>{% endif %}
         <div>
             <h1>{{ store.l_name }}</h1>
             <p>{{ store.l_tagline }}{% if store.l_city %} · <i class="fas fa-location-dot"></i> {{ store.l_city }}{% endif %}</p>
@@ -37,6 +37,23 @@
         </div>
     </section>
     {% if store.l_description %}<p style="color:var(--mt-text); line-height:1.8;">{{ store.l_description }}</p>{% endif %}
+    {% if seller_profile %}
+    {% comment %}🧭 بروفايل البائع: تخصصه وإمكانياته ومكانه — زي صفحة المورّد في الأسواق العالمية{% endcomment %}
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px; margin:6px 0 14px;">
+        {% if seller_profile.specialties %}<div style="background:var(--mt-card); border:1px solid var(--mt-line); border-radius:14px; padding:12px;">
+            <b style="display:block;margin-bottom:6px"><i class="fas fa-compass"></i> {% trans "التخصص" %}</b>
+            <div class="badges">{% for k, label, icon in seller_profile.specialties %}<a class="bdg" style="text-decoration:none" href="/marketplace/catalog/{{ sector }}/?cat={{ k }}"><i class="fas {{ icon }}"></i> {{ label }}</a>{% endfor %}</div></div>{% endif %}
+        {% if seller_profile.capabilities %}<div style="background:var(--mt-card); border:1px solid var(--mt-line); border-radius:14px; padding:12px;">
+            <b style="display:block;margin-bottom:6px"><i class="fas fa-gears"></i> {% trans "الإمكانيات والخدمات" %}</b>
+            <div class="badges">{% for label, icon in seller_profile.capabilities %}<span class="bdg"><i class="fas {{ icon }}"></i> {{ label }}</span>{% endfor %}</div></div>{% endif %}
+        <div style="background:var(--mt-card); border:1px solid var(--mt-line); border-radius:14px; padding:12px; font-size:.9rem; line-height:1.9;">
+            {% if seller_profile.governorate %}<div><i class="fas fa-location-dot"></i> {{ seller_profile.governorate }}{% if seller_profile.address %} — {{ seller_profile.address }}{% endif %}</div>{% endif %}
+            {% if seller_profile.years %}<div><i class="fas fa-award"></i> {% blocktrans with n=seller_profile.years %}خبرة {{ n }} سنة{% endblocktrans %}</div>{% endif %}
+            {% if seller_profile.hours %}<div><i class="fas fa-clock"></i> {{ seller_profile.hours }}</div>{% endif %}
+            <div class="muted"><i class="fas fa-calendar"></i> {% trans "على Mouss Tec من" %} <span dir="ltr">{{ seller_profile.since|date:"Y-m" }}</span></div>
+        </div>
+    </div>
+    {% endif %}
     {% if reviews %}
     <div class="sec-title"><i class="fas fa-star"></i> {% trans "آراء العملاء" %}</div>
     {% for r in reviews %}

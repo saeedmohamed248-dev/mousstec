@@ -4,7 +4,8 @@
     {% for r in rows %}
     <tr>
         <td><b>{{ r.spec.l_name }}</b><div class="pb-spec">{{ r.spec.l_spec }} — {{ r.spec.l_unit }}</div></td>
-        <td><input type="text" inputmode="decimal" dir="ltr" name="p_{{ r.spec.pk }}" value="{{ r.value }}" aria-label="{{ r.spec.l_name }}">
+        <td><input type="text" inputmode="decimal" dir="ltr" name="p_{{ r.spec.pk }}" value="{{ r.value }}" aria-label="{{ r.spec.l_name }}"{% if r.suggested_from %} style="border-color:#7c3aed;background:#f5f3ff"{% endif %}>
+            {% if r.suggested_from %}<div class="pb-spec" style="color:#6d28d9"><i class="fas fa-wand-magic-sparkles"></i> {% trans "من ملفك:" %} {{ r.suggested_from|truncatechars:40 }}</div>{% endif %}
             {% if r.error %}<div class="pb-err">{{ r.error }}</div>{% endif %}
             {% if r.last %}<div class="pb-spec">{% trans "آخر تحديث" %} <span dir="ltr">{{ r.last.quoted_on|date:"Y-m-d" }}</span></div>{% endif %}</td>
         <td class="pb-mkt pb-hide-sm">{% if done_today %}{% if r.market %}<b>{{ r.market.avg }}</b> <span class="muted">({{ r.market.min|floatformat:"-2" }}–{{ r.market.max|floatformat:"-2" }}، {% blocktrans with n=r.market.n %}{{ n }} مطبعة{% endblocktrans %})</span>{% else %}<span class="muted">—</span>{% endif %}{% else %}<span class="pb-lock"><i class="fas fa-lock"></i> {% trans "سعّر النهارده وشوف" %}</span>{% endif %}</td>

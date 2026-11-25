@@ -45,6 +45,8 @@ class CatalogStore(_Localized, models.Model):
     icon = models.CharField(max_length=50, default='fa-store', help_text=_("Font Awesome، مثلاً fa-mug-hot"))
     color = models.CharField(max_length=20, default='#1E2A57')
     city = models.CharField(max_length=60, blank=True)
+    # 🖼️ لوجو المتجر (متاجر البائعين) — لو فاضي بيظهر الأيقونة
+    logo = models.ImageField(upload_to='catalog/logos/', blank=True, null=True, verbose_name=_("اللوجو"))
     # 🌐 النسخة الإنجليزي (لو فاضية بيظهر العربي)
     name_en = models.CharField(max_length=120, blank=True)
     tagline_en = models.CharField(max_length=200, blank=True)
@@ -227,6 +229,19 @@ class MarketSeller(models.Model):
     upgraded_to = models.ForeignKey('clients.Client', on_delete=models.SET_NULL, null=True, blank=True,
                                     related_name='market_sellers', verbose_name=_("الشركة بعد الترقية"))
     # ⭐ من عروض «السوق المفتوح» (زي Client.market_rating / successful_deals)
+    # 🧭 بروفايل البائع — تخصصه وإمكانياته ومكانه (بيظهر للعملاء وبيتفلتر بيه)
+    specialties = models.JSONField(default=list, blank=True, verbose_name=_("التخصصات"),
+                                   help_text=_("أقسام الكتالوج اللي بيشتغل فيها (cards، banners…)"))
+    capabilities = models.JSONField(default=list, blank=True, verbose_name=_("الإمكانيات"),
+                                    help_text=_("طرق الطباعة والخدمات (offset، digital، delivery…)"))
+    governorate = models.CharField(max_length=40, blank=True, db_index=True, verbose_name=_("المحافظة"))
+    address = models.CharField(max_length=250, blank=True, verbose_name=_("العنوان"))
+    whatsapp = models.CharField(max_length=20, blank=True, verbose_name=_("واتساب"))
+    website = models.URLField(blank=True, verbose_name=_("صفحة فيسبوك / موقع"))
+    years_in_business = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=_("سنين الخبرة"))
+    working_hours = models.CharField(max_length=120, blank=True, verbose_name=_("مواعيد العمل"))
+    # 🔒 ملاحظات داخلية لصاحب المنصة (مابتظهرش للبائع ولا العميل)
+    admin_notes = models.TextField(blank=True, verbose_name=_("ملاحظات داخلية"))
     market_rating = models.DecimalField(max_digits=3, decimal_places=2, default=5.00)
     successful_deals = models.PositiveIntegerField(default=0)
     last_login_at = models.DateTimeField(null=True, blank=True)
