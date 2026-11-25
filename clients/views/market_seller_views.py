@@ -18,7 +18,6 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from django import forms
-from django.conf import settings
 from django.core.cache import cache
 from django.db import IntegrityError, transaction
 from django.db.models import Count, F
@@ -103,14 +102,66 @@ def _ctx(request, active, **extra):
 
 # ─────────────────────────── التسجيل والدخول ───────────────────────────
 
-class SellerSignupForm(forms.Form):
+def _gov_choices():
+    from clients.services.price_board import gov_choices
+    return [('', '—')] + gov_choices()
+
+
+class SellerProfileFields(forms.Form):
+    """🧭 حقول بروفايل البائع المشتركة بين التسجيل وصفحة «بيانات المتجر».
+
+    التخصصات والإمكانيات بتتعرض لكل قطاع (specialties_printing …) والـ clean بياخد بتاعة القطاع المختار.
+    """
+    governorate = forms.ChoiceField(label=_l('المحافظة'))
+    address = forms.CharField(max_length=250, label=_l('العنوان'),
+                              help_text=_l('المنطقة والشارع — بيساعد العميل يختار الأقرب ليه.'))
+    whatsapp = forms.CharField(max_length=30, required=False, label=_l('رقم واتساب (لو غير الموبايل)'))
+    years_in_business = forms.IntegerField(min_value=0, max_value=80, required=False, label=_l('سنين الخبرة'))
+
+    def __init__(self, *args, sectors=('printing', 'automotive'), **kwargs):
+        super().__init__(*args, **kwargs)
+        from clients.services import seller_profile as sp
+        self.fields['governorate'].choices = _gov_choices()
+        self.sectors = sectors
+        for sec in sectors:
+            self.fields[f'specialties_{sec}'] = forms.MultipleChoiceField(
+                choices=sp.specialty_choices(sec), required=False, widget=forms.CheckboxSelectMultiple,
+                label=_l('بتشتغل في إيه؟ (اختار كل اللي بتعمله)'))
+            self.fields[f'capabilities_{sec}'] = forms.MultipleChoiceField(
+                choices=sp.capability_choices(sec), required=False, widget=forms.CheckboxSelectMultiple,
+                label=_l('إمكانياتك وخدماتك') if sec == 'automotive' else _l('طرق الطباعة والخدمات'))
+
+    def clean_whatsapp(self):
+        raw = (self.cleaned_data.get('whatsapp') or '').strip()
+        if not raw:
+            return ''
+        v = svc.normalize_phone(raw)
+        if not v:
+            raise forms.ValidationError(_('رقم الواتساب مش مظبوط — اكتبه زي 01012345678.'))
+        return v
+
+    def profile_for(self, sector):
+        """القيم النهائية للقطاع (بعد is_valid)."""
+        d = self.cleaned_data
+        return {
+            'specialties': list(d.get(f'specialties_{sector}') or []),
+            'capabilities': list(d.get(f'capabilities_{sector}') or []),
+            'governorate': d.get('governorate') or '', 'address': d.get('address') or '',
+            'whatsapp': d.get('whatsapp') or '', 'years_in_business': d.get('years_in_business'),
+        }
+
+    def check_specialties(self, sector):
+        if not self.cleaned_data.get(f'specialties_{sector}'):
+            self.add_error(f'specialties_{sector}', _('اختار تخصص واحد على الأقل — العملاء بيدوّروا بيه.'))
+
+
+class SellerSignupForm(SellerProfileFields):
     store_name = forms.CharField(max_length=120, label=_l('اسم المطبعة أو المحل'))
     owner_name = forms.CharField(max_length=120, label=_l('اسم المسؤول'))
     phone = forms.CharField(max_length=30, label=_l('رقم الموبايل'))
     password = forms.CharField(min_length=6, max_length=128, widget=forms.PasswordInput, label=_l('كلمة السر'))
     sector = forms.ChoiceField(choices=(('printing', _l('مطبعة / تصميم')), ('automotive', _l('قطع غيار سيارات'))),
                                label=_l('النشاط'))
-    city = forms.CharField(max_length=60, label=_l('المحافظة / المدينة'))
     # 📧 إجباري: عليه بيوصل كود «نسيت كلمة السر» وإشعارات الطلبات
     email = forms.EmailField(label=_l('إيميل المتجر'), help_text=_l('عليه بيوصلك كود تغيير كلمة السر لو نسيتها.'))
     tagline = forms.CharField(max_length=200, required=False, label=_l('جملة عن شغلك (اختياري)'))
@@ -129,6 +180,12 @@ class SellerSignupForm(forms.Form):
             raise forms.ValidationError(_('الرقم ده عنده حساب بائع — ادخل بيه.'))
         return phone
 
+    def clean(self):
+        data = super().clean()
+        if data.get('sector') in SECTORS:
+            self.check_specialties(data['sector'])
+        return data
+
 
 def seller_join(request):
     """📝 تسجيل بائع جديد — متجر في السوق بس، من غير برنامج الإدارة."""
@@ -145,27 +202,35 @@ def seller_join(request):
             try:
                 with transaction.atomic():
                     meta = SECTORS[d['sector']]
+                    from clients.services.price_board import gov_label
+                    profile = form.profile_for(d['sector'])
                     store = CatalogStore.objects.create(
                         sector=d['sector'], name=d['store_name'], slug=_unique_slug(d['store_name'], d['sector']),
-                        tagline=d['tagline'], city=d['city'], icon=meta['icon'], color=meta['color'],
+                        tagline=d['tagline'], city=str(gov_label(profile['governorate']))[:60],
+                        icon=meta['icon'], color=meta['color'],
                         # 🐛 [FIX]: كان مخفي لحد موافقة صاحب المنصة ⇒ المطبعة تسجّل وتستنى. دلوقتي ظاهر على طول
                         is_active=True,
                         sort=1000,
                     )
                     seller = MarketSeller(store=store, owner_name=d['owner_name'], phone=d['phone'],
-                                          email=d['email'].strip().lower(), last_login_at=timezone.now())
+                                          email=d['email'].strip().lower(), last_login_at=timezone.now(),
+                                          **profile)
                     seller.set_password(d['password'])
                     seller.save()
             except IntegrityError:
                 form.add_error('phone', _('الرقم ده عنده حساب بائع — ادخل بيه.'))
             else:
                 from clients.services.owner_notify import notify_owner
+                from clients.services.seller_profile import specialty_items
+                specs = '، '.join(str(lbl) for _k, lbl, _i in specialty_items(store.sector, seller.specialties))
                 notify_owner(f'بائع جديد في السوق ({store.get_sector_display()})',
-                             f'{store.name} — {seller.owner_name} — {seller.phone} — {store.city}\n'
+                             f'{store.name} — {seller.owner_name} — {seller.phone} — {store.city} — {seller.address}\n'
+                             f'التخصصات: {specs}\n'
                              'المتجر ظاهر للعملاء دلوقتي — لو فيه حاجة مش مظبوطة اخفيه من الأدمن.',
-                             f'/{settings.ADMIN_URL}/clients/marketseller/{seller.pk}/change/')
+                             f'/superadmin/market/sellers/{seller.pk}/')
                 return svc.login_response(redirect('/marketplace/seller/?welcome=1'), seller)
-    return render(request, 'clients/marketplace/seller/join.html', {'form': form, 'sector': initial_sector})
+    return render(request, 'clients/marketplace/seller/join.html', {
+        'form': form, 'sector': (request.POST.get('sector') if request.POST.get('sector') in SECTORS else initial_sector)})
 
 
 def seller_login(request):
@@ -231,8 +296,9 @@ def seller_dashboard(request):
         stats['priced_today'] = pb.submitted_today(pb.Provider('seller', request.seller))
     recent = (CatalogQuoteRequest.objects.filter(item__store=store).select_related('item')
               .order_by('-created_at')[:5])
+    from clients.services.seller_profile import completeness
     return render(request, 'clients/marketplace/seller/dashboard.html', _ctx(
-        request, 'home', stats=stats, recent=recent, welcome=request.GET.get('welcome') == '1'))
+        request, 'home', stats=stats, recent=recent, profile=completeness(request.seller), welcome=request.GET.get('welcome') == '1'))
 
 
 # ─────────────────────────── منتجاتي ───────────────────────────
@@ -337,7 +403,7 @@ def _notify_owner_new_items(store):
     from clients.services.owner_notify import notify_owner
     notify_owner(f'منتجات جديدة من بائع — {store.name}',
                  f'{store.name} ضاف/عدّل منتجات وظهرت للعملاء — لو فيه حاجة مش مظبوطة اخفيها من الأدمن.',
-                 f'/{settings.ADMIN_URL}/clients/catalogitem/?store__id__exact={store.pk}')
+                 f'/superadmin/market/sellers/{store.seller.pk}/?tab=products')
 
 
 def _cell(v):
@@ -596,12 +662,21 @@ def seller_withdraw_offer(request, offer_code):
 class SellerStoreForm(forms.ModelForm):
     class Meta:
         model = CatalogStore
-        fields = ('tagline', 'description', 'city')
+        fields = ('tagline', 'description', 'logo')
+        labels = {'tagline': _l('جملة عن شغلك'), 'description': _l('عن المتجر'), 'logo': _l('اللوجو')}
+
+    def clean_logo(self):
+        img = self.cleaned_data.get('logo')
+        if img and hasattr(img, 'size') and img.size > 3 * 1024 * 1024:
+            raise forms.ValidationError(_('اللوجو أكبر من ٣ ميجا.'))
+        return img
 
 
 class SellerAccountForm(forms.Form):
     owner_name = forms.CharField(max_length=120, label=_l('اسم المسؤول'))
     email = forms.EmailField(label=_l('إيميل المتجر'), help_text=_l('عليه بيوصلك كود تغيير كلمة السر لو نسيتها.'))
+    website = forms.URLField(required=False, label=_l('صفحة فيسبوك / موقع (اختياري)'))
+    working_hours = forms.CharField(max_length=120, required=False, label=_l('مواعيد العمل (اختياري)'))
     new_password = forms.CharField(required=False, min_length=6, max_length=128, widget=forms.PasswordInput,
                                    label=_l('كلمة سر جديدة (سيبها فاضية لو مش هتغيّرها)'))
 
@@ -610,23 +685,46 @@ class SellerAccountForm(forms.Form):
 def seller_store(request):
     seller = request.seller
     store = seller.store
-    sform = SellerStoreForm(request.POST or None, instance=store, prefix='s')
-    aform = SellerAccountForm(request.POST or None, prefix='a',
-                              initial={'owner_name': seller.owner_name, 'email': seller.email})
-    if request.method == 'POST' and sform.is_valid() and aform.is_valid():
-        sform.save()
-        seller.owner_name = aform.cleaned_data['owner_name']
-        seller.email = aform.cleaned_data['email'].strip().lower()
-        fields = ['owner_name', 'email']
-        if aform.cleaned_data['new_password']:
-            seller.set_password(aform.cleaned_data['new_password'])
-            seller.session_token = uuid.uuid4()   # الأجهزة التانية تخرج
-            fields += ['password_hash', 'session_token']
-        seller.save(update_fields=fields)
-        resp = redirect('/marketplace/seller/store/?saved=1')
-        return svc.login_response(resp, seller) if 'session_token' in fields else resp
+    sform = SellerStoreForm(request.POST or None, request.FILES or None, instance=store, prefix='s')
+    pform = SellerProfileFields(request.POST or None, prefix='p', sectors=(store.sector,), initial={
+        'governorate': seller.governorate, 'address': seller.address,
+        'whatsapp': seller_profile_local(seller.whatsapp), 'years_in_business': seller.years_in_business,
+        f'specialties_{store.sector}': seller.specialties, f'capabilities_{store.sector}': seller.capabilities})
+    aform = SellerAccountForm(request.POST or None, prefix='a', initial={
+        'owner_name': seller.owner_name, 'email': seller.email, 'website': seller.website,
+        'working_hours': seller.working_hours})
+    if request.method == 'POST':
+        ok = sform.is_valid() & pform.is_valid() & aform.is_valid()
+        if ok:
+            pform.check_specialties(store.sector)
+            ok = not pform.errors
+        if ok:
+            from clients.services.price_board import gov_label
+            sform.save()
+            prof = pform.profile_for(store.sector)
+            for k, v in prof.items():
+                setattr(seller, k, v)
+            CatalogStore.objects.filter(pk=store.pk).update(city=str(gov_label(prof['governorate']))[:60])
+            a = aform.cleaned_data
+            seller.owner_name = a['owner_name']
+            seller.email = a['email'].strip().lower()
+            seller.website = a['website'] or ''
+            seller.working_hours = a['working_hours'] or ''
+            fields = ['owner_name', 'email', 'website', 'working_hours', *prof.keys()]
+            if a['new_password']:
+                seller.set_password(a['new_password'])
+                seller.session_token = uuid.uuid4()   # الأجهزة التانية تخرج
+                fields += ['password_hash', 'session_token']
+            seller.save(update_fields=fields)
+            resp = redirect('/marketplace/seller/store/?saved=1')
+            return svc.login_response(resp, seller) if 'session_token' in fields else resp
     return render(request, 'clients/marketplace/seller/store.html', _ctx(
-        request, 'store', sform=sform, aform=aform, saved=request.GET.get('saved') == '1'))
+        request, 'store', sform=sform, pform=pform, aform=aform, saved=request.GET.get('saved') == '1',
+        spec_field=pform[f'specialties_{store.sector}'], cap_field=pform[f'capabilities_{store.sector}']))
+
+
+def seller_profile_local(phone):
+    return svc.local_phone(phone) if phone else ''
 
 
 @_seller_required

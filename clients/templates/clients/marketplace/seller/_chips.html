@@ -1,0 +1,6 @@
+{% comment %}MultipleChoiceField كـ chips قابلة للاختيار (checkbox جوه label){% endcomment %}
+<div class="f-chips">
+    <label style="display:block;font-weight:700;margin-bottom:2px">{{ f.label }}</label>
+    <div class="chipset">{% for opt in f %}<label class="ck">{{ opt.tag }} {{ opt.choice_label }}</label>{% endfor %}</div>
+    {% if f.errors %}<span class="errorlist">{{ f.errors|join:" " }}</span>{% endif %}
+</div>

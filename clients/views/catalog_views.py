@@ -306,7 +306,24 @@ def catalog_store(request, slug):
         'reviews': store.reviews.filter(is_visible=True)[:20],
         'min_reviews': catalog_stats.MIN_REVIEWS,
         'seo_jsonld': _store_ld(store),
+        'seller_profile': _seller_public_profile(store),
     })
+
+
+def _seller_public_profile(store):
+    """🧭 بروفايل متجر البائع للعميل: التخصصات والإمكانيات والمكان والخبرة (متاجر Mouss Tec ⇒ None)."""
+    seller = store.seller_or_none
+    if seller is None:
+        return None
+    from clients.services import seller_profile as sp
+    from clients.services.price_board import gov_label
+    return {
+        'specialties': sp.specialty_items(store.sector, seller.specialties),
+        'capabilities': sp.capability_items(store.sector, seller.capabilities),
+        'governorate': gov_label(seller.governorate) if seller.governorate else '',
+        'address': seller.address, 'years': seller.years_in_business, 'hours': seller.working_hours,
+        'since': seller.created_at,
+    }
 
 
 # ─────────────────────────── 🔎 SEO (بيانات منظّمة لجوجل) ───────────────────────────

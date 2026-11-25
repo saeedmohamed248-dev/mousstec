@@ -33,6 +33,17 @@
         .errorlist { color:#b91c1c; margin:4px 0; padding:0; list-style:none; font-size:.85rem; }
         .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
         .row .sp { flex:1; }
+        .chipset { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 4px; }
+        .chipset label.ck { display:inline-flex !important; align-items:center; gap:6px; border:1px solid var(--mt-line-2); background:var(--mt-card); border-radius:999px; padding:7px 12px; font-weight:600 !important; font-size:.86rem !important; cursor:pointer; margin:0 !important; user-select:none; }
+        .chipset label.ck input { accent-color:var(--mt-brand); width:16px; height:16px; margin:0; }
+        .chipset label.ck:has(input:checked) { background:var(--mt-brand); border-color:var(--mt-brand); color:#fff; }
+        .fsec { border:1px solid var(--mt-line); border-radius:14px; padding:14px 16px; margin:0 0 14px; background:var(--mt-card); }
+        .fsec h2 { font-size:1rem; margin:0 0 10px; display:flex; gap:8px; align-items:center; }
+        .fsec h2 .n { background:var(--mt-brand); color:#fff; width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:.8rem; }
+        .grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:0 14px; }
+        .helptext { display:block; color:var(--mt-muted); font-size:.8rem; margin-top:3px; }
+        .meter { height:10px; background:var(--mt-line); border-radius:999px; overflow:hidden; }
+        .meter > span { display:block; height:100%; background:linear-gradient(90deg,#16a34a,#22c55e); }
         table.t { width:100%; border-collapse:collapse; } table.t td, table.t th { padding:8px; border-bottom:1px solid var(--mt-line); text-align:start; vertical-align:top; font-size:.9rem; }
     </style>
 </head>

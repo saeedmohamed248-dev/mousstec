@@ -67,7 +67,7 @@
                 <p class="desc">{{ item.l_description }}</p>
                 {% if item.l_car_models %}<p class="desc"><b>{% trans "مناسب لـ:" %}</b> {{ item.l_car_models }}</p>{% endif %}
                 <a href="/marketplace/catalog/store/{{ store.slug }}/" class="store" style="margin-top:8px; border-color:var(--mt-line-2);">
-                    <span class="ico" style="background:{{ store.color }};"><i class="fas {{ store.icon }}"></i></span>
+                    {% if store.logo %}<img class="ico" src="{{ store.logo.url }}" alt="" style="object-fit:cover;">{% else %}<span class="ico" style="background:{{ store.color }};"><i class="fas {{ store.icon }}"></i></span>{% endif %}
                     <span><b>{{ store.l_name }}</b><small>{{ store.l_tagline }}</small></span>
                 </a>
                 <div style="display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0;">

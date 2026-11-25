@@ -5,12 +5,59 @@
     <h1>{% trans "سجّل متجرك في سوق Mouss Tec" %}</h1>
     <p>{% trans "حساب بائع بس: تعرض منتجاتك وتستقبل طلبات العملاء وتتابعهم — من غير فواتير ولا مخزون ولا حسابات." %}</p>
 </section>
-<div class="card" style="max-width:560px">
-    <form method="post" class="f" novalidate>{% csrf_token %}
-        {% if form.non_field_errors %}<div class="notice err">{{ form.non_field_errors|join:" " }}</div>{% endif %}
-        {{ form.as_p }}
-        <button class="btn" type="submit"><i class="fas fa-store"></i> {% trans "سجّل متجري" %}</button>
-    </form>
+<form method="post" class="f" novalidate style="max-width:760px">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="notice err">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+    {% if form.errors %}<div class="notice err">{% trans "راجع الخانات اللي عليها ملاحظة تحت." %}</div>{% endif %}
+
+    <div class="fsec"><h2><span class="n">١</span> {% trans "بيانات المتجر" %}</h2>
+        <div class="grid2">
+            {% include "clients/marketplace/seller/_field.html" with f=form.store_name %}
+            {% include "clients/marketplace/seller/_field.html" with f=form.sector %}
+            {% include "clients/marketplace/seller/_field.html" with f=form.owner_name %}
+            {% include "clients/marketplace/seller/_field.html" with f=form.years_in_business %}
+        </div>
+        {% include "clients/marketplace/seller/_field.html" with f=form.tagline %}
+    </div>
+
+    <div class="fsec"><h2><span class="n">٢</span> {% trans "تخصصك" %}</h2>
+        <p class="muted" style="margin:0 0 8px;font-size:.88rem">{% trans "العملاء بيدوّروا بالتخصص — اختار كل اللي بتعمله بجد." %}</p>
+        <div data-sector="printing">
+            {% include "clients/marketplace/seller/_chips.html" with f=form.specialties_printing %}
+            <div style="height:10px"></div>
+            {% include "clients/marketplace/seller/_chips.html" with f=form.capabilities_printing %}
+        </div>
+        <div data-sector="automotive">
+            {% include "clients/marketplace/seller/_chips.html" with f=form.specialties_automotive %}
+            <div style="height:10px"></div>
+            {% include "clients/marketplace/seller/_chips.html" with f=form.capabilities_automotive %}
+        </div>
+    </div>
+
+    <div class="fsec"><h2><span class="n">٣</span> {% trans "المكان والتواصل" %}</h2>
+        <div class="grid2">
+            {% include "clients/marketplace/seller/_field.html" with f=form.governorate %}
+            {% include "clients/marketplace/seller/_field.html" with f=form.address %}
+            {% include "clients/marketplace/seller/_field.html" with f=form.phone %}
+            {% include "clients/marketplace/seller/_field.html" with f=form.whatsapp %}
+        </div>
+    </div>
+
+    <div class="fsec"><h2><span class="n">٤</span> {% trans "الدخول" %}</h2>
+        <div class="grid2">
+            {% include "clients/marketplace/seller/_field.html" with f=form.email %}
+            {% include "clients/marketplace/seller/_field.html" with f=form.password %}
+        </div>
+    </div>
+
+    <button class="btn" type="submit"><i class="fas fa-store"></i> {% trans "سجّل متجري" %}</button>
     <p class="muted" style="margin-top:14px">{% trans "عندك حساب بائع؟" %} <a href="/marketplace/seller/login/">{% trans "ادخل من هنا" %}</a></p>
-</div>
+</form>
+<script>
+// 🧭 تخصصات القطاع المختار بس هي اللي تظهر (من غير JS الاتنين ظاهرين والسيرفر بياخد بتاعة القطاع)
+(function () {
+    var sel = document.getElementById('id_sector');
+    function sync() { document.querySelectorAll('[data-sector]').forEach(function (b) { b.style.display = b.getAttribute('data-sector') === sel.value ? '' : 'none'; }); }
+    if (sel) { sel.addEventListener('change', sync); sync(); }
+})();
+</script>
 {% endblock %}

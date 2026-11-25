@@ -30,6 +30,7 @@ from clients.views import screen_recording_views as screen_rec_views
 from clients.views import catalog_views as catalog_views
 from clients.views import market_seller_views as seller_views
 from clients.views import price_board_views
+from clients.views.admin_views import market_sellers as market_sellers_admin
 from clients.views import meta_feed_views as meta_feed_views
 from omnichannel import saas_admin_views as omnichannel_saas_views
 from clients.views import support_views as support_views
@@ -886,6 +887,11 @@ urlpatterns = [
     # 📣 Feed منتجات المطابع لكتالوج ميتا (فيسبوك/إنستجرام)
     path('feeds/meta/printing.csv', meta_feed_views.meta_printing_feed, name='meta_printing_feed'),
     path('superadmin/catalog/requests/', catalog_views.catalog_requests_admin, name='catalog_requests_admin'),
+    # 🏪 لوحة بائعين السوق لصاحب المنصة
+    path('superadmin/market/sellers/', market_sellers_admin.sellers_list, name='market_sellers_admin'),
+    path('superadmin/market/sellers/bulk/', market_sellers_admin.sellers_bulk, name='market_sellers_bulk'),
+    path('superadmin/market/sellers/<int:pk>/', market_sellers_admin.seller_detail, name='market_seller_detail'),
+    path('superadmin/market/sellers/<int:pk>/action/', market_sellers_admin.seller_action, name='market_seller_action'),
     path('superadmin/catalog/requests/<int:request_id>/update/', catalog_views.catalog_request_update, name='catalog_request_update'),
     path('superadmin/catalog/requests/<int:request_id>/sheet/', catalog_views.catalog_request_sheet, name='catalog_request_sheet'),
     path('superadmin/catalog/requests/<int:request_id>/vcard/', catalog_views.catalog_request_vcard, name='catalog_request_vcard'),

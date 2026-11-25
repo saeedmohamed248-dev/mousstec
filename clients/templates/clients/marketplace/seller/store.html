@@ -3,12 +3,38 @@
 {% block content %}
 <h1 style="font-size:1.3rem">{% trans "بيانات المتجر" %}</h1>
 {% if saved %}<div class="notice ok">{% trans "اتحفظ." %}</div>{% endif %}
-<div class="card" style="max-width:640px">
-    <p class="muted">{% trans "اسم المتجر" %}: <b>{{ store.name }}</b> — {% trans "لتغيير الاسم كلّم دعم Mouss Tec." %}<br>{% trans "رقم الموبايل" %}: <span dir="ltr">{{ seller.phone }}</span></p>
-    <form method="post" class="f" novalidate>{% csrf_token %}
-        {{ sform.as_p }}
-        {{ aform.as_p }}
-        <button class="btn" type="submit"><i class="fas fa-floppy-disk"></i> {% trans "حفظ" %}</button>
-    </form>
-</div>
+{% if sform.errors or pform.errors or aform.errors %}<div class="notice err">{% trans "راجع الخانات اللي عليها ملاحظة تحت." %}</div>{% endif %}
+<form method="post" enctype="multipart/form-data" class="f" novalidate style="max-width:760px">{% csrf_token %}
+    <div class="fsec"><h2><i class="fas fa-store"></i> {% trans "المتجر" %}</h2>
+        <p class="muted">{% trans "اسم المتجر" %}: <b>{{ store.name }}</b> — {% trans "لتغيير الاسم كلّم دعم Mouss Tec." %}</p>
+        {% if store.logo %}<img src="{{ store.logo.url }}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:14px;border:1px solid var(--mt-line)">{% endif %}
+        {% include "clients/marketplace/seller/_field.html" with f=sform.logo %}
+        {% include "clients/marketplace/seller/_field.html" with f=sform.tagline %}
+        {% include "clients/marketplace/seller/_field.html" with f=sform.description %}
+    </div>
+    <div class="fsec"><h2><i class="fas fa-compass"></i> {% trans "تخصصك" %}</h2>
+        {% include "clients/marketplace/seller/_chips.html" with f=spec_field %}
+        <div style="height:10px"></div>
+        {% include "clients/marketplace/seller/_chips.html" with f=cap_field %}
+        {% include "clients/marketplace/seller/_field.html" with f=pform.years_in_business %}
+    </div>
+    <div class="fsec"><h2><i class="fas fa-location-dot"></i> {% trans "المكان والتواصل" %}</h2>
+        <div class="grid2">
+            {% include "clients/marketplace/seller/_field.html" with f=pform.governorate %}
+            {% include "clients/marketplace/seller/_field.html" with f=pform.address %}
+            {% include "clients/marketplace/seller/_field.html" with f=pform.whatsapp %}
+            {% include "clients/marketplace/seller/_field.html" with f=aform.working_hours %}
+            {% include "clients/marketplace/seller/_field.html" with f=aform.website %}
+        </div>
+        <p class="muted" style="font-size:.85rem">{% trans "رقم الموبايل" %}: <span dir="ltr">{{ seller.phone }}</span></p>
+    </div>
+    <div class="fsec"><h2><i class="fas fa-user-lock"></i> {% trans "الحساب" %}</h2>
+        <div class="grid2">
+            {% include "clients/marketplace/seller/_field.html" with f=aform.owner_name %}
+            {% include "clients/marketplace/seller/_field.html" with f=aform.email %}
+            {% include "clients/marketplace/seller/_field.html" with f=aform.new_password %}
+        </div>
+    </div>
+    <button class="btn" type="submit"><i class="fas fa-floppy-disk"></i> {% trans "حفظ" %}</button>
+</form>
 {% endblock %}

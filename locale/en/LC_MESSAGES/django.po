@@ -30325,3 +30325,416 @@ msgstr "Hidden by Mouss Tec"
 
 msgid "بالصور والوصف وأقل كمية، أو ارفع شيت Excel مرة واحدة — وبتظهر للعملاء على طول."
 msgstr "With photos, descriptions and minimum quantities, or upload one Excel sheet — they go live right away."
+
+# 🧭 بروفايل البائع + لوحة البائعين
+msgid "متخفي عن العملاء"
+msgstr "Hidden from customers"
+
+msgid "صفحة المتجر"
+msgstr "Store page"
+
+msgid "إخفاء المتجر"
+msgstr "Hide store"
+
+msgid "إظهار المتجر"
+msgstr "Show store"
+
+msgid "تفعيل الحساب"
+msgstr "Reactivate account"
+
+msgid "إيقاف الحساب؟ هيخرج من كل الأجهزة ومتجره هيتخفى."
+msgstr "Suspend the account? They'll be signed out everywhere and the store hidden."
+
+msgid "إيقاف الحساب"
+msgstr "Suspend account"
+
+msgid "ابعت كود تغيير كلمة السر"
+msgstr "Send password reset code"
+
+msgid "خروج من كل الأجهزة"
+msgstr "Sign out of all devices"
+
+msgid "منتج ظاهر"
+msgstr "live products"
+
+msgid "طلب سعر (٣٠ يوم)"
+msgstr "quote requests (30 days)"
+
+msgid "عروض السوق المفتوح / اتقبل"
+msgstr "open market offers / accepted"
+
+msgid "تعديل البيانات"
+msgstr "Edit details"
+
+msgid "المسؤول"
+msgstr "Contact person"
+
+msgid "نفس الموبايل"
+msgstr "Same as mobile"
+
+msgid "الخبرة"
+msgstr "Experience"
+
+msgid "مواعيد العمل"
+msgstr "Working hours"
+
+msgid "فيسبوك / موقع"
+msgstr "Facebook / website"
+
+msgid "مش محدد"
+msgstr "Not set"
+
+msgid "الإمكانيات"
+msgstr "Capabilities"
+
+msgid "اكتمال البروفايل"
+msgstr "Profile completeness"
+
+msgid "السعر من"
+msgstr "Price from"
+
+msgid "البائع خبّاه"
+msgstr "Hidden by seller"
+
+msgid "إظهار"
+msgstr "Show"
+
+msgid "لسه مضافش منتجات."
+msgstr "No products added yet."
+
+msgid "مفيش طلبات لسه."
+msgstr "No requests yet."
+
+msgid "ماقدّمش عروض لسه."
+msgstr "No offers sent yet."
+
+msgid "شاذ"
+msgstr "Outlier"
+
+msgid "ماسعّرش في البورصة لسه."
+msgstr "Hasn't posted on the price board yet."
+
+msgid "راجع الخانات اللي عليها ملاحظة."
+msgstr "Check the highlighted fields."
+
+msgid "مابتظهرش للبائع ولا للعملاء."
+msgstr "Not visible to the seller or customers."
+
+#, python-format
+msgid "اترقّى لشركة: %(n)s"
+msgstr "Upgraded to company: %(n)s"
+
+#, python-format
+msgid "البروفايل %(p)s٪"
+msgstr "Profile %(p)s%%"
+
+#, python-format
+msgid "التقييم · %(n)s رأي عميل"
+msgstr "Rating · %(n)s customer reviews"
+
+#, python-format
+msgid "%(n)s سنة"
+msgstr "%(n)s years"
+
+msgid "المطابع والمحلات اللي بتعرض في السوق من غير برنامج الإدارة — كل بائع وأرقامه وتحكم كامل فيه."
+msgstr "Print shops and stores selling on the market without the management system — every seller, their numbers and full control."
+
+msgid "طلبات الأسعار"
+msgstr "Quote requests"
+
+msgid "مؤشر الأسعار"
+msgstr "Price index"
+
+msgid "بائع مسجّل"
+msgstr "registered sellers"
+
+msgid "متجر ظاهر للعملاء"
+msgstr "stores live for customers"
+
+msgid "جديد في آخر ٧ أيام"
+msgstr "new in the last 7 days"
+
+msgid "منتج ظاهر من البائعين"
+msgstr "live seller products"
+
+msgid "طلب سعر على منتجاتهم (٣٠ يوم)"
+msgstr "quote requests on their products (30 days)"
+
+msgid "عرض اتقبل في السوق المفتوح"
+msgstr "accepted open market offers"
+
+msgid "سعّر النهارده في البورصة"
+msgstr "posted prices today"
+
+msgid "حساب موقوف"
+msgstr "suspended accounts"
+
+msgid "كل الأنشطة"
+msgstr "All sectors"
+
+msgid "فلتر"
+msgstr "Filter"
+
+msgid "طلبات ٣٠ يوم"
+msgstr "Requests 30d"
+
+msgid "عروض / اتقبل"
+msgstr "Offers / won"
+
+msgid "متخفي"
+msgstr "Hidden"
+
+msgid "اترقّى"
+msgstr "Upgraded"
+
+msgid "إدارة"
+msgstr "Manage"
+
+msgid "مفيش بائعين بالفلاتر دي."
+msgstr "No sellers match these filters."
+
+msgid "للمحدّدين:"
+msgstr "For selected:"
+
+msgid "إيقاف الحسابات المحدّدة؟ هيخرجوا ومتاجرهم هتتخفى."
+msgstr "Suspend the selected accounts? They'll be signed out and their stores hidden."
+
+msgid "اسم، موبايل، إيميل، عنوان…"
+msgstr "Name, mobile, email, address…"
+
+msgid "اختيار الكل"
+msgstr "Select all"
+
+msgid "المتاجر المكتملة بتطلع للعملاء الأول وبتاخد طلبات أكتر"
+msgstr "Complete stores show up first and get more requests"
+
+#, python-format
+msgid "بروفايل متجرك مكتمل %(p)s٪"
+msgstr "Your store profile is %(p)s%% complete"
+
+msgid "راجع الخانات اللي عليها ملاحظة تحت."
+msgstr "Check the highlighted fields below."
+
+msgid "تخصصك"
+msgstr "Your specialty"
+
+msgid "العملاء بيدوّروا بالتخصص — اختار كل اللي بتعمله بجد."
+msgstr "Customers search by specialty — pick everything you really do."
+
+msgid "المكان والتواصل"
+msgstr "Location & contact"
+
+msgid "الدخول"
+msgstr "Login"
+
+msgid "الإمكانيات والخدمات"
+msgstr "Capabilities & services"
+
+msgid "على Mouss Tec من"
+msgstr "On Mouss Tec since"
+
+#, python-format
+msgid "خبرة %(n)s سنة"
+msgstr "%(n)s years of experience"
+
+msgid "المنطقة والشارع — بيساعد العميل يختار الأقرب ليه."
+msgstr "Area and street — helps customers pick the nearest shop."
+
+msgid "رقم واتساب (لو غير الموبايل)"
+msgstr "WhatsApp number (if different)"
+
+msgid "سنين الخبرة"
+msgstr "Years of experience"
+
+msgid "بتشتغل في إيه؟ (اختار كل اللي بتعمله)"
+msgstr "What do you make? (pick all that apply)"
+
+msgid "إمكانياتك وخدماتك"
+msgstr "Your capabilities & services"
+
+msgid "طرق الطباعة والخدمات"
+msgstr "Printing methods & services"
+
+msgid "رقم الواتساب مش مظبوط — اكتبه زي 01012345678."
+msgstr "Invalid WhatsApp number — write it like 01012345678."
+
+msgid "اختار تخصص واحد على الأقل — العملاء بيدوّروا بيه."
+msgstr "Pick at least one specialty — customers search by it."
+
+msgid "جملة عن شغلك"
+msgstr "A line about your business"
+
+msgid "عن المتجر"
+msgstr "About the store"
+
+msgid "اللوجو أكبر من ٣ ميجا."
+msgstr "The logo is larger than 3 MB."
+
+msgid "صفحة فيسبوك / موقع (اختياري)"
+msgstr "Facebook page / website (optional)"
+
+msgid "مواعيد العمل (اختياري)"
+msgstr "Working hours (optional)"
+
+msgid "بروفايل ناقص"
+msgstr "Incomplete profile"
+
+msgid "من غير منتجات"
+msgstr "No products"
+
+msgid "الأحدث"
+msgstr "Newest"
+
+msgid "الأكتر منتجات"
+msgstr "Most products"
+
+msgid "الأكتر طلبات"
+msgstr "Most requests"
+
+msgid "كل التخصصات"
+msgstr "All specialties"
+
+#, python-format
+msgid "اتنفّذ على %(n)s بائع."
+msgstr "Applied to %(n)s sellers."
+
+msgid "جملة تعريفية"
+msgstr "Tagline"
+
+msgid "اختيار Mouss Tec (يطلع الأول)"
+msgstr "Mouss Tec pick (shown first)"
+
+msgid "التخصصات"
+msgstr "Specialties"
+
+msgid "اتحفظت بيانات البائع."
+msgstr "Seller details saved."
+
+msgid "المتجر ظاهر للعملاء."
+msgstr "The store is live for customers."
+
+msgid "المتجر اتخفى عن العملاء."
+msgstr "The store is hidden from customers."
+
+msgid "الحساب اتوقف واتخفى المتجر."
+msgstr "Account suspended and store hidden."
+
+msgid "الحساب اتفعّل — اظهر المتجر لو عايزه يرجع للعملاء."
+msgstr "Account reactivated — show the store if you want it back for customers."
+
+msgid "البائع خرج من كل الأجهزة."
+msgstr "The seller was signed out of all devices."
+
+msgid "البائع مالوش إيميل."
+msgstr "The seller has no email."
+
+msgid "اتبعت كود تغيير كلمة السر على إيميل البائع."
+msgstr "A password reset code was emailed to the seller."
+
+msgid "الإيميل مااتبعتش — راجع إعدادات SMTP."
+msgstr "The email wasn't sent — check the SMTP settings."
+
+msgid "المنتج ظاهر."
+msgstr "The product is live."
+
+msgid "المنتج اتخفى — والبائع مايقدرش يرجّعه."
+msgstr "The product is hidden — the seller can't restore it."
+
+msgid "طباعة أوفست (كميات كبيرة)"
+msgstr "Offset printing (large runs)"
+
+msgid "طباعة ديجيتال (كميات صغيرة وسريعة)"
+msgstr "Digital printing (short, fast runs)"
+
+msgid "لارج فورمات (بنرات ولافتات)"
+msgstr "Large format (banners & signs)"
+
+msgid "سلك سكرين"
+msgstr "Screen printing"
+
+msgid "سبليميشن (مجات وتيشيرتات)"
+msgstr "Sublimation (mugs & T-shirts)"
+
+msgid "طباعة DTF على القماش"
+msgstr "DTF fabric printing"
+
+msgid "ليزر قص وحفر"
+msgstr "Laser cutting & engraving"
+
+msgid "CNC وحروف بارزة"
+msgstr "CNC & 3D letters"
+
+msgid "علب وتغليف (داي كت)"
+msgstr "Boxes & packaging (die-cut)"
+
+msgid "تطريز"
+msgstr "Embroidery"
+
+msgid "تصميم جرافيك"
+msgstr "Graphic design"
+
+msgid "طباعة مستعجلة في نفس اليوم"
+msgstr "Same-day urgent printing"
+
+msgid "توصيل"
+msgstr "Delivery"
+
+msgid "تركيب لافتات"
+msgstr "Sign installation"
+
+msgid "جملة للمطابع والمكاتب"
+msgstr "Wholesale for print shops & offices"
+
+msgid "قطع أصلية (أوريجينال)"
+msgstr "Genuine (OEM) parts"
+
+msgid "قطع بديلة (تجاري)"
+msgstr "Aftermarket parts"
+
+msgid "قطع استيراد / مستعمل"
+msgstr "Imported / used parts"
+
+msgid "عربيات صيني"
+msgstr "Chinese cars"
+
+msgid "عربيات كوري"
+msgstr "Korean cars"
+
+msgid "عربيات ياباني"
+msgstr "Japanese cars"
+
+msgid "عربيات أوروبي"
+msgstr "European cars"
+
+msgid "تركيب"
+msgstr "Installation"
+
+msgid "ضمان على القطع"
+msgstr "Parts warranty"
+
+msgid "حدّد تخصصاتك"
+msgstr "Set your specialties"
+
+msgid "اختار إمكانياتك (طرق الطباعة والخدمات)"
+msgstr "Pick your capabilities (printing methods & services)"
+
+msgid "ارفع لوجو المتجر"
+msgstr "Upload the store logo"
+
+msgid "اكتب نبذة عن شغلك (٤٠ حرف على الأقل)"
+msgstr "Describe your business (at least 40 characters)"
+
+msgid "اكتب المحافظة والعنوان"
+msgstr "Add the governorate and address"
+
+msgid "ضيف رقم واتساب"
+msgstr "Add a WhatsApp number"
+
+msgid "اعرض ٣ منتجات على الأقل"
+msgstr "List at least 3 products"
+
+msgid "ضيف صورة لمنتج واحد على الأقل"
+msgstr "Add a photo to at least one product"
+
+msgid "سجّل أسعارك في بورصة الأسعار"
+msgstr "Post your prices on the price board"

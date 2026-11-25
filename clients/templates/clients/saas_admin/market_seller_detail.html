@@ -1,0 +1,173 @@
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ store.name }} — {% trans "بائعين السوق" %}</title>
+    {% include "clients/saas_admin/_ms_style.html" %}
+    <style>
+        .hero { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+        .logo { width:64px; height:64px; border-radius:16px; object-fit:cover; border:1px solid var(--line); background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-size:26px; }
+        .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; }
+        dl.kv { display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin:0; font-size:13.5px; }
+        dl.kv dt { color:var(--muted); } dl.kv dd { margin:0; }
+        form.ed p { margin:0 0 10px; } form.ed label { display:block; font-weight:700; font-size:13px; margin-bottom:3px; }
+        form.ed input:not([type=checkbox]), form.ed select, form.ed textarea { width:100%; border:1px solid #D9D2C5; border-radius:10px; padding:8px 10px; font:inherit; font-size:13.5px; }
+        form.ed ul { list-style:none; padding:0; margin:0; display:flex; flex-wrap:wrap; gap:6px; }
+        form.ed ul li label { display:inline-flex; gap:5px; align-items:center; font-weight:600; border:1px solid var(--line); border-radius:999px; padding:4px 10px; background:var(--soft); }
+        .errorlist { color:var(--red); font-size:12px; list-style:none; padding:0; margin:2px 0; }
+        .actions { display:flex; flex-wrap:wrap; gap:6px; }
+        .actions form { margin:0; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/superadmin/">{% trans "لوحة المشرف الأعلى" %}</a> / <a href="{% url 'market_sellers_admin' %}">{% trans "بائعين السوق" %}</a> / {{ store.name }}</div>
+    {% for m in messages %}<div class="flash {{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <div class="card">
+        <div class="hero">
+            {% if store.logo %}<img class="logo" src="{{ store.logo.url }}" alt="">{% else %}<span class="logo" style="background:{{ store.color }}"><i class="fas {{ store.icon }}"></i></span>{% endif %}
+            <div style="flex:1;min-width:220px">
+                <h1 style="margin:0">{{ store.name }}</h1>
+                <div class="muted" style="font-size:13px">{{ store.get_sector_display }}{% if gov_label %} · {{ gov_label }}{% endif %} · {% trans "سجّل" %} <span dir="ltr">{{ seller.created_at|date:"Y-m-d H:i" }}</span></div>
+                <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">
+                    {% if seller.is_blocked %}<span class="pill bad">{% trans "موقوف" %}</span>{% elif store.is_active %}<span class="pill live">{% trans "ظاهر للعملاء" %}</span>{% else %}<span class="pill off">{% trans "متخفي عن العملاء" %}</span>{% endif %}
+                    {% if store.is_featured %}<span class="pill new">{% trans "اختيار Mouss Tec" %}</span>{% endif %}
+                    {% if seller.upgraded_to %}<span class="pill new">{% blocktrans with n=seller.upgraded_to.name %}اترقّى لشركة: {{ n }}{% endblocktrans %}</span>{% endif %}
+                    <span class="pill">{% blocktrans with p=profile.pct %}البروفايل {{ p }}٪{% endblocktrans %}</span>
+                </div>
+            </div>
+            <div class="actions">
+                {% if store.is_active %}<a class="btn btn-ghost btn-sm" href="/marketplace/catalog/store/{{ store.slug }}/" target="_blank" rel="noopener"><i class="fas fa-up-right-from-square"></i> {% trans "صفحة المتجر" %}</a>{% endif %}
+                <a class="btn btn-ghost btn-sm" href="tel:{{ seller.phone }}"><i class="fas fa-phone"></i> <span dir="ltr">{{ local_phone }}</span></a>
+                {% if wa %}<a class="btn btn-green btn-sm" href="https://wa.me/{{ wa }}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> {% trans "واتساب" %}</a>{% endif %}
+                {% if seller.email %}<a class="btn btn-ghost btn-sm" href="mailto:{{ seller.email }}"><i class="fas fa-envelope"></i> {% trans "إيميل" %}</a>{% endif %}
+            </div>
+        </div>
+        <div class="actions" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+            {% if store.is_active %}
+            <form method="post" action="{% url 'market_seller_action' seller.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><button class="btn btn-ghost btn-sm" name="action" value="hide_store"><i class="fas fa-eye-slash"></i> {% trans "إخفاء المتجر" %}</button></form>
+            {% else %}
+            <form method="post" action="{% url 'market_seller_action' seller.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><button class="btn btn-green btn-sm" name="action" value="show_store"><i class="fas fa-eye"></i> {% trans "إظهار المتجر" %}</button></form>
+            {% endif %}
+            {% if seller.is_blocked %}
+            <form method="post" action="{% url 'market_seller_action' seller.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><button class="btn btn-ghost btn-sm" name="action" value="unblock"><i class="fas fa-unlock"></i> {% trans "تفعيل الحساب" %}</button></form>
+            {% else %}
+            <form method="post" action="{% url 'market_seller_action' seller.pk %}" onsubmit="return confirm('{% trans "إيقاف الحساب؟ هيخرج من كل الأجهزة ومتجره هيتخفى." %}')">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><button class="btn btn-red btn-sm" name="action" value="block"><i class="fas fa-ban"></i> {% trans "إيقاف الحساب" %}</button></form>
+            {% endif %}
+            <form method="post" action="{% url 'market_seller_action' seller.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><button class="btn btn-ghost btn-sm" name="action" value="send_reset"><i class="fas fa-key"></i> {% trans "ابعت كود تغيير كلمة السر" %}</button></form>
+            <form method="post" action="{% url 'market_seller_action' seller.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><button class="btn btn-ghost btn-sm" name="action" value="logout_all"><i class="fas fa-right-from-bracket"></i> {% trans "خروج من كل الأجهزة" %}</button></form>
+        </div>
+    </div>
+
+    <div class="kpis">
+        <div class="kpi"><div class="n">{{ stats.items }}</div><div class="l">{% trans "منتج ظاهر" %}{% if stats.hidden %} · {{ stats.hidden }} {% trans "مخفي من Mouss Tec" %}{% endif %}</div></div>
+        <div class="kpi"><div class="n">{{ stats.quotes30 }}</div><div class="l">{% trans "طلب سعر (٣٠ يوم)" %} · {{ stats.quotes_done }} {% trans "اتنفّذ" %}</div></div>
+        <div class="kpi"><div class="n">{{ stats.offers }} / {{ stats.won }}</div><div class="l">{% trans "عروض السوق المفتوح / اتقبل" %}</div></div>
+        <div class="kpi"><div class="n">{{ seller.market_rating|floatformat:"1" }}</div><div class="l">{% blocktrans with n=stats.reviews %}التقييم · {{ n }} رأي عميل{% endblocktrans %}</div></div>
+    </div>
+
+    <div class="tabs">
+        <a href="?tab=overview" class="{% if tab == 'overview' %}on{% endif %}">{% trans "نظرة عامة" %}</a>
+        <a href="?tab=products" class="{% if tab == 'products' %}on{% endif %}">{% trans "المنتجات" %} ({{ items|length }})</a>
+        <a href="?tab=customers" class="{% if tab == 'customers' %}on{% endif %}">{% trans "طلبات العملاء" %} ({{ quotes|length }})</a>
+        <a href="?tab=offers" class="{% if tab == 'offers' %}on{% endif %}">{% trans "السوق المفتوح" %} ({{ offers|length }})</a>
+        {% if store.sector == 'printing' %}<a href="?tab=prices" class="{% if tab == 'prices' %}on{% endif %}">{% trans "الأسعار" %} ({{ prices|length }})</a>{% endif %}
+        <a href="?tab=profile" class="{% if tab == 'profile' %}on{% endif %}"><i class="fas fa-pen"></i> {% trans "تعديل البيانات" %}</a>
+    </div>
+
+    {% if tab == 'overview' %}
+    <div class="grid2">
+        <div class="card"><b>{% trans "البيانات" %}</b>
+            <dl class="kv" style="margin-top:8px">
+                <dt>{% trans "المسؤول" %}</dt><dd>{{ seller.owner_name }}</dd>
+                <dt>{% trans "الموبايل" %}</dt><dd><span dir="ltr">{{ local_phone }}</span></dd>
+                <dt>{% trans "واتساب" %}</dt><dd>{% if seller.whatsapp %}<span dir="ltr">{{ local_whatsapp }}</span>{% else %}<span class="muted">{% trans "نفس الموبايل" %}</span>{% endif %}</dd>
+                <dt>{% trans "الإيميل" %}</dt><dd>{{ seller.email|default:"—" }}</dd>
+                <dt>{% trans "المحافظة" %}</dt><dd>{{ gov_label|default:"—" }}</dd>
+                <dt>{% trans "العنوان" %}</dt><dd>{{ seller.address|default:"—" }}</dd>
+                <dt>{% trans "الخبرة" %}</dt><dd>{% if seller.years_in_business %}{% blocktrans with n=seller.years_in_business %}{{ n }} سنة{% endblocktrans %}{% else %}—{% endif %}</dd>
+                <dt>{% trans "مواعيد العمل" %}</dt><dd>{{ seller.working_hours|default:"—" }}</dd>
+                <dt>{% trans "فيسبوك / موقع" %}</dt><dd>{% if seller.website %}<a href="{{ seller.website }}" target="_blank" rel="noopener noreferrer" dir="ltr">{{ seller.website|truncatechars:40 }}</a>{% else %}—{% endif %}</dd>
+                <dt>{% trans "آخر دخول" %}</dt><dd>{% if seller.last_login_at %}<span dir="ltr">{{ seller.last_login_at|date:"Y-m-d H:i" }}</span>{% else %}—{% endif %}</dd>
+            </dl>
+        </div>
+        <div class="card"><b>{% trans "التخصص" %}</b>
+            <div class="chips" style="margin:8px 0">{% for k, label, icon in spec_items %}<span class="pill"><i class="fas {{ icon }}"></i> {{ label }}</span>{% empty %}<span class="pill warn">{% trans "مش محدد" %}</span>{% endfor %}</div>
+            <b>{% trans "الإمكانيات" %}</b>
+            <div class="chips" style="margin:8px 0">{% for label, icon in cap_items %}<span class="pill"><i class="fas {{ icon }}"></i> {{ label }}</span>{% empty %}<span class="muted">—</span>{% endfor %}</div>
+            {% if store.description %}<p style="font-size:13.5px;line-height:1.8;margin:8px 0 0">{{ store.description }}</p>{% endif %}
+        </div>
+        <div class="card"><b>{% trans "اكتمال البروفايل" %}</b>
+            <div class="meter" style="margin:10px 0"><span style="width:{{ profile.pct }}%"></span></div>
+            <ul style="list-style:none;padding:0;margin:0;font-size:13px;display:grid;gap:5px">{% for done, label, url in profile.steps %}<li>{% if done %}<i class="fas fa-circle-check" style="color:var(--green)"></i>{% else %}<i class="far fa-circle muted"></i>{% endif %} {{ label }}</li>{% endfor %}</ul>
+        </div>
+        {% if seller.admin_notes %}<div class="card" style="background:#fffbeb;border-color:#fde68a"><b><i class="fas fa-note-sticky"></i> {% trans "ملاحظات داخلية" %}</b><p style="white-space:pre-line;font-size:13.5px;margin:8px 0 0">{{ seller.admin_notes }}</p></div>{% endif %}
+    </div>
+
+    {% elif tab == 'products' %}
+    <div class="card" style="padding:0;overflow-x:auto"><table class="t">
+        <tr><th>{% trans "المنتج" %}</th><th>{% trans "القسم" %}</th><th class="hide-sm">{% trans "السعر من" %}</th><th>{% trans "الحالة" %}</th><th></th></tr>
+        {% for it in items %}<tr>
+            <td>{% if it.image %}<img src="{{ it.image.url }}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-inline-end:6px">{% endif %}<b>{{ it.title }}</b>{% if it.description %}<div class="muted" style="font-size:12px">{{ it.description|truncatechars:90 }}</div>{% endif %}</td>
+            <td>{{ it.category_label }}</td>
+            <td class="hide-sm">{% if it.price_from %}{{ it.price_from|floatformat:"-2" }}{% else %}—{% endif %}</td>
+            <td>{% if it.is_active %}<span class="pill live">{% trans "ظاهر" %}</span>{% elif it.admin_hidden %}<span class="pill bad">{% trans "مخفي من Mouss Tec" %}</span>{% else %}<span class="pill off">{% trans "البائع خبّاه" %}</span>{% endif %}</td>
+            <td style="white-space:nowrap">
+                {% if it.is_active %}<a class="btn btn-ghost btn-sm" href="/marketplace/catalog/item/{{ it.item_code }}/" target="_blank" rel="noopener"><i class="fas fa-eye"></i></a>{% endif %}
+                <form method="post" action="{% url 'market_seller_action' seller.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="tab" value="products"><input type="hidden" name="item" value="{{ it.pk }}">
+                {% if it.is_active %}<button class="btn btn-ghost btn-sm" name="action" value="item_hide">{% trans "إخفاء" %}</button>{% else %}<button class="btn btn-ghost btn-sm" name="action" value="item_show">{% trans "إظهار" %}</button>{% endif %}</form></td>
+        </tr>{% empty %}<tr><td colspan="5" class="muted" style="padding:20px;text-align:center">{% trans "لسه مضافش منتجات." %}</td></tr>{% endfor %}
+    </table></div>
+
+    {% elif tab == 'customers' %}
+    <div class="card" style="padding:0;overflow-x:auto"><table class="t">
+        <tr><th>{% trans "التاريخ" %}</th><th>{% trans "المنتج" %}</th><th>{% trans "العميل" %}</th><th class="hide-sm">{% trans "الكمية" %}</th><th>{% trans "الحالة" %}</th></tr>
+        {% for r in quotes %}<tr><td><span dir="ltr">{{ r.created_at|date:"Y-m-d H:i" }}</span></td><td>{{ r.item_title }}</td>
+            <td>{{ r.name }}<div class="muted" style="font-size:12px"><span dir="ltr">{{ r.phone }}</span></div></td><td class="hide-sm">{{ r.quantity|default:"—" }}</td>
+            <td><span class="pill {% if r.status == 'new' %}warn{% elif r.status == 'done' %}live{% endif %}">{{ r.get_status_display }}</span></td></tr>
+        {% empty %}<tr><td colspan="5" class="muted" style="padding:20px;text-align:center">{% trans "مفيش طلبات لسه." %}</td></tr>{% endfor %}
+    </table></div>
+
+    {% elif tab == 'offers' %}
+    <div class="card" style="padding:0;overflow-x:auto"><table class="t">
+        <tr><th>{% trans "التاريخ" %}</th><th>{% trans "الطلب" %}</th><th>{% trans "السعر" %}</th><th>{% trans "الحالة" %}</th></tr>
+        {% for o in offers %}<tr><td><span dir="ltr">{{ o.created_at|date:"Y-m-d" }}</span></td><td>{{ o.service_request.title }}</td><td>{{ o.price|floatformat:"-2" }}</td>
+            <td><span class="pill {% if o.status == 'accepted' %}live{% elif o.status == 'pending' %}warn{% endif %}">{{ o.get_status_display }}</span></td></tr>
+        {% empty %}<tr><td colspan="4" class="muted" style="padding:20px;text-align:center">{% trans "ماقدّمش عروض لسه." %}</td></tr>{% endfor %}
+    </table></div>
+
+    {% elif tab == 'prices' %}
+    <div class="card" style="padding:0;overflow-x:auto"><table class="t">
+        <tr><th>{% trans "اليوم" %}</th><th>{% trans "البند" %}</th><th>{% trans "السعر" %}</th><th>{% trans "المحافظة" %}</th><th></th></tr>
+        {% for q in prices %}<tr><td><span dir="ltr">{{ q.quoted_on|date:"Y-m-d" }}</span></td><td>{{ q.spec.name }} <span class="muted" style="font-size:11.5px">— {{ q.spec.unit }}</span></td>
+            <td>{{ q.price|floatformat:"-2" }}</td><td>{{ q.governorate }}</td><td>{% if q.is_outlier %}<span class="pill bad">{% trans "شاذ" %}</span>{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="5" class="muted" style="padding:20px;text-align:center">{% trans "ماسعّرش في البورصة لسه." %}</td></tr>{% endfor %}
+    </table></div>
+
+    {% elif tab == 'profile' %}
+    <form method="post" class="card ed" novalidate>{% csrf_token %}<input type="hidden" name="action" value="save">
+        {% if form.errors %}<div class="flash error">{% trans "راجع الخانات اللي عليها ملاحظة." %}</div>{% endif %}
+        <div class="grid2">
+            <p>{{ form.store_name.label_tag }}{{ form.store_name }}{{ form.store_name.errors }}</p>
+            <p>{{ form.owner_name.label_tag }}{{ form.owner_name }}{{ form.owner_name.errors }}</p>
+            <p>{{ form.email.label_tag }}{{ form.email }}{{ form.email.errors }}</p>
+            <p>{{ form.governorate.label_tag }}{{ form.governorate }}{{ form.governorate.errors }}</p>
+            <p>{{ form.address.label_tag }}{{ form.address }}{{ form.address.errors }}</p>
+            <p>{{ form.whatsapp.label_tag }}{{ form.whatsapp }}{{ form.whatsapp.errors }}</p>
+            <p>{{ form.website.label_tag }}{{ form.website }}{{ form.website.errors }}</p>
+            <p>{{ form.years_in_business.label_tag }}{{ form.years_in_business }}{{ form.years_in_business.errors }}</p>
+            <p>{{ form.working_hours.label_tag }}{{ form.working_hours }}{{ form.working_hours.errors }}</p>
+            <p>{{ form.tagline.label_tag }}{{ form.tagline }}{{ form.tagline.errors }}</p>
+        </div>
+        <p>{{ form.description.label_tag }}{{ form.description }}</p>
+        <p>{{ form.specialties.label_tag }}{{ form.specialties }}</p>
+        <p>{{ form.capabilities.label_tag }}{{ form.capabilities }}</p>
+        <p><label style="display:inline-flex;gap:6px;align-items:center">{{ form.is_featured }} {{ form.is_featured.label }}</label></p>
+        <p>{{ form.admin_notes.label_tag }}{{ form.admin_notes }}<span class="muted" style="font-size:12px">{% trans "مابتظهرش للبائع ولا للعملاء." %}</span></p>
+        <button class="btn btn-navy"><i class="fas fa-floppy-disk"></i> {% trans "حفظ" %}</button>
+    </form>
+    {% endif %}
+</div>
+</body>
+</html>
