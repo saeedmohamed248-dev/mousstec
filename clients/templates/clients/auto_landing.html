@@ -223,8 +223,8 @@
                 <div class="text-blue-400 font-bold text-sm mb-2">{{ plan.name }}</div>
                 <div class="text-4xl font-black text-white mb-6">{{ plan.price|num:"-2" }} <span class="text-lg text-slate-500">{{ tenant_currency_symbol|default:'ج.م' }}/{% trans "شهر" %}</span></div>
                 <ul class="text-right text-sm text-slate-400 space-y-3 mb-8">
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> {% blocktrans with b=plan.max_branches t=plan.max_treasuries %}{{ b }} فرع · {{ t }} خزينة{% endblocktrans %}</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> {% blocktrans with u=plan.max_users %}{{ u }} مستخدم{% endblocktrans %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> {# 🐛 [FIX]: «1 branches · 1 treasuries» بالإنجليزي — المفرد ليه جملة لوحده #}{% if plan.max_branches == 1 and plan.max_treasuries == 1 %}{% trans "فرع واحد · خزينة واحدة" %}{% else %}{% blocktrans with b=plan.max_branches t=plan.max_treasuries %}{{ b }} فرع · {{ t }} خزينة{% endblocktrans %}{% endif %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> {% if plan.max_users == 1 %}{% trans "مستخدم واحد" %}{% else %}{% blocktrans with u=plan.max_users %}{{ u }} مستخدم{% endblocktrans %}{% endif %}</li>
                     {% for line in plan.features %}<li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> {{ line }}</li>{% endfor %}
                 </ul>
                 <a href="{% url 'saas_customer_signup' %}?industry=automotive" class="block {% if plan.is_popular %}btn-blue text-white{% else %}bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-600 hover:text-white transition{% endif %} font-bold py-3 rounded-xl">{% trans "ابدأ مجانا" %}</a>
