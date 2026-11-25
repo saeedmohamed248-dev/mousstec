@@ -61,6 +61,9 @@ fi
 TMP="$FILE.partial"
 if ! docker compose exec -T db sh -c 'pg_dumpall -U "$POSTGRES_USER"' 2>>"$ERR_LOG" | gzip > "$TMP"; then
     FAIL_REASON="pg_dumpall رجّع خطأ (التفاصيل تحت)"
+    if grep -q "max_locks_per_transaction" "$ERR_LOG" 2>/dev/null; then
+        FAIL_REASON="أقفال Postgres مش كفاية لعدد جداول الشركات — زوّد max_locks_per_transaction في docker-compose.yml وأعد تشغيل الداتابيز (docker compose up -d db)"
+    fi
     echo "[$(date)] ❌ فشل: pg_dumpall رجّع خطأ — مفيش نسخة اتعملت." >&2
     cat "$ERR_LOG" >&2 || true
     rm -f "$TMP"
