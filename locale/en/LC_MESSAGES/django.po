@@ -30865,3 +30865,78 @@ msgstr "We couldn't understand this file automatically and the smart assistant i
 
 msgid "فرع واحد · خزينة واحدة"
 msgstr "1 branch · 1 treasury"
+
+msgid "عندك طلبات لسه شغالة — خلّصها أو الغيها الأول."
+msgstr "You have orders in progress — finish or cancel them first."
+
+msgid "لسه ليك فلوس على المنصة من طلبات مكتملة — هنحوّلهالك الأول."
+msgstr "You still have money on the platform from completed orders — we'll pay it out first."
+
+msgid "لسه ليك فلوس مرتجعة على المنصة — هنرجّعهالك الأول."
+msgstr "You still have a refund on the platform — we'll send it to you first."
+
+msgid "حساب محذوف"
+msgstr "Deleted account"
+
+msgid "كلمة السر غلط — الحساب ماتحذفش."
+msgstr "Wrong password — the account was not deleted."
+
+msgid "علّم على التأكيد علشان نحذف الحساب."
+msgstr "Tick the confirmation to delete the account."
+
+msgid "حسابك اتحذف وبياناتك الشخصية اتمسحت. نتمنى نشوفك تاني."
+msgstr "Your account was deleted and your personal data erased. Hope to see you again."
+
+msgid "حذف الحساب"
+msgstr "Delete account"
+
+msgid "هنمسح اسمك وإيميلك وبيانات التواصل وكلمة السر، وتتقفل من كل الأجهزة. الطلبات القديمة بتفضل محفوظة باسم «حساب محذوف» علشان الحسابات والضرايب. الحذف نهائي ومينفعش يترجع."
+msgstr "We'll erase your name, email, contact details and password, and sign you out of all devices. Past orders stay recorded as “Deleted account” for accounting and tax. Deletion is permanent and can't be undone."
+
+msgid "متأكد إني عايز أحذف حسابي نهائياً"
+msgstr "I'm sure I want to permanently delete my account"
+
+msgid "احذف حسابي"
+msgstr "Delete my account"
+
+msgid "كلمة السر للتأكيد"
+msgstr "Password to confirm"
+
+msgid "حذف حسابك في Mousstec Print"
+msgstr "Delete your Mousstec Print account"
+
+msgid "حذف حسابك في Mousstec Print (سوق المطابع)"
+msgstr "Delete your Mousstec Print (print marketplace) account"
+
+msgid "تقدر تحذف حسابك في أي وقت من التطبيق أو الموقع:"
+msgstr "You can delete your account any time from the app or the website:"
+
+msgid "ادخل بحسابك وافتح «الإعدادات»."
+msgstr "Sign in and open “Settings”."
+
+msgid "انزل لآخر الصفحة واضغط «حذف الحساب»."
+msgstr "Scroll to the bottom and tap “Delete account”."
+
+msgid "اكتب كلمة السر وعلّم على التأكيد واضغط «احذف حسابي»."
+msgstr "Enter your password, tick the confirmation and tap “Delete my account”."
+
+msgid "إيه اللي بيتمسح؟"
+msgstr "What gets deleted?"
+
+msgid "الاسم والإيميل ورقم الواتساب والمحافظة والنبذة واللوجو وبيانات استلام الفلوس وكلمة السر — فوراً. والمنتجات بتختفي من السوق."
+msgstr "Your name, email, WhatsApp number, governorate, bio, logo, payout details and password — immediately. Your products are removed from the marketplace."
+
+msgid "إيه اللي بيفضل؟"
+msgstr "What is kept?"
+
+msgid "الطلبات والمدفوعات القديمة بتفضل محفوظة باسم «حساب محذوف» من غير أي بيانات شخصية، علشان الحسابات والالتزامات الضريبية."
+msgstr "Past orders and payments are kept as “Deleted account” with no personal data, for accounting and tax obligations."
+
+msgid "لو عندك طلبات لسه شغالة أو فلوس على المنصة، هنخلّصها الأول قبل الحذف. مش قادر تدخل؟ كلّمنا من صفحة «مشكلة؟ كلّمنا» على mousstec.com."
+msgstr "If you have orders in progress or money on the platform, we settle them before deletion. Can't sign in? Contact us via “Problem? Contact us” on mousstec.com."
+
+msgid "افتح الإعدادات"
+msgstr "Open settings"
+
+msgid "ادخل لحسابك"
+msgstr "Sign in"

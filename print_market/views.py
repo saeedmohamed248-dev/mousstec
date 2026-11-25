@@ -457,6 +457,32 @@ def account_settings(request):
         request, acc=acc, governorates=GOVERNORATES, payout_choices=MarketAccount.PAYOUT_CHOICES))
 
 
+@require_POST
+@auth.require_account()
+def account_delete(request):
+    """🗑️ حذف الحساب من جوه التطبيق (شرط Google Play) — بتأكيد كلمة السر."""
+    acc = request.pm_account
+    if not acc.check_password(request.POST.get('password') or ''):
+        messages.error(request, _('كلمة السر غلط — الحساب ماتحذفش.'))
+        return redirect('print_market:settings')
+    if request.POST.get('confirm') != 'yes':
+        messages.error(request, _('علّم على التأكيد علشان نحذف الحساب.'))
+        return redirect('print_market:settings')
+    blockers = acc.deletion_blockers()
+    if blockers:
+        for b in blockers:
+            messages.error(request, b)
+        return redirect('print_market:settings')
+    acc.anonymize()
+    messages.success(request, _('حسابك اتحذف وبياناتك الشخصية اتمسحت. نتمنى نشوفك تاني.'))
+    return auth.logout(redirect('print_market:home'))
+
+
+def account_delete_info(request):
+    """صفحة عامة بتشرح إزاي تحذف حسابك (لينك Google Play لحذف الحساب)."""
+    return render(request, 'print_market/account_delete_info.html', _ctx(request))
+
+
 # ───────────────────────── العميل ─────────────────────────
 
 @auth.require_account('customer')
