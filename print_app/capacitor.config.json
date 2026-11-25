@@ -1,0 +1,31 @@
+{
+  "appId": "com.mousstec.print",
+  "appName": "Mousstec Print",
+  "webDir": "www",
+  "backgroundColor": "#FFF7ED",
+  "server": {
+    "url": "https://mousstec.com/marketplace/catalog/printing/",
+    "androidScheme": "https",
+    "allowNavigation": [
+      "mousstec.com",
+      "*.mousstec.com"
+    ],
+    "errorPath": "offline.html"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "launchAutoHide": true,
+      "backgroundColor": "#FFF7ED",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "backgroundColor": "#E8590C",
+      "style": "DARK"
+    }
+  },
+  "appendUserAgent": "MousstecPrintApp"
+}

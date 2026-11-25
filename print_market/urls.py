@@ -15,6 +15,8 @@ urlpatterns = [
     path('password/reset/<str:token>/', views.password_reset, name='password_reset'),
     path('logout/', views.logout_view, name='logout'),
     path('settings/', views.account_settings, name='settings'),
+    path('settings/delete/', views.account_delete, name='account_delete'),
+    path('delete-account/', views.account_delete_info, name='account_delete_info'),
     # المطبعة
     path('dashboard/', views.shop_dashboard, name='shop_dashboard'),
     path('products/new/', views.product_form, name='product_new'),

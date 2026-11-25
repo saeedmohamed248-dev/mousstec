@@ -30,5 +30,16 @@
     </details>
     <button class="pm-btn w-100">{% trans "حفظ" %}</button>
   </form>
+
+  {# 🗑️ حذف الحساب — شرط Google Play #}
+  <details class="mt-4 pm-card p-3" style="border-color:#fecaca">
+    <summary class="fw-bold text-danger">{% trans "حذف الحساب" %}</summary>
+    <p class="small pm-muted mt-2 mb-2">{% trans "هنمسح اسمك وإيميلك وبيانات التواصل وكلمة السر، وتتقفل من كل الأجهزة. الطلبات القديمة بتفضل محفوظة باسم «حساب محذوف» علشان الحسابات والضرايب. الحذف نهائي ومينفعش يترجع." %}</p>
+    <form method="post" action="{% url 'print_market:account_delete' %}">{% csrf_token %}
+      <input name="password" type="password" class="form-control mb-2" required placeholder="{% trans 'كلمة السر للتأكيد' %}" autocomplete="current-password">
+      <label class="small d-block mb-2"><input type="checkbox" name="confirm" value="yes" required> {% trans "متأكد إني عايز أحذف حسابي نهائياً" %}</label>
+      <button class="btn btn-outline-danger w-100">{% trans "احذف حسابي" %}</button>
+    </form>
+  </details>
 </div></div></div>
 {% endblock %}

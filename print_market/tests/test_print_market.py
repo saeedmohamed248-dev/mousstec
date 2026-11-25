@@ -760,3 +760,54 @@ class PrintMarketIsolationTests(_TenantDomainMixin, TestCase):
         # ومايقدرش يفتح السوبر أدمن ولا أدمن المنصة
         self.assertNotEqual(m.get('/superadmin/live/').status_code, 200)
         self.assertNotEqual(m.get('/secure-portal/').status_code, 200)
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class AccountDeletionTests(_TenantDomainMixin, TestCase):
+    """🗑️ حذف الحساب (شرط Google Play): بكلمة السر، بيمسح البيانات الشخصية، وبيتمنع لو فيه طلب شغال."""
+
+    def setUp(self):
+        cache.clear()
+        self.c = Client()
+        r = self.c.post(reverse('print_market:signup'), {'role': 'customer', 'name': 'أحمد', 'email': 'del@x.com',
+                                                         'password': PW})
+        self.assertEqual(r.status_code, 302)
+        self.acc = MarketAccount.objects.get(email='del@x.com')
+
+    def _delete(self, password=PW, confirm='yes'):
+        return self.c.post(reverse('print_market:account_delete'), {'password': password, 'confirm': confirm})
+
+    def test_wrong_password_or_no_confirm_keeps_account(self):
+        self._delete(password='wrong')
+        self._delete(confirm='')
+        self.acc.refresh_from_db()
+        self.assertTrue(self.acc.is_active)
+        self.assertEqual(self.acc.email, 'del@x.com')
+
+    def test_delete_anonymizes_and_logs_out(self):
+        r = self._delete()
+        self.assertEqual(r.status_code, 302)
+        self.acc.refresh_from_db()
+        self.assertFalse(self.acc.is_active)
+        self.assertNotEqual(self.acc.email, 'del@x.com')
+        self.assertFalse(self.acc.check_password(PW))
+        self.assertEqual(self.acc.name, 'حساب محذوف')
+        # اتطلّع، ومش قادر يدخل تاني بنفس البيانات، والإيميل اتحرّر لتسجيل جديد
+        self.assertEqual(self.c.get(reverse('print_market:settings')).status_code, 302)
+        r = Client().post(reverse('print_market:login'), {'email': 'del@x.com', 'password': PW})
+        self.assertEqual(r.status_code, 200)
+        r = Client().post(reverse('print_market:signup'), {'role': 'customer', 'name': 'جديد', 'email': 'del@x.com',
+                                                           'password': PW})
+        self.assertEqual(r.status_code, 302)
+
+    def test_active_order_blocks_deletion(self):
+        shop = MarketAccount.objects.create(role='shop', email='s@x.com', name='مطبعة', city='القاهرة')
+        MarketOrder.objects.create(customer=self.acc, shop=shop, title='كروت', details='١٠٠٠ كارت')
+        self._delete()
+        self.acc.refresh_from_db()
+        self.assertTrue(self.acc.is_active)
+        self.assertEqual(self.acc.email, 'del@x.com')
+
+    def test_public_info_page(self):
+        r = Client().get(reverse('print_market:account_delete_info'))
+        self.assertContains(r, 'حذف الحساب')

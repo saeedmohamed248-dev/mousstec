@@ -1,0 +1,19 @@
+{% extends "print_market/base.html" %}{% load i18n %}
+{% block title %}{% trans "حذف حسابك في Mousstec Print" %}{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-md-8 col-lg-7"><div class="pm-card p-4">
+  <h1 class="fs-5 fw-bold">{% trans "حذف حسابك في Mousstec Print (سوق المطابع)" %}</h1>
+  <p class="pm-muted">{% trans "تقدر تحذف حسابك في أي وقت من التطبيق أو الموقع:" %}</p>
+  <ol>
+    <li>{% trans "ادخل بحسابك وافتح «الإعدادات»." %}</li>
+    <li>{% trans "انزل لآخر الصفحة واضغط «حذف الحساب»." %}</li>
+    <li>{% trans "اكتب كلمة السر وعلّم على التأكيد واضغط «احذف حسابي»." %}</li>
+  </ol>
+  <h2 class="fs-6 fw-bold mt-3">{% trans "إيه اللي بيتمسح؟" %}</h2>
+  <p>{% trans "الاسم والإيميل ورقم الواتساب والمحافظة والنبذة واللوجو وبيانات استلام الفلوس وكلمة السر — فوراً. والمنتجات بتختفي من السوق." %}</p>
+  <h2 class="fs-6 fw-bold mt-3">{% trans "إيه اللي بيفضل؟" %}</h2>
+  <p>{% trans "الطلبات والمدفوعات القديمة بتفضل محفوظة باسم «حساب محذوف» من غير أي بيانات شخصية، علشان الحسابات والالتزامات الضريبية." %}</p>
+  <p class="small pm-muted">{% trans "لو عندك طلبات لسه شغالة أو فلوس على المنصة، هنخلّصها الأول قبل الحذف. مش قادر تدخل؟ كلّمنا من صفحة «مشكلة؟ كلّمنا» على mousstec.com." %}</p>
+  {% if account %}<a class="pm-btn" href="{% url 'print_market:settings' %}">{% trans "افتح الإعدادات" %}</a>{% else %}<a class="pm-btn" href="{% url 'print_market:login' %}?next={% url 'print_market:settings' %}">{% trans "ادخل لحسابك" %}</a>{% endif %}
+</div></div></div>
+{% endblock %}

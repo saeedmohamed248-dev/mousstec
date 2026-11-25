@@ -126,6 +126,33 @@ class MarketAccount(models.Model):
         self.session_key = uuid.uuid4()
         self.save(update_fields=['session_key'])
 
+    # 🗑️ حذف الحساب (شرط Google Play: أي تطبيق فيه تسجيل لازم يتيح حذف الحساب)
+    def deletion_blockers(self):
+        """الأسباب اللي بتمنع حذف الحساب دلوقتي — فاضية = ينفع يتحذف."""
+        reasons = []
+        active = MarketOrder.ACTIVE
+        if self.orders.filter(status__in=active).exists() or self.shop_orders.filter(status__in=active).exists():
+            reasons.append(_('عندك طلبات لسه شغالة — خلّصها أو الغيها الأول.'))
+        if self.is_shop and self.shop_orders.filter(status='completed', payout_done_at__isnull=True).exists():
+            reasons.append(_('لسه ليك فلوس على المنصة من طلبات مكتملة — هنحوّلهالك الأول.'))
+        if any(o.refund_due() for o in self.orders.filter(status='cancelled', refund_done_at__isnull=True)):
+            reasons.append(_('لسه ليك فلوس مرتجعة على المنصة — هنرجّعهالك الأول.'))
+        return reasons
+
+    def anonymize(self):
+        """بيمسح البيانات الشخصية ويقفل الحساب — الطلبات القديمة بتفضل (حسابات وضرايب) باسم «حساب محذوف»."""
+        if self.logo:
+            self.logo.delete(save=False)
+        self.name = str(_('حساب محذوف'))
+        self.email = f'deleted-{self.pk}-{uuid.uuid4().hex[:10]}@deleted.invalid'
+        self.password = make_password(None)
+        self.city = self.about = self.payout_method = self.payout_account = self.whatsapp = ''
+        self.is_active = False
+        self.session_key = uuid.uuid4()   # يطلّع من كل الأجهزة
+        self.save()
+        if self.is_shop:
+            self.products.update(is_active=False)
+
     def save(self, *args, **kwargs):
         self.email = (self.email or '').strip().lower()
         super().save(*args, **kwargs)

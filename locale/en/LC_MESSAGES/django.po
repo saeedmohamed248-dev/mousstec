@@ -30865,3 +30865,230 @@ msgstr "We couldn't understand this file automatically and the smart assistant i
 
 msgid "فرع واحد · خزينة واحدة"
 msgstr "1 branch · 1 treasury"
+
+msgid "عندك طلبات لسه شغالة — خلّصها أو الغيها الأول."
+msgstr "You have orders in progress — finish or cancel them first."
+
+msgid "لسه ليك فلوس على المنصة من طلبات مكتملة — هنحوّلهالك الأول."
+msgstr "You still have money on the platform from completed orders — we'll pay it out first."
+
+msgid "لسه ليك فلوس مرتجعة على المنصة — هنرجّعهالك الأول."
+msgstr "You still have a refund on the platform — we'll send it to you first."
+
+msgid "حساب محذوف"
+msgstr "Deleted account"
+
+msgid "كلمة السر غلط — الحساب ماتحذفش."
+msgstr "Wrong password — the account was not deleted."
+
+msgid "علّم على التأكيد علشان نحذف الحساب."
+msgstr "Tick the confirmation to delete the account."
+
+msgid "حسابك اتحذف وبياناتك الشخصية اتمسحت. نتمنى نشوفك تاني."
+msgstr "Your account was deleted and your personal data erased. Hope to see you again."
+
+msgid "حذف الحساب"
+msgstr "Delete account"
+
+msgid "هنمسح اسمك وإيميلك وبيانات التواصل وكلمة السر، وتتقفل من كل الأجهزة. الطلبات القديمة بتفضل محفوظة باسم «حساب محذوف» علشان الحسابات والضرايب. الحذف نهائي ومينفعش يترجع."
+msgstr "We'll erase your name, email, contact details and password, and sign you out of all devices. Past orders stay recorded as “Deleted account” for accounting and tax. Deletion is permanent and can't be undone."
+
+msgid "متأكد إني عايز أحذف حسابي نهائياً"
+msgstr "I'm sure I want to permanently delete my account"
+
+msgid "احذف حسابي"
+msgstr "Delete my account"
+
+msgid "كلمة السر للتأكيد"
+msgstr "Password to confirm"
+
+msgid "حذف حسابك في Mousstec Print"
+msgstr "Delete your Mousstec Print account"
+
+msgid "حذف حسابك في Mousstec Print (سوق المطابع)"
+msgstr "Delete your Mousstec Print (print marketplace) account"
+
+msgid "تقدر تحذف حسابك في أي وقت من التطبيق أو الموقع:"
+msgstr "You can delete your account any time from the app or the website:"
+
+msgid "ادخل بحسابك وافتح «الإعدادات»."
+msgstr "Sign in and open “Settings”."
+
+msgid "انزل لآخر الصفحة واضغط «حذف الحساب»."
+msgstr "Scroll to the bottom and tap “Delete account”."
+
+msgid "اكتب كلمة السر وعلّم على التأكيد واضغط «احذف حسابي»."
+msgstr "Enter your password, tick the confirmation and tap “Delete my account”."
+
+msgid "إيه اللي بيتمسح؟"
+msgstr "What gets deleted?"
+
+msgid "الاسم والإيميل ورقم الواتساب والمحافظة والنبذة واللوجو وبيانات استلام الفلوس وكلمة السر — فوراً. والمنتجات بتختفي من السوق."
+msgstr "Your name, email, WhatsApp number, governorate, bio, logo, payout details and password — immediately. Your products are removed from the marketplace."
+
+msgid "إيه اللي بيفضل؟"
+msgstr "What is kept?"
+
+msgid "الطلبات والمدفوعات القديمة بتفضل محفوظة باسم «حساب محذوف» من غير أي بيانات شخصية، علشان الحسابات والالتزامات الضريبية."
+msgstr "Past orders and payments are kept as “Deleted account” with no personal data, for accounting and tax obligations."
+
+msgid "لو عندك طلبات لسه شغالة أو فلوس على المنصة، هنخلّصها الأول قبل الحذف. مش قادر تدخل؟ كلّمنا من صفحة «مشكلة؟ كلّمنا» على mousstec.com."
+msgstr "If you have orders in progress or money on the platform, we settle them before deletion. Can't sign in? Contact us via “Problem? Contact us” on mousstec.com."
+
+msgid "افتح الإعدادات"
+msgstr "Open settings"
+
+msgid "ادخل لحسابك"
+msgstr "Sign in"
+
+msgid "سوق السيارات"
+msgstr "Car market"
+
+msgid "مثال: محتاج تغيير زيت BMW 320i"
+msgstr "e.g. I need an oil change for a BMW 320i"
+
+msgid "اشرح بالتفصيل: نوع العربية، السنة، الموديل، المشكلة..."
+msgstr "Describe in detail: car make, year, model, the problem..."
+
+msgid "أريد صور القطع / الخدمات مع العروض"
+msgstr "I want photos of the parts / services with the offers"
+
+msgid "محتاج إيه لعربيتك النهاردة؟"
+msgstr "What does your car need today?"
+
+msgid "تغيير زيت"
+msgstr "Oil change"
+
+msgid "محتاج تغيير زيت"
+msgstr "I need an oil change"
+
+msgid "فحص شامل"
+msgstr "Full inspection"
+
+msgid "محتاج فحص كهرباء وميكانيكا"
+msgstr "I need an electrical and mechanical inspection"
+
+msgid "محتاج قطعة غيار:"
+msgstr "I need a spare part:"
+
+msgid "كهرباء"
+msgstr "Electrical"
+
+msgid "مشكلة كهرباء في"
+msgstr "Electrical problem in"
+
+msgid "بدي وفرش"
+msgstr "Body & paint"
+
+msgid "إصلاح بدي / فرش"
+msgstr "Body / paint repair"
+
+msgid "إطارات"
+msgstr "Tyres"
+
+msgid "تغيير إطارات / بنشر"
+msgstr "Tyre change / puncture repair"
+
+msgid "حدد سنة الموديل والـ VIN لو معاك — التجار بيدوا سعر أدق."
+msgstr "Add the model year and VIN if you have it — sellers give a more accurate price."
+
+msgid "فعّل \"أريد صور\" عشان تشوف القطعة قبل ما تشتري."
+msgstr "Turn on \"I want photos\" to see the part before you buy."
+
+msgid "الميزانية القصوى مخفية عن التجار — بتفلتر العروض بس."
+msgstr "Your max budget is hidden from sellers — it only filters offers."
+
+msgid "مثال: محتاج لوجو لمطعم بيتزا"
+msgstr "e.g. I need a logo for a pizza restaurant"
+
+msgid "اشرح بالتفصيل: الألوان، الستايل، المقاسات، الكمية..."
+msgstr "Describe in detail: colours, style, sizes, quantity..."
+
+msgid "أريد تصميمات / صور مع العروض"
+msgstr "I want designs / images with the offers"
+
+msgid "إيه اللي هنبدع فيه النهاردة؟"
+msgstr "What are we creating today?"
+
+msgid "لوجو"
+msgstr "Logo"
+
+msgid "محتاج تصميم لوجو لـ"
+msgstr "I need a logo design for"
+
+msgid "فلاير/بوستر"
+msgstr "Flyer/poster"
+
+msgid "محتاج فلاير أو بوستر لـ"
+msgstr "I need a flyer or poster for"
+
+msgid "محتاج كروت شخصية"
+msgstr "I need business cards"
+
+msgid "تيشرت/مج"
+msgstr "T-shirt/mug"
+
+msgid "محتاج طباعة تيشرت / مج"
+msgstr "I need T-shirt / mug printing"
+
+msgid "بنرات/يفط"
+msgstr "Banners/signs"
+
+msgid "محتاج بنر / يفطة"
+msgstr "I need a banner / sign"
+
+msgid "سوشيال ميديا"
+msgstr "Social media"
+
+msgid "محتاج تصميمات سوشيال ميديا لـ"
+msgstr "I need social media designs for"
+
+msgid "لو عندك ألوان أو لوجو موجود — ارفعهم في الـ Brand Profile مرة وعمرها يستخدمهم AI."
+msgstr "Have brand colours or a logo? Upload them once to your Brand Profile and the AI will always use them."
+
+msgid "متجر تصاميم AI بيوفر تصميم في ثواني — جربه قبل ما تطلب من مصمم."
+msgstr "The AI design store makes a design in seconds — try it before hiring a designer."
+
+msgid "حدد المقاسات والكمية في التفاصيل عشان السعر يبقى دقيق."
+msgstr "Add sizes and quantity in the details for an accurate price."
+
+msgid "تفاصيل الطلب..."
+msgstr "Request details..."
+
+msgid "أريد صور مع العروض"
+msgstr "I want photos with the offers"
+
+msgid "محتاج إيه؟"
+msgstr "What do you need?"
+
+msgid "جرب تعدّل العنوان أو تضيف صور — الطلبات المفصّلة بتجيب عروض أكتر."
+msgstr "Try editing the title or adding photos — detailed requests get more offers."
+
+msgid "مراجعة طلباتي"
+msgstr "Review my requests"
+
+msgid "فيه طلب وافقت على عرضه — تواصل مع التاجر"
+msgstr "You accepted an offer — contact the seller"
+
+msgid "ابدأ أول طلب لك"
+msgstr "Start your first request"
+
+msgid "دور على أفضل عرض من ٤٢٠+ تاجر في القطاع — مجاناً."
+msgstr "Find the best offer from sellers in your sector — free."
+
+msgid "اعمل طلب الآن"
+msgstr "Create a request now"
+
+#, python-format
+msgid "عندك %(n)s طلب مفتوح بدون عروض"
+msgstr "You have %(n)s open requests with no offers"
+
+#, python-format
+msgid "اطلب عرض سعر من %(n)s متجر في السوق — مجاناً."
+msgstr "Request a quote from %(n)s stores in the market — free."
+
+msgid "اطلب عروض أسعار من تجار السوق — مجاناً."
+msgstr "Request quotes from market sellers — free."
+
+msgid "مخفي عن التجار"
+msgstr "Hidden from sellers"
