@@ -653,8 +653,7 @@ def marketplace_dashboard(request):
             customer.designs.order_by('-created_at')[:6]
         )
 
-    # 🐛 [FIX]: «٤٢٠+ تاجر» كان رقم ثابت مش حقيقي — بنعرض عدد المتاجر الفعلي في القطاع
-    market = _market_entry(customer.sector)
+    market = _market_entry(customer.sector)  # 🐛 [FIX]: «٤٢٠+ تاجر» كان ثابت — دلوقتي عدد المتاجر الفعلي
 
     # Smart next action — sector-aware nudge based on data
     next_action = None
