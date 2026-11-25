@@ -12,7 +12,12 @@ services:
     # (عدة threads) + celery worker/beat + أوامر الإدارة المتزامنة.
     # 🛡️ idle_session_timeout: أي اتصال فاضي ١٠ دقايق بيتقفل من ناحية Postgres — لو حصل تسريب
     #    اتصالات تاني (زي يوم «too many clients») بيتصلّح لوحده بدل ما الموقع يقع.
+    # 🐛 [FIX]: النسخة الاحتياطية فشلت بـ «out of shared memory — increase max_locks_per_transaction»:
+    #    pg_dump بيقفل كل جدول وsequence في كل schema (كل شركة = schema بمئات الجداول) في transaction
+    #    واحدة، والافتراضي ٦٤ × max_connections ماعادش بيكفي بعد ما الشركات زادت. ٥١٢ ⇒ ~٣٠ ميجا رام.
+    #    ⚠️ بيتطبّق بعد إعادة تشغيل حاوية الداتابيز (docker compose up -d db).
     command: ["postgres", "-c", "max_connections=200",
+              "-c", "max_locks_per_transaction=512",
               "-c", "idle_session_timeout=600000",
               "-c", "idle_in_transaction_session_timeout=300000"]
     environment:
