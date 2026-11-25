@@ -30738,3 +30738,127 @@ msgstr "Add a photo to at least one product"
 
 msgid "سجّل أسعارك في بورصة الأسعار"
 msgstr "Post your prices on the price board"
+
+# 🤖 المساعد الذكي للاستيراد
+msgid "المساعد الذكي — ارفع منتجاتك"
+msgstr "Smart assistant — upload your products"
+
+msgid "ارفع أي ملف عندك بالمنتجات أو الأسعار — المساعد بيقراه ويطلّع المنتجات، وإنت تراجعها قبل ما تتحفظ:"
+msgstr "Upload any file with your products or prices — the assistant reads it and extracts the products, and you review them before saving:"
+
+msgid "صورة قايمة أسعار أو منيو"
+msgstr "Photo of a price list or menu"
+
+msgid "اختار الملف أو صوّر القايمة"
+msgstr "Choose the file or take a photo of the list"
+
+msgid "لحد ١٥ ميجا"
+msgstr "Up to 15 MB"
+
+msgid "المساعد بيقرا الملف…"
+msgstr "The assistant is reading the file…"
+
+msgid "اقرا الملف"
+msgstr "Read the file"
+
+msgid "قراءة الصور والـ PDF بالذكاء الاصطناعي مش متاحة دلوقتي — ملفات Excel وCSV شغالة."
+msgstr "AI reading of photos and PDFs isn't available right now — Excel and CSV files work."
+
+msgid "عندك شيت؟ إيه الأعمدة اللي بيفهمها"
+msgstr "Have a sheet? Which columns it understands"
+
+msgid "المساعد بيدوّر على صف العناوين لوحده وبيفهم أسماء كتير، زي:"
+msgstr "The assistant finds the header row by itself and understands many names, like:"
+
+msgid "اسم البند، الصنف، المنتج، Item، Product"
+msgstr "Item name, product, Item, Product"
+
+msgid "القسم، الفئة، التصنيف، Category — ولو مش موجود بيخمّن من الاسم"
+msgstr "Section, category, Category — if missing it guesses from the name"
+
+msgid "سعر مطبعتك، السعر، السعر / من، Price"
+msgstr "Your price, price, price from, Price"
+
+msgid "أقل كمية، الكمية المرجعية، وحدة التسعير، MOQ"
+msgstr "Minimum quantity, reference quantity, pricing unit, MOQ"
+
+msgid "الخامة، المواصفة، التفاصيل، Description"
+msgstr "Material, spec, details, Description"
+
+msgid "راجع المنتجات قبل الحفظ"
+msgstr "Review the products before saving"
+
+msgid "(اتقرا بالذكاء الاصطناعي — راجع الأسماء والأسعار كويس)"
+msgstr "(Read by AI — check names and prices carefully)"
+
+msgid "علّم الكل"
+msgstr "Select all"
+
+msgid "شيل الكل"
+msgstr "Clear all"
+
+msgid "استورد المتعلّم"
+msgstr "Import selected"
+
+msgid "حسب الطلب"
+msgstr "On request"
+
+msgid "ارفع ملف تاني"
+msgstr "Upload another file"
+
+#, python-format
+msgid "المساعد لقى %(n)s منتج في «%(f)s» — منهم %(p)s بسعر."
+msgstr "The assistant found %(n)s products in “%(f)s” — %(p)s with a price."
+
+#, python-format
+msgid "%(d)s منتج موجودين عندك قبل كده — مش متعلّمين."
+msgstr "%(d)s products already exist in your store — not selected."
+
+msgid "عندك قايمة أسعار؟"
+msgstr "Have a price list?"
+
+msgid "ارفع Excel أو PDF أو صورة — المساعد يملا الأسعار وإنت تراجع."
+msgstr "Upload Excel, PDF or a photo — the assistant fills in the prices and you review."
+
+msgid "اقرا الأسعار"
+msgstr "Read prices"
+
+msgid "ملف الأسعار"
+msgstr "Price file"
+
+#, python-format
+msgid "المساعد ملا %(n)s سعر من ملفك (متعلّمين بالبنفسجي) — راجعهم واضغط «احفظ أسعار النهارده». ده سعر الوحدة اللي مكتوبة جنب كل بند."
+msgstr "The assistant filled %(n)s prices from your file (highlighted in purple) — review them and press “Save today's prices”. Each is the price for the unit shown next to the item."
+
+msgid "من ملفك:"
+msgstr "From your file:"
+
+msgid "المراجعة دي خلصت — ارفع الملف تاني."
+msgstr "This review expired — upload the file again."
+
+msgid "اختار الملف."
+msgstr "Choose the file."
+
+msgid "رفعت ملفات كتير — جرّب بعد ساعة."
+msgstr "Too many uploads — try again in an hour."
+
+msgid "قرينا الملف بس مالقيناش أسعار للبنود دي فيه — اكتبها بإيدك."
+msgstr "We read the file but found no prices for these items — enter them by hand."
+
+msgid "الملف أكبر من ١٥ ميجا."
+msgstr "The file is larger than 15 MB."
+
+msgid "ملف Excel القديم (.xls) — افتحه واحفظه «xlsx» وارفعه تاني، أو صوّر القايمة وارفع الصورة."
+msgstr "Old Excel file (.xls) — open it, save as “xlsx” and upload again, or upload a photo of the list."
+
+msgid "نوع الملف ده مش مدعوم — ارفع Excel أو CSV أو PDF أو صورة."
+msgstr "This file type isn't supported — upload Excel, CSV, PDF or a photo."
+
+msgid "المساعد الذكي مقدرش يقرا الملف — جرّب صورة أوضح أو شيت Excel."
+msgstr "The assistant couldn't read the file — try a clearer photo or an Excel sheet."
+
+msgid "مالقيناش منتجات في الملف."
+msgstr "No products found in the file."
+
+msgid "مقدرناش نفهم الملف ده لوحدنا، والمساعد الذكي مش متاح دلوقتي — ارفع شيت فيه عمود «اسم المنتج» أو «البند»، أو ابعت الملف لدعم Mouss Tec."
+msgstr "We couldn't understand this file automatically and the smart assistant isn't available right now — upload a sheet with a “product name” or “item” column, or send the file to Mouss Tec support."

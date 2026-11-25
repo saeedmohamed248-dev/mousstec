@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import uuid
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
@@ -45,7 +44,6 @@ logger = logging.getLogger('mouss_tec_core')
 
 SIGNUPS_PER_IP_HOUR = 5
 LOGIN_FAILS_PER_PHONE = 10
-IMPORT_MAX_ROWS = 300
 IMAGE_MAX = 8 * 1024 * 1024
 # حالات طلب السعر اللي البائع يقدر يحطها (نفس حالات الطلب في الكتالوج)
 SELLER_STATUSES = ('new', 'contacted', 'quoted', 'done', 'cancelled')
@@ -406,114 +404,81 @@ def _notify_owner_new_items(store):
                  f'/superadmin/market/sellers/{store.seller.pk}/?tab=products')
 
 
-def _cell(v):
-    return ' '.join(str(v).split()) if v is not None else ''
+# ─────────────── 🤖 المساعد الذكي للاستيراد (أي ملف ⇒ مراجعة ⇒ حفظ) ───────────────
 
-
-def _read_sheet(upload):
-    """صفوف الشيت (xlsx أو csv) كـ dicts بأسماء الأعمدة (أول صف)."""
-    ext = os.path.splitext(upload.name or '')[1].lower()
-    if ext == '.xlsx':
-        from openpyxl import load_workbook
-        ws = load_workbook(upload, read_only=True, data_only=True).active
-        rows = ws.iter_rows(values_only=True)
-    elif ext == '.csv':
-        import csv
-        import io
-        text = upload.read().decode('utf-8-sig', errors='replace')
-        rows = csv.reader(io.StringIO(text))
-    else:
-        raise ValueError(_('ابعت الشيت Excel (.xlsx) أو CSV.'))
-    header = None
-    for row in rows:
-        cells = [_cell(c) for c in row]
-        if header is None:
-            if any(cells):
-                header = [c.lower() for c in cells]
-            continue
-        if any(cells):
-            yield dict(zip(header, cells))
-
-
-# أسماء الأعمدة المقبولة (عربي أو إنجليزي)
-_COLS = {
-    'title': ('اسم المنتج', 'المنتج', 'الاسم', 'title', 'name', 'product'),
-    'description': ('الوصف', 'description', 'details'),
-    'category': ('القسم', 'category'),
-    'min_qty': ('أقل كمية', 'اقل كمية', 'الكمية', 'min qty', 'min_qty', 'minimum'),
-    'price_from': ('السعر', 'السعر يبدأ من', 'price', 'price_from'),
-    'car_make': ('الماركة', 'make', 'car_make'),
-    'car_models': ('الموديلات', 'models', 'car_models'),
-    'part_number': ('رقم القطعة', 'part number', 'part_number'),
-}
-
-
-def _pick(row, key):
-    for name in _COLS[key]:
-        if row.get(name.lower()):
-            return row[name.lower()]
-    return ''
-
-
-def _match_category(meta, raw):
-    """(القسم، النوع لو أخرى). قسم مش معروف ⇒ «أخرى» واسمه زي ما اتكتب (مش أول قسم بالغلط)."""
-    clean = ' '.join((raw or '').split())
-    low = clean.lower()
-    for k, (ar, _icon) in meta['categories'].items():
-        if low in (k, ar.lower(), meta['categories_en'].get(k, '').lower()):
-            return k, ''
-    return OTHER_CATEGORY, clean[:80]
+def _import_key(seller, token):
+    return f'seller_import:{seller.pk}:{token}'
 
 
 @_seller_required
 def seller_products_import(request):
-    """📄 رفع شيت منتجات — كل صف منتج بيظهر على طول."""
-    store = request.seller.store
+    """🤖 ارفع أي ملف (Excel / CSV / PDF / صورة) ⇒ المساعد يطلّع المنتجات ⇒ تراجعها ⇒ تتحفظ.
+
+    🐛 [FIX]: كان بيقبل شيت بعناوين محددة في أول صف بس ⇒ قوائم الأسعار الحقيقية كانت بتترفض.
+    """
+    from clients.services import smart_import as si
+    seller = request.seller
+    store = seller.store
     meta = SECTORS[store.sector]
+    cat_choices = [(k, label) for k, label, _i in _categories(meta)] + [(OTHER_CATEGORY, _('أخرى'))]
+    token = request.GET.get('review') or request.POST.get('token') or ''
     errors = []
-    if request.method == 'POST':
+
+    if request.method == 'POST' and request.POST.get('action') == 'confirm':
+        data = cache.get(_import_key(seller, token))
+        if not data:
+            errors.append(_('المراجعة دي خلصت — ارفع الملف تاني.'))
+        else:
+            picked = {int(i) for i in request.POST.getlist('pick') if i.isdigit()}
+            new = []
+            for i, r in enumerate(data['rows']):
+                if i not in picked:
+                    continue
+                cat = request.POST.get(f'cat_{i}', r['category'])
+                if cat not in dict(cat_choices):
+                    cat = r['category']
+                custom = (r['custom_category'] or r.get('section') or r['title'])[:80] if cat == OTHER_CATEGORY else ''
+                new.append(CatalogItem(
+                    store=store, title=r['title'], description=r['description'], category=cat,
+                    custom_category=custom, icon=meta['categories'].get(cat, ('', 'fa-box'))[1],
+                    min_qty=r['min_qty'], price_from=r['price'], is_active=True, pending_review=False))
+            if new:
+                CatalogItem.objects.bulk_create(new)
+                cache.delete(_import_key(seller, token))
+                _notify_owner_new_items(store)
+                return redirect(f'/marketplace/seller/products/?imported={len(new)}')
+            errors.append(_('اختار منتج واحد على الأقل.'))
+
+    elif request.method == 'POST':
+        from erp_core.client_ip import client_ip
         upload = request.FILES.get('sheet')
         if not upload:
-            errors.append(_('اختار ملف الشيت.'))
-        elif upload.size > 5 * 1024 * 1024:
-            errors.append(_('الشيت أكبر من ٥ ميجا.'))
+            errors.append(_('اختار الملف.'))
+        elif _hit(f'seller_import:{seller.pk}', 20, 3600) or _hit(f'seller_import_ip:{client_ip(request)}', 40, 3600):
+            errors.append(_('رفعت ملفات كتير — جرّب بعد ساعة.'))
         else:
             try:
-                new = []
-                for row in _read_sheet(upload):
-                    title = _pick(row, 'title')[:200]
-                    if not title:
-                        continue
-                    try:
-                        price = Decimal(_pick(row, 'price_from').replace(',', '')) if _pick(row, 'price_from') else None
-                        if price is not None and (not price.is_finite() or price < 0):
-                            price = None
-                    except InvalidOperation:
-                        price = None
-                    cat, custom = _match_category(meta, _pick(row, 'category'))
-                    new.append(CatalogItem(
-                        store=store, title=title, description=_pick(row, 'description')[:3000], category=cat,
-                        custom_category=custom, icon=meta['categories'].get(cat, ('', 'fa-box'))[1], min_qty=_pick(row, 'min_qty')[:60], price_from=price,
-                        car_make=_pick(row, 'car_make')[:60], car_models=_pick(row, 'car_models')[:200],
-                        part_number=_pick(row, 'part_number')[:80],
-                        is_active=True, pending_review=False,
-                    ))
-                    if len(new) >= IMPORT_MAX_ROWS:
-                        break
-            except ValueError as e:
+                rows, how = si.read_any(upload, store.sector)
+            except si.ImportFailed as e:
                 errors.append(str(e))
-            except Exception:  # noqa: BLE001 — ملف بايظ
-                logger.exception('[SELLER] sheet import failed for store %s', store.pk)
-                errors.append(_('مقدرناش نقرا الشيت — اتأكد إنه Excel أو CSV وأول صف فيه أسماء الأعمدة.'))
             else:
-                if not new:
-                    errors.append(_('مالقيناش منتجات في الشيت — لازم عمود «اسم المنتج».'))
-                else:
-                    CatalogItem.objects.bulk_create(new)
-                    _notify_owner_new_items(store)
-                    return redirect(f'/marketplace/seller/products/?imported={len(new)}')
+                existing = {si._norm(t) for t in store.items.values_list('title', flat=True)}
+                for r in rows:
+                    r['exists'] = si._norm(r['title']) in existing
+                token = uuid.uuid4().hex
+                cache.set(_import_key(seller, token), {'rows': rows, 'how': how, 'name': upload.name[:120]}, 3600)
+                return redirect(f'/marketplace/seller/products/import/?review={token}')
+
+    data = cache.get(_import_key(seller, token)) if token else None
+    if data:
+        rows = data['rows']
+        return render(request, 'clients/marketplace/seller/import_review.html', _ctx(
+            request, 'products', rows=rows, token=token, how=data['how'], file_name=data['name'],
+            cat_choices=cat_choices, errors=errors, priced=sum(1 for r in rows if r['price']),
+            dupes=sum(1 for r in rows if r.get('exists'))))
     return render(request, 'clients/marketplace/seller/import.html', _ctx(
-        request, 'products', errors=errors, categories=_categories(meta), max_rows=IMPORT_MAX_ROWS))
+        request, 'products', errors=errors, categories=_categories(meta), accept=si.ACCEPT,
+        ai_on=si._ai_available()))
 
 
 # ─────────────────────────── عملائي (طلبات الأسعار على منتجاتي) ───────────────────────────

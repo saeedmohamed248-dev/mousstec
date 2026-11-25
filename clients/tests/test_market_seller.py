@@ -7,6 +7,7 @@
 * السوق المفتوح: البائع يقدّم عرض، والعميل يقبله ⇒ الصفقة والتقييم بيتحسبوا للبائع.
 * شيت Excel/CSV، والحماية: كلمة سر غلط، حساب موقوف، بائع مايلمسش منتجات غيره.
 """
+import io
 import re
 import uuid
 from datetime import timedelta
@@ -215,23 +216,97 @@ class MarketSellerTests(_TenantDomainMixin, TestCase):
         item.refresh_from_db()
         self.assertTrue(item.is_active)
 
+    def _import(self, c, upload, keep=None):
+        """رفع ⇒ صفحة مراجعة ⇒ تأكيد (keep = أرقام الصفوف المتعلّمة؛ None = كل المتعلّم افتراضياً)."""
+        r = c.post('/marketplace/seller/products/import/', {'sheet': upload})
+        self.assertEqual(r.status_code, 302, r.content.decode()[:400])
+        self.assertIn('?review=', r['Location'])
+        review = c.get(r['Location'])
+        html = review.content.decode()
+        token = r['Location'].split('review=')[1]
+        import re as _re
+        picks = keep if keep is not None else _re.findall(r'name="pick" value="(\d+)" checked', html)
+        with mock.patch('clients.services.owner_notify.notify_owner'):
+            done = c.post('/marketplace/seller/products/import/', {'action': 'confirm', 'token': token, 'pick': picks})
+        return html, done
+
     def test_import_csv_sheet(self):
         c, *_ = self._join()
         sheet = SimpleUploadedFile('p.csv', 'اسم المنتج,القسم,أقل كمية,السعر\nكوباية مطبوعة,mugs,٥٠,40\n,,,\n'
                                             'قلم,أقسام مش موجودة,,abc\n'.encode('utf-8-sig'), 'text/csv')
-        with mock.patch('clients.services.owner_notify.notify_owner'):
-            r = c.post('/marketplace/seller/products/import/', {'sheet': sheet})
+        html, r = self._import(c, sheet)
+        self.assertIn('كوباية مطبوعة', html)
         self.assertEqual(r['Location'], '/marketplace/seller/products/?imported=2')
         items = {i.title: i for i in CatalogItem.objects.filter(store__seller__isnull=False)}
-        # قسم مش من أقسامنا ⇒ «أخرى» باسمه زي ما اتكتب (مش أول قسم بالغلط)
-        self.assertEqual((items['قلم'].category, items['قلم'].custom_category), ('other', 'أقسام مش موجودة'))
+        # «قلم» ⇒ قسم الأقلام من اسمه (القسم المكتوب مش من أقسامنا)
+        self.assertEqual(items['قلم'].category, 'pens')
         self.assertEqual(items['كوباية مطبوعة'].category, 'mugs')
         self.assertEqual(str(items['كوباية مطبوعة'].price_from), '40.00')
         self.assertIsNone(items['قلم'].price_from)
         self.assertTrue(all(i.is_active and not i.pending_review for i in items.values()))
-        bad = SimpleUploadedFile('p.pdf', b'%PDF', 'application/pdf')
+        # رفع نفس الملف تاني ⇒ الموجود مش متعلّم ⇒ مفيش تكرار
+        sheet.seek(0)
+        html, r = self._import(c, SimpleUploadedFile('p.csv', sheet.read(), 'text/csv'))
+        self.assertIn('موجود', html)
+        self.assertEqual(CatalogItem.objects.filter(store__seller__isnull=False).count(), 2)
+        bad = SimpleUploadedFile('p.doc', b'xx', 'application/msword')
         r = c.post('/marketplace/seller/products/import/', {'sheet': bad})
         self.assertIn('Excel', r.content.decode())
+
+    def test_import_real_price_list_xlsx(self):
+        """🐛 [FIX]: قايمة أسعار حقيقية (عنوان فوق، «اسم البند»، «السعر / من»، «سعر مطبعتك») كانت بتترفض."""
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['قائمة أسعار Peak Media — الطباعة في مصر'])
+        ws.append([])
+        ws.append(['القسم', 'اسم البند', 'الخامة', 'المواصفة المطلوبة / تفاصيل السعر', 'وحدة التسعير',
+                   'الكمية المرجعية', 'السعر / من', 'إلى', 'حالة السعر', 'المصدر', 'سعر مطبعتك'])
+        ws.append(['الورق والأعمال المكتبية', 'كارت شخصي وجه واحد', 'كرتون كوشيه', 'حدد الجرام', 'قطعة', 50, 1.9,
+                   None, 'يبدأ من', 'INK', None])
+        ws.append(['الورق والأعمال المكتبية', 'كارت شخصي فاخر', 'ورق قطني', '300–600 جم', 'قطعة',
+                   'عرض سعر مطلوب'])
+        ws.append(['الهدايا', 'مج سيراميك أبيض', 'سيراميك', 'سبليميشن', 'قطعة', 1, 150, None, None, None, 130])
+        ws.append(['الملابس', 'مستندات مطبوعة ومجلدة بالسلك', 'ورق', '', 'قطعة', 1, 65])
+        ws.append(['الطباعة الخارجية', 'طباعة UV على زجاج', 'زجاج', '', 'متر', 1, 900])
+        buf = io.BytesIO()
+        wb.save(buf)
+        c, *_ = self._join()
+        html, r = self._import(c, SimpleUploadedFile('Peak_Media.xlsx', buf.getvalue()))
+        self.assertIn('المساعد لقى 5 منتج', html)
+        items = {i.title: i for i in CatalogItem.objects.filter(store__seller__isnull=False)}
+        self.assertEqual(len(items), 5)
+        self.assertEqual(items['كارت شخصي وجه واحد'].category, 'cards')
+        self.assertEqual(str(items['كارت شخصي وجه واحد'].price_from), '1.90')
+        self.assertIsNone(items['كارت شخصي فاخر'].price_from)                 # «عرض سعر مطلوب»
+        self.assertEqual(str(items['مج سيراميك أبيض'].price_from), '130.00')  # «سعر مطبعتك» بيكسب
+        self.assertEqual(items['مج سيراميك أبيض'].category, 'mugs')
+        self.assertNotEqual(items['مستندات مطبوعة ومجلدة بالسلك'].category, 'mugs')   # «مج» مش جوه «ومجلدة»
+        self.assertEqual((items['طباعة UV على زجاج'].category, items['طباعة UV على زجاج'].custom_category),
+                         ('other', 'طباعة UV على زجاج'))
+        self.assertIn('كرتون كوشيه', items['كارت شخصي وجه واحد'].description)
+
+    @override_settings(ENABLE_AI_PREDICTIONS=True, GEMINI_API_KEY='k')
+    def test_import_image_uses_ai(self):
+        c, *_ = self._join()
+        ai = '{"items":[{"title":"بنر فليكس","section":"","description":"440 جم","min_qty":"1 متر","price":75},'\
+             '{"title":"ختم أوتوماتيك","price":"عرض سعر"}]}'
+        with mock.patch('inventory.ai_services.call_llm_layer', return_value=ai) as llm:
+            html, r = self._import(c, SimpleUploadedFile('menu.jpg', b'\xff\xd8fakejpeg', 'image/jpeg'))
+        msg = llm.call_args.args[0][0]['content']
+        self.assertTrue(any(p.get('type') == 'image_url' and p['image_url']['url'].startswith('data:image/jpeg;base64,')
+                            for p in msg))
+        self.assertIn('الذكاء الاصطناعي', html)
+        items = {i.title: i for i in CatalogItem.objects.filter(store__seller__isnull=False)}
+        self.assertEqual((items['بنر فليكس'].category, str(items['بنر فليكس'].price_from)), ('banners', '75.00'))
+        self.assertIsNone(items['ختم أوتوماتيك'].price_from)
+
+    def test_import_image_without_ai_explains(self):
+        c, *_ = self._join()
+        with self.settings(ENABLE_AI_PREDICTIONS=False):
+            r = c.post('/marketplace/seller/products/import/', {'sheet': SimpleUploadedFile('a.png', b'x', 'image/png')})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('المساعد الذكي مش متاح', r.content.decode())
 
     # ── عملائي ──
     def test_quote_reaches_seller_customers(self):

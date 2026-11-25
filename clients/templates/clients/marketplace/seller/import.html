@@ -1,24 +1,35 @@
 {% extends "clients/marketplace/seller/_base.html" %}{% load i18n %}
-{% block title %}{% trans "ارفع شيت منتجات" %}{% endblock %}
+{% block title %}{% trans "المساعد الذكي — ارفع منتجاتك" %}{% endblock %}
 {% block content %}
-<h1 style="font-size:1.3rem">{% trans "ارفع شيت منتجات" %}</h1>
+<h1 style="font-size:1.3rem"><i class="fas fa-wand-magic-sparkles"></i> {% trans "المساعد الذكي — ارفع منتجاتك" %}</h1>
 {% for e in errors %}<div class="notice err">{{ e }}</div>{% endfor %}
 <div class="card">
-    <p>{% trans "شيت Excel (.xlsx) أو CSV — أول صف فيه أسماء الأعمدة، وكل صف بعده منتج:" %}</p>
-    <table class="t">
-        <tr><th>{% trans "العمود" %}</th><th>{% trans "مطلوب؟" %}</th></tr>
-        <tr><td>{% trans "اسم المنتج" %}</td><td>{% trans "أيوه" %}</td></tr>
-        <tr><td>{% trans "الوصف" %}</td><td>{% trans "لأ" %}</td></tr>
-        <tr><td>{% trans "القسم" %}</td><td>{% trans "لأ — لو مكتوب قسم مش من أقسامنا بيتحط في «أخرى» باسمه زي ما كتبته" %}</td></tr>
-        <tr><td>{% trans "أقل كمية" %}</td><td>{% trans "لأ" %}</td></tr>
-        <tr><td>{% trans "السعر" %}</td><td>{% trans "لأ" %}</td></tr>
-        {% if sector == 'automotive' %}<tr><td>{% trans "الماركة" %} / {% trans "الموديلات" %} / {% trans "رقم القطعة" %}</td><td>{% trans "لأ" %}</td></tr>{% endif %}
-    </table>
-    <p class="muted" style="font-size:.85rem">{% trans "الأقسام المتاحة:" %} {% for k, label, icon in categories %}{{ label }}{% if not forloop.last %}، {% endif %}{% endfor %}</p>
-    <p class="muted" style="font-size:.85rem">{% blocktrans with n=max_rows %}لحد {{ n }} منتج في المرة. الصور تضيفها بعدين من «تعديل» لكل منتج.{% endblocktrans %}</p>
-    <form method="post" enctype="multipart/form-data" class="f">{% csrf_token %}
-        <p><input type="file" name="sheet" accept=".xlsx,.csv" required></p>
-        <button class="btn" type="submit"><i class="fas fa-upload"></i> {% trans "ارفع" %}</button>
+    <p style="margin-top:0">{% trans "ارفع أي ملف عندك بالمنتجات أو الأسعار — المساعد بيقراه ويطلّع المنتجات، وإنت تراجعها قبل ما تتحفظ:" %}</p>
+    <div class="chipset" style="margin-bottom:12px">
+        <span class="tag off"><i class="fas fa-file-excel"></i> Excel (.xlsx)</span>
+        <span class="tag off"><i class="fas fa-file-csv"></i> CSV</span>
+        <span class="tag off"><i class="fas fa-file-pdf"></i> PDF</span>
+        <span class="tag off"><i class="fas fa-image"></i> {% trans "صورة قايمة أسعار أو منيو" %}</span>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="f" id="imp">{% csrf_token %}
+        <label for="sheet" style="display:block;border:2px dashed var(--mt-line-2);border-radius:14px;padding:22px;text-align:center;cursor:pointer;background:var(--mt-card)">
+            <i class="fas fa-cloud-arrow-up" style="font-size:2rem;color:var(--mt-brand)"></i>
+            <div style="font-weight:800;margin-top:6px">{% trans "اختار الملف أو صوّر القايمة" %}</div>
+            <div class="muted" style="font-size:.85rem" id="fname">{% trans "لحد ١٥ ميجا" %}</div>
+            <input id="sheet" type="file" name="sheet" accept="{{ accept }}" required style="display:none" onchange="document.getElementById('fname').textContent=this.files[0]?this.files[0].name:''">
+        </label>
+        <button class="btn" type="submit" style="margin-top:12px" onclick="this.disabled=true;this.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> {% trans "المساعد بيقرا الملف…" %}';this.form.submit()"><i class="fas fa-wand-magic-sparkles"></i> {% trans "اقرا الملف" %}</button>
     </form>
+    {% if not ai_on %}<p class="muted" style="font-size:.82rem;margin-bottom:0">{% trans "قراءة الصور والـ PDF بالذكاء الاصطناعي مش متاحة دلوقتي — ملفات Excel وCSV شغالة." %}</p>{% endif %}
 </div>
+<details class="card"><summary style="cursor:pointer;font-weight:700">{% trans "عندك شيت؟ إيه الأعمدة اللي بيفهمها" %}</summary>
+    <p class="muted" style="font-size:.88rem">{% trans "المساعد بيدوّر على صف العناوين لوحده وبيفهم أسماء كتير، زي:" %}</p>
+    <table class="t">
+        <tr><td>{% trans "اسم المنتج" %}</td><td class="muted">{% trans "اسم البند، الصنف، المنتج، Item، Product" %}</td></tr>
+        <tr><td>{% trans "القسم" %}</td><td class="muted">{% trans "القسم، الفئة، التصنيف، Category — ولو مش موجود بيخمّن من الاسم" %}</td></tr>
+        <tr><td>{% trans "السعر" %}</td><td class="muted">{% trans "سعر مطبعتك، السعر، السعر / من، Price" %}</td></tr>
+        <tr><td>{% trans "الكمية" %}</td><td class="muted">{% trans "أقل كمية، الكمية المرجعية، وحدة التسعير، MOQ" %}</td></tr>
+        <tr><td>{% trans "الوصف" %}</td><td class="muted">{% trans "الخامة، المواصفة، التفاصيل، Description" %}</td></tr>
+    </table>
+</details>
 {% endblock %}

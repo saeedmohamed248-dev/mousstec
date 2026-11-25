@@ -17,6 +17,14 @@
     <p style="margin:0 0 8px">{% trans "سعّر البنود دي بالمواصفة المكتوبة بالظبط عشان الأسعار تتقارن ببعض. اللي مابتعملوش سيبه فاضي." %}</p>
     <p class="muted" style="margin:0;font-size:.85rem">{% blocktrans with n=min_providers d=fresh_days %}العملاء بيشوفوا نطاق الأسعار بس (من غير اسمك)، ولما يبقى فيه {{ n }} مطابع على الأقل. السعر بيفضل محسوب {{ d }} أيام من آخر تأكيد.{% endblocktrans %}</p>
 </div>
+{% if suggested_count %}<div class="notice ok"><i class="fas fa-wand-magic-sparkles"></i> {% blocktrans with n=suggested_count %}المساعد ملا {{ n }} سعر من ملفك (متعلّمين بالبنفسجي) — راجعهم واضغط «احفظ أسعار النهارده». ده سعر الوحدة اللي مكتوبة جنب كل بند.{% endblocktrans %}</div>{% endif %}
+{% if import_error %}<div class="notice err">{{ import_error }}</div>{% endif %}
+<form method="post" enctype="multipart/form-data" class="card row">{% csrf_token %}
+    <input type="hidden" name="action" value="import">
+    <span style="flex:1;min-width:220px"><b><i class="fas fa-wand-magic-sparkles"></i> {% trans "عندك قايمة أسعار؟" %}</b> <span class="muted" style="font-size:.88rem">{% trans "ارفع Excel أو PDF أو صورة — المساعد يملا الأسعار وإنت تراجع." %}</span></span>
+    <input type="file" name="price_file" accept="{{ accept }}" required aria-label="{% trans 'ملف الأسعار' %}" style="max-width:220px">
+    <button class="btn ghost" type="submit"><i class="fas fa-upload"></i> {% trans "اقرا الأسعار" %}</button>
+</form>
 {% if has_last and not done_today %}
 <form method="post" class="card row" style="background:#ecfdf5;border-color:#a7f3d0">{% csrf_token %}
     <span style="flex:1;min-width:200px"><b>{% trans "أسعارك زي امبارح؟" %}</b> {% trans "أكّدها بضغطة وشوف متوسط السوق." %}</span>
