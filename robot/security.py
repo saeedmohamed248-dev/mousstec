@@ -95,7 +95,7 @@ def device_for_token(token, ip: Optional[str] = None):
 
 
 def _client_ip(request) -> Optional[str]:
-    # 🔒 [FIX]: أول قيمة في X-Forwarded-For بيكتبها العميل بنفسه (تتزوّر). Caddy — البروكسي
+    # 🐛 [FIX]: أول قيمة في X-Forwarded-For بيكتبها العميل بنفسه (تتزوّر). Caddy — البروكسي
     #    الوحيد قدام Django — بيضيف IP المتصل في الآخر، فالآخر هو الموثوق.
     xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
     if xff:

@@ -133,7 +133,7 @@ def apply_sale(device, payload: dict):
                 raise Review(f"كمية أو سعر بايظ لـ {product.name}.")
             if qty < 1 or not price.is_finite() or price <= 0:
                 raise Review(f"كمية أو سعر بايظ لـ {product.name}.")
-            # 🔒 [FIX]: السعر جاي من الجهاز — كان أي سعر > 0 بيتعتمد (توكن مسروق أو سعر متلعب فيه
+            # 🐛 [FIX]: السعر جاي من الجهاز — كان أي سعر > 0 بيتعتمد (توكن مسروق أو سعر متلعب فيه
             #    كان بيبيع القطعة بجنيه). سعر زاد من ساعتها (الكاش القديم) يتعتمد عادي زي الأول،
             #    لكن أقل من OFFLINE_PRICE_FLOOR من سعر القطاعي الحالي بيروح للمدير يراجعه.
             retail = Decimal(str(product.retail_price or 0))
