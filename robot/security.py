@@ -95,9 +95,11 @@ def device_for_token(token, ip: Optional[str] = None):
 
 
 def _client_ip(request) -> Optional[str]:
+    # 🐛 [FIX]: أول قيمة في X-Forwarded-For بيكتبها العميل بنفسه (تتزوّر). Caddy — البروكسي
+    #    الوحيد قدام Django — بيضيف IP المتصل في الآخر، فالآخر هو الموثوق.
     xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
     if xff:
-        return xff.split(",")[0].strip()
+        return xff.split(",")[-1].strip() or request.META.get("REMOTE_ADDR")
     return request.META.get("REMOTE_ADDR")
 
 
@@ -175,8 +177,15 @@ def identify_employee(embedding, *, branch=None):
     qs = Employee.objects.exclude(face_encoding__isnull=True)
     # `is_active` may live on the linked user; filter defensively.
     qs = qs.filter(user__is_active=True) if _employee_has_user_active() else qs
+    if _employee_has_user_active():
+        qs = qs.select_related("user__employee_profile")
 
+    # 🐛 [FIX]: `branch` was documented but ignored. Employees of the device's branch are
+    # matched first; the rest of the company only when nobody here clears the threshold.
+    threshold = _threshold()
     best_emp, best_score = None, 0.0
+    here_emp, here_score = None, 0.0
+    branch_id = getattr(branch, "pk", branch)
     for emp in qs.iterator():
         enc = emp.face_encoding
         if not enc:
@@ -184,10 +193,22 @@ def identify_employee(embedding, *, branch=None):
         score = compare_embeddings(embedding, enc)
         if score > best_score:
             best_emp, best_score = emp, score
+        if branch_id is not None and _employee_branch_id(emp) == branch_id and score > here_score:
+            here_emp, here_score = emp, score
 
-    if best_emp and best_score >= _threshold():
+    if here_emp and here_score >= threshold:
+        return here_emp, here_score
+    if best_emp and best_score >= threshold:
         return best_emp, best_score
     return None, best_score
+
+
+def _employee_branch_id(emp):
+    """The branch id an employee belongs to (its user's EmployeeProfile), or None."""
+    try:
+        return emp.user.employee_profile.branch_id
+    except Exception:
+        return None
 
 
 def _employee_has_user_active() -> bool:

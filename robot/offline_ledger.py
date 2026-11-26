@@ -25,6 +25,7 @@ paid, so it must neither vanish nor be booked wrong.
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
@@ -74,6 +75,12 @@ def _branch(device, payload):
     if branch is None:
         raise Review("الفرع اللي اتسجّلت عليه مبقاش موجود.")
     return branch
+
+
+# The lowest share of today's retail price an offline sale may carry and still post on its
+# own (ROBOT_OFFLINE_PRICE_FLOOR_PCT, default 85%): a price raised while the robot was
+# offline posts; a part sold far below retail waits for a manager.
+OFFLINE_PRICE_FLOOR = Decimal(os.getenv("ROBOT_OFFLINE_PRICE_FLOOR_PCT", "85") or "85") / 100
 
 
 def _review(device, *, kind: str, payload: dict, summary: str, amount, reason: str, employee=None, branch=None):
@@ -126,6 +133,12 @@ def apply_sale(device, payload: dict):
                 raise Review(f"كمية أو سعر بايظ لـ {product.name}.")
             if qty < 1 or not price.is_finite() or price <= 0:
                 raise Review(f"كمية أو سعر بايظ لـ {product.name}.")
+            # 🐛 [FIX]: السعر جاي من الجهاز — كان أي سعر > 0 بيتعتمد (توكن مسروق أو سعر متلعب فيه
+            #    كان بيبيع القطعة بجنيه). سعر زاد من ساعتها (الكاش القديم) يتعتمد عادي زي الأول،
+            #    لكن أقل من OFFLINE_PRICE_FLOOR من سعر القطاعي الحالي بيروح للمدير يراجعه.
+            retail = Decimal(str(product.retail_price or 0))
+            if retail > 0 and price < retail * OFFLINE_PRICE_FLOOR:
+                raise Review(f"سعر {product.name} ({price}) أقل من سعر القطاعي ({retail}).")
             lines.append((product, qty, price))
             total += price * qty
         if entries.cash_treasury(branch) is None:

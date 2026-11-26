@@ -133,6 +133,14 @@ class SaleTests(OfflineLedgerTests):
         self.assertEqual(entry.sale_invoice.total_amount, Decimal("1201.00"))   # what the customer paid
         self.assertIn("السعر اتغيّر", entry.message)
 
+    def test_a_price_far_below_retail_is_kept_for_review(self):
+        self.push(self.sale(items=[{"part_number": "11427953125", "name": "فلتر زيت", "qty": 1, "unit_price": "1"}]))
+        entry = RobotEntry.objects.get()
+        self.assertEqual(entry.status, "failed")
+        self.assertIn("أقل من سعر القطاعي", entry.message)
+        self.assertIsNone(entry.sale_invoice)
+        self.assertEqual(self.cash(), Decimal("1000.00"))
+
     def test_an_unknown_part_or_a_bad_line(self):
         self.push(self.sale(uid="a", items=[{"part_number": "NOPE", "qty": 1, "unit_price": "10"}]))
         self.push(self.sale(uid="b", items=[{"part_number": "11427953125", "qty": 0, "unit_price": "450.5"}]))
