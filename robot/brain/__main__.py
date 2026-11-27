@@ -209,6 +209,11 @@ def cmd_wake(cfg, forget=False, record=True):
             kept = wakeheard.save(home, heard, name, others)
             if kept:
                 print(f"[WAKE] the words for «يا {name}», kept: {' · '.join(kept)}")
+            chance = wakeheard.once(heard, name)
+            if chance:
+                print(f"[WAKE] heard only once, so not kept: {' · '.join(chance)}"
+                      + ("" if kept else f" — these ears never wrote «يا {name}» the same way twice: "
+                                         "a mic closer to the mouth hears it better"))
         print("[WAKE] done with the mic — the rest is the computer's (you can go)", flush=True)
     log = lambda line: print(line, flush=True)                                  # noqa: E731
     many = voices.make(home, log=log)

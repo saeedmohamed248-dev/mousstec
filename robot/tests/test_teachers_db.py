@@ -33,7 +33,7 @@ def _recording(seconds=SECONDS):
 
 class _Resp:
     def __init__(self, data, status=200):
-        self.data, self.status_code = data, status
+        self.data, self.status_code, self.text = data, status, str(data)
 
     def json(self):
         return self.data
@@ -206,6 +206,26 @@ class TeacherTests(ERPTenantTestCase):
                 mock.patch.object(teachers.audio_svc, "transcribe") as gemini:
             self.assertNotIn("heard_by", self.ask())
         gemini.assert_not_called()                                           # never past its budget
+
+    @override_settings(GEMINI_API_KEY="gm-key")
+    def test_the_shop_paying_for_gemini_has_it_asked_first(self):
+        first = dict(AZURE, ROBOT_TEACHERS="gemini, Azure")
+        with mock.patch.dict(os.environ, first):
+            self.assertEqual(teachers.configured(), ["gemini", "azure"])
+            self.assertFalse(teachers.can_stream())        # Azure's live seconds would go to waste
+        with mock.patch.dict(os.environ, dict(BOTH, ROBOT_TEACHERS="gemini,nobody")):
+            self.assertEqual(teachers.configured(), ["gemini", "azure", "google"])   # the rest as usual
+        with mock.patch.dict(os.environ, dict(AZURE, ROBOT_TEACHERS="")):
+            self.assertEqual(teachers.configured(), ["azure", "gemini"])
+        with mock.patch.dict(os.environ, first), \
+                mock.patch.object(teachers.audio_svc, "transcribe", return_value="يا موس عندك فلتر زيت"), \
+                mock.patch("requests.post", return_value=azure_says("يا موس عندك فلتر زيت")) as post:
+            self.assertEqual(self.ask()["heard_by"], "gemini")
+        self.assertFalse([c for c in post.call_args_list if "microsoft" in str(c.args[:1])])   # Azure not asked
+        with mock.patch.dict(os.environ, first), \
+                mock.patch.object(teachers.audio_svc, "transcribe", side_effect=teachers.audio_svc.SttUnavailable("429")), \
+                mock.patch("requests.post", return_value=azure_says("يا موس عندك فلتر زيت")):
+            self.assertEqual(self.ask()["heard_by"], "azure")                # Gemini can't: Azure, as before
 
     def test_a_learned_sentence_heard_again_is_checked_against_the_ears(self):
         # The robot sends what a lesson made of Vosk's words, and Vosk's own words beside them:

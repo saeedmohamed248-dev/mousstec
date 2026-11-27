@@ -12,6 +12,7 @@ shop's own model later.
 
 Gemini is the last teacher, when neither can (no key, their minutes used, down):
 it hears with the names of what the branch sells in mind, like Google does.
+ROBOT_TEACHERS=gemini,azure asks it first instead (a shop paying for Gemini).
 
 A whole sentence is learned too (`sentences`): the same words from the robot's
 ears and the same from the teacher, twice — the robot then answers it at once,
@@ -24,6 +25,7 @@ is never asked past it. The keys stay on the server:
   GEMINI_API_KEY                                       (the AI's own)
   ROBOT_AZURE_FREE_MINUTES (300), ROBOT_GOOGLE_FREE_MINUTES (60),
   ROBOT_GEMINI_TEACH_MINUTES (600: about a dollar of Flash a month)
+  ROBOT_TEACHERS (empty: azure,google,gemini — who's asked first)
   ROBOT_HEARD_AUDIO_DAYS (120: the recordings kept, the words for ever)
 """
 
@@ -114,7 +116,10 @@ def free_minutes(teacher: str) -> float:
 
 
 def configured() -> list:
-    """The teachers this server has keys for, in the order they're asked."""
+    """The teachers this server has keys for, in the order they're asked:
+    Azure, Google, Gemini — or the order ROBOT_TEACHERS gives («gemini,azure»:
+    the paid Gemini first, Azure when it can't). One it doesn't name comes
+    after the ones it does, in the usual order."""
     out = []
     if _env("ROBOT_AZURE_SPEECH_KEY") and _env("ROBOT_AZURE_SPEECH_REGION"):
         out.append("azure")
@@ -122,7 +127,8 @@ def configured() -> list:
         out.append("google")
     if audio_svc.gemini_key():
         out.append("gemini")
-    return out
+    order = [t for t in (w.strip().lower() for w in _env("ROBOT_TEACHERS").split(",")) if t in TEACHERS]
+    return sorted(out, key=lambda t: order.index(t) if t in order else len(order) + TEACHERS.index(t))
 
 
 def used_seconds(teacher: str, now=None) -> int:
@@ -208,11 +214,13 @@ def _stream_header() -> bytes:
 
 
 def can_stream() -> bool:
-    """Whether Azure may hear the next sentence while it's said: its key is
-    set, the month's minutes have room, and it hasn't refused lately."""
+    """Whether Azure may hear the next sentence while it's said: it's the
+    first teacher asked (not after Gemini: ROBOT_TEACHERS — its live seconds
+    would be billed for words nobody takes), the month's minutes have room,
+    and it hasn't refused lately."""
     from django.core.cache import cache
 
-    return ("azure" in configured() and not cache.get(_STREAM_OFF)
+    return (configured()[:1] == ["azure"] and not cache.get(_STREAM_OFF)
             and minutes_left("azure") * 60 >= STREAM_FEWEST_S)
 
 

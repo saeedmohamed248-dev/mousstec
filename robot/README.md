@@ -686,7 +686,9 @@ different hearings teach nothing, a number never (`ميتين` for `مية` is m
 and the owner turns a wrong one off on «🎓 تعلّم السمع». Gemini teaches when
 Azure and Google can't, with the branch's part names in its prompt
 (`ROBOT_GEMINI_TEACH_MINUTES`, 600 a month); when the server hears with Gemini
-it gets the same names. The teachers share 6 s together (`TEACH_BUDGET_S`) —
+it gets the same names. A shop paying for Gemini asks it first with
+`ROBOT_TEACHERS=gemini,azure` (Azure then only when Gemini can't, and no live
+Azure hearing whose seconds nobody would take). The teachers share 6 s together (`TEACH_BUDGET_S`) —
 Azure hanging and then Google used to take 12 s of the robot's 15. Letters an
 Egyptian says alike (ط/ت، ث/ت، ص/س …) count as alike when a word is learned:
 «سلطة الزيت» is «فلتر زيت». `robot/tests/test_learning_e2e_db.py` runs the
@@ -1183,3 +1185,14 @@ the sentence still goes to a teacher.
 - **The wiring for the shop's build** (the PC as the brain, two relays, one wiper motor):
   `robot/firmware/WIRING_PC_AR.md`. A summary sent to the owner had +12 V on COM and −12 V on NC — a dead
   short through every idle relay. WIRING.md §5 was right all along; the new page says it in Arabic, first.
+
+### Gemini asked first, and the name learned only when heard twice (brain-0.9.22)
+
+- **`ROBOT_TEACHERS=gemini,azure`** on the server: a shop paying for Gemini has it hear the questions
+  first, Azure only when Gemini can't (down, its minutes used, out of time). Azure's live hearing isn't
+  started then — its seconds would be billed for words nobody takes. Empty: Azure, Google, Gemini, as before.
+- **A spelling of «يا موس» is kept only when the ears wrote it the same way twice in a round**
+  (`wakeheard.AGREE`). On a laptop's own mic ten «يا موس» came out as eight different words — «الله»،
+  «اسال»، «النص»… — all kept, so «الله يخليك» or «اسأل حد» would have woken the robot. Those heard once
+  are said in the log («heard only once, so not kept»), and a few more everyday openers («الله»،
+  «اقصد»، «اسال»، «بص»…) and anything under three letters are never the name. Kept before: `wake forget`.
