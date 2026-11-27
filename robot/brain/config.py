@@ -33,6 +33,7 @@ class Config:
     answer_here: bool = True         # stock and prices from this computer's catalog at once, the server after
     teach: bool = True               # the recording of a question goes to a teacher (robot/teachers.py)
     teach_all: bool = False          # every question, not only the ones it isn't sure of ([robot] teach = yes)
+    auto_update: bool = True         # a newer brain from the server comes down by itself (selfupdate.py)
     min_start: int = 150             # listening starts above max(this, 3.5 × the room)
     max_start: int = 2500
     end_silence_ms: int = 600        # a pause this long ends a sentence
@@ -88,6 +89,7 @@ def load(path=None) -> Config:
     teach = str(get("robot", "teach", "yes")).strip().lower()
     cfg.teach = teach not in ("no", "off", "0", "false")
     cfg.teach_all = cfg.teach and teach not in ("unsure", "sometimes")
+    cfg.auto_update = str(get("robot", "auto_update", "yes")).strip().lower() not in ("no", "off", "0", "false")
     cfg.min_start = int(get("listen", "min_start", cfg.min_start))
     cfg.max_start = int(get("listen", "max_start", cfg.max_start))
     cfg.end_silence_ms = int(get("listen", "end_silence_ms", cfg.end_silence_ms))

@@ -58,6 +58,24 @@ def service_status(request):
 
 
 @_robot_endpoint
+def brain_update(request):
+    """«مخ موس» updating itself (robot/brain/selfupdate.py): the brain this
+    server ships — the dashboard's «⬇️ تحديث المخ» zip, never with brain.ini
+    or a key. Only to a robot with its own key."""
+    device, err = views._device_or_401(request)
+    if err:
+        return err
+    from django.http import HttpResponse
+
+    from .. import brain_package
+    from ..brain import VERSION
+    resp = HttpResponse(brain_package.build("", "", device.wake_name or "موس"), content_type="application/zip")
+    resp["X-Brain-Version"] = VERSION
+    resp["Cache-Control"] = "no-store"
+    return resp
+
+
+@_robot_endpoint
 def telemetry(request):
     """Device reports its health (battery/temp/disk/wifi) for the live view.
 

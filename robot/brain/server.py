@@ -44,6 +44,7 @@ class Answer:
 # دلوقتي ٥ ثواني بالكتير (النت الفاصل بيبان على طول والجهاز يرد من عنده)، والرد نفسه ١٥ للسؤال و٢٠ للباقي.
 CONNECT_S = 5
 VOICE_S = 15
+UPDATE_S = 120                       # the brain's zip (a few MB) on a slow shop line
 
 
 def voice_fields(*, transcript: Optional[str] = None, ptt: bool = False, caps: str = "",
@@ -127,6 +128,14 @@ class Server:
         except ValueError:
             body = {}
         return body if isinstance(body, dict) else {}
+
+    def brain_update(self) -> Optional[bytes]:
+        """The brain this server ships, as a zip (brain/selfupdate.py) — None
+        from a server that doesn't hand it out yet."""
+        resp = self._post("/brain/update/", timeout=(CONNECT_S, UPDATE_S))
+        if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("application/zip"):
+            return resp.content
+        return None
 
     def voice(self, *, transcript: Optional[str] = None, wav: Optional[bytes] = None,
               ptt: bool = False, caps: str = "", said_ago_ms: Optional[int] = None,

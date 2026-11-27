@@ -15,6 +15,7 @@ so wholesale/cost can never reach the device.
 
 Endpoints (prefix /api/robot/v1/ — see urls.py):
   POST heartbeat/            device liveness + firmware version
+  POST brain/update/         the brain this server ships, as a zip («مخ موس» updates itself)
   POST scan/                 ESP32-CAM part image → identify → stock/price (or scrap price)
   POST voice/                transcript → intent → spoken reply (workshop assistant + POS)
   POST face/                 face embedding → attendance clock-in/out + authorize session
@@ -58,7 +59,7 @@ from ..models import (  # noqa: F401
 from ..pricing import safe_product_payload  # noqa: F401
 
 from .device import (  # noqa: F401
-    commands_ack, commands_pending, enroll_capture, heartbeat, service_status,
+    brain_update, commands_ack, commands_pending, enroll_capture, heartbeat, service_status,
     snapshot_upload, sync_pull, sync_push, telemetry,
 )
 from .scanning import (  # noqa: F401

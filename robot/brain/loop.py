@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from . import VERSION, heardfix, talk, wakeheard, wavs
+from . import VERSION, heardfix, selfupdate, talk, wakeheard, wavs
 from .ears import hints
 from .knowledge import AT_YOUR_SERVICE, NOT_FOUND, NOT_HERE, _VOCATIVES, Knowledge, Reply, media_command, normalize, strip_name
 from .ledger import Ledger
@@ -42,6 +42,7 @@ HEARTBEAT_S = 30
 WATCHED = "MOUSS_WATCH"
 WATCH_TITLE = "Mouss Brain"
 UPDATE_QUIET_S = 5                   # …but not in the middle of a conversation
+UPDATE_EVERY_S = 15 * 60             # how often the server is asked for a newer brain (selfupdate.py)
 
 
 def watched() -> bool:
@@ -163,6 +164,10 @@ class Brain:
         self._offline_said = 0.0
         self._update_seen = None               # a newer brain on disk, as last looked at (version, size)
         self._update_said = False
+        self._update_asked = 0.0               # the server last asked for a newer brain (monotonic)
+        self._refused_said = ""                # a brain put back once: said once
+        self._running_since = time.monotonic()
+        self._settled = False                  # a new brain on trial ran selfupdate.SETTLE_S: it stays
         self._stop = threading.Event()
         self.voice_dir = Path(cfg.home) / "voice"
         self.catalog_path = Path(cfg.home) / "catalog.json"
@@ -276,9 +281,47 @@ class Brain:
                 self.log(f"[SERVER] {s.get('label')}: {s['remedy']}")
         shipped = str(status.get("brain") or "")
         if shipped and _version(shipped) > _version(VERSION):
-            self.log(f"[UPDATE] a newer brain is on the server ({shipped}; this one is {VERSION}): "
-                     "«⬇️ تحديث المخ» on the robot's dashboard, unzipped over this folder"
-                     + (" — it then starts by itself" if watched() else ""))
+            if self._takes_updates():
+                self.check_update(shipped)
+            else:
+                self.log(f"[UPDATE] a newer brain is on the server ({shipped}; this one is {VERSION}): "
+                         "«⬇️ تحديث المخ» on the robot's dashboard, unzipped over this folder"
+                         + (" — it then starts by itself" if watched() else
+                            " — or start the robot with «watch» and it comes down by itself"))
+
+    # ---- a newer brain from the server, by itself (selfupdate.py)
+    def _takes_updates(self) -> bool:
+        return bool(getattr(self.cfg, "auto_update", True)) and watched()
+
+    def check_update(self, shipped: str = "") -> bool:
+        """The server ships a newer brain: it comes down and goes in over this
+        folder (`updated` then starts it when nobody's talking). Only where
+        something starts the robot again, and never a brain put back before."""
+        self._update_asked = time.monotonic()
+        if not (self._takes_updates() and self.online):
+            return False
+        if not shipped:
+            try:
+                shipped = str((self.monitor.status() or {}).get("brain") or "")
+            except (ServerDown, Unauthorized):
+                return False
+        if not shipped or _version(shipped) <= _version(VERSION) or self._on_disk()[0] == shipped:
+            return False                         # nothing newer, or it's in already (updated() takes it)
+        if shipped in selfupdate.refused(self.cfg.home):
+            if self._refused_said != shipped:
+                self._refused_said = shipped
+                self.log(f"[UPDATE] {shipped} is on the server, but it didn't run here before: "
+                         f"staying on {VERSION} until a newer one comes")
+            return False
+        try:
+            data = self.monitor.brain_update()
+        except (ServerDown, Unauthorized) as exc:
+            self.log(f"[UPDATE] {shipped} couldn't come down: {exc}")
+            return False
+        if not data:
+            return False                         # a server that doesn't hand it out yet
+        return selfupdate.install(data, shipped, Path(__file__).resolve().parent, Path(self.cfg.home),
+                                  VERSION, log=self.log)
 
     # ---- a newer brain unzipped over this folder
     @staticmethod
@@ -359,6 +402,11 @@ class Brain:
                 if self.updated():
                     self.restart()
                     return
+                if not self._settled and time.monotonic() - self._running_since > selfupdate.SETTLE_S:
+                    self._settled = True
+                    selfupdate.settled(self.cfg.home, log=self.log)
+                if self.online and time.monotonic() - self._update_asked > UPDATE_EVERY_S:
+                    self.check_update()
                 every = FRESH_CATALOG_S if self.cfg.answer_here else CATALOG_S
                 if self.online and time.monotonic() - last_catalog > every:
                     self.refresh()
