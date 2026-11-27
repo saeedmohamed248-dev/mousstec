@@ -37,6 +37,10 @@ teach = yes             ; every question to the robot goes to the server with it
                         ; a sentence a teacher heard the same way twice is answered at once after,
                         ; with no teacher. unsure = only what it isn't sure of (fewer minutes)
                         ; no = never sent
+auto_update = yes       ; a newer brain on the server comes down by itself and starts when nobody's
+                        ; talking (only where the robot starts again by itself: run_windows.bat
+                        ; robotpc, run_mac.sh watch); the one before comes back if it won't run.
+                        ; no = «⬇️ تحديث المخ» on the dashboard, by hand
 
 [listen]
 min_start      = 150   ; listening starts above this (and above 3.5 × the room)

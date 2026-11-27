@@ -325,6 +325,13 @@ def cmd_run(cfg):
     from .loop import Brain
     from .server import Server
     from .sound import Mic, Speaker
+    from pathlib import Path
+
+    from . import selfupdate
+    # A brain that came down by itself and keeps stopping: the one before is put back (selfupdate.py).
+    if not selfupdate.started(Path(__file__).resolve().parent, cfg.home, VERSION,
+                              log=lambda line: print(line, flush=True)):
+        sys.exit(1)
     server = _server(cfg)
     ears = _ears(cfg)
     speaker = Speaker(cfg.speaker, cfg.volume)

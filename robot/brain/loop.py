@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from . import VERSION, heardfix, talk, wakeheard, wavs
+from . import VERSION, heardfix, selfupdate, talk, wakeheard, wavs
 from .ears import hints
 from .knowledge import AT_YOUR_SERVICE, NOT_FOUND, NOT_HERE, _VOCATIVES, Knowledge, Reply, media_command, normalize, strip_name
 from .ledger import Ledger
@@ -276,9 +276,7 @@ class Brain:
                 self.log(f"[SERVER] {s.get('label')}: {s['remedy']}")
         shipped = str(status.get("brain") or "")
         if shipped and _version(shipped) > _version(VERSION):
-            self.log(f"[UPDATE] a newer brain is on the server ({shipped}; this one is {VERSION}): "
-                     "«⬇️ تحديث المخ» on the robot's dashboard, unzipped over this folder"
-                     + (" — it then starts by itself" if watched() else ""))
+            selfupdate.newer(self, shipped)          # comes down by itself, or said: the dashboard's zip
 
     # ---- a newer brain unzipped over this folder
     @staticmethod
@@ -359,6 +357,7 @@ class Brain:
                 if self.updated():
                     self.restart()
                     return
+                selfupdate.tick(self)                    # a newer brain from the server, now and then
                 every = FRESH_CATALOG_S if self.cfg.answer_here else CATALOG_S
                 if self.online and time.monotonic() - last_catalog > every:
                     self.refresh()

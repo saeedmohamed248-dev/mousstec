@@ -3,7 +3,13 @@
 #   bash run_mac.sh            ← الروبوت
 #   bash run_mac.sh echo       ← اسمع المايك بيسمع إيه
 #   bash run_mac.sh devices    ← المايكات والسماعات اللي الماك شايفها
+#   bash run_mac.sh watch      ← الروبوت، ولو وقف (أو نزله تحديث من السيرفر) بيرجع لوحده بعد ١٠ ثواني
 set -e
+# الحلقة كلها جوه { … } علشان bash يقراها مرة واحدة: ملف بيتغيّر تحت حلقة شغالة ممكن ينط لأي حتة.
+# كل لفة بتشغّل الملف من أوله (المكتبات الجديدة بتتسطب لو التحديث محتاجها).
+if [ "${1:-}" = "watch" ]; then
+  { while true; do MOUSS_WATCH=1 bash "$0" run || true; echo "[WATCH] the robot stopped - starting it again in 10 seconds (Ctrl+C to stop)"; sleep 10; done; exit 0; }
+fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # الملف ده يا جوه فولدر brain نفسه، يا جنبه (في الـ zip)
 if [ -f "$HERE/__init__.py" ]; then ROOT="$(dirname "$HERE")"; PKG="$(basename "$HERE")"; else ROOT="$HERE"; PKG=brain; fi

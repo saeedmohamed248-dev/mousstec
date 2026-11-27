@@ -79,6 +79,7 @@ payload. Run it anywhere: `python -m unittest robot.tests.test_pricing_guard`.
 |--------|------|---------|
 | POST | `heartbeat/` | liveness + firmware version |
 | POST | `status/` | «🩺»: each online service (Azure hearing/voice, Google, Gemini) — answering? why not, what to do, minutes left — and the brain this server ships |
+| POST | `brain/update/` | the brain this server ships, as a zip (no brain.ini, no key): «مخ موس» updates itself (`brain/selfupdate.py`) |
 | POST | `scan/` | part image/barcode → stock + **retail** price (scrap → suggested price) |
 | POST | `voice/` | transcript → intent → spoken reply |
 | POST | `face/` | face → attendance clock-in/out + authorize session |
@@ -1196,3 +1197,20 @@ the sentence still goes to a teacher.
   «اسال»، «النص»… — all kept, so «الله يخليك» or «اسأل حد» would have woken the robot. Those heard once
   are said in the log («heard only once, so not kept»), and a few more everyday openers («الله»،
   «اقصد»، «اسال»، «بص»…) and anything under three letters are never the name. Kept before: `wake forget`.
+
+### «مخ موس» updates itself (brain-0.9.23)
+
+The owner had to download «⬇️ تحديث المخ» and unzip it on the shop's computer for every new brain.
+Now the brain asks the server every 15 minutes (and when it starts or the net comes back) which brain
+it ships (`/status/`); a newer one comes down (`/brain/update/`, the same zip without brain.ini),
+goes in over the folder — `__init__.py` last, so `Brain.updated` sees the new VERSION only once every
+file is there — and the robot starts it as soon as nobody's talking (`brain/selfupdate.py`).
+
+- **Only where something starts it again**: `run_windows.bat robotpc` (the shop's PC), the new
+  `bash run_mac.sh watch`, or `MOUSS_WATCH=1`. Run by hand it says a newer brain is there, as before.
+- **The launchers are never written** (cmd and bash read a script while it runs); a new one is said in
+  the log, for the dashboard's zip once by hand.
+- **The brain before is kept** (`~/.mouss-brain/brain-before`). A new one that stops 3 times before it
+  ran 2 minutes is put back, and that version isn't taken again (`brain-refused.txt`) — the next is.
+- The zip is checked first: whole, nothing outside the brain folder, and the version the server said.
+- `[robot] auto_update = no` in brain.ini turns it off.
