@@ -27,9 +27,21 @@ class LearnTests(unittest.TestCase):
         self.home = Path(self.tmp.name)
 
     def test_what_was_heard_for_the_name_is_kept(self):
-        kept = wakeheard.save(self.home, ["يمس", "انظر إلى كابوس", "يمس", "حيث"], "موس")
-        self.assertEqual(kept, ["يمس", "انظر الي كابوس", "حيث"])
-        self.assertEqual(wakeheard.load(self.home), [["انظر", "الي", "كابوس"], ["يمس"], ["حيث"]])
+        heard = ["يمس", "انظر إلى كابوس", "يمس", "حيث", "انظر الي كابوس"]
+        kept = wakeheard.save(self.home, heard, "موس")
+        self.assertEqual(kept, ["يمس", "انظر الي كابوس"])                     # «حيث» once: chance
+        self.assertEqual(wakeheard.load(self.home), [["انظر", "الي", "كابوس"], ["يمس"]])
+        self.assertEqual(wakeheard.once(heard, "موس"), ["حيث"])
+
+    def test_ears_that_never_write_it_the_same_way_keep_nothing(self):
+        # 🐛 On a laptop's own mic «يا موس» ten times came out as eight different words, all kept:
+        # «الله يخليك» or «اسأل حد» then woke the robot.
+        heard = ["السيده", "الله", "اقصد", "اسال", "منصف", "مو", "النص", "وصف", "", "يا موس"]
+        self.assertEqual(wakeheard.save(self.home, heard, "موس"), [])
+        self.assertEqual(wakeheard.load(self.home), [])
+        for word in ("الله", "اسأل", "اقصد", "مو"):                           # never, even said twice
+            with self.subTest(word):
+                self.assertIsNone(wakeheard.keepable(word, "موس"))
 
     def test_what_isnt_the_name_is_left_out(self):
         for heard in ("", "يا موس", "ياموس", "في", "هات", "عندك فلتر زيت لو سمحت",   # nothing / name / chatter
@@ -38,8 +50,8 @@ class LearnTests(unittest.TestCase):
                 self.assertIsNone(wakeheard.keepable(heard, "موس"))
 
     def test_a_second_round_adds_to_the_first_and_forget_starts_over(self):
-        wakeheard.save(self.home, ["يمس"], "موس")
-        self.assertEqual(wakeheard.save(self.home, ["كابوس"], "موس"), ["يمس", "كابوس"])
+        wakeheard.save(self.home, ["يمس", "يمس"], "موس")
+        self.assertEqual(wakeheard.save(self.home, ["كابوس", "كابوس"], "موس"), ["يمس", "كابوس"])
         wakeheard.forget(self.home)
         self.assertEqual(wakeheard.load(self.home), [])
 
@@ -58,7 +70,7 @@ class LearnTests(unittest.TestCase):
         self.assertEqual(wakeheard.save(self.home, [], "موس"), ["يمس يمس", "يمس", "يموت"])
 
     def test_what_the_ears_wrote_for_the_others_called_is_left_out(self):
-        kept = wakeheard.save(self.home, ["يمس", "حيث", "انظر إلى كابوس"], "موس",
+        kept = wakeheard.save(self.home, ["يمس", "حيث", "انظر إلى كابوس"] * 2, "موس",
                               others=["حيث", "يا كريم", ""])
         self.assertEqual(kept, ["يمس", "انظر الي كابوس"])
 
@@ -81,7 +93,7 @@ class LoopTests(unittest.TestCase):
         self.lines = []
 
     def test_the_brain_sends_the_name_as_it_was_meant(self):
-        wakeheard.save(self.cfg.home, ["انظر إلى كابوس"], "موس")
+        wakeheard.save(self.cfg.home, ["انظر إلى كابوس"] * 2, "موس")
         srv = mock.Mock()
         srv.voice.return_value = server.Answer(wav=None, reply="", transcript="", addressed=False)
         ears = SimpleNamespace(ready=True, model_name="vosk", error="",
@@ -105,7 +117,8 @@ class WakeCommandTests(unittest.TestCase):
 
     def _run(self, report, words=None, commands=False, record=True):
         # Step 1's ten «يا موس», then how the ears wrote the others called by name in step 2.
-        words = itertools.chain(words or ["يمس", "حيث", "يا موس", "يمس", "في", "انظر إلى كابوس"] + ["يمس"] * 4,
+        words = itertools.chain(words or ["يمس", "حيث", "يا موس", "يمس", "في", "انظر إلى كابوس", "حيث",
+                                          "انظر إلى كابوس", "يمس", "منصف"],
                                 itertools.repeat("يا كريم"))
         ears = SimpleNamespace(ready=True, timed=lambda samples, prompt="": (next(words), 0.5))
         utt = vad.Utterance(samples=np.full(8000, 7, dtype=np.int16), speech_ms=500,
@@ -150,12 +163,13 @@ class WakeCommandTests(unittest.TestCase):
         self.assertEqual(len(list((home / "wake").glob("said-*.wav"))), 10)
         self.assertTrue((home / "wake_model.npz").exists())
         self.assertEqual(wakeheard.load(home), [["انظر", "الي", "كابوس"], ["يمس"], ["حيث"]])
+        self.assertIn("[WAKE] heard only once, so not kept: منصف", self.out)
         self.assertIn("[WAKE] test: found «يا موس» 3 of 3 times it hadn't heard (the shop's own), "
                       "woke wrongly 0 of 20 times (bar 0.6)", self.out)
 
     def test_a_spelling_heard_for_a_colleague_too_is_not_kept(self):
         self._run({"held_out": 3, "found": 3, "others": 20, "false": 0, "threshold": 0.6, "usable": True},
-                  words=["يمس", "حيث", "انظر إلى كابوس"] + ["يمس"] * 7 + ["حيث"])
+                  words=["يمس", "حيث", "انظر إلى كابوس", "حيث", "انظر إلى كابوس"] + ["يمس"] * 5 + ["حيث"])
         self.assertEqual(wakeheard.load(Path(self.cfg.home)), [["انظر", "الي", "كابوس"], ["يمس"]])
 
     def test_a_second_run_learns_from_both(self):
