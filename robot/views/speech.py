@@ -121,6 +121,9 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     # the recording) — a teacher hears it, and its words are the question.
     heard_by, unsure = "", False
     ears, teacher_said = text, ""                 # each hearing, for robot/understand.py
+    both = None                                   # heard and understood in one Gemini call
+    # Said with the robot's name, or only inside the follow-up window (robot/wakename.py)?
+    named = wakename.strip_name(device, transcript)[0]
     # The robot just asked for a PIN (robot/wizard.py): what's said now is never kept.
     secret = wizard.wants_secret(device)
     if (recording is not None and not name_only and request.data.get("transcript")
@@ -133,14 +136,18 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
         # (a learned sentence heard again): the lesson is checked against the ears, not itself.
         ears = str(request.data.get("heard") or "").strip()
         if ears:
-            named, rest = wakename.strip_name(device, ears)
-            ears = rest if named else ears
+            ears_named, rest = wakename.strip_name(device, ears)
+            ears = rest if ears_named else ears
         ears = ears or text
         asked_at = time.monotonic()
-        got = teachers.check(device, recording, ears, confidence,
-                             understood=lambda said: _understood(said, device), streamed=streamed,
-                             keep=not secret)
+        if not secret and teachers.configured()[:1] == ["gemini"]:
+            both = understand.hear_and_mean(device, recording, ears, via=via)
+        got = None if both is not None else teachers.check(
+            device, recording, ears, confidence, understood=lambda said: _understood(said, device),
+            streamed=streamed, keep=not secret)
         timing["teach_ms"] = int((time.monotonic() - asked_at) * 1000)
+        if both is not None:
+            text, heard_by, teacher_said = both[0], "gemini", both[0]
         if got is not None:
             text, heard_by, teacher_said = got.text, got.teacher, got.text
             # 🐛 [FIX]: not for a sentence the robot answered itself and is having heard again (its
@@ -166,13 +173,24 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     # and the step waited on — as a sentence the rules read for sure. The rules still do it all.
     meant, said = None, text
     known = str(request.data.get("known") or "")
-    if lang == "ar" and not secret and known not in ("learned", "trusted"):
+    if both is not None:
+        meant = both[1]
+    elif lang == "ar" and not secret and known not in ("learned", "trusted"):
         meant = understand.meaning(device, text, ears=ears if ears != text else "", teacher=teacher_said, via=via)
     if meant is not None:
         timing["und_ms"] = meant.ms
     unanswered = meant is not None and not meant.intent
     if unanswered:
         meant = None                              # Gemini didn't answer: the rules alone, said so below
+    # 🐛 [FIX]: بعد «اسم العميل إيه؟» الروبوت بيسمع ٢٠ ثانية من غير اسمه، فكان بيلقط كلام الناس في المحل
+    # («شلت أنطوان من الشغلانة…») ويرد «معلش مسمعتكش». كلام مش للروبوت — ومن غير اسمه — بيتساب في هدوء.
+    if not named and not ptt and (meant is not None and meant.intent in ("chatter", "unclear")
+                      or meant is None and lang == "en" and not ears.strip()):
+        wizard.keep(device)                       # its question still waits
+        return {"intent": "ignored", "reply": "", "addressed": False, "reason": "chatter",
+                "transcript": transcript[:160]}, False
+    if meant is not None and meant.intent == "chatter":
+        meant.intent = "unclear"
     if meant is not None and meant.intent == "unclear":
         wizard.keep(device)                       # its question still waits
         intent, reply, payload = "unknown", talk.HEARD_BADLY, {"unresolved": True}

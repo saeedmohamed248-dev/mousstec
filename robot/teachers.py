@@ -154,6 +154,22 @@ def _bill(device, teacher: str, kind: str, seconds: float, billed: int) -> None:
                                          seconds=round(seconds, 2), billed_seconds=billed)
 
 
+def keep_heard(device, wav: bytes, ears: str, teacher: str, text: str, seconds: float) -> None:
+    """A teacher's hearing made elsewhere (robot/understand.hear_and_mean): kept and learned from, as
+    `check` keeps its own."""
+    from .models import RobotHeard
+
+    try:
+        row = RobotHeard(device=device, local_text=(ears or "")[:255], teacher=teacher, teacher_text=text[:255],
+                         seconds=round(seconds, 2), billed_seconds=math.ceil(seconds))
+        row.audio.save(f"{device.pk}-{timezone.now():%Y%m%d%H%M%S%f}.wav", ContentFile(wav), save=False)
+        row.save()
+        if ears and text and usable(text, ears):
+            learn(ears, text)
+    except Exception as exc:              # the lesson's lost, the answer isn't
+        logger.warning("robot teacher %s: not kept: %s", teacher, exc)
+
+
 def minutes_left(teacher: str) -> float:
     return max(0.0, free_minutes(teacher) - used_seconds(teacher) / 60)
 

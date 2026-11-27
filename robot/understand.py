@@ -60,7 +60,7 @@ HINTS_MOST = 40                    # part names sent with the sentence
 
 INTENTS = frozenset({"part", "car", "stock", "sale", "purchase", "expense", "collect", "vendor_pay", "advance",
                      "quote", "return", "transfer", "payroll", "answer", "yes", "no", "cancel",
-                     "thanks", "greeting", "chat", "workshop", "staff", "other", "unclear"})
+                     "thanks", "greeting", "chat", "workshop", "staff", "other", "unclear", "chatter"})
 # What can be learned whatever came before it (never an answer to a step's question).
 _LEARNABLE = frozenset({"part", "car", "stock", "sale", "purchase", "cancel", "thanks", "greeting", "chat",
                         "workshop"})
@@ -119,6 +119,16 @@ _PROMPT = """\
 - confidence: قد إيه إنت متأكد.
 متألفش أسماء ولا أرقام مش في الكلام. الأسعار والكميات من الكلام بس.
 """
+
+
+# 🐛 [FIX]: Gemini كان بيتسأل مرتين ورا بعض لكل جملة — مرة يسمع (٢.٥ ث) ومرة يفهم (٢.٥ ث) — فالرد
+# كان بييجي بعد ٥–١٠ ثواني. لما Gemini هو اللي بيسمع الأول (ROBOT_TEACHERS=gemini,…) بيسمع ويفهم في طلب واحد.
+_HEAR = """
+ومع الـ JSON فيه تسجيل صوت للجملة نفسها: اسمعه إنت — ده أصح من hearings. زوّد في الـ JSON اللي بترجعه:
+- heard: اللي اتقال في التسجيل حرفياً بالعامية المصرية، من غير اسم الروبوت.
+- لو التسجيل ناس بتتكلم مع بعض في المحل ومش بيكلموا الروبوت، ومفيش waiting_for يرد عليه: intent = "chatter".
+"""
+HEAR_TIMEOUT_S = 6.0
 
 
 @dataclass
@@ -227,9 +237,9 @@ def _clean(found: dict) -> Optional[Meaning]:
         return None
     command = " ".join(str(found.get("command") or "").split())[:255]
     meant = " ".join(str(found.get("meant") or "").split())[:255]
-    if not command and intent != "unclear":
+    if not command and intent not in ("unclear", "chatter"):
         command = meant
-    if not command and intent != "unclear":
+    if not command and intent not in ("unclear", "chatter"):
         return None
     try:
         confidence = max(0.0, min(1.0, float(found.get("confidence"))))
@@ -283,6 +293,47 @@ def meaning(device, said: str, *, ears: str = "", teacher: str = "", via: str = 
     got.ms = int((time.monotonic() - started) * 1000)
     _keep(device, got, heard, teacher, waiting)
     return got
+
+
+def hear_and_mean(device, wav: bytes, ears: str, *, via: str = "robot"):
+    """(what was said, what it meant) from one Gemini call with the recording — or None: the usual
+    two steps then (teacher, then meaning). Kept for «🎓 تعلّم السمع» as a Gemini hearing."""
+    from . import audio, llm, teachers, wizard
+
+    if not enabled() or llm.gemini_down() or wizard.wants_secret(device):
+        return None
+    waiting = wizard.context(device, via)
+    if waiting.get("step") == "pin":
+        return None
+    pcm = audio.as_pcm_wav(wav)
+    parts = audio.wav_parts(pcm)
+    seconds = len(parts[2]) / 2 / (parts[1] or 16000) if parts else 0
+    if not 0 < seconds <= teachers.MOST_SECONDS or teachers.minutes_left("gemini") * 60 < seconds + 1:
+        return None
+    hearings = [ears] if ears else []
+    from . import memory
+    turns = [{"said": str(s)[:160], "robot": str(r)[:200]} for s, r in (memory.recall(device).get("turns") or [])[-3:]]
+    context = {"hearings": hearings, "waiting_for": waiting or None, "robot_said": memory.last_reply(device)[:200],
+               "recent": turns, "car": memory.car(device) or None, "branch_parts": _hints(device, hearings)}
+    started = time.monotonic()
+    text = audio.gemini_generate(
+        [{"text": _PROMPT + _HEAR}, {"text": json.dumps(context, ensure_ascii=False)},
+         {"inline_data": {"mime_type": "audio/wav", "data": __import__("base64").b64encode(pcm).decode("ascii")}}],
+        what="understand", timeout=HEAR_TIMEOUT_S, budget=HEAR_TIMEOUT_S, json_out=True,
+        prefer=os.getenv("ROBOT_UNDERSTAND_MODEL", "").strip() or MODEL)
+    llm.note_gemini(bool(text), time.monotonic() - started)
+    try:
+        found = json.loads(re.sub(r"^```(?:json)?\s*|\s*```$", "", (text or "").strip()))
+    except ValueError:
+        return None
+    heard = " ".join(str(found.get("heard") or "").split())[:255] if isinstance(found, dict) else ""
+    got = _clean(found) if heard else None
+    if got is None:
+        return None
+    got.ms, got.model = int((time.monotonic() - started) * 1000), "gemini"
+    teachers.keep_heard(device, wav, ears, "gemini", heard, seconds)
+    _keep(device, got, ears or heard, heard, waiting)
+    return heard, got
 
 
 def _keep(device, got: Meaning, heard: str, teacher: str, waiting: dict) -> None:
