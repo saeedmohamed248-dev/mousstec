@@ -148,7 +148,7 @@ class BrainTakesItTests(unittest.TestCase):
     def test_a_watched_robot_takes_the_newer_brain(self):
         with mock.patch.object(loop, "watched", return_value=True), \
                 mock.patch.object(selfupdate, "install", return_value=True) as install:
-            self.assertTrue(self.brain.check_update())
+            self.assertTrue(selfupdate.check(self.brain))
         args = install.call_args.args
         self.assertEqual((args[0], args[1], args[2], args[4]), (b"zip", NEW, Path(loop.__file__).resolve().parent,
                                                                 VERSION))
@@ -167,14 +167,14 @@ class BrainTakesItTests(unittest.TestCase):
                 self.monitor.brain_update.reset_mock()
                 with mock.patch.object(loop, "watched", return_value=watched), \
                         mock.patch.object(selfupdate, "refused", return_value=refused):
-                    self.assertFalse(self.brain.check_update())
+                    self.assertFalse(selfupdate.check(self.brain))
                 self.monitor.brain_update.assert_not_called()
         self.assertEqual(sum("didn't run here before" in line for line in self.lines), 1)
 
     def test_offline_it_waits(self):
         self.brain.online = False
         with mock.patch.object(loop, "watched", return_value=True):
-            self.assertFalse(self.brain.check_update())
+            self.assertFalse(selfupdate.check(self.brain))
         self.monitor.status.assert_not_called()
 
     def test_said_at_start_comes_down_instead_when_watched(self):

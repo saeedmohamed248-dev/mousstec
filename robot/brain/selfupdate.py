@@ -32,6 +32,7 @@ TRIAL = "brain-trial.json"
 REFUSED = "brain-refused.txt"
 TRIES = 3                    # stops of a new brain before it ran SETTLE_S: it's put back
 SETTLE_S = 120
+EVERY_S = 15 * 60            # how often the server is asked for a newer brain
 LAUNCHERS = (".bat", ".sh")
 _VERSION = re.compile(r'^VERSION\s*=\s*"([^"]+)"', re.M)
 
@@ -180,3 +181,74 @@ def settled(home: Path, log=print) -> None:
     if trial:
         (Path(home) / TRIAL).unlink(missing_ok=True)
         log(f"[UPDATE] {trial.get('version')} is running fine: it stays")
+
+
+def takes(brain) -> bool:
+    from .loop import watched
+
+    return bool(getattr(brain.cfg, "auto_update", True)) and watched()
+
+
+def newer(brain, shipped: str) -> None:
+    """The server said it ships `shipped`, newer than this brain (loop.check_services)."""
+    from . import VERSION
+    from .loop import watched
+
+    if takes(brain):
+        check(brain, shipped)
+        return
+    brain.log(f"[UPDATE] a newer brain is on the server ({shipped}; this one is {VERSION}): "
+              "«⬇️ تحديث المخ» on the robot's dashboard, unzipped over this folder"
+              + (" — it then starts by itself" if watched() else
+                 " — or start the robot with «watch» and it comes down by itself"))
+
+
+def tick(brain) -> None:
+    """Each round of the robot's background loop: a new brain that ran SETTLE_S
+    stays, and the server is asked for a newer one every EVERY_S."""
+    import time
+
+    now = time.monotonic()
+    since = brain.__dict__.setdefault("_running_since", now)
+    if not brain.__dict__.get("_settled") and now - since > SETTLE_S:
+        brain._settled = True
+        settled(brain.cfg.home, log=brain.log)
+    if brain.online and now - brain.__dict__.get("_update_asked", since) > EVERY_S:
+        check(brain)
+
+
+def check(brain, shipped: str = "") -> bool:
+    """The server ships a newer brain (at start, then every EVERY_S): it comes
+    down and goes in over this folder (Brain.updated then starts it when
+    nobody's talking). Only where something starts the robot again, and
+    never a brain put back before."""
+    from . import VERSION
+    from .loop import _version
+    from .server import ServerDown, Unauthorized
+
+    import time
+
+    brain._update_asked = time.monotonic()
+    if not (takes(brain) and brain.online):
+        return False
+    if not shipped:
+        try:
+            shipped = str((brain.monitor.status() or {}).get("brain") or "")
+        except (ServerDown, Unauthorized):
+            return False
+    if not shipped or _version(shipped) <= _version(VERSION) or brain._on_disk()[0] == shipped:
+        return False                             # nothing newer, or it's in already (updated() takes it)
+    if shipped in refused(brain.cfg.home):
+        if brain.__dict__.get("_refused_said") != shipped:
+            brain._refused_said = shipped
+            brain.log(f"[UPDATE] {shipped} is on the server, but it didn't run here before: "
+                      f"staying on {VERSION} until a newer one comes")
+        return False
+    try:
+        data = brain.monitor.brain_update()
+    except (ServerDown, Unauthorized) as exc:
+        brain.log(f"[UPDATE] {shipped} couldn't come down: {exc}")
+        return False
+    if not data:
+        return False                             # a server that doesn't hand it out yet
+    return install(data, shipped, Path(__file__).resolve().parent, Path(brain.cfg.home), VERSION, log=brain.log)
