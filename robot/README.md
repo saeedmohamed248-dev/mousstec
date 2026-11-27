@@ -1198,7 +1198,7 @@ the sentence still goes to a teacher.
   are said in the log («heard only once, so not kept»), and a few more everyday openers («الله»،
   «اقصد»، «اسال»، «بص»…) and anything under three letters are never the name. Kept before: `wake forget`.
 
-### «مخ موس» updates itself (brain-0.9.22)
+### «مخ موس» updates itself (brain-0.9.23)
 
 The owner had to download «⬇️ تحديث المخ» and unzip it on the shop's computer for every new brain.
 Now the brain asks the server every 15 minutes (and when it starts or the net comes back) which brain
