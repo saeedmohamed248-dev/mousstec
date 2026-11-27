@@ -238,3 +238,64 @@ class UnderstandingTests(ERPTenantTestCase):
         row = json.loads(lines[0])
         self.assertEqual((row["heard"], row["intent"], row["command"]),
                          ("عندك فلتر زيت ايه فسيتي", "part", "عندك فلتر زيت F30؟"))
+
+
+@override_settings(GEMINI_API_KEY="test-key")
+class HeardAndUnderstoodAtOnceTests(ERPTenantTestCase):
+    """🐛 «مش بيسمع كويس ومش بيرد كويس»: Gemini was asked twice in a row (hear 2.5 s, then understand
+    2.5 s) and the robot answered people talking among themselves in the shop."""
+
+    def setUp(self):
+        import os
+        from robot.brain import wavs
+        import numpy as np
+
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self.branch = Branch.objects.order_by("id").first() or make_branch(name="المعادي")
+        self.device = RobotDevice(name="موس", device_uid="esp-hear-mean", branch=self.branch)
+        self.device.issue_token()
+        self.device.save()
+        lamp = make_product(name="طقم فانوس امامي f30 زينون", part_number="63117000000", retail_price="14999",
+                            car_model="F30")
+        make_inventory(lamp, self.branch, quantity=1)
+        for name in ("shelf_location", "ai_reply"):
+            patcher = mock.patch.object(services, name, return_value="")
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        env = mock.patch.dict(os.environ, {"ROBOT_TEACHERS": "gemini,azure", "ROBOT_AZURE_SPEECH_KEY": "k",
+                                           "ROBOT_AZURE_SPEECH_REGION": "r"})
+        env.start()
+        self.addCleanup(env.stop)
+        self.wav = wavs.ulaw_wav(np.full(16000 * 2, 800, dtype=np.int16))
+        self.calls = []
+
+    def say(self, words, answer, *, talking=False):
+        def gemini(parts, **kwargs):
+            self.calls.append(parts)
+            return answer
+        data = {"transcript": words, "check": "1", "confidence": "0.4", **({"talking": "1"} if talking else {})}
+        with mock.patch("robot.audio.gemini_generate", side_effect=gemini), \
+                mock.patch("requests.post") as azure:
+            body, _ = views._voice_turn(SimpleNamespace(data=data), self.device, self.wav, {"t0": time.monotonic()})
+        azure.assert_not_called()
+        return body
+
+    def test_heard_and_understood_in_one_call(self):
+        answer = json.dumps({"heard": "بسأل على طقم فوانيس زنون امامي F30", "meant": "عندك طقم فانوس امامي f30 زينون؟",
+                             "intent": "part", "command": "عندك طقم فانوس امامي f30 زينون؟", "confidence": 0.9},
+                            ensure_ascii=False)
+        body = self.say("يا موس أمامي", answer)
+        self.assertEqual(len(self.calls), 1)                              # one trip to Gemini, not two
+        self.assertIn("inline_data", self.calls[0][2])                    # with the recording
+        self.assertEqual((body["heard_by"], body["taught"]), ("gemini", "بسأل على طقم فوانيس زنون امامي F30"))
+        self.assertIn("14999", body["reply"])
+
+    def test_the_shop_talking_among_itself_is_let_be(self):
+        chatter = json.dumps({"heard": "شلت أنطوان من الشغلانة فيها فلتين 300 وألف", "meant": "", "intent": "chatter",
+                              "command": "", "confidence": 0.8}, ensure_ascii=False)
+        body = self.say("فيها شلت", chatter, talking=True)
+        self.assertEqual((body["addressed"], body["reply"], body["reason"]), (False, "", "chatter"))
+        unclear = json.dumps({"heard": "هي", "meant": "هي", "intent": "unclear", "command": "", "confidence": 0.2},
+                             ensure_ascii=False)
+        self.assertEqual(self.say("يا موس هي", unclear)["reply"], talk.HEARD_BADLY)   # said to it: asked again

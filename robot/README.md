@@ -1214,3 +1214,13 @@ file is there — and the robot starts it as soon as nobody's talking (`brain/se
   ran 2 minutes is put back, and that version isn't taken again (`brain-refused.txt`) — the next is.
 - The zip is checked first: whole, nothing outside the brain folder, and the version the server said.
 - `[robot] auto_update = no` in brain.ini turns it off.
+
+### Heard and understood in one call, and the shop's own talk let be
+
+- **One Gemini call, not two.** With Gemini the first teacher (`ROBOT_TEACHERS=gemini,…`) the recording
+  goes with the understanding prompt (`understand.hear_and_mean`): the words heard and what they meant
+  come back together — about 2.5 s less before every answer. Kept on «🎓 تعلّم السمع» as a Gemini
+  hearing; when it doesn't answer, the two steps as before.
+- **Talk not to the robot is let be.** In the follow-up window (no «يا موس», no button) people in the
+  shop talking among themselves («chatter»), or something not understood, was answered «معلش
+  مسمعتكش»; now nothing is said and the step waiting still waits. Said with its name, it still asks again.
