@@ -122,8 +122,6 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     heard_by, unsure = "", False
     ears, teacher_said = text, ""                 # each hearing, for robot/understand.py
     both = None                                   # heard and understood in one Gemini call
-    # Said with the robot's name, or only inside the follow-up window (robot/wakename.py)?
-    named = wakename.strip_name(device, transcript)[0]
     # The robot just asked for a PIN (robot/wizard.py): what's said now is never kept.
     secret = wizard.wants_secret(device)
     if (recording is not None and not name_only and request.data.get("transcript")
@@ -184,8 +182,11 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
         meant = None                              # Gemini didn't answer: the rules alone, said so below
     # 🐛 [FIX]: بعد «اسم العميل إيه؟» الروبوت بيسمع ٢٠ ثانية من غير اسمه، فكان بيلقط كلام الناس في المحل
     # («شلت أنطوان من الشغلانة…») ويرد «معلش مسمعتكش». كلام مش للروبوت — ومن غير اسمه — بيتساب في هدوء.
-    if not named and not ptt and (meant is not None and meant.intent in ("chatter", "unclear")
-                      or meant is None and lang == "en" and not ears.strip()):
+    # Said with the robot's name, or only inside the follow-up window (robot/wakename.py)? Asked only
+    # here: 🐛 [FIX] asked for every sentence, it broke on a robot whose names can't be read.
+    if not ptt and (meant is not None and meant.intent in ("chatter", "unclear")
+                      or meant is None and lang == "en" and not ears.strip()) \
+            and not wakename.strip_name(device, transcript)[0]:
         wizard.keep(device)                       # its question still waits
         return {"intent": "ignored", "reply": "", "addressed": False, "reason": "chatter",
                 "transcript": transcript[:160]}, False
