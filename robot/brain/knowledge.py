@@ -613,13 +613,13 @@ class Knowledge:
             picked = choices[:3]
             self._remember(now, part=None, choices=picked)
             labels = [p.label for p in picked]
-            # Said as the name and then the model: one clip per name and one
-            # per car model cover every choice, not one per pair.
-            spoken = [seg for p in picked for seg in p.label_segments]
             if len(labels) == 1:
-                return Reply(f"{MEAN} {labels[0]}؟ {SAY_FULL}", [MEAN] + spoken + [SAY_FULL])
-            return Reply(f"{SEVERAL[:-1]}: " + "، ".join(labels) + f". {WHICH}",
-                         [SEVERAL] + spoken + [WHICH])
+                one = talk.spoken_name(labels[0])
+                return Reply(f"{MEAN} {one}؟ {SAY_FULL}", [MEAN, one, SAY_FULL])
+            opening, listed = talk.choices_parts(labels)       # robot/views: services.choices_said
+            # Voiced from clips the robot keeps (clip_texts): «عندي نوعين:» and each part's name whole.
+            said = [talk.count_said(len(labels))] + [talk.spoken_name(n) for n in labels] + [WHICH]
+            return Reply(f"{opening} " + "، ".join(listed) + f". {WHICH}", said)
         if not part:
             keys = [w for w in part_words(text) if len(w) >= 2 and w not in _QUESTION_WORDS]
             if talk.asks_for_a_part(text, keys, self._in_names):          # robot/views: the same
@@ -838,6 +838,7 @@ class Knowledge:
         from . import voicedesk
 
         texts = list(FIXED) + list(talk.PHRASES) + [f"أنا {self.wake_name}،", OTHER_BRANCH, AND_BRANCH]
+        texts += [talk.count_said(n) for n in (2, 3)]
         texts += voicedesk.clips()                  # the offline desk's sentences, and numbers said
         texts += [talk.branch_said(b.get("name")) for b in self.catalog.get("branches") or [] if isinstance(b, dict)]
         texts += [str(r.get("answer") or "").strip() for r in self.replies]    # «الردود الجاهزة»
@@ -846,6 +847,7 @@ class Knowledge:
         facts = []                                  # after every part's name and price
         for part in sorted(self.parts, key=lambda p: -(p.stock or 0)):
             texts.extend(part.label_segments)       # the name (and the model, for «تقصد أنهي؟»)
+            texts.append(talk.spoken_name(part.label))
             if part.retail_price and part.retail_price > 0:
                 texts.append(priced(part.retail_price) if part.stock > 0 else priced_after(part.retail_price))
                 if part.stock > 0:                  # «فيه أرخص؟» says it among the others

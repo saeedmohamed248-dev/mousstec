@@ -192,6 +192,10 @@ def _choice_label(product) -> str:
     return f"{product.name} ({model})" if model and model not in product.name else product.name
 
 
+# Saying a choice of parts: robot/brain/talk.py (the robot's brain says it the same, net down).
+from ..brain.talk import choices_said, spoken_name  # noqa: E402,F401
+
+
 def match_part_in_sentence(text: str, car=None):
     """The product a spoken question is about → (product, []) or (None, choices).
 

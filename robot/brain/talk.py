@@ -744,3 +744,64 @@ def small_talk_reply(talk: dict, name: str, last: str = "", now=None) -> tuple:
         said.append(ASK_PART)
         clips.append(ASK_PART)
     return " ".join(said), clips, bool(talk.get("greet")) or bool(kinds & {"bye", "wrong"})
+
+
+# ---------------------------------------------------------------------------
+# Saying a choice of parts: the names as said, not as typed in the stock
+# ---------------------------------------------------------------------------
+
+_CODE = re.compile(r"^[A-Za-z]{1,2}\d{1,3}[A-Za-z]?$")          # F30, b38, N20, E90
+_SAID_AS = {"original": "أوريجينال", "orig": "أوريجينال", "oem": "أوريجينال", "new": "جديد",
+            "used": "مستعمل"}
+_TWO_THREE = {2: "نوعين", 3: "تلات أنواع"}
+
+
+def spoken_name(name: str) -> str:
+    """A part's name the way it's said: «طلمبه مياه b38 f30 f20 (F30 f20)» → «طلمبه مياه B38 F30 F20»,
+    «… F30 - ORIGINAL (—)» → «… F30 أوريجينال» — codes in capitals, each once, no brackets or dashes."""
+    words, seen = [], set()
+    for raw in re.split(r"[\s()\[\]/_|+\-–—,]+", str(name or "")):
+        word = raw.strip(".:")
+        if not word:
+            continue
+        word = _SAID_AS.get(word.lower(), word)
+        if _CODE.match(word):
+            word = word.upper()
+        if word.lower() in seen:
+            continue
+        seen.add(word.lower())
+        words.append(word)
+    return " ".join(words)
+
+
+def choices_parts(names: list) -> tuple:
+    """(«عندي تلات أنواع طلمبه للـ F30:», [«مياه B38 F20», …]) — the opening, then each part; said
+    (choices_said): «عندي تلات أنواع طلمبه للـ F30: مياه B38 F20، مياه إضافيه B48، تبريد المياه الأضافية أوريجينال.
+    تقصد أنهي؟» — what all the names share said once, then what tells them apart."""
+    said = [spoken_name(n).split() for n in names]
+    said = [w for w in said if w]
+    if len(said) < 2:
+        return "عندي أكتر من صنف:", [" ".join(w) for w in said]
+    head = []
+    for column in zip(*said):
+        if len({w.lower() for w in column}) != 1:
+            break
+        head.append(column[0])
+    rests = [w[len(head):] for w in said]
+    cars = [c for c in rests[0] if _CODE.match(c) and all(c in r for r in rests[1:])]
+    rests = [[w for w in r if w not in cars] for r in rests]
+    if not head or any(not r for r in rests):     # nothing shared, or one is all of the others' name
+        head, cars, rests = [], [], said
+    kind = " ".join(head) + (f" للـ {' و'.join(cars)}" if cars else "")
+    count = _TWO_THREE.get(len(rests), f"{len(rests)} أنواع")
+    return (f"عندي {count} {kind}:" if kind else f"عندي {count}:"), [" ".join(r) for r in rests]
+
+
+def count_said(n: int) -> str:
+    """«عندي نوعين:» — the offline clip a choice opens with."""
+    return f"عندي {_TWO_THREE.get(n, f'{n} أنواع')}:"
+
+
+def choices_said(names: list) -> str:
+    opening, listed = choices_parts(names)
+    return f"{opening} " + "، ".join(listed) + ". تقصد أنهي؟"

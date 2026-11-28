@@ -543,7 +543,7 @@ class SecondLogTests(unittest.TestCase):
         k.answer("يا موس عربيتي إي نينتي", now=10.0)
         reply = k.answer("يا موس عندك فلتر زيت؟", now=11.0)
         self.assertNotIn("MINI", reply.text)                         # the E90's two, not the MINI's
-        self.assertIn("E90 - JP", reply.text)
+        self.assertIn("للـ E90: JP", reply.text)                    # said as a salesman says it
 
 
 class SlowModelsLastTests(unittest.TestCase):

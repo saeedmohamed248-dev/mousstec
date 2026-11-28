@@ -62,9 +62,9 @@ class AnswerTests(unittest.TestCase):
         self.assertIn("بسعر 1800 جنيه", self.say("يا موس طرمبة مية بكام").text)
         self.say("يا موس مع السلامة")                       # someone new: no car known
         r = self.say("يا موس طرمبة مية بكام")
-        self.assertEqual(r.text, "عندي أكتر من صنف: طرمبة مية (E90)، طرمبة مية (F30). تقصد أنهي؟")
+        self.assertEqual(r.text, "عندي نوعين طرمبة مية: E90، F30. تقصد أنهي؟")
         # Voiced as name + model: one clip per name, one per model.
-        self.assertEqual(r.segments, ["عندي أكتر من صنف:", "طرمبة مية", "E90", "طرمبة مية", "F30", "تقصد أنهي؟"])
+        self.assertEqual(r.segments, ["عندي نوعين:", "طرمبة مية E90", "طرمبة مية F30", "تقصد أنهي؟"])
 
     def test_a_part_number_in_groups_and_a_barcode(self):
         self.assertIn("فلتر زيت", self.say("يا موس بكام ١١ ٤٢ ٧ ٩٥٣ ١٢٥").text)
@@ -326,7 +326,7 @@ class ReviewFixTests(unittest.TestCase):
             {"part_number": "B", "name": "فلتر هواء", "car_model": "F30", "stock": 2, "retail_price": 90},
         ]})
         reply = k.answer("يا موس عندك فلتر؟", now=0.0)
-        self.assertEqual(reply.text, "عندي أكتر من صنف: فلتر زيت (E90)، فلتر هواء (F30). تقصد أنهي؟")
+        self.assertEqual(reply.text, "عندي نوعين فلتر: زيت E90، هواء F30. تقصد أنهي؟")
         self.assertTrue(set(reply.segments) <= set(k.clip_texts()))
 
     def test_offline_finds_additional_numbers_and_a_code_stored_as_a_string(self):
