@@ -92,6 +92,33 @@
         </div>
       </div>
 
+      {# «🔄 الراس تلف ناحية اللي بيتكلم» (robot/headfollow.py): on/off, its calibration, and a try #}
+      <div class="bg-slate-950/40 border border-slate-800 rounded-xl p-3 space-y-2">
+        <p class="text-xs font-bold text-sky-300">🔄 {% trans "الراس تلف ناحية اللي بيتكلم" %}
+          {% if head.on %}<span class="text-emerald-300">● {% trans "شغالة" %}</span>{% else %}<span class="text-slate-500">○ {% trans "مقفولة" %}</span>{% endif %}</p>
+        {% if not head.faces %}
+        <p class="text-[11px] text-amber-300">{% trans "مكتبة كشف الوشوش (dlib) مش موجودة على السيرفر — الراس مش هتلف." %}</p>
+        {% endif %}
+        <form method="post" class="flex flex-wrap items-center gap-3 text-xs text-slate-300">{% csrf_token %}
+          <input type="hidden" name="action" value="head_settings">
+          <label class="flex items-center gap-1"><input type="checkbox" name="head_follow" {% if device.head_follow %}checked{% endif %}> {% trans "شغّلها" %}</label>
+          <label class="flex items-center gap-1"><input type="checkbox" name="head_flip" {% if device.head_flip %}checked{% endif %}> {% trans "بتلف عكس" %}</label>
+          <label class="flex items-center gap-1">{% trans "طول اللفة" %}
+            <input type="number" name="head_edge_ms" value="{{ head.edge_ms }}" min="{{ head.least }}" max="{{ head.most }}" class="w-20 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200" dir="ltr"> ms</label>
+          <button class="bg-sky-600 hover:bg-sky-500 text-white font-bold px-3 py-1.5 rounded-lg">{% trans "حفظ" %}</button>
+        </form>
+        {% if head.for_all and not device.head_follow %}
+        <p class="text-[11px] text-slate-500">{% trans "شغالة لكل الروبوتات من إعدادات السيرفر (ROBOT_HEAD_FOLLOW)." %}</p>
+        {% endif %}
+        {% if head.on %}
+        <form method="post" class="flex items-center gap-2">{% csrf_token %}
+          <button name="action" value="head_try" class="bg-fuchsia-700 hover:bg-fuchsia-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">👀 {% trans "اتبعني ٢٠ ثانية" %}</button>
+          {% if head.trying %}<span class="text-[11px] text-emerald-300">{% trans "بتتابع دلوقتي — اقف شمال أو يمين الروبوت." %}</span>{% endif %}
+        </form>
+        {% endif %}
+        <p class="text-[11px] text-slate-500">{% trans "وهي شغالة الراس بتظبط نفسها: لو لفّت عكس مرتين ورا بعض بتعكس الاتجاه لوحدها، ولو عدّت الزبون بتقصّر اللفة، ولو موصلتلوش بتطوّلها." %}</p>
+      </div>
+
       <div class="grid grid-cols-2 gap-3">
         <div>
           <p class="text-xs text-slate-400 mb-1">{% trans "الذراع اليسرى" %}</p>

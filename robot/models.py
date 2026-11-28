@@ -97,6 +97,12 @@ class RobotDevice(models.Model):
     wake_required = models.BooleanField(default=True, verbose_name=_("يرد بس لما يتنادى باسمه"))
     # After being called, follow-up sentences within this window need no name.
     listening_until = models.DateTimeField(null=True, blank=True)
+    # «الراس تلف ناحية اللي بيتكلم» (robot/headfollow.py): بتتشغل من صفحة تحكّم الروبوت، والراس بتظبط
+    # نفسها وهي شغالة — الاتجاه لو لفّت عكس، وطول اللفة لو عدّت الزبون أو موصلتلوش.
+    head_follow = models.BooleanField(default=False, verbose_name=_("الراس تلف ناحية اللي بيتكلم"))
+    head_flip = models.BooleanField(default=False, verbose_name=_("الراس بتلف عكس"))
+    head_edge_ms = models.PositiveIntegerField(null=True, blank=True,
+                                               verbose_name=_("لفة الراس لوش على طرف الصورة (ms)"))
 
     def desired_push_interval_ms(self, *, fast=200, idle=4000) -> int:
         """Frame-push cadence the camera should use right now.

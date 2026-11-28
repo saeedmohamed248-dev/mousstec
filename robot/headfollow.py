@@ -14,10 +14,17 @@ dlib's face detector finds the face (dlib-bin, already in the server image for
 face matching): a frame looked at 480 wide, twice that size inside, sees a face
 up to about 1.5 m away in 50–100 ms. Without dlib the head stays put.
 
-Off by default — the head motor and its limit switches must be wired first.
-On the server's .env:
-  ROBOT_HEAD_FOLLOW=1   the head follows whoever talks to the robot
-and the head's own calibration (services.look_at): ROBOT_HEAD_EDGE_MS, ROBOT_HEAD_FLIP.
+Off by default — the head motor and its limit switches must be wired first. Turned on from the
+robot's control page («🔄 الراس تلف ناحية اللي بيتكلم», RobotDevice.head_follow), where «اتبعني ٢٠
+ثانية» tries it without a word said; or for every robot from the server's .env (ROBOT_HEAD_FOLLOW=1).
+
+The head calibrates itself as it goes (learn): the first look after a move says how it went —
+* the face farther the same way, twice in a row: the head turns the wrong way round (the relays or
+  the camera mounted the other way) — its direction is flipped, and it turns toward them;
+* the face now on the other side: it swung past them — its turn is made shorter (by a fifth);
+* nearer, but not halfway: it crept — its turn is made longer.
+What it learned is the robot's own (head_flip, head_edge_ms), on its page to see or set by hand; the
+.env's ROBOT_HEAD_EDGE_MS / ROBOT_HEAD_FLIP are the starting point.
 """
 
 from __future__ import annotations
@@ -49,17 +56,42 @@ SAME_SIZE = 0.7            # of two faces about as near, the one it was already 
 NEARER = 0.1               # a move brings the face at least this much nearer the middle…
 GIVE_UP = 2                # …or after this many that didn't, it waits
 RETRY_AFTER_S = 20         # (a conversation's window) before trying that way again
+# Learning from a move: only the look right after it has settled (the person hardly moved meanwhile).
+LEARN_WITHIN_S = 2
+WRONG_WAY = 2              # moves that took them farther, in a row, before the direction is flipped
+SHORTER, LONGER = 0.8, 1.2
+CREPT = 0.5                # a move that brought them less than this of the way crept
+EDGE_LEAST = 2 * services.HEAD_MIN_MS
+EDGE_MOST = 1500
+TRY_S = 20                 # «اتبعني ٢٠ ثانية» on the robot's page
 
 _lock = threading.Lock()
 
 
-def enabled() -> bool:
-    return (os.getenv("ROBOT_HEAD_FOLLOW") or "").strip().lower() in ("1", "true", "yes", "on")
+def enabled(device=None) -> bool:
+    """On for this robot (its page), or for every robot (the server's .env)."""
+    if (os.getenv("ROBOT_HEAD_FOLLOW") or "").strip().lower() in ("1", "true", "yes", "on"):
+        return True
+    return getattr(device, "head_follow", False) is True
 
 
 def following(device, now=None) -> bool:
     """Whether the camera's frames are looked at now: on, and someone's talking."""
-    return enabled() and wakename.in_conversation(device, now)
+    return enabled(device) and wakename.in_conversation(device, now)
+
+
+def try_it(device, now=None) -> None:
+    """«اتبعني ٢٠ ثانية»: the head follows whoever's in front for TRY_S seconds, nothing said —
+    to see it turn the right way (it learns that too) before a customer does."""
+    device.listening_until = (now or timezone.now()) + timedelta(seconds=TRY_S)
+    device.save(update_fields=["listening_until"])
+
+
+def can_see_faces() -> bool:
+    """dlib is on the server (the head can find a face) — for the robot's page."""
+    import importlib.util
+
+    return importlib.util.find_spec("dlib") is not None
 
 
 @lru_cache(maxsize=1)
@@ -140,6 +172,15 @@ def follow(device, image_bytes: bytes, now=None):
     cache.set(_key(device), {"x": offset, "at": now.timestamp()}, 10)
     if seen is None or abs(offset - seen["x"]) > SAME_PLACE:
         return None
+    moved = _recent(device, "moved", now, RETRY_AFTER_S) or {}
+    wrong = 0
+    if moved and not moved.get("judged") and now.timestamp() - moved.get("done", moved["at"]) <= LEARN_WITHIN_S:
+        wrong = learn(device, moved, offset)
+        if wrong is None:           # it was turning the wrong way: flipped, a fresh start
+            moved, wrong = {}, 0
+        else:
+            moved["judged"] = True
+            cache.set(_key(device, "moved"), moved, RETRY_AFTER_S + 10)
     if abs(offset) < services.HEAD_DEAD_ZONE:          # facing them
         cache.delete(_key(device, "moved"))
         return None
@@ -147,7 +188,6 @@ def follow(device, image_bytes: bytes, now=None):
     # (its limit switch), or the camera isn't on it — then turning again would
     # only drive it into the switch. It waits, and tries again later.
     side = 1 if offset > 0 else -1
-    moved = _recent(device, "moved", now, RETRY_AFTER_S) or {}
     futile = moved.get("futile", 0) + 1 if (
         moved.get("side") == side and abs(offset) > moved.get("x", 1.0) - NEARER) else 0
     if futile >= GIVE_UP:
@@ -155,6 +195,39 @@ def follow(device, image_bytes: bytes, now=None):
     move = services.look_at(device, offset)
     if move is not None:            # the next look starts over, from where the head stops
         cache.delete(_key(device))
-        cache.set(_key(device, "moved"), {"side": side, "x": abs(offset), "futile": futile,
-                                         "at": now.timestamp()}, RETRY_AFTER_S + 10)
+        cache.set(_key(device, "moved"), {
+            "side": side, "x": abs(offset), "futile": futile, "wrong": wrong, "at": now.timestamp(),
+            "done": now.timestamp() + move.duration_ms / 1000 + SETTLE.total_seconds(),
+        }, RETRY_AFTER_S + 10)
     return move
+
+
+def learn(device, moved: dict, offset: float):
+    """What the look right after a move says of the head — its turn made shorter or longer, or its
+    direction flipped (then None). Else how many moves in a row took them farther."""
+    x, side = moved.get("x", 0.0), moved.get("side", 0)
+    if abs(offset) < services.HEAD_DEAD_ZONE:
+        return 0                                       # it faces them: just right
+    if (1 if offset > 0 else -1) != side:              # swung past them
+        _edge(device, SHORTER)
+        return 0
+    if abs(offset) > x + NEARER:                       # farther the same way: turning away from them
+        wrong = int(moved.get("wrong") or 0) + 1
+        if wrong < WRONG_WAY:
+            return wrong
+        device.head_flip = not (getattr(device, "head_flip", False) is True)
+        device.save(update_fields=["head_flip"])
+        logger.info("robot head follow: %s turned away from them %d times — its direction flipped",
+                    device.pk, wrong)
+        return None
+    if NEARER <= x - abs(offset) < x * CREPT:          # nearer, but not halfway: it crept
+        _edge(device, LONGER)
+    return 0                                           # no nearer: its end (futile, in follow)
+
+
+def _edge(device, by: float) -> None:
+    ms = max(EDGE_LEAST, min(EDGE_MOST, round(services.head_edge_ms(device) * by)))
+    if ms != services.head_edge_ms(device):
+        device.head_edge_ms = ms
+        device.save(update_fields=["head_edge_ms"])
+        logger.info("robot head follow: %s's turn to a face at the edge is now %d ms", device.pk, ms)
