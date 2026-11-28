@@ -47,7 +47,7 @@ LEGACY_GIANTS = {
     'clients/views/subscription_views.py': 1228,
     'erp_core/ai/design_engine/__init__.py': 2971,
     'erp_core/ai/design_views.py': 1271,
-    'erp_core/settings.py': 1392,  # إعدادات بتكبر طبيعي مع كل خدمة (آخر زيادة: مخ الروبوت بأدوات + لايف فيسبوك)
+    'erp_core/settings.py': 1394,  # إعدادات بتكبر طبيعي مع كل خدمة (آخر زيادة: الروبوت بيقرا موقع المحل)
     'inventory/admin/dashboard.py': 1338,
     'inventory/services/accounting_service.py': 1234,
     'inventory/views/reports.py': 1377,

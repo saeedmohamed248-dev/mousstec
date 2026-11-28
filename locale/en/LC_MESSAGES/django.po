@@ -31168,3 +31168,28 @@ msgstr "The head turns the wrong way"
 #: robot/models.py
 msgid "لفة الراس لوش على طرف الصورة (ms)"
 msgstr "Head turn for a face at the frame's edge (ms)"
+
+#: robot/website
+msgid "هات المعلومات من الموقع"
+msgstr "Get the information from the website"
+
+#: robot/website
+msgid "الروبوت بيقرا صفحات موقع المحل (الضمان، الاسترجاع، التوصيل، الدفع، المواعيد، العنوان) ويكتبها ردود. بتيجي مقفولة: راجعها وعدّلها وعلّم «شغّال» واحفظ. وبيقرا الموقع تاني كل أسبوع."
+msgstr "The robot reads the shop's website pages (warranty, returns, delivery, payment, hours, address) and writes them as replies. They come switched off: review them, edit them, tick “On” and save. It reads the site again every week."
+
+#: robot/website
+msgid "اقرا الموقع"
+msgstr "Read the website"
+
+#: robot/website
+msgid "اكتب عنوان الموقع."
+msgstr "Enter the website address."
+
+#: robot/website
+msgid "الموقع مردّش. اتأكد من العنوان وجرّب تاني."
+msgstr "The website didn't answer. Check the address and try again."
+
+#: robot/website
+#, python-format
+msgid "اتقرت %(pages)s صفحة: %(added)s رد جديد و%(changed)s اتحدّث — مقفولين لحد ما تراجعهم وتعلّم «شغّال» وتحفظ."
+msgstr "Read %(pages)s pages: %(added)s new replies and %(changed)s updated — switched off until you review them, tick “On” and save."

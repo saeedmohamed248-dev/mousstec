@@ -69,3 +69,23 @@ def fblive_turn(schema_name, device_id):
             return 0
         finally:
             fblive.done(device)
+
+
+@shared_task(name='robot.tasks.refresh_website_replies')
+@skip_if_disabled('robot')
+def refresh_website_replies():
+    """«📥 من الموقع» once a week: what changed on each shop's site comes back as a draft to review
+    (robot/website.py) — a reply the owner turned on is never touched."""
+    from django_tenants.utils import schema_context, get_tenant_model
+    from robot import website
+
+    total = 0
+    for tenant in get_tenant_model().objects.exclude(schema_name='public'):
+        try:
+            with schema_context(tenant.schema_name):
+                if website.remembered_url():
+                    got = website.read()
+                    total += got.get("added", 0) + got.get("changed", 0)
+        except Exception as e:
+            logger.error("[ROBOT TASK] website read failed for '%s': %s", tenant.schema_name, e)
+    return f"Robot website replies drafted: {total}"

@@ -777,6 +777,11 @@ def staff_pins(request):
     return render(request, "robot/staff_pins.html", {"rows": rows, "message": message, "error": error})
 
 
+def _website_url() -> str:
+    from . import website
+    return website.remembered_url() or "https://fixitauto.parts"
+
+
 @login_required(login_url="/login/")
 @role_required("admin", "manager")
 def shop_replies(request):
@@ -791,7 +796,18 @@ def shop_replies(request):
 
     topics = dict(RobotReply.TOPIC)
     message, error = "", ""
-    if request.method == "POST":
+    if request.method == "POST" and request.POST.get("import_site") is not None:
+        # «📥 هات المعلومات من الموقع» (robot/website.py): drafts, off, for the owner to read.
+        from . import website
+        got = website.read(request.POST.get("site_url") or "")
+        if got.get("error") == "no_url":
+            error = _("اكتب عنوان الموقع.")
+        elif got.get("error"):
+            error = _("الموقع مردّش. اتأكد من العنوان وجرّب تاني.")
+        else:
+            message = _("اتقرت %(pages)s صفحة: %(added)s رد جديد و%(changed)s اتحدّث — مقفولين لحد ما "
+                        "تراجعهم وتعلّم «شغّال» وتحفظ.") % got
+    elif request.method == "POST":
         reply = RobotReply.objects.filter(pk=request.POST.get("reply_id") or None).first()
         if request.POST.get("remove"):
             if reply is not None:
@@ -848,6 +864,7 @@ def shop_replies(request):
     return render(request, "robot/replies.html", {
         "saved": saved, "suggestions": suggestions, "branches": branches, "topics": RobotReply.TOPIC,
         "message": message, "error": error, "most_chars": shop.MOST_CHARS,
+        "site_url": _website_url(),
     })
 
 
