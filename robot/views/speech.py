@@ -10,7 +10,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from .. import audio as audio_svc
-from .. import assistant, entries, enrollment, language, memory, services, teachers, understand, wakename, wizard
+from .. import agent, assistant, entries, enrollment, language, memory, services, teachers, understand, wakename, wizard
 from ..brain import talk
 from robot import views  # 🔌 seams: بتتنادى عن طريق الحزمة عشان الاختبارات تقدر تعمل لها patch
 from ._common import _robot_endpoint
@@ -176,6 +176,7 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     # What the caller can do beyond speaking: «مخ موس» on a computer sends
     # `caps=media` (it has speakers for the Quran and music); the ESP32 doesn't.
     caps = frozenset(c.strip() for c in str(request.data.get("caps", "")).lower().split(",") if c.strip())
+    agent.note_caps(caps)                         # what the brain's `do` may run here (media on «مخ موس»)
     # «🧠 مخ الفهم» (robot/understand.py): what was meant — from every hearing, what was just said
     # and the step waited on — as a sentence the rules read for sure. The rules still do it all.
     meant, said = None, text

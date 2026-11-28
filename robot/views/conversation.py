@@ -341,7 +341,11 @@ def _answer_voice_as(transcript: str, device, employee, lang: str, caps, unsure,
     # («إيه أحسن زيت للصيف؟»، «الجو حر النهارده») ليها رد مفيد، مش «محتاج قطعة إيه؟».
     if no_part:
         if len(transcript.split()) >= 3 and not unsure:
+            _DONE.done = None
             general = _discuss(transcript, device, lang, employee)
+            done, _DONE.done = getattr(_DONE, "done", None), None
+            if done is not None:
+                return done
             if general:
                 return "unknown", general, {"ai": True, "discussion": True}
         return "chat", talk.ASK_PART, {"chat": ["ask_part"]}
@@ -430,6 +434,9 @@ def _talk_shop(transcript: str, device, lang: str) -> str:
     return workshop.spoken(coached) if coached else ""
 
 
+_DONE = __import__("threading").local()          # a command `_discuss` ran, for its caller
+
+
 def _discuss(transcript: str, device, lang: str, employee=None) -> str:
     """A general subject talked through (robot/workshop.discussion_prompt): the conversation so far
     in mind, a few useful sentences, a question back. '' when the AI is down."""
@@ -437,11 +444,12 @@ def _discuss(transcript: str, device, lang: str, employee=None) -> str:
     robot_name = (device.wake_name or "موس").strip()
     # «🧠 المخ بأدوات»: it knows who it's talking to and what they talked about before, and can look
     # anything up in the system mid-discussion; the general AI when it can't.
-    agent.note_caps(frozenset())
+    agent.take_done()                             # nothing left from before (the caps stay: speech.py)
     said = agent.answer(device, employee, transcript, lang, history=turns, facts=facts,
                         longest=workshop.DISCUSS_LONGEST)
     done = agent.take_done()
-    if done is not None:                           # a command mid-discussion: its own steps' words
+    if done is not None:                           # a command mid-discussion: its own steps answer
+        _DONE.done = done                          # (intent, reply, payload) — media played too
         return done[1]
     if said:
         return workshop.spoken(said, longest=workshop.DISCUSS_LONGEST)
@@ -473,7 +481,11 @@ def _answer_meant(meant, device, lang: str, via: str, employee=None):
     ans = services.inventory_answer(said, branch=device.branch)
     if ans.get("found") or ans.get("choices"):
         return None                               # a part of the shop's named in it: the shop's answer
+    _DONE.done = None
     discussed = _discuss(said, device, lang, employee)
+    done, _DONE.done = getattr(_DONE, "done", None), None
+    if done is not None:
+        return done                                # «شغلي أم كلثوم»: the media command itself
     return ("unknown", discussed, {"ai": True, "discussion": True}) if discussed else None
 
 
