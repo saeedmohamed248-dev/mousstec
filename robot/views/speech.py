@@ -285,7 +285,7 @@ def _voice_reply(request, timing: dict, body: dict):
     # A media command («شغّل قرآن») travels beside the spoken «حاضر».
     media = assistant.media_header(body)
     if media:
-        resp["X-Robot-Media"] = media
+        resp["X-Robot-Media"] = quote(media, safe=":")      # «play:song:أم كلثوم»: Arabic in a header
     return resp
 
 

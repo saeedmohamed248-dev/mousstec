@@ -86,7 +86,8 @@ def answer_from(body: dict, wav: Optional[bytes], transcript: Optional[str] = No
                   addressed=bool(body.get("addressed", True)),
                   reason=str(body.get("reason") or ""), intent=str(body.get("intent") or ""),
                   detail=str(body.get("detail") or ""), timing=str(body.get("timing") or ""),
-                  media=(media.get("do", "") + (f":{media['what']}" if media.get("what") else ""))
+                  media=(media.get("do", "") + (f":{media['what']}" if media.get("what") else "")
+                         + (f":{media.get('query', '')}" if media.get("what") == "song" else ""))
                   if media else "",
                   heard_by=str(body.get("heard_by") or ""), taught=str(body.get("taught") or ""),
                   meant=str(body.get("meant") or ""))
@@ -176,7 +177,7 @@ class Server:
                           addressed=head.get("X-Robot-Addressed", "1") == "1",
                           intent=unquote(head.get("X-Robot-Intent", "")),
                           timing=head.get("X-Robot-Timing", ""),
-                          media=head.get("X-Robot-Media", ""),
+                          media=unquote(head.get("X-Robot-Media", "")),
                           heard_by=head.get("X-Robot-Heard-By", ""),
                           taught=unquote(head.get("X-Robot-Taught", "")),
                           meant=unquote(head.get("X-Robot-Meant", "")))

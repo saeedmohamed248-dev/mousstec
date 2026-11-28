@@ -1280,3 +1280,11 @@ look after each move (once it settled, within 2 s) says how it went: the face fa
 twice in a row → its direction is flipped and it turns toward them; on the other side → it swung past,
 the turn is made a fifth shorter; nearer but not halfway → a fifth longer (80–1500 ms). What it learned
 shows on the page. The .env still turns it on for every robot, and is where the calibration starts.
+
+### Played from the internet (brain-0.9.27)
+
+«شغلي أم كلثوم إنت عمري», «شغل نجوم اف ام»: anything after «شغّل» that isn't the Quran or calm music is
+looked up on the internet by «مخ موس» (media.find_song: yt-dlp's first YouTube result — a song, or a
+station's live broadcast) and played once, the robot's voice ducking it as music. The server allows it
+as any media command (a known employee) and sends «play:song:…» (quoted in the header). With nothing
+set in brain.ini [media], the Quran plays from mp3quran.net's own stations, the next when one is down.

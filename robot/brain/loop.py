@@ -503,6 +503,8 @@ class Brain:
             return ""
         do, _, what = command.partition(":")
         before = self.media.kind
+        if do == "play" and what.startswith("song:"):     # «شغلي أم كلثوم»: from the internet
+            return self.media.play_song(what[5:])
         if do == "play":
             if not self.media.can_play(what):
                 return NO_FILES.get(what, NO_FILES["calm"])
