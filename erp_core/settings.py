@@ -1060,6 +1060,7 @@ CELERY_TASK_ROUTES = {
     'clients.tasks.wix_sync_all':                       {'queue': 'default'},
     'clients.tasks.wix_sync_one':                       {'queue': 'default'},
     'robot.tasks.fblive_turn':                          {'queue': 'default'},
+    'robot.tasks.refresh_website_replies':              {'queue': 'default'},
 }
 
 # 🚀 قائمة كل الـ queues المفعلة في الـ Workers (أضف هنا لتتسق مع celery worker -Q)
@@ -1190,6 +1191,7 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'robot.tasks.prune_heard_audio',
         'schedule': crontab(hour=3, minute=40),
     },
+    'robot_website_replies': {'task': 'robot.tasks.refresh_website_replies', 'schedule': crontab(hour=4, minute=10, day_of_week=5)},
     # ── HR: تسجيل الغياب التلقائي نهاية اليوم ──────────────────────
     'hr_mark_absent_daily': {
         'task': 'hr.tasks.mark_absent_employees_daily',

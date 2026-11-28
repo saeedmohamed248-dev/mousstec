@@ -396,7 +396,12 @@ def _answer_voice_as(transcript: str, device, employee, lang: str, caps, unsure,
             return "unknown", workshop.without_ai(transcript, car), {"unresolved": True, "workshop": True}
         # «🧠 المخ بأدوات» (robot/agent.py): Gemini reads the system itself — the parts, the stock in
         # each branch, the shop's replies, the staff's numbers for those who may; the general AI after.
-        general = (agent.answer(device, employee, transcript, lang, history=turns, facts=facts)
+        agent.note_caps(caps)
+        general = agent.answer(device, employee, transcript, lang, history=turns, facts=facts)
+        done = agent.take_done()
+        if done is not None:                       # «اعمل فاتورة» / «شغل القرآن»: the robot's own steps
+            return done
+        general = (general
                    or services.ai_reply(transcript, lang, facts=facts, history=turns,
                                         branch=getattr(device.branch, "name", "") or "",
                                         robot=robot_name))
@@ -432,8 +437,12 @@ def _discuss(transcript: str, device, lang: str, employee=None) -> str:
     robot_name = (device.wake_name or "موس").strip()
     # «🧠 المخ بأدوات»: it knows who it's talking to and what they talked about before, and can look
     # anything up in the system mid-discussion; the general AI when it can't.
+    agent.note_caps(frozenset())
     said = agent.answer(device, employee, transcript, lang, history=turns, facts=facts,
                         longest=workshop.DISCUSS_LONGEST)
+    done = agent.take_done()
+    if done is not None:                           # a command mid-discussion: its own steps' words
+        return done[1]
     if said:
         return workshop.spoken(said, longest=workshop.DISCUSS_LONGEST)
     said = services.ai_reply(

@@ -20,6 +20,7 @@ Egyptian Arabic.
 from __future__ import annotations
 
 import json
+import threading
 import logging
 import time
 from typing import Optional
@@ -40,11 +41,15 @@ PROMPT = """\
 زي بياع شاطر وودود، وردك هيتقال بصوت: جملتين أو تلاتة قصيرين، من غير قوايم ولا علامات ولا إيموجي.
 عندك أدوات بتقرا من سيستم المحل نفسه — استعملها قبل ما ترد على أي حاجة عن القطع أو المخزون أو
 الفروع أو المحل أو الحسابات:
-- أي سعر أو كمية أو فرع أو ضمان تقوله لازم يكون من نتيجة أداة بالظبط. لو الأداة مرجعتش حاجة قول
+- أي سعر أو كمية أو فرع أو ضمان تقوله لازم يكون من نتيجة أداة بالظبط. سياسة الضمان والاسترجاع والتوصيل
+  والحجز والدفع من shop_info بس، وضمان قطعة معيّنة من part_details: لو مش مكتوبة قول «هسأل حد من الموظفين»،
+  ومتعرضش خدمة (حجز، شحن، توصيل، تقسيط) مش مكتوبة في shop_info. لو الأداة مرجعتش حاجة قول
   كده بصراحة واطلب اسم القطعة أو رقمها أو عربيته. متخترعش أبداً.
-- انت مش بتعمل عمليات (فاتورة، شرا، مخزون، تحصيل): لو حد عايز يعمل حاجة قوله يقول مثلاً «اعمل
-  فاتورة مبيعات» أو «ضيف للمخزون» والروبوت هيمشي معاه خطوة خطوة.
+- أي حاجة حد عايز يعملها على السيستم أو الروبوت (فاتورة، شرا، مصروف، تحصيل، مرتجع، مخزون، عرض سعر، قرآن، مزيكا)
+  نفّذها بأداة do، والروبوت هيكمل معاه خطوة خطوة ويطلب الرقم السري لأي فلوس. متقولش إنك متقدرش.
 - أرقام المحل (المبيعات، الخزنة، الحسابات) للموظفين بس: الأداة بتقولك لو الشخص مسموحله ولا لأ.
+- الروبوت بيشغّل قرآن ومزيكا هادية: لو حد طلب أغاني أو مزيكا أو قرآن قوله يقول «يا موس شغل مزيكا هادية» أو
+  «يا موس شغل القرآن» (و«وقف الصوت» يوقفه). متقولش إنك مبتعرفش تشغّل.
 - أي موضوع عام (عربيات، صيانة، كورة، أي حاجة) اتكلم فيه عادي بلطف ومعلومة مفيدة، وكمّل النقاش معاه:
   افتكر اللي اتقال قبل كده، وارجعله بسؤال أو رأي لو ده طبيعي.
 - لو عرفت حاجة عن الشخص اللي بتكلمه تنفعه المرة الجاية (عربيته وموديلها، القطعة اللي بيدور عليها، شغلته،
@@ -97,6 +102,17 @@ TOOLS = [{"functionDeclarations": [
     {"name": "remember",
      "description": "احفظ حاجة عن الشخص اللي بتكلمه دلوقتي علشان تفتكرها المرة الجاية (جملة قصيرة).",
      "parameters": {"type": "object", "properties": {"fact": {"type": "string"}}, "required": ["fact"]}},
+    {"name": "find_invoices",
+     "description": "فواتير المبيعات باسم العميل أو رقم موبايله أو رقم الفاتورة (للموظفين): التاريخ والإجمالي والمدفوع "
+                    "والباقي وأهم القطع.",
+     "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
+    {"name": "do",
+     "description": "نفّذ أمر على السيستم أو الروبوت بجملة زي ما الموظف بيقولها، والروبوت يكمل خطواته (بيراجع ويطلب "
+                    "الرقم السري لأي فلوس). أمثلة: «اعمل فاتورة مبيعات»، «اعمل فاتورة مشتريات»، «سجل مصروف 200 بنزين»، "
+                    "«حصّل من أحمد سعيد 500»، «رجّع فاتورة مبيعات رقم 12»، «ضيف 5 فلتر زيت للمخزون»، «اعمل عرض سعر»، "
+                    "«شغل القرآن»، «شغل مزيكا هادية»، «وقف الصوت»، «علي الصوت». استعملها أول ما حد يطلب يعمل حاجة؛ "
+                    "اللي ترجعه قوله زي ما هو.",
+     "parameters": {"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]}},
     {"name": "shop_info",
      "description": "معلومات المحل اللي صاحبه كتبها: المواعيد، العنوان، التليفون، الدفع، الضمان، التوصيل، "
                     "المرتجعات، وأسامي الفروع.",
@@ -283,6 +299,65 @@ def _who_said(who: Optional[dict]) -> str:
     return line
 
 
+def _find_invoices(device, employee, query: str) -> dict:
+    from django.db.models import Q
+
+    from inventory.models import SaleInvoice
+
+    from .services import spoken_price
+
+    if employee is None:
+        return {"allowed": False, "say": "الفواتير للموظفين بس: قولي الرقم السري بتاعك الأول."}
+    query = " ".join(str(query or "").split())[:60]
+    if not query:
+        return {"invoices": []}
+    q = Q(customer__name__icontains=query) | Q(customer__phone__icontains=query) | Q(notes__icontains=query)
+    if query.isdigit():
+        q |= Q(pk=int(query))
+    rows = []
+    for inv in (SaleInvoice.objects.filter(q).select_related("customer").order_by("-date_created")[:5]):
+        lines = [str(getattr(line.product, "name", "") or "") for line in inv.items.all()[:3]] \
+            if hasattr(inv, "items") else []
+        rest = (inv.total_amount or 0) - (inv.paid_amount or 0)
+        rows.append({"number": inv.pk, "customer": inv.customer_display_name, "date": inv.date_created.date().isoformat(),
+                     "total": spoken_price(inv.total_amount or 0), "paid": spoken_price(inv.paid_amount or 0),
+                     "left": spoken_price(rest) if rest > 0 else "", "return": inv.is_return, "parts": lines})
+    return {"invoices": rows}
+
+
+_ACTING = threading.local()
+
+
+def _do(device, employee, command: str) -> dict:
+    """A command said the way staff say it, run through the robot's own steps (robot/views/
+    conversation._handle_voice: the wizard, entries, media) — the PIN and the read-back as ever."""
+    from robot import views
+
+    command = " ".join(str(command or "").split())[:200]
+    if not command or getattr(_ACTING, "busy", False):
+        return {"error": "no command"}
+    _ACTING.busy = True
+    try:
+        intent, reply, payload = views._handle_voice(command, device, employee, "ar",
+                                                     caps=getattr(_ACTING, "caps", frozenset()))
+    finally:
+        _ACTING.busy = False
+    _ACTING.done = (intent, reply, payload)
+    return {"said": reply}
+
+
+def note_caps(caps) -> None:
+    """What the robot asking can do (media on «مخ موس»): for `do`."""
+    _ACTING.caps = frozenset(caps or ())
+    _ACTING.done = None
+
+
+def take_done():
+    """(intent, reply, payload) of a `do` the last answer ran — what the caller answers with — or None."""
+    done, _ACTING.done = getattr(_ACTING, "done", None), None
+    return done
+
+
 def call(name: str, args: dict, device, employee, who: Optional[dict] = None) -> dict:
     """One tool, as Gemini asked for it — its result, or what went wrong (never an exception)."""
     try:
@@ -300,6 +375,10 @@ def call(name: str, args: dict, device, employee, who: Optional[dict] = None) ->
             return _staff()
         if name == "shop_info":
             return _shop_info(device)
+        if name == "find_invoices":
+            return _find_invoices(device, employee, str(args.get("query") or ""))
+        if name == "do":
+            return _do(device, employee, str(args.get("command") or ""))
     except Exception:                       # a tool that broke says so; the answer goes on
         logger.warning("robot agent: tool %s failed", name, exc_info=True)
         return {"error": "failed"}
@@ -394,6 +473,8 @@ def answer(device, employee, said: str, lang: str = "ar", *, history=(), facts: 
             if fc.get("id"):                # Gemini 3 pairs each answer with its call
                 answered["id"] = fc["id"]
             results.append({"functionResponse": answered})
+        if getattr(_ACTING, "done", None):          # a command ran: its own steps answer, word for word
+            return _ACTING.done[1]
         contents.append({"role": "user", "parts": results})
     reply = " ".join(reply.replace("*", " ").split())
     if not reply:

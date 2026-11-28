@@ -391,7 +391,12 @@ def _balance_answer(kind: str, said: str) -> tuple:
         name = _named(_VENDOR_OWED.search(said))
         vendor = entries.find_vendor(name) if name else None
         if vendor is None:
-            return f"مش لاقي المورد «{name}» في الموردين.", {"action": kind, "found": False}
+            # 🐛 [FIX]: «تاجر اسمه أحمد سعيد عليه فلوس» اتفهم مورد، وهو عميل: «مش لاقي المورد». اللي مش
+            # في الموردين بيتدوّر عليه في العملا كمان.
+            customer, _count = entries.find_customer(name) if name else (None, 0)
+            if customer is not None:
+                return _customer_owes(kind, customer)
+            return f"مش لاقي «{name}» لا في الموردين ولا في العملا.", {"action": kind, "found": False}
         owed = vendor.balance or 0
         if owed > 0:
             reply = f"علينا للمورد {vendor.name} {spoken_price(owed)}."
@@ -406,6 +411,12 @@ def _balance_answer(kind: str, said: str) -> tuple:
         if count > 1:
             return f"فيه أكتر من عميل اسمه {name}. قول اسمه كامل زي ما هو متسجل.", {"action": kind, "found": False}
         return f"مش لاقي عميل متسجل اسمه «{name}».", {"action": kind, "found": False}
+    return _customer_owes(kind, customer)
+
+
+def _customer_owes(kind: str, customer) -> tuple:
+    from .services import spoken_price
+
     owed = customer.balance or 0
     if owed > 0:
         reply = f"{customer.name} عليه {spoken_price(owed)}."

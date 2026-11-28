@@ -238,17 +238,32 @@ def match_part_in_sentence(text: str, car=None):
 
     # 2) Name words.
     keys = [w for w in dict.fromkeys(words) if len(w) >= 2 and w not in _QUESTION_WORDS]
-    if not keys:
+    # 🐛 [FIX]: «واحد اتنين تلاتة» (رقم سري اتقال بصوت) بقت «123» واتعرضت قطعة في اسمها الرقم ده. أرقام
+    # بس وقصيرة مش اسم قطعة (the brain the same).
+    if not keys or all(w.isdigit() for w in keys) and len("".join(keys)) < CODE_IN_TEXT:
         return None, []
     name_q = Q()
     for w in keys[:8]:
         for spelling in {s for form in _forms(w) for s in _spellings(form)}:
             name_q |= Q(name__icontains=spelling)
+    from ..brain.knowledge import the_part
+
+    def named(word):
+        spelled = Q()
+        for spelling in {s for form in _forms(word) for s in _spellings(form)}:
+            spelled |= Q(name__icontains=spelling)
+        return any(_forms(word) & set(_part_words(n))
+                   for n in Product.objects.filter(spelled, is_active=True).values_list("name", flat=True)[:30])
+
+    word = the_part(keys, named)
+    noun = _forms(word) if word else set()
     scored = []
     for product in Product.objects.filter(name_q, is_active=True)[:200]:
         name_words = set(_part_words(product.name))
         hits = sum(1 for w in keys if _forms(w) & name_words)
-        if not hits:
+        # 🐛 [FIX]: «فانوس خلفي X3» عرض تيل ومساحة ومساعد («خلفي» و«X3» في أساميهم): القطعة اللي
+        # اسمها مافيهوش الكلمة اللي بتسمّي المطلوب مبتتعرضش (the brain the same: knowledge.the_part).
+        if not hits or (noun and not noun & name_words):
             continue
         model_words = set(_part_words(getattr(product, "car_model", "") or ""))
         model_hits = sum(1 for w in keys if _forms(w) & model_words and not _forms(w) & name_words)

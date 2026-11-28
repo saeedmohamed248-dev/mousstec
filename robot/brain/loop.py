@@ -1,16 +1,11 @@
 """The robot itself: hear → understand here → ask the ERP → say the answer.
 
-One utterance at a time, like a person behind the counter: while the robot
-answers it doesn't listen, and what the mic caught meanwhile (its own voice)
-is dropped before it listens again.
-
-With the internet down it answers stock and price questions itself — from
-the branch's catalog on disk and the voice clips kept beside it — in the
-same words the server would use.
-
-The shop's sound is its job too: the Quran when the shop opens, calm music
-when a manager asks (the server checks who's asking — robot/assistant.py),
-the Quran paused — never talked over — whenever the robot speaks.
+One utterance at a time, like a person behind the counter: while the robot answers it doesn't
+listen, and what the mic caught meanwhile (its own voice) is dropped before it listens again.
+With the internet down it answers stock and price questions itself — from the branch's catalog
+on disk and the voice clips kept beside it — in the same words the server would use.
+The shop's sound is its job too: the Quran when the shop opens, calm music when a manager asks
+(the server checks who's asking — robot/assistant.py), the Quran paused whenever it speaks.
 """
 
 import os
@@ -28,6 +23,7 @@ from .knowledge import AT_YOUR_SERVICE, NOT_FOUND, NOT_HERE, _VOCATIVES, Knowled
 from .ledger import Ledger
 from .live import LiveDown
 from .outbox import Outbox
+from .pagelog import PageLog, restart_asked
 from .server import ServerDown, Unauthorized
 from .vad import Segmenter
 from .voicebank import ReplyVoices, VoiceBank
@@ -144,7 +140,7 @@ class Brain:
         self._live_talking = False            # a conversation was on when it started
         self._said_samples = None             # the sentence being answered, as it was cut
         self.media, self.routines, self.clock = media, routines, clock
-        self.log = log
+        self.log = self.pagelog = PageLog(log)       # printed here, and sent up for the robot's page
         self._voice_lock = threading.Lock()   # one voice at a time: answers and the day's words
         self._net = threading.Lock()           # the voice's own connection: one request at a time
         self._asked = False                    # the last answer asked something: the server has the thread
@@ -243,14 +239,16 @@ class Brain:
             path.write_bytes(wav)
 
     def beat(self) -> None:
+        sent, up = self.pagelog.take(), False
         try:
-            code = self.monitor.heartbeat(VERSION)
-            up = code == 200
+            up = (self.monitor.heartbeat(VERSION, log=sent) if sent else self.monitor.heartbeat(VERSION)) == 200
         except Unauthorized as exc:
             self.log(f"[HB] {exc}")
-            up = False
         except ServerDown:
-            up = False
+            pass
+        self.pagelog.back([] if up else sent)         # not gone up: with the next beat
+        if up and restart_asked(self.monitor, self.log):
+            self.restart()
         if up != self.online:
             self.log("[HB] server reachable (online)" if up else "[HB] server unreachable (offline)")
             if up:

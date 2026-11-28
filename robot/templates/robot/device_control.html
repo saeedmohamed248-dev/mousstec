@@ -192,6 +192,20 @@
     </section>
   </div>
 
+  {# ---- «📜 لوج الروبوت» (robot/pagelog.py): what «مخ موس» printed, newest first ---- #}
+  <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+    <div class="flex items-center gap-2 mb-2">
+      <h2 class="text-sm font-black text-slate-200">📜 {% trans "لوج الروبوت" %}</h2>
+      <span class="text-[11px] text-slate-500">{{ device.firmware_version }}</span>
+      <a href="" class="ms-auto text-xs text-cyan-400 hover:underline">↻ {% trans "تحديث" %}</a>
+      <form method="post">{% csrf_token %}
+        <button name="action" value="brain_restart" class="bg-amber-700 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">🔄 {% trans "أعد تشغيل المخ" %}</button>
+      </form>
+    </div>
+    <pre dir="ltr" class="max-h-96 overflow-y-auto text-[11px] leading-5 text-slate-300 bg-slate-950/70 rounded-lg p-3 whitespace-pre-wrap">{% for line in brain_log %}{{ line }}
+{% empty %}{% trans "لسه مفيش لوج — بيوصل مع نبضة الروبوت كل ٣٠ ثانية (مخ موس 0.9.26 أو أحدث)." %}{% endfor %}</pre>
+  </section>
+
   {# ---- Snapshots + recent commands ---- #}
   <div class="grid lg:grid-cols-2 gap-6">
     <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">

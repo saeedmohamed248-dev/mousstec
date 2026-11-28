@@ -115,8 +115,19 @@ class Server:
             raise ServerDown(f"{path} → {resp.status_code}")
         return resp
 
-    def heartbeat(self, version: str) -> int:
-        return self._post("/heartbeat/", json={"firmware_version": version}).status_code
+    def heartbeat(self, version: str, log: Optional[list] = None) -> int:
+        """«I'm here» every HEARTBEAT_S — with the log's newest lines, for the robot's page on the
+        server (read there, the robot's computer never opened). What the server answered is kept
+        in `last_heartbeat` ({"restart": true}: the robot's page asked for a restart)."""
+        body = {"firmware_version": version}
+        if log:
+            body["log"] = log
+        resp = self._post("/heartbeat/", json=body)
+        try:
+            self.last_heartbeat = resp.json() if resp.status_code == 200 else {}
+        except ValueError:
+            self.last_heartbeat = {}
+        return resp.status_code
 
     def status(self) -> dict:
         """«🩺»: the server's online services and the brain it ships
