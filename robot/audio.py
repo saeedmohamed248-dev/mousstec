@@ -555,7 +555,7 @@ def _azure_pcm(text: str, rate: int) -> Optional[bytes]:
 # robot already hears with. Slower (3–4 s a sentence, Azure's well under one): the pieces of a
 # reply are voiced at once, and each is kept (synthesize_wav), so a sentence said before costs nothing.
 GEMINI_TTS_MODEL = "gemini-3.8-flash-tts"     # ROBOT_TTS_GEMINI_MODEL another
-GEMINI_TTS_VOICE = "Charon"                   # ROBOT_TTS_GEMINI_VOICE: a male voice the owner picked by ear
+GEMINI_TTS_VOICE = "Alnilam"                  # ROBOT_TTS_GEMINI_VOICE: the male voice the owner picked by ear (no. 3)
 GEMINI_TTS_STYLE = "[بالعامية المصرية، بصوت ودود وطبيعي]"   # ROBOT_TTS_GEMINI_STYLE
 _GEMINI_TTS_TIMEOUT = 12
 _GEMINI_TTS_REST_S = 600            # a wrong key or a used-up quota: Azure for a while, no wasted trip

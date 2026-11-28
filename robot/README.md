@@ -1229,7 +1229,7 @@ file is there — and the robot starts it as soon as nobody's talking (`brain/se
 
 The owner wants the robot to sound like a real Egyptian, not a reader of the news. Gemini's own
 voices (`gemini-3.8-flash-tts`, the key the robot already hears with) say Egyptian more naturally than
-Azure's Shakir; the owner picks a male one by ear (`ROBOT_TTS_GEMINI_VOICE`, `Charon` by default).
+Azure's Shakir; the owner picks a male one by ear (`ROBOT_TTS_GEMINI_VOICE`; he chose `Alnilam`, the default).
 The style goes in brackets before the words (`[بالعامية المصرية، بصوت ودود وطبيعي]`) — said as an
 instruction after a colon, Gemini read it aloud. It's slower (about 3.5 s a sentence, Azure under 1 s):
 the pieces of a reply are voiced at once and each is kept, so what was said before costs nothing.
