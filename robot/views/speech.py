@@ -196,7 +196,7 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
         wizard.keep(device)                       # its question still waits
         intent, reply, payload = "unknown", talk.HEARD_BADLY, {"unresolved": True}
     else:
-        answered = _answer_meant(meant, device, lang, via) if meant is not None else None
+        answered = _answer_meant(meant, device, lang, via, employee) if meant is not None else None
         if meant is not None:
             text, unsure = meant.command, False
         if answered is not None:

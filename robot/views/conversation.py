@@ -7,7 +7,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from .. import assistant, entries, enrollment, memory, money, permissions, replies, restock, services, wakename, wizard, workshop
+from .. import agent, assistant, entries, enrollment, memory, money, permissions, replies, restock, services, wakename, wizard, workshop
 from ..brain import talk
 from ..brain.knowledge import NOT_HERE, available
 from robot import views  # 🔌 seams: بتتنادى عن طريق الحزمة عشان الاختبارات تقدر تعمل لها patch
@@ -341,7 +341,7 @@ def _answer_voice_as(transcript: str, device, employee, lang: str, caps, unsure,
     # («إيه أحسن زيت للصيف؟»، «الجو حر النهارده») ليها رد مفيد، مش «محتاج قطعة إيه؟».
     if no_part:
         if len(transcript.split()) >= 3 and not unsure:
-            general = _discuss(transcript, device, lang)
+            general = _discuss(transcript, device, lang, employee)
             if general:
                 return "unknown", general, {"ai": True, "discussion": True}
         return "chat", talk.ASK_PART, {"chat": ["ask_part"]}
@@ -392,9 +392,12 @@ def _answer_voice_as(transcript: str, device, employee, lang: str, caps, unsure,
             if coached:
                 return "unknown", coached, {"unresolved": True, "ai": True, "workshop": True}
             return "unknown", workshop.without_ai(transcript, car), {"unresolved": True, "workshop": True}
-        general = services.ai_reply(transcript, lang, facts=facts, history=turns,
-                                    branch=getattr(device.branch, "name", "") or "",
-                                    robot=robot_name)
+        # «🧠 المخ بأدوات» (robot/agent.py): Gemini reads the system itself — the parts, the stock in
+        # each branch, the shop's replies, the staff's numbers for those who may; the general AI after.
+        general = (agent.answer(device, employee, transcript, lang, history=turns, facts=facts)
+                   or services.ai_reply(transcript, lang, facts=facts, history=turns,
+                                        branch=getattr(device.branch, "name", "") or "",
+                                        robot=robot_name))
         if general:
             return "unknown", general, {"unresolved": True, "ai": True}
         # 🐛 [FIX]: الذكاء الاصطناعي لما مردّش، كل حاجة كانت بتترد «ملقتش القطعة دي في المخزون» —
@@ -420,11 +423,17 @@ def _talk_shop(transcript: str, device, lang: str) -> str:
     return workshop.spoken(coached) if coached else ""
 
 
-def _discuss(transcript: str, device, lang: str) -> str:
+def _discuss(transcript: str, device, lang: str, employee=None) -> str:
     """A general subject talked through (robot/workshop.discussion_prompt): the conversation so far
     in mind, a few useful sentences, a question back. '' when the AI is down."""
     facts, turns = memory.thinking_context(device)
     robot_name = (device.wake_name or "موس").strip()
+    # «🧠 المخ بأدوات»: it knows who it's talking to and what they talked about before, and can look
+    # anything up in the system mid-discussion; the general AI when it can't.
+    said = agent.answer(device, employee, transcript, lang, history=turns, facts=facts,
+                        longest=workshop.DISCUSS_LONGEST)
+    if said:
+        return workshop.spoken(said, longest=workshop.DISCUSS_LONGEST)
     said = services.ai_reply(
         transcript, lang, facts=facts, history=turns, branch=getattr(device.branch, "name", "") or "",
         robot=robot_name, longest=workshop.DISCUSS_LONGEST,
@@ -432,7 +441,7 @@ def _discuss(transcript: str, device, lang: str) -> str:
     return workshop.spoken(said, longest=workshop.DISCUSS_LONGEST) if said else ""
 
 
-def _answer_meant(meant, device, lang: str, via: str):
+def _answer_meant(meant, device, lang: str, via: str, employee=None):
     """What «🧠 مخ الفهم» understood decides who answers, when it's talk rather than a task: a
     workshop question (wiring, a fault code, upkeep) goes to the repair coach with the system's
     diagnostics; a general subject is discussed. (intent, reply, payload), or None for the rules —
@@ -453,7 +462,7 @@ def _answer_meant(meant, device, lang: str, via: str):
     ans = services.inventory_answer(said, branch=device.branch)
     if ans.get("found") or ans.get("choices"):
         return None                               # a part of the shop's named in it: the shop's answer
-    discussed = _discuss(said, device, lang)
+    discussed = _discuss(said, device, lang, employee)
     return ("unknown", discussed, {"ai": True, "discussion": True}) if discussed else None
 
 

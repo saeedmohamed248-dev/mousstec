@@ -1234,3 +1234,37 @@ The style goes in brackets before the words (`[بالعامية المصرية،
 instruction after a colon, Gemini read it aloud. It's slower (about 3.5 s a sentence, Azure under 1 s):
 the pieces of a reply are voiced at once and each is kept, so what was said before costs nothing.
 Gemini refusing (a wrong key, its quota) rests it 10 minutes; Azure speaks meanwhile.
+
+### «🧠 المخ بأدوات» — Gemini answering from the system itself (robot/agent.py)
+
+What no rule answers went to an AI that knew nothing of the shop and was told to say «هسأل حد من
+الموظفين». Now Gemini has tools that read the system and calls the ones it needs (about a second to
+choose): `find_parts` (a part by name, number or car: retail price, stock here and in each branch),
+`part_details` (brand, condition, warranty, what it fits, its shelf, the alternatives here),
+`shop_numbers` and `account_balance` (the staff's numbers — `assistant.staff_answer`, so a customer
+hears they're for the staff), and `shop_info` (the replies the owner wrote, the branches). Any other
+subject it talks about freely. Read only: a sale or stock goes through the robot's own steps, with
+their PIN. A price no tool gave is dropped, as `services.ai_reply` does; that general AI still answers
+when Gemini can't. `ROBOT_AGENT=0` turns it off (it's off in the tests that don't ask for it).
+
+It remembers who it's talking to and keeps the discussion going: the customer the camera greeted
+(`customer_greet` now notes them in the conversation's memory) or the employee it knows, by name,
+with their visits, their car, what they last bought and what it learned of them before — `remember`
+keeps a short fact («عربيته F30 موديل 2014، أهلاوي») on the customer's record
+(`RobotCustomerFace.notes["about"]`, the newest 12; an employee's for 90 days in the cache), never a
+phone number. The last 8 exchanges go with each question (was 4), so «وده بيعمل إيه؟» or «طب وإنت
+رأيك؟» carry on; the talk the rules hand over («نتكلم في الكورة؟») goes to it first too. `staff` names
+the shop's people and their jobs (never their pay).
+
+### «📺 الروبوت في لايف فيسبوك» (robot/fblive.py)
+
+The owner goes live on the shop's Facebook page with the robot in the picture and presses «▶ شغّل» on
+the robot's control page. While on (4 hours at most), each time the robot polls its commands and 6
+seconds have passed, a background task (`robot.tasks.fblive_turn`, on the default queue — the poll
+never waits on Facebook or Gemini) reads the newest comments on the page's live video (found by
+itself, or by the id given) and answers up to 2 of them with the brain above, as a customer: a reply
+under the comment, and the same words said aloud to them by name («يا كريم، …») — never the comment
+itself, so whatever a viewer writes isn't read out on the shop's live. Spam, insults and a bare «🔥»
+(the brain answers SKIP), the page's own comments and the ones from before it was turned on are left;
+in a flood the oldest are let go. It needs the shop's page connected in the messaging settings
+(omnichannel), with a token that has `pages_read_engagement` and `pages_manage_engagement`.

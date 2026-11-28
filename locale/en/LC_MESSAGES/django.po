@@ -31092,3 +31092,31 @@ msgstr "Request quotes from market sellers — free."
 
 msgid "مخفي عن التجار"
 msgstr "Hidden from sellers"
+
+#: robot/templates/robot/device_control.html
+msgid "الروبوت يرد على تعليقات لايف فيسبوك"
+msgstr "The robot answers the comments on Facebook Live"
+
+#: robot/templates/robot/device_control.html
+msgid "اربط صفحة المحل على فيسبوك الأول من إعدادات الرسايل."
+msgstr "Connect the shop's Facebook page first, from the messaging settings."
+
+#: robot/templates/robot/device_control.html
+msgid "شغال"
+msgstr "On"
+
+#: robot/templates/robot/device_control.html
+msgid "رد على"
+msgstr "answered"
+
+#: robot/templates/robot/device_control.html
+msgid "وقّف"
+msgstr "Stop"
+
+#: robot/templates/robot/device_control.html
+msgid "رقم اللايف (اختياري — بيلاقيه لوحده)"
+msgstr "Live video ID (optional — found automatically)"
+
+#: robot/templates/robot/device_control.html
+msgid "افتح اللايف على صفحة المحل وبعدين دوس شغّل: الروبوت هيرد على كل تعليق جديد تحت التعليق وبصوته في اللايف، ويقفل لوحده بعد ٤ ساعات."
+msgstr "Go live on the shop's page, then press Start: the robot replies to every new comment, under the comment and out loud on the live, and turns itself off after 4 hours."

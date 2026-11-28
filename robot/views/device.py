@@ -156,12 +156,28 @@ def snapshot_upload(request):
     return Response({"ok": True, "snapshot_id": snap.id}, status=status.HTTP_201_CREATED)
 
 
+def _fblive(device) -> None:
+    """«📺 لايف فيسبوك» on and its time has come → the comments are read in the background
+    (robot.tasks.fblive_turn); the answers are queued as commands, said on a later poll."""
+    from django.db import connection
+
+    from .. import fblive
+    try:
+        if fblive.due(device):
+            from ..tasks import fblive_turn
+            fblive_turn.delay(connection.schema_name, device.pk)
+    except Exception:                       # the broker down: the live waits, the poll doesn't
+        services.logger.warning("robot fblive: couldn't start a reading", exc_info=True)
+        fblive.done(device)
+
+
 @_robot_endpoint
 def commands_pending(request):
     """Device polls queued dashboard/owner commands, which are marked sent."""
     device, err = views._device_or_401(request)
     if err:
         return err
+    _fblive(device)
     # Snapshot/scan belong to the camera board (delivered via /camera/frame/);
     # handing them to the bridge would ack them without a photo ever taken.
     pending = list(device.commands.filter(status="pending")

@@ -27,7 +27,7 @@ from .brain import talk
 
 logger = logging.getLogger("mouss_tec_core")
 
-TURNS = 4                            # exchanges kept for the LLM
+TURNS = 8                            # exchanges kept for the LLM: a discussion, not one question
 SHOWN_ALTERNATIVES = 6               # in-stock equivalents looked at
 QUIET = 30                           # seconds of silence before «يا موس» / a face is a new customer
 

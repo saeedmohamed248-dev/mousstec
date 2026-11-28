@@ -48,3 +48,24 @@ def prune_heard_audio():
             logger.error("[ROBOT TASK] heard audio prune failed for '%s': %s",
                          tenant.schema_name, e)
     return f"Robot recordings let go: {total}"
+
+
+@shared_task(name='robot.tasks.fblive_turn', ignore_result=True)
+def fblive_turn(schema_name, device_id):
+    """«📺 لايف فيسبوك»: one reading of the live's comments for one robot, answered on Facebook
+    and aloud (robot/fblive.py) — in the background, so the robot's poll never waits on it."""
+    from django_tenants.utils import schema_context
+    from robot import fblive
+    from robot.models import RobotDevice
+
+    with schema_context(schema_name):
+        device = RobotDevice.objects.filter(pk=device_id).first()
+        if device is None:
+            return 0
+        try:
+            return fblive.turn(device)
+        except Exception as e:
+            logger.error("[ROBOT TASK] fblive failed for robot %s in '%s': %s", device_id, schema_name, e)
+            return 0
+        finally:
+            fblive.done(device)
