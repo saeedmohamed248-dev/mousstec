@@ -25,6 +25,10 @@ def heartbeat(request):
     if fw:
         device.firmware_version = str(fw)[:20]
         device.save(update_fields=["firmware_version"])
+    # «📜 لوج الروبوت» (robot/brain/pagelog.py): its newest lines, for its page — and a restart asked there.
+    from .. import pagelog
+    pagelog.keep(device, request.data.get("log"))
+    restart = pagelog.restart_due(device)
     # A part customers were waiting for is back: tell the staff. Checked here
     # (every 30 s) so any way the stock rose — a purchase, a transfer, a count
     # — is seen. An extra: the heartbeat answers regardless.
@@ -40,6 +44,7 @@ def heartbeat(request):
         # The bridge turns on its fast voice only when the server can take it:
         # µ-law both ways, and /voice/ answering with the spoken reply itself.
         "voice": {"ulaw": True},
+        **({"restart": True} if restart else {}),
     })
 
 

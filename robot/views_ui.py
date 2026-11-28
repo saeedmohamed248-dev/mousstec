@@ -419,13 +419,17 @@ def device_control(request, pk):
         elif action == "head_try":
             from . import headfollow
             headfollow.try_it(device)
+        elif action == "brain_restart":
+            from . import pagelog
+            pagelog.ask_restart(device)
         return redirect("robot_ui:device_control", pk=device.pk)
 
     from hr.models import Employee
 
-    from . import fblive, headfollow, services
+    from . import fblive, headfollow, pagelog, services
     return render(request, "robot/device_control.html", {
         "device": device,
+        "brain_log": list(reversed(pagelog.lines_of(device)[-200:])),
         "head": {"on": headfollow.enabled(device), "for_all": headfollow.enabled(None),
                  "edge_ms": services.head_edge_ms(device), "least": headfollow.EDGE_LEAST,
                  "most": headfollow.EDGE_MOST, "trying": headfollow.following(device),

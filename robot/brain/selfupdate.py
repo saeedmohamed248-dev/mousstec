@@ -32,7 +32,7 @@ TRIAL = "brain-trial.json"
 REFUSED = "brain-refused.txt"
 TRIES = 3                    # stops of a new brain before it ran SETTLE_S: it's put back
 SETTLE_S = 120
-EVERY_S = 15 * 60            # how often the server is asked for a newer brain
+EVERY_S = 2 * 60             # how often the server is asked for a newer brain
 LAUNCHERS = (".bat", ".sh")
 _VERSION = re.compile(r'^VERSION\s*=\s*"([^"]+)"', re.M)
 

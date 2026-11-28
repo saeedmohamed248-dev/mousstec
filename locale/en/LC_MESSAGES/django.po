@@ -31193,3 +31193,15 @@ msgstr "The website didn't answer. Check the address and try again."
 #, python-format
 msgid "اتقرت %(pages)s صفحة: %(added)s رد جديد و%(changed)s اتحدّث — مقفولين لحد ما تراجعهم وتعلّم «شغّال» وتحفظ."
 msgstr "Read %(pages)s pages: %(added)s new replies and %(changed)s updated — switched off until you review them, tick “On” and save."
+
+#: robot/templates/robot/device_control.html
+msgid "لوج الروبوت"
+msgstr "Robot log"
+
+#: robot/templates/robot/device_control.html
+msgid "أعد تشغيل المخ"
+msgstr "Restart the brain"
+
+#: robot/templates/robot/device_control.html
+msgid "لسه مفيش لوج — بيوصل مع نبضة الروبوت كل ٣٠ ثانية (مخ موس 0.9.26 أو أحدث)."
+msgstr "No log yet — it arrives with the robot's heartbeat every 30 seconds (brain 0.9.26 or newer)."
