@@ -26,3 +26,21 @@ class SpokenChoicesTests(unittest.TestCase):
     def test_a_name_thats_all_of_anothers_is_said_whole(self):
         self.assertEqual(services.choices_said(["فلتر زيت", "فلتر زيت E90"]),
                          "عندي نوعين: فلتر زيت، فلتر زيت E90. تقصد أنهي؟")
+
+
+class ThePartAskedForTests(unittest.TestCase):
+    """«عندك فانوس خلفي X3؟» from the shop's log: brake pads, a wiper and shocks were offered."""
+
+    def test_only_parts_named_by_it_are_offered(self):
+        from robot.brain import knowledge
+
+        k = knowledge.Knowledge({"parts": [
+            {"part_number": "A", "name": "تيل خلفي TEXTAR E60 X3", "stock": 2, "retail_price": 100},
+            {"part_number": "B", "name": "مساحة خلفي X3 E83 BOSCH", "stock": 2, "retail_price": 90},
+            {"part_number": "C", "name": "فانوس خلفي X5", "stock": 1, "retail_price": 900},
+        ]})
+        part, choices = k.lookup("عندك فانوس خلفي X3")
+        self.assertTrue(part is None or "فانوس" in part.name)
+        self.assertTrue(all("فانوس" in c.name for c in choices))
+        self.assertEqual(knowledge.the_part(["فانوس", "خلفي", "x3"]), "فانوس")
+        self.assertEqual(knowledge.the_part(["x3", "مساعد"]), "مساعد")

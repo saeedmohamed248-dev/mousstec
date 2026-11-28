@@ -244,11 +244,15 @@ def match_part_in_sentence(text: str, car=None):
     for w in keys[:8]:
         for spelling in {s for form in _forms(w) for s in _spellings(form)}:
             name_q |= Q(name__icontains=spelling)
+    from ..brain.knowledge import the_part
+    noun = _forms(the_part(keys)) if the_part(keys) else set()
     scored = []
     for product in Product.objects.filter(name_q, is_active=True)[:200]:
         name_words = set(_part_words(product.name))
         hits = sum(1 for w in keys if _forms(w) & name_words)
-        if not hits:
+        # 🐛 [FIX]: «فانوس خلفي X3» عرض تيل ومساحة ومساعد («خلفي» و«X3» في أساميهم): القطعة اللي
+        # اسمها مافيهوش الكلمة اللي بتسمّي المطلوب مبتتعرضش (the brain the same: knowledge.the_part).
+        if not hits or (noun and not noun & name_words):
             continue
         model_words = set(_part_words(getattr(product, "car_model", "") or ""))
         model_hits = sum(1 for w in keys if _forms(w) & model_words and not _forms(w) & name_words)

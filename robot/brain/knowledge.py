@@ -174,6 +174,13 @@ _QUESTION_WORDS = frozenset("""
 _QUESTION_WORDS = _QUESTION_WORDS | FILLERS          # robot/brain/slang.py
 
 
+def the_part(keys: list) -> str:
+    """The word that names the part asked for — the first that isn't a car or engine code
+    («فانوس» in «فانوس خلفي X3»). 🐛 [FIX]: «فانوس خلفي X3» offered brake pads, a wiper and shocks
+    («خلفي» and «X3» in their names): a part whose name hasn't this word isn't offered."""
+    return next((w for w in keys if not any(c.isdigit() for c in w)), "")
+
+
 def part_words(text: str) -> list:
     words = []
     for w in rewrite(normalize((text or "").translate(_ARABIC_DIGITS))).split():
@@ -485,12 +492,13 @@ class Knowledge:
         if not keys:
             return None, []
         spellings = {s for w in keys[:8] for form in _forms(w) for s in _spellings(form)}
+        noun = _forms(the_part(keys)) if the_part(keys) else set()
         scored = []
         for part in self.parts:
             if not part.active or not any(s in part.name.lower() for s in spellings):
                 continue
             hits = sum(1 for w in keys if _forms(w) & part.name_words)
-            if not hits:
+            if not hits or (noun and not noun & part.name_words):          # robot/services: the same
                 continue
             model_hits = sum(1 for w in keys if _forms(w) & part.model_words and not _forms(w) & part.name_words)
             fits_car = talk.fit(car, f"{part.car_model} {part.name}", part.chassis) if car else 0
