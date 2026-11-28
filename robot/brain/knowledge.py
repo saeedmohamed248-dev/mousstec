@@ -489,8 +489,8 @@ class Knowledge:
             if code in self.by_extra:
                 return self.by_extra[code], []
         keys = [w for w in dict.fromkeys(words) if len(w) >= 2 and w not in _QUESTION_WORDS]
-        if not keys:
-            return None, []
+        if not keys or all(w.isdigit() for w in keys) and len("".join(keys)) < CODE_IN_TEXT:
+            return None, []                    # «123»: a PIN said aloud, not a part (robot/services too)
         spellings = {s for w in keys[:8] for form in _forms(w) for s in _spellings(form)}
         noun = _forms(the_part(keys)) if the_part(keys) else set()
         scored = []

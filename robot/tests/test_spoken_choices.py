@@ -44,3 +44,10 @@ class ThePartAskedForTests(unittest.TestCase):
         self.assertTrue(all("فانوس" in c.name for c in choices))
         self.assertEqual(knowledge.the_part(["فانوس", "خلفي", "x3"]), "فانوس")
         self.assertEqual(knowledge.the_part(["x3", "مساعد"]), "مساعد")
+
+    def test_a_pin_said_aloud_is_no_part(self):
+        from robot.brain import knowledge
+
+        k = knowledge.Knowledge({"parts": [
+            {"part_number": "D", "name": "طقم دبانه f25 123", "stock": 0, "retail_price": 2500}]})
+        self.assertEqual(k.lookup("123"), (None, []))

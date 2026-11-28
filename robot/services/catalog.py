@@ -238,7 +238,9 @@ def match_part_in_sentence(text: str, car=None):
 
     # 2) Name words.
     keys = [w for w in dict.fromkeys(words) if len(w) >= 2 and w not in _QUESTION_WORDS]
-    if not keys:
+    # 🐛 [FIX]: «واحد اتنين تلاتة» (رقم سري اتقال بصوت) بقت «123» واتعرضت قطعة في اسمها الرقم ده. أرقام
+    # بس وقصيرة مش اسم قطعة (the brain the same).
+    if not keys or all(w.isdigit() for w in keys) and len("".join(keys)) < CODE_IN_TEXT:
         return None, []
     name_q = Q()
     for w in keys[:8]:

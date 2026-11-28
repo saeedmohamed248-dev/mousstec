@@ -45,3 +45,16 @@ class ServerHearsOnceTests(ERPTenantTestCase):
     def test_english_noise_isnt_answered(self):
         body, *_ = self.turn(("All day after midnight.", None))
         self.assertEqual((body["intent"], body.get("reason")), ("ignored", "chatter"))
+
+
+class AVendorThatsACustomerTests(ERPTenantTestCase):
+    """«تاجر اسمه أحمد سعيد عليه فلوس»: understood as a vendor, he's a customer — found there."""
+
+    def test_not_a_vendor_then_a_customer(self):
+        from inventory.models import Customer
+        from robot import assistant
+
+        Customer.objects.create(name="أحمد سعيد الكنج", phone="01033334444", balance=1500)
+        reply, payload = assistant._balance_answer("vendor_balance", "علينا كام للمورد أحمد سعيد الكنج")
+        self.assertTrue(payload["found"])
+        self.assertIn("أحمد سعيد الكنج عليه", reply)
