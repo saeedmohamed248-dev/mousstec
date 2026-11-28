@@ -564,8 +564,7 @@ OPENAI_API_KEY = env.str('OPENAI_API_KEY', '')
 # المفتاح الأساسي للمستشار الذكي. لو فاضي يستخدم AI_VISION_API_KEY كـ fallback
 # عشان نتجنب تكرار المفاتيح في .env
 GEMINI_API_KEY = env.str('GEMINI_API_KEY', '') or AI_VISION_API_KEY
-# 🤖 «المخ بأدوات» (robot/agent.py): Gemini بيرد من السيستم نفسه. مقفول في الاختبارات (كل اختبار بيشغّله لوحده).
-ROBOT_AGENT = env.bool('ROBOT_AGENT', True) and not _IS_RUNNING_TESTS
+ROBOT_AGENT = env.bool('ROBOT_AGENT', True) and not _IS_RUNNING_TESTS  # 🤖 «المخ بأدوات» (robot/agent.py)
 GEMINI_REFINER_MODEL = env.str('GEMINI_REFINER_MODEL', 'gemini-2.0-flash')
 GEMINI_REASONING_MODEL = env.str('GEMINI_REASONING_MODEL', 'gemini-2.5-flash')
 
@@ -1057,9 +1056,10 @@ CELERY_TASK_ROUTES = {
     'social_ads.run_learning':                          {'queue': 'heavy_ai_tasks'},
     'social_ads.optimize_all_ads':                      {'queue': 'default'},
     'social_ads.send_weekly_reports':                   {'queue': 'notifications'},
-    # ── Wix integration (runs on the default worker) ─────────────────
+    # ── Wix integration + the robot answering the shop's Facebook live (default worker) ──
     'clients.tasks.wix_sync_all':                       {'queue': 'default'},
     'clients.tasks.wix_sync_one':                       {'queue': 'default'},
+    'robot.tasks.fblive_turn':                          {'queue': 'default'},
 }
 
 # 🚀 قائمة كل الـ queues المفعلة في الـ Workers (أضف هنا لتتسق مع celery worker -Q)

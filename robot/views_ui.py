@@ -398,11 +398,22 @@ def device_control(request, pk):
                 device.stream_until = None
             device.save(update_fields=["stream_until"])
             RobotCommand.objects.create(device=device, kind=action, issued_by=user)
+        elif action == "fblive_start":
+            # «📺 لايف فيسبوك»: the comments on the shop's live answered by the robot (robot/fblive.py).
+            from . import fblive
+            fblive.start(device, request.POST.get("video_id", ""))
+        elif action == "fblive_stop":
+            from . import fblive
+            fblive.stop(device)
         return redirect("robot_ui:device_control", pk=device.pk)
 
     from hr.models import Employee
+
+    from . import fblive
     return render(request, "robot/device_control.html", {
         "device": device,
+        "fblive": fblive.state(device),
+        "fblive_page": fblive.connected(),
         "employees": Employee.objects.select_related("user")[:200],
         "recent_snapshots": device.snapshots.order_by("-created_at")[:12],
         "recent_commands": device.commands.order_by("-created_at")[:15],

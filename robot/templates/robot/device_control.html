@@ -128,6 +128,26 @@
         </div>
       </form>
 
+      {# «📺 لايف فيسبوك»: the robot answers the comments on the shop's live (robot/fblive.py) #}
+      <div class="pt-2 border-t border-slate-800">
+        <p class="text-xs text-sky-300 mb-1">📺 {% trans "الروبوت يرد على تعليقات لايف فيسبوك" %}</p>
+        {% if not fblive_page %}
+        <p class="text-[11px] text-slate-400">{% trans "اربط صفحة المحل على فيسبوك الأول من إعدادات الرسايل." %}
+          <a href="{% url 'omnichannel_settings' %}" class="text-cyan-400 hover:underline">{% trans "الإعدادات" %}</a></p>
+        {% elif fblive %}
+        <form method="post" class="flex items-center gap-2">{% csrf_token %}
+          <span class="text-emerald-300 text-sm">● {% trans "شغال" %} — {% trans "رد على" %} {{ fblive.answered|default:0 }} {% trans "تعليق" %}</span>
+          <button name="action" value="fblive_stop" class="ms-auto bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold px-4 py-2 rounded-lg">■ {% trans "وقّف" %}</button>
+        </form>
+        {% else %}
+        <form method="post" class="flex gap-2">{% csrf_token %}
+          <input name="video_id" placeholder="{% trans 'رقم اللايف (اختياري — بيلاقيه لوحده)' %}" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm" dir="ltr">
+          <button name="action" value="fblive_start" class="bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold px-4 rounded-lg">▶ {% trans "شغّل" %}</button>
+        </form>
+        <p class="text-[11px] text-slate-500 mt-1">{% trans "افتح اللايف على صفحة المحل وبعدين دوس شغّل: الروبوت هيرد على كل تعليق جديد تحت التعليق وبصوته في اللايف، ويقفل لوحده بعد ٤ ساعات." %}</p>
+        {% endif %}
+      </div>
+
       {# Page an employee — OWNER/ADMIN only #}
       {% if can_page %}
       <form method="post" action="{% url 'robot_ui:page_employee' device.pk %}" class="pt-2 border-t border-slate-800">
