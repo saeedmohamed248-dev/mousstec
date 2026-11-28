@@ -185,3 +185,25 @@ class TheBrainDoesThingsTests(ERPTenantTestCase):
         employee, _ = Employee.objects.get_or_create(user=user)
         got = agent.call("find_invoices", {"query": "أحمد سعيد"}, self.device, employee)["invoices"]
         self.assertEqual((got[0]["customer"], got[0]["left"]), ("أحمد سعيد الكنج", services.spoken_price(2000)))
+
+
+@override_settings(ROBOT_AGENT=True, GEMINI_API_KEY="gm-key")
+class MusicMidDiscussionTests(ERPTenantTestCase):
+    """«يا موس شغلي أم كلثوم» from the shop's log: «البوردة دي مبتشغّلش صوت» on «مخ موس» itself —
+    the discussion path lost what the computer can do, and the media command with it."""
+
+    def test_played_from_a_discussion_too(self):
+        from robot.views import conversation
+
+        branch = Branch.objects.order_by("id").first() or make_branch(name="المعادي")
+        device = RobotDevice(name="موس", device_uid="esp-agent-music", branch=branch)
+        device.issue_token()
+        device.save()
+        agent.note_caps(frozenset({"media"}))
+        with _gemini({"name": "do", "args": {"command": "شغل مزيكا هادية"}}, "لن يقال"):
+            conversation._DONE.done = None
+            said = conversation._discuss("شغلي أم كلثوم لو سمحت", device, "ar")
+        done = conversation._DONE.done
+        self.assertIsNotNone(done)
+        self.assertEqual(done[0], "command")
+        self.assertNotIn("مبتشغّلش", said)
