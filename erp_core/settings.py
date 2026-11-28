@@ -564,6 +564,8 @@ OPENAI_API_KEY = env.str('OPENAI_API_KEY', '')
 # المفتاح الأساسي للمستشار الذكي. لو فاضي يستخدم AI_VISION_API_KEY كـ fallback
 # عشان نتجنب تكرار المفاتيح في .env
 GEMINI_API_KEY = env.str('GEMINI_API_KEY', '') or AI_VISION_API_KEY
+# 🤖 «المخ بأدوات» (robot/agent.py): Gemini بيرد من السيستم نفسه. مقفول في الاختبارات (كل اختبار بيشغّله لوحده).
+ROBOT_AGENT = env.bool('ROBOT_AGENT', True) and not _IS_RUNNING_TESTS
 GEMINI_REFINER_MODEL = env.str('GEMINI_REFINER_MODEL', 'gemini-2.0-flash')
 GEMINI_REASONING_MODEL = env.str('GEMINI_REASONING_MODEL', 'gemini-2.5-flash')
 

@@ -1234,3 +1234,15 @@ The style goes in brackets before the words (`[بالعامية المصرية،
 instruction after a colon, Gemini read it aloud. It's slower (about 3.5 s a sentence, Azure under 1 s):
 the pieces of a reply are voiced at once and each is kept, so what was said before costs nothing.
 Gemini refusing (a wrong key, its quota) rests it 10 minutes; Azure speaks meanwhile.
+
+### «🧠 المخ بأدوات» — Gemini answering from the system itself (robot/agent.py)
+
+What no rule answers went to an AI that knew nothing of the shop and was told to say «هسأل حد من
+الموظفين». Now Gemini has tools that read the system and calls the ones it needs (about a second to
+choose): `find_parts` (a part by name, number or car: retail price, stock here and in each branch),
+`part_details` (brand, condition, warranty, what it fits, its shelf, the alternatives here),
+`shop_numbers` and `account_balance` (the staff's numbers — `assistant.staff_answer`, so a customer
+hears they're for the staff), and `shop_info` (the replies the owner wrote, the branches). Any other
+subject it talks about freely. Read only: a sale or stock goes through the robot's own steps, with
+their PIN. A price no tool gave is dropped, as `services.ai_reply` does; that general AI still answers
+when Gemini can't. `ROBOT_AGENT=0` turns it off (it's off in the tests that don't ask for it).

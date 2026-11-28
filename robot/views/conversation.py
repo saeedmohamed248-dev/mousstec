@@ -7,7 +7,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from .. import assistant, entries, enrollment, memory, money, permissions, replies, restock, services, wakename, wizard, workshop
+from .. import agent, assistant, entries, enrollment, memory, money, permissions, replies, restock, services, wakename, wizard, workshop
 from ..brain import talk
 from ..brain.knowledge import NOT_HERE, available
 from robot import views  # 🔌 seams: بتتنادى عن طريق الحزمة عشان الاختبارات تقدر تعمل لها patch
@@ -392,9 +392,12 @@ def _answer_voice_as(transcript: str, device, employee, lang: str, caps, unsure,
             if coached:
                 return "unknown", coached, {"unresolved": True, "ai": True, "workshop": True}
             return "unknown", workshop.without_ai(transcript, car), {"unresolved": True, "workshop": True}
-        general = services.ai_reply(transcript, lang, facts=facts, history=turns,
-                                    branch=getattr(device.branch, "name", "") or "",
-                                    robot=robot_name)
+        # «🧠 المخ بأدوات» (robot/agent.py): Gemini reads the system itself — the parts, the stock in
+        # each branch, the shop's replies, the staff's numbers for those who may; the general AI after.
+        general = (agent.answer(device, employee, transcript, lang, history=turns, facts=facts)
+                   or services.ai_reply(transcript, lang, facts=facts, history=turns,
+                                        branch=getattr(device.branch, "name", "") or "",
+                                        robot=robot_name))
         if general:
             return "unknown", general, {"unresolved": True, "ai": True}
         # 🐛 [FIX]: الذكاء الاصطناعي لما مردّش، كل حاجة كانت بتترد «ملقتش القطعة دي في المخزون» —
