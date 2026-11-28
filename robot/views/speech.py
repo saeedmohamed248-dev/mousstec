@@ -69,7 +69,15 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
 
     # Accept either a ready transcript OR raw audio (transcribed server-side).
     transcript = (request.data.get("transcript") or "").strip()
-    if not transcript and recording is not None:
+    server_heard = not transcript and recording is not None
+    both = None                                   # heard and understood in one Gemini call
+    # 🐛 [FIX]: ما الروبوت ماكتبش كلام (جوه الحوار) السيرفر كان بيسمع الأول (~3 ث) وبعدين يسأل Gemini
+    # الجملة معناها إيه (~1.7 ث) — ورا بعض. Gemini أول مدرّس: بيسمع ويفهم في نداء واحد زي ما الروبوت كاتب.
+    if server_heard and teachers.configured()[:1] == ["gemini"] and not wizard.wants_secret(device):
+        both = understand.hear_and_mean(device, recording, "", via="phone" if request.data.get("phone") else "robot")
+        if both is not None:
+            transcript = (both[0] or "").strip()
+    if not transcript and recording is not None and both is None:
         try:
             # Azure first (the key the shop pays for, within its minutes), Gemini after —
             # with the names of what the branch sells, written as the shop writes them.
@@ -121,10 +129,11 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     # the recording) — a teacher hears it, and its words are the question.
     heard_by, unsure = "", False
     ears, teacher_said = text, ""                 # each hearing, for robot/understand.py
-    both = None                                   # heard and understood in one Gemini call
+    if both is not None:
+        ears, teacher_said = "", text             # heard by Gemini on the server, nothing by the robot
     # The robot just asked for a PIN (robot/wizard.py): what's said now is never kept.
     secret = wizard.wants_secret(device)
-    if (recording is not None and not name_only and request.data.get("transcript")
+    if (both is None and recording is not None and not name_only and request.data.get("transcript")
             and str(request.data.get("check", "")).lower() in ("1", "true", "yes")):
         try:
             confidence = float(request.data.get("confidence"))
@@ -184,8 +193,12 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     # («شلت أنطوان من الشغلانة…») ويرد «معلش مسمعتكش». كلام مش للروبوت — ومن غير اسمه — بيتساب في هدوء.
     # Said with the robot's name, or only inside the follow-up window (robot/wakename.py)? Asked only
     # here: 🐛 [FIX] asked for every sentence, it broke on a robot whose names can't be read.
+    # 🐛 [FIX]: دوشة المحل اتسمعت على السيرفر إنجليزي («All day after midnight.») والروبوت رد بقطعة.
+    # إنجليزي سمعه السيرفر لوحده جوه الحوار، من غير اسم الروبوت ولا رقم قطعة: مش ليه.
     if not ptt and (meant is not None and meant.intent in ("chatter", "unclear")
-                      or meant is None and lang == "en" and not ears.strip()) \
+                      or meant is None and lang == "en" and not ears.strip()
+                      or meant is None and lang == "en" and server_heard
+                      and not any(ch.isdigit() for ch in text)) \
             and not wakename.strip_name(device, transcript)[0]:
         wizard.keep(device)                       # its question still waits
         return {"intent": "ignored", "reply": "", "addressed": False, "reason": "chatter",
