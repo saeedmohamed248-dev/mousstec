@@ -104,8 +104,10 @@ class PlayerTests(unittest.TestCase):
 
     def test_nothing_to_play(self):
         empty = media.MediaPlayer({"quran": str(Path(self.tmp.name) / "none")}, log=lambda *_: None)
-        self.assertFalse(empty.can_play("quran"))
-        self.assertFalse(empty.play("quran"))
+        # No files here: the Quran still plays, from the internet (media.DEFAULT_STREAMS); calm music doesn't.
+        self.assertTrue(empty.can_play("quran"))
+        self.assertTrue(all(u.startswith("https://") for u in empty.playlist("quran")))
+        self.assertFalse(empty.can_play("calm"))
         self.assertFalse(empty.play("calm"))
 
     def test_a_broken_file_stops_cleanly(self):

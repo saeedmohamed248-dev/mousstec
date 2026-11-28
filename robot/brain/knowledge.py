@@ -86,6 +86,11 @@ _PLAY = re.compile(rf"^{_VERB_PLAY}{_GAP}(?:ال)?(?P<what>قران|قرءان|�
 _STOP = re.compile(rf"^{_VERB_STOP}{_GAP}(?:ال)?(?:صوت|قران|موسيقي|موسيقا|مزيكا|تشغيل|اغاني|music|quran)(?:\s|$)")
 _LOUDER = re.compile(rf"^{_VERB_UP}{_GAP}(?:ال)?صوت(?:\s|$)")
 _QUIETER = re.compile(rf"^{_VERB_DOWN}{_GAP}(?:ال)?صوت(?:\s|$)")
+
+# «شغلي أم كلثوم إنت عمري»، «شغل نجوم اف ام»: anything else to play, looked up on the internet by «مخ موس»
+# (robot/brain/media.find_song — YouTube, a song or a live station). Only «شغّل…» words: «افتح الفاتورة» isn't one.
+_PLAY_NAMED = re.compile(r"^(?:ت|ن)?(?:شغل|شغلي|شغلنا|شغللنا|play)\s+(?:لي\s+|لنا\s+|ليا\s+)?(?P<q>\S.{1,80})$")
+_ANY_SONG = {"اغنيه", "اغنيتين", "حاجه", "حاجة", "اي حاجه", "اي حاجة", "حاجه حلوه", "اغاني"}
 _TODAY = r"(النهارده|انهارده|النهاردا|اليوم|today)"
 _SALES = re.compile(rf"^(?:(?:احنا|هو)\s+)?(?:بعنا|بيعنا|اتباع|المبيعات|مبيعات|sold|sales).*{_TODAY}"
                     rf"|^{_TODAY}.*(?:بعنا|بيعنا|اتباع|مبيعات|sold|sales)")
@@ -141,6 +146,12 @@ def media_command(text: str):
     if m:
         quran = m.group("what") in ("قران", "قرءان", "سوره", "ايات", "quran")
         return {"do": "play", "what": "quran" if quran else "calm"}
+    m = _PLAY_NAMED.search(t)
+    if m:
+        query = m.group("q").strip(" ؟?.!،")
+        if query in _ANY_SONG:
+            return {"do": "play", "what": "calm"}
+        return {"do": "play", "what": "song", "query": query[:80]}
     return None
 
 

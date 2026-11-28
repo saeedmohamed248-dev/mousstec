@@ -22,7 +22,12 @@ import numpy as np
 
 from . import wavs
 
-KINDS = ("quran", "calm")
+KINDS = ("quran", "calm", "song")
+# With nothing set in brain.ini [media]: the Quran from mp3quran.net's own stations (the next when one is down).
+DEFAULT_STREAMS = {
+    "quran": "https://backup.qurango.net/radio/mix|https://backup.qurango.net/radio/tarateel"
+             "|https://backup.qurango.net/radio/mohammed_siddiq_alminshawi",
+}
 AUDIO_FILES = (".mp3", ".m4a", ".aac", ".ogg", ".opus", ".wav", ".flac")
 RATE = 48000                         # what the output runs at
 CHUNK = RATE // 10                   # 100 ms: pause/stop/duck answer within that
@@ -96,7 +101,10 @@ class MediaPlayer:
     # ---- what there is to play
     def playlist(self, kind: str) -> list:
         """The first folder that has files — or else every stream, in order."""
-        parts = [p.strip() for p in str(self.sources.get(kind, "")).split("|") if p.strip()]
+        said = str(self.sources.get(kind, "") or "")
+        if not any(_is_url(p.strip()) or files_in(p.strip()) for p in said.split("|") if p.strip()):
+            said = "|".join(x for x in (said, DEFAULT_STREAMS.get(kind, "")) if x)
+        parts = [p.strip() for p in said.split("|") if p.strip()]
         for part in parts:
             if not _is_url(part):
                 files = files_in(part)
@@ -123,6 +131,44 @@ class MediaPlayer:
         what = "stations" if all(_is_url(i) for i in items) else "files"
         self.log(f"[MEDIA] ▶ {kind} ({len(items)} {what})")
         return True
+
+    def play_song(self, query: str, finder: Optional[Callable] = None) -> str:
+        """«شغلي أم كلثوم إنت عمري», «شغل نجوم اف ام»: looked up on the internet (find_song, a few
+        seconds — in the background: the robot's «حاضر» isn't held up) and played once; a live station
+        until stopped. What it found, or didn't, goes in the log."""
+        self.stop()
+        with self._lock:
+            self.kind = "song"
+            self._stop = threading.Event()
+            self._worker = threading.Thread(target=self._run_song, args=(query, finder or find_song, self._stop),
+                                            daemon=True)
+            self._worker.start()
+        return ""
+
+    def _run_song(self, query: str, finder: Callable, stop: threading.Event) -> None:
+        sink = None
+        try:
+            found = finder(query)
+            if not found:
+                self.log(f"[MEDIA] «{query}»: nothing found on the internet")
+                return
+            url, title = found
+            if stop.is_set():
+                return
+            self.log(f"[MEDIA] ▶ «{title}» (from the internet, for «{query}»)")
+            sink = self._sink_factory()
+            self._play_item("song", url, sink, stop)
+        except Exception as exc:
+            self.log(f"[MEDIA] song stopped: {type(exc).__name__}: {exc}")
+        finally:
+            if sink is not None:
+                try:
+                    sink.close()
+                except Exception:
+                    pass
+            with self._lock:
+                if self._stop is stop and self.kind == "song":
+                    self.kind = ""
 
     def stop(self) -> None:
         with self._lock:
@@ -203,3 +249,24 @@ class MediaPlayer:
             with self._lock:
                 if self._stop is stop and self.kind == kind:
                     self.kind = ""
+
+
+def find_song(query: str):
+    """(an audio URL, its title) for `query` — the first YouTube result (a song, or a station's live
+    broadcast) — or None. yt-dlp (brain/requirements.txt) gives the audio itself; PyAV plays it."""
+    try:
+        import yt_dlp  # type: ignore
+    except ImportError:
+        return None
+    opts = {"format": "bestaudio/best", "quiet": True, "no_warnings": True, "noplaylist": True,
+            "default_search": "ytsearch1", "socket_timeout": 15, "skip_download": True}
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(f"ytsearch1:{query}", download=False)
+    except Exception:
+        return None
+    if info and info.get("entries"):
+        info = (info["entries"] or [None])[0]
+    if not info or not info.get("url"):
+        return None
+    return info["url"], str(info.get("title") or query)[:80]
