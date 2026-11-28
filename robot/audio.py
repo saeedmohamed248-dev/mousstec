@@ -556,7 +556,9 @@ def _azure_pcm(text: str, rate: int) -> Optional[bytes]:
 # reply are voiced at once, and each is kept (synthesize_wav), so a sentence said before costs nothing.
 GEMINI_TTS_MODEL = "gemini-3.8-flash-tts"     # ROBOT_TTS_GEMINI_MODEL another
 GEMINI_TTS_VOICE = "Alnilam"                  # ROBOT_TTS_GEMINI_VOICE: the male voice the owner picked by ear (no. 3)
-GEMINI_TTS_STYLE = "[بالعامية المصرية، بصوت ودود وطبيعي]"   # ROBOT_TTS_GEMINI_STYLE
+# 🐛 [FIX]: كان فيه «[بالعامية المصرية، بصوت ودود وطبيعي]» قبل كل جملة، والموديل ساعات كان بيقولها بصوت
+# («بالعامية المصرية… أهلاً بحضرتك»). النص بيروح لوحده؛ اللي عايز توجيه يحطه في ROBOT_TTS_GEMINI_STYLE.
+GEMINI_TTS_STYLE = ""   # ROBOT_TTS_GEMINI_STYLE
 _GEMINI_TTS_TIMEOUT = 12
 _GEMINI_TTS_REST_S = 600            # a wrong key or a used-up quota: Azure for a while, no wasted trip
 _gemini_tts_rest = {"until": 0.0}
@@ -592,7 +594,7 @@ def _gemini_pcm(text: str, rate: int) -> Optional[bytes]:
 
     lang = detect(text)
     if lang == "ar":
-        style = (os.getenv("ROBOT_TTS_GEMINI_STYLE", "") or GEMINI_TTS_STYLE).strip()
+        style = (os.getenv("ROBOT_TTS_GEMINI_STYLE", "") or GEMINI_TTS_STYLE).strip()   # empty: the words alone
         text = f"{style} {egyptian_numbers(speakable(text))}".strip()
     model = os.getenv("ROBOT_TTS_GEMINI_MODEL", "").strip() or GEMINI_TTS_MODEL
     voice = os.getenv("ROBOT_TTS_GEMINI_VOICE", "").strip() or GEMINI_TTS_VOICE
