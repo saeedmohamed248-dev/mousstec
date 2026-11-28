@@ -72,7 +72,7 @@ class ShopLogTests(ERPTenantTestCase):
         memory.note_turn(self.device, "عندك فلتر زيت؟", "اه موجود، ممكن تقولي اسم العربية؟")
         intent, reply = self.say("عربية إي. نينتي.")
         self.assertEqual(intent, "inventory_query")
-        self.assertIn("E90 - JP", reply)
+        self.assertIn("للـ E90: JP", reply)                          # said as a salesman says it
         self.assertNotIn("MINI", reply)
         memory.forget(self.device)
         self.assertEqual(self.say("عربيتي اف تلاتين"), ("chat", "تمام، F30. محتاج قطعة إيه ليها؟"))
