@@ -1268,3 +1268,15 @@ itself, so whatever a viewer writes isn't read out on the shop's live. Spam, ins
 (the brain answers SKIP), the page's own comments and the ones from before it was turned on are left;
 in a flood the oldest are let go. It needs the shop's page connected in the messaging settings
 (omnichannel), with a token that has `pages_read_engagement` and `pages_manage_engagement`.
+
+### The head turns to whoever's talking — from the robot's page, and it calibrates itself
+
+Head follow (robot/headfollow.py) was on only with `ROBOT_HEAD_FOLLOW=1` in the server's .env, and
+calibrated there by hand (`ROBOT_HEAD_EDGE_MS`, `ROBOT_HEAD_FLIP`) — an SSH session and a guess. Now the
+robot's control page has «🔄 الراس تلف ناحية اللي بيتكلم»: on/off, «بتلف عكس», and the turn's length
+(RobotDevice.head_follow / head_flip / head_edge_ms), and «👀 اتبعني ٢٠ ثانية» opens the conversation's
+window for 20 seconds so the head follows whoever stands in front, nothing said. While on, the first
+look after each move (once it settled, within 2 s) says how it went: the face farther the same way
+twice in a row → its direction is flipped and it turns toward them; on the other side → it swung past,
+the turn is made a fifth shorter; nearer but not halfway → a fifth longer (80–1500 ms). What it learned
+shows on the page. The .env still turns it on for every robot, and is where the calibration starts.

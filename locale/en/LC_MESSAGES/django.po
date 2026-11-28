@@ -31120,3 +31120,51 @@ msgstr "Live video ID (optional — found automatically)"
 #: robot/templates/robot/device_control.html
 msgid "افتح اللايف على صفحة المحل وبعدين دوس شغّل: الروبوت هيرد على كل تعليق جديد تحت التعليق وبصوته في اللايف، ويقفل لوحده بعد ٤ ساعات."
 msgstr "Go live on the shop's page, then press Start: the robot replies to every new comment, under the comment and out loud on the live, and turns itself off after 4 hours."
+
+#: robot/templates/robot/device_control.html
+msgid "الراس تلف ناحية اللي بيتكلم"
+msgstr "The head turns to whoever's talking"
+
+#: robot/templates/robot/device_control.html
+msgid "شغالة"
+msgstr "On"
+
+#: robot/templates/robot/device_control.html
+msgid "مكتبة كشف الوشوش (dlib) مش موجودة على السيرفر — الراس مش هتلف."
+msgstr "The face detector (dlib) isn't on the server — the head won't turn."
+
+#: robot/templates/robot/device_control.html
+msgid "شغّلها"
+msgstr "Turn on"
+
+#: robot/templates/robot/device_control.html
+msgid "بتلف عكس"
+msgstr "Turns the wrong way"
+
+#: robot/templates/robot/device_control.html
+msgid "طول اللفة"
+msgstr "Turn length"
+
+#: robot/templates/robot/device_control.html
+msgid "شغالة لكل الروبوتات من إعدادات السيرفر (ROBOT_HEAD_FOLLOW)."
+msgstr "On for every robot from the server's settings (ROBOT_HEAD_FOLLOW)."
+
+#: robot/templates/robot/device_control.html
+msgid "اتبعني ٢٠ ثانية"
+msgstr "Follow me for 20 seconds"
+
+#: robot/templates/robot/device_control.html
+msgid "بتتابع دلوقتي — اقف شمال أو يمين الروبوت."
+msgstr "Following now — stand to the robot's left or right."
+
+#: robot/templates/robot/device_control.html
+msgid "وهي شغالة الراس بتظبط نفسها: لو لفّت عكس مرتين ورا بعض بتعكس الاتجاه لوحدها، ولو عدّت الزبون بتقصّر اللفة، ولو موصلتلوش بتطوّلها."
+msgstr "While on, the head calibrates itself: if it turns the wrong way twice in a row it flips its direction, if it swings past the customer it shortens its turn, and if it falls short it lengthens it."
+
+#: robot/models.py
+msgid "الراس بتلف عكس"
+msgstr "The head turns the wrong way"
+
+#: robot/models.py
+msgid "لفة الراس لوش على طرف الصورة (ms)"
+msgstr "Head turn for a face at the frame's edge (ms)"

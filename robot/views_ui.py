@@ -405,13 +405,31 @@ def device_control(request, pk):
         elif action == "fblive_stop":
             from . import fblive
             fblive.stop(device)
+        elif action == "head_settings":
+            # «🔄 الراس تلف ناحية اللي بيتكلم» (robot/headfollow.py): on/off and its calibration.
+            device.head_follow = bool(request.POST.get("head_follow"))
+            device.head_flip = bool(request.POST.get("head_flip"))
+            try:
+                ms = int(request.POST.get("head_edge_ms") or 0)
+            except ValueError:
+                ms = 0
+            from . import headfollow
+            device.head_edge_ms = max(headfollow.EDGE_LEAST, min(headfollow.EDGE_MOST, ms)) if ms > 0 else None
+            device.save(update_fields=["head_follow", "head_flip", "head_edge_ms"])
+        elif action == "head_try":
+            from . import headfollow
+            headfollow.try_it(device)
         return redirect("robot_ui:device_control", pk=device.pk)
 
     from hr.models import Employee
 
-    from . import fblive
+    from . import fblive, headfollow, services
     return render(request, "robot/device_control.html", {
         "device": device,
+        "head": {"on": headfollow.enabled(device), "for_all": headfollow.enabled(None),
+                 "edge_ms": services.head_edge_ms(device), "least": headfollow.EDGE_LEAST,
+                 "most": headfollow.EDGE_MOST, "trying": headfollow.following(device),
+                 "faces": headfollow.can_see_faces()},
         "fblive": fblive.state(device),
         "fblive_page": fblive.connected(),
         "employees": Employee.objects.select_related("user")[:200],

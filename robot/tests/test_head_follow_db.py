@@ -195,6 +195,111 @@ class HeadFollowTests(ERPTenantTestCase):
         self.assertEqual(services.look_at(self.device, 0.151).duration_ms, services.HEAD_MIN_MS)
 
 
+@override_settings(ALLOWED_HOSTS=["*"])
+class TheHeadCalibratesItselfTests(ERPTenantTestCase):
+    """«اعملها»: the head turns to the customer without the server's .env — on from the robot's
+    page, and the head finds its own direction and turn length as it goes."""
+
+    def setUp(self):
+        branch = Branch.objects.order_by("id").first() or make_branch(name="الرئيسي")
+        self.device = RobotDevice(name="موس", device_uid="esp-head-learns", branch=branch, head_follow=True)
+        self.device.issue_token()
+        self.device.listening_until = timezone.now() + timedelta(minutes=5)
+        self.device.save()
+        for what in ("seen", "moved"):
+            cache.delete(headfollow._key(self.device, what))
+            self.addCleanup(cache.delete, headfollow._key(self.device, what))
+        env = mock.patch.dict(os.environ, {"ROBOT_HEAD_FOLLOW": "", "ROBOT_HEAD_FLIP": "", "ROBOT_HEAD_EDGE_MS": ""})
+        env.start()
+        self.addCleanup(env.stop)
+        self.clock = timezone.now()
+
+    def frames(self, *offsets):
+        """The camera's frames, 0.4 s apart, each after the head settled from the last move."""
+        moves = []
+        for offset in offsets:
+            last = MotorCommandLog.objects.filter(device=self.device).order_by("-created_at").first()
+            if last is not None:      # the frames while it turns aren't looked at: the next is after
+                settled = last.created_at + timedelta(milliseconds=last.duration_ms) + headfollow.SETTLE
+                self.clock = max(self.clock, settled)
+            with mock.patch.object(headfollow, "face_offset", return_value=offset):
+                moves.append(headfollow.follow(self.device, b"jpeg", now=self.clock))
+            self.clock += timedelta(seconds=0.4)
+        return moves
+
+    def test_on_from_its_page_no_env_needed(self):
+        self.assertTrue(headfollow.enabled(self.device))
+        self.assertEqual(self.frames(0.6, 0.6)[1].direction, "right")
+        self.device.head_follow = False
+        self.assertFalse(headfollow.following(self.device))
+
+    def test_turning_away_twice_it_flips_and_turns_toward_them(self):
+        # Mounted the other way round: told «right», it turns left — the face goes farther right.
+        moves = self.frames(0.5, 0.5, 0.7, 0.7, 0.9, 0.9)
+        self.assertEqual([m.direction for m in moves if m], ["right", "right", "left"])
+        self.device.refresh_from_db()
+        self.assertTrue(self.device.head_flip)                          # learned, kept on the robot
+        self.assertEqual(services.look_at(self.device, 0.6).direction, "left")
+
+    def test_swinging_past_them_the_turn_gets_shorter_and_creeping_longer(self):
+        moves = self.frames(0.8, 0.8, -0.5, -0.5)                        # swung past them
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.head_edge_ms, 200)                  # 250 → a fifth shorter
+        self.assertEqual(moves[3].duration_ms, 100)                      # and the turn back is by it
+        self.frames(-0.35, -0.35)                                        # nearer, not halfway: crept
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.head_edge_ms, 240)
+
+    def test_facing_them_or_at_its_end_nothing_is_learned(self):
+        self.frames(0.6, 0.6, 0.05, 0.05)                               # just right
+        self.frames(0.6, 0.6, 0.6, 0.6)                                 # its limit switch: no nearer
+        self.device.refresh_from_db()
+        self.assertEqual((self.device.head_flip, self.device.head_edge_ms), (False, None))
+
+    def test_a_look_long_after_the_move_teaches_nothing(self):
+        self.frames(0.8, 0.8)
+        self.clock += timedelta(seconds=headfollow.LEARN_WITHIN_S + 5)  # they walked about since
+        self.frames(-0.5, -0.5)
+        self.device.refresh_from_db()
+        self.assertIsNone(self.device.head_edge_ms)
+
+    def test_the_robots_own_calibration_turns_the_envs_round(self):
+        self.device.head_flip, self.device.head_edge_ms = True, 400
+        self.assertEqual((services.look_at(self.device, 1.0).direction,
+                          services.look_at(self.device, 1.0).duration_ms), ("left", 400))
+        with mock.patch.dict(os.environ, {"ROBOT_HEAD_FLIP": "1"}):
+            self.assertEqual(services.look_at(self.device, 1.0).direction, "right")
+
+    def test_the_owner_turns_it_on_sets_it_and_tries_it_from_the_robots_page(self):
+        from django.contrib.auth.models import User
+        from django.test import Client
+        from django.urls import reverse
+
+        self.device.head_follow, self.device.listening_until = False, None
+        self.device.save()
+        boss = User.objects.create_user("head_boss", password="x", is_staff=True, is_superuser=True)
+        client = Client()
+        client.force_login(boss)
+        url = reverse("robot_ui:device_control", args=[self.device.pk])
+        host = {"HTTP_HOST": self.domain.domain}
+        page = client.get(url, **host)
+        self.assertContains(page, "head_settings")
+        self.assertNotContains(page, "head_try")                        # off: nothing to try
+        client.post(url, {"action": "head_settings", "head_follow": "on", "head_edge_ms": "99999"}, **host)
+        self.device.refresh_from_db()
+        self.assertEqual((self.device.head_follow, self.device.head_flip, self.device.head_edge_ms),
+                         (True, False, headfollow.EDGE_MOST))
+        self.assertContains(client.get(url, **host), "head_try")
+        client.post(url, {"action": "head_try"}, **host)
+        self.device.refresh_from_db()
+        self.assertTrue(headfollow.following(self.device))              # 20 s, nothing said
+        self.assertLessEqual(self.device.listening_until, timezone.now() + timedelta(seconds=headfollow.TRY_S))
+        client.post(url, {"action": "head_settings", "head_follow": "on", "head_flip": "on",
+                          "head_edge_ms": ""}, **host)
+        self.device.refresh_from_db()
+        self.assertEqual((self.device.head_flip, self.device.head_edge_ms), (True, None))   # blank: as set
+
+
 class CameraFrameFollowsTests(ERPTenantTestCase):
     """The ESP32-CAM's live frames are what the head follows."""
 
