@@ -494,7 +494,8 @@ _azure_tts_rest = {"until": 0.0}
 def _azure_tts_ready() -> bool:
     import time
 
-    return (TTS_PROVIDER in ("auto", "azure")
+    # (ROBOT_TTS_PROVIDER=gemini: Azure is its stand-in when Gemini's voice can't)
+    return (TTS_PROVIDER in ("auto", "azure", "gemini")
             and bool(os.getenv("ROBOT_AZURE_SPEECH_KEY", "").strip())
             and bool(os.getenv("ROBOT_AZURE_SPEECH_REGION", "").strip())
             and time.monotonic() >= _azure_tts_rest["until"])
@@ -549,6 +550,81 @@ def _azure_pcm(text: str, rate: int) -> Optional[bytes]:
     return resp.content
 
 
+# Gemini's own voices (ROBOT_TTS_PROVIDER=gemini): more natural Egyptian than Azure's Shakir — the
+# style said before the words, in brackets, is how it's said, not words said — with the key the
+# robot already hears with. Slower (3–4 s a sentence, Azure's well under one): the pieces of a
+# reply are voiced at once, and each is kept (synthesize_wav), so a sentence said before costs nothing.
+GEMINI_TTS_MODEL = "gemini-3.8-flash-tts"     # ROBOT_TTS_GEMINI_MODEL another
+GEMINI_TTS_VOICE = "Alnilam"                  # ROBOT_TTS_GEMINI_VOICE: the male voice the owner picked by ear (no. 3)
+GEMINI_TTS_STYLE = "[بالعامية المصرية، بصوت ودود وطبيعي]"   # ROBOT_TTS_GEMINI_STYLE
+_GEMINI_TTS_TIMEOUT = 12
+_GEMINI_TTS_REST_S = 600            # a wrong key or a used-up quota: Azure for a while, no wasted trip
+_gemini_tts_rest = {"until": 0.0}
+
+
+def _gemini_tts_ready() -> bool:
+    import time
+
+    return TTS_PROVIDER == "gemini" and bool(gemini_key()) and time.monotonic() >= _gemini_tts_rest["until"]
+
+
+def _resampled(pcm: bytes, rate: int, to: int) -> bytes:
+    """16-bit mono PCM from `rate` to `to` Hz (Gemini speaks at 24 kHz, the robot plays 16)."""
+    if rate == to or not pcm:
+        return pcm
+    import numpy as np
+
+    s = np.frombuffer(pcm[: len(pcm) // 2 * 2], dtype="<i2").astype(np.float32)
+    n = max(1, int(len(s) * to / rate))
+    out = np.interp(np.linspace(0, len(s) - 1, n), np.arange(len(s)), s)
+    return np.clip(out, -32768, 32767).astype("<i2").tobytes()
+
+
+def _gemini_pcm(text: str, rate: int) -> Optional[bytes]:
+    """16-bit PCM at `rate` of `text` in Gemini's voice, or None (not chosen, or it failed: Azure then)."""
+    if not text or not _gemini_tts_ready():
+        return None
+    import time
+
+    import requests
+
+    from .language import detect, egyptian_numbers, speakable
+
+    lang = detect(text)
+    if lang == "ar":
+        style = (os.getenv("ROBOT_TTS_GEMINI_STYLE", "") or GEMINI_TTS_STYLE).strip()
+        text = f"{style} {egyptian_numbers(speakable(text))}".strip()
+    model = os.getenv("ROBOT_TTS_GEMINI_MODEL", "").strip() or GEMINI_TTS_MODEL
+    voice = os.getenv("ROBOT_TTS_GEMINI_VOICE", "").strip() or GEMINI_TTS_VOICE
+    body = {"contents": [{"parts": [{"text": text}]}],
+            "generationConfig": {"responseModalities": ["AUDIO"],
+                                 "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}}}
+    try:
+        resp = requests.post(_GEMINI_URL.format(model=model), params={"key": gemini_key()}, json=body,
+                             timeout=_GEMINI_TTS_TIMEOUT)
+    except requests.RequestException as exc:
+        logger.warning("robot TTS: Gemini voice failed, using Azure: %s", exc)
+        return None
+    if resp.status_code != 200:
+        logger.warning("robot TTS: Gemini voice answered %s, using Azure: %s", resp.status_code, resp.text[:200])
+        if resp.status_code in (401, 403, 404, 429):
+            _gemini_tts_rest["until"] = time.monotonic() + _GEMINI_TTS_REST_S
+        return None
+    try:
+        found = resp.json()["candidates"][0]["content"]["parts"][0]["inlineData"]
+        sound = base64.b64decode(found["data"])
+    except (ValueError, KeyError, IndexError, TypeError):
+        logger.warning("robot TTS: Gemini voice gave no sound, using Azure: %s", resp.text[:200])
+        return None
+    parts = wav_parts(sound)
+    if parts:                           # a whole WAV
+        src, pcm = parts[1], parts[2]
+    else:                               # bare samples: «audio/L16;codec=pcm;rate=24000»
+        m = re.search(r"rate=(\d+)", str(found.get("mimeType") or ""))
+        src, pcm = (int(m.group(1)) if m else 24000), sound
+    return _resampled(pcm, src, rate) or None
+
+
 def _gtts_synthesize(text: str, language: str) -> Optional[bytes]:
     """gTTS mp3 bytes (Arabic/English), or None if the lib isn't installed."""
     try:
@@ -572,7 +648,8 @@ _TTS_CACHE_VERSION = 3          # 2: part names said aloud cleaned (language.spe
 
 
 def _tts_cache_key(text: str, rate: int, codec: str) -> str:
-    voices = "|".join(os.getenv(v, "") for v in ("ROBOT_TTS_VOICE_AR", "ROBOT_TTS_VOICE_EN"))
+    voices = "|".join(os.getenv(v, "") for v in ("ROBOT_TTS_VOICE_AR", "ROBOT_TTS_VOICE_EN", "ROBOT_TTS_GEMINI_VOICE",
+                                                 "ROBOT_TTS_GEMINI_STYLE", "ROBOT_TTS_GEMINI_MODEL"))
     raw = f"{_TTS_CACHE_VERSION}|{TTS_PROVIDER}|{voices}|{rate}|{codec}|{text}"
     return "robot:tts:" + hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
@@ -600,6 +677,9 @@ def _pieces(text: str, longest: int = 60) -> list:
 def _voiced_pcm(text: str, language: str, rate: int):
     """(16-bit PCM samples at `rate`, the provider) for one piece, or (None, "").
     No Django in here: it runs on worker threads."""
+    pcm = _gemini_pcm(text, rate)
+    if pcm:
+        return pcm, "gemini"
     pcm = _azure_pcm(text, rate)
     if pcm:
         return pcm, "azure"
@@ -629,7 +709,7 @@ _PIECE = "piece"            # a piece's bare samples, never mistaken for a whole
 def _keepable(provider: str) -> bool:
     # Only the Egyptian neural voice (Azure's or Edge's) is kept: a gTTS
     # stand-in for an outage would otherwise outlive the outage.
-    return provider in ("azure", "edge") or TTS_PROVIDER == "gtts"
+    return provider in ("gemini", "azure", "edge") or TTS_PROVIDER == "gtts"
 
 
 def synthesize_wav(text: str, language: str = "ar", *, rate: int = 16000,

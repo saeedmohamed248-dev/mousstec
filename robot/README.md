@@ -1224,3 +1224,13 @@ file is there — and the robot starts it as soon as nobody's talking (`brain/se
 - **Talk not to the robot is let be.** In the follow-up window (no «يا موس», no button) people in the
   shop talking among themselves («chatter»), or something not understood, was answered «معلش
   مسمعتكش»; now nothing is said and the step waiting still waits. Said with its name, it still asks again.
+
+### A Gemini voice (ROBOT_TTS_PROVIDER=gemini)
+
+The owner wants the robot to sound like a real Egyptian, not a reader of the news. Gemini's own
+voices (`gemini-3.8-flash-tts`, the key the robot already hears with) say Egyptian more naturally than
+Azure's Shakir; the owner picks a male one by ear (`ROBOT_TTS_GEMINI_VOICE`; he chose `Alnilam`, the default).
+The style goes in brackets before the words (`[بالعامية المصرية، بصوت ودود وطبيعي]`) — said as an
+instruction after a colon, Gemini read it aloud. It's slower (about 3.5 s a sentence, Azure under 1 s):
+the pieces of a reply are voiced at once and each is kept, so what was said before costs nothing.
+Gemini refusing (a wrong key, its quota) rests it 10 minutes; Azure speaks meanwhile.
