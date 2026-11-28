@@ -39,7 +39,7 @@ class GeminiVoiceTests(SimpleTestCase):
         self.assertEqual(body["generationConfig"]["speechConfig"]["voiceConfig"]["prebuiltVoiceConfig"]["voiceName"],
                          "Orus")
         said = body["contents"][0]["parts"][0]["text"]
-        self.assertTrue(said.startswith(audio.GEMINI_TTS_STYLE) and said.endswith("أهلاً بحضرتك."))
+        self.assertEqual(said, "أهلاً بحضرتك.")              # the words alone: no instruction to read out
         self.assertIn(audio.GEMINI_TTS_MODEL, post.call_args.args[0])
         self.assertEqual(providers, ["gemini"])
         self.assertEqual(len(audio.wav_parts(wav)[2]), 16000 * 2)      # 1 s at 16 kHz

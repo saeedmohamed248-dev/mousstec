@@ -365,10 +365,12 @@ def _answer_voice_as(transcript: str, device, employee, lang: str, caps, unsure,
         # and «التانية» or «E90» is enough of one (robot/memory.py).
         memory.remember_choices(device, choice_parts)
         names = ans["choices"]
+        # 🐛 [FIX]: الأسامي كانت بتتقال زي ما هي متسجلة («طلمبه مياه b38 f30 f20 (F30 f20)، … (—)»):
+        # جملة طويلة صوتها بياخد وقت. دلوقتي بتتقال زي ما البياع بيقولها (services.choices_said).
         if len(names) == 1:
-            reply = f"تقصد {names[0]}؟ قول اسمها كامل أو رقمها."
+            reply = f"تقصد {services.spoken_name(names[0])}؟ قول اسمها كامل أو رقمها."
         else:
-            reply = "عندي أكتر من صنف: " + "، ".join(names) + ". تقصد أنهي؟"
+            reply = services.choices_said(names)
         return "inventory_query", reply, {"choices": names}
     if not ans.get("found") and unsure:
         # 🐛 [FIX]: the teacher wasn't sure, and nothing here made sense of what it heard: the AI

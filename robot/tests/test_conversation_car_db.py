@@ -63,7 +63,7 @@ class CustomersCarTests(_Shop):
         self.assertEqual(self.say("عندكم قطع غيار بي ام؟"), BMW_REPLY)
         # 🐛 كان بيعرض طرمبة المرسيدس كمان: «عندكم بي ام» اتقالت ومحدش افتكرها
         self.assertEqual(self.say("طيب عندك طرمبة مية؟"),
-                         "عندي أكتر من صنف: طرمبة مية (E90)، طرمبة مية (F30). تقصد أنهي؟")
+                         "عندي نوعين طرمبة مية: E90، F30. تقصد أنهي؟")
         self.assertIn("2100", self.say("التانية"))
         self.assertIn("2100", self.say("وبكام يا باشا؟"))     # 🐛 «يا باشا» كانت بتخليها سؤال جديد
         # 🐛 كان بيعرض فلاتر كل العربيات: عربية العميل (F30) اتنسيت
@@ -82,7 +82,7 @@ class CustomersCarTests(_Shop):
 
     def test_no_car_known_asks_as_before(self):
         self.assertEqual(self.say("عندك طرمبة مية؟"),
-                         "عندي أكتر من صنف: طرمبة مية (E90)، طرمبة مية (F30)، طرمبة مية (W204). تقصد أنهي؟")
+                         "عندي تلات أنواع طرمبة مية: E90، F30، W204. تقصد أنهي؟")
 
     def test_a_new_customer_starts_over(self):
         self.say("عندك طرمبة مية F30؟")
@@ -103,7 +103,7 @@ class CustomersCarTests(_Shop):
     def test_yes_takes_the_one_part_offered(self):
         shocks = make_product(name="مساعدين خلفي فيرنا", car_model="Verna", retail_price="950")
         make_inventory(shocks, self.branch, quantity=1)
-        self.assertEqual(self.say("عندك مساعد؟"), "تقصد مساعدين خلفي فيرنا (Verna)؟ قول اسمها كامل أو رقمها.")
+        self.assertEqual(self.say("عندك مساعد؟"), "تقصد مساعدين خلفي فيرنا Verna؟ قول اسمها كامل أو رقمها.")
         self.assertIn("950", self.say("أيوه"))                  # كان «ملقتش القطعة دي»
 
 

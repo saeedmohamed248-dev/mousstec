@@ -74,7 +74,7 @@ from .stock_take import (  # noqa: F401
 )
 
 # أسماء بشرطة تحتية (مش في القوايم اللي فوق) — كانت متاحة من الملف القديم
-from .catalog import _ARABIC_DIGITS, _ARTICLES, _CALIBRATION_MIN_SALES, _QUESTION_WORDS, _choice_label, _forms, _part_words, _spellings  # noqa: F401
+from .catalog import _ARABIC_DIGITS, _ARTICLES, _CALIBRATION_MIN_SALES, _QUESTION_WORDS, _choice_label, _forms, choices_said, spoken_name, _part_words, _spellings  # noqa: F401
 from .device import _STAFF_ASKED, _STAFF_WORDS, _WEAR_MIN_SAMPLES, _WEAR_RATIO, _dt_time  # noqa: F401
 from .ai import _AI_ENGLISH, _AI_FACTS_PROMPT, _AI_SYSTEM_PROMPT, _CURRENCY, _MARKUP, _NUMBER, _WEB_PROMPT, _WEEKDAYS, _shop_and_time  # noqa: F401
 from .pos import _cash_treasury  # noqa: F401
