@@ -247,7 +247,16 @@ def match_part_in_sentence(text: str, car=None):
         for spelling in {s for form in _forms(w) for s in _spellings(form)}:
             name_q |= Q(name__icontains=spelling)
     from ..brain.knowledge import the_part
-    noun = _forms(the_part(keys)) if the_part(keys) else set()
+
+    def named(word):
+        spelled = Q()
+        for spelling in {s for form in _forms(word) for s in _spellings(form)}:
+            spelled |= Q(name__icontains=spelling)
+        return any(_forms(word) & set(_part_words(n))
+                   for n in Product.objects.filter(spelled, is_active=True).values_list("name", flat=True)[:30])
+
+    word = the_part(keys, named)
+    noun = _forms(word) if word else set()
     scored = []
     for product in Product.objects.filter(name_q, is_active=True)[:200]:
         name_words = set(_part_words(product.name))

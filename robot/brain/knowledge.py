@@ -174,11 +174,12 @@ _QUESTION_WORDS = frozenset("""
 _QUESTION_WORDS = _QUESTION_WORDS | FILLERS          # robot/brain/slang.py
 
 
-def the_part(keys: list) -> str:
-    """The word that names the part asked for — the first that isn't a car or engine code
-    («فانوس» in «فانوس خلفي X3»). 🐛 [FIX]: «فانوس خلفي X3» offered brake pads, a wiper and shocks
-    («خلفي» and «X3» in their names): a part whose name hasn't this word isn't offered."""
-    return next((w for w in keys if not any(c.isdigit() for c in w)), "")
+def the_part(keys: list, named) -> str:
+    """The word that names the part asked for: the first one (not a code) the shop's own names use —
+    «فانوس» in «عندك فانوس خلفي X3» («بسأل»، «عربيتي مرسيدس» aren't in any). `named(word)`: whether
+    some part's name has it. 🐛 [FIX]: «فانوس خلفي X3» offered brake pads, a wiper and shocks («خلفي»
+    and «X3» in their names): a part whose name hasn't this word isn't offered."""
+    return next((w for w in keys if not any(c.isdigit() for c in w) and named(w)), "")
 
 
 def part_words(text: str) -> list:
@@ -492,7 +493,8 @@ class Knowledge:
         if not keys or all(w.isdigit() for w in keys) and len("".join(keys)) < CODE_IN_TEXT:
             return None, []                    # «123»: a PIN said aloud, not a part (robot/services too)
         spellings = {s for w in keys[:8] for form in _forms(w) for s in _spellings(form)}
-        noun = _forms(the_part(keys)) if the_part(keys) else set()
+        word = the_part(keys, lambda w: any(_forms(w) & p.name_words for p in self.parts if p.active))
+        noun = _forms(word) if word else set()
         scored = []
         for part in self.parts:
             if not part.active or not any(s in part.name.lower() for s in spellings):

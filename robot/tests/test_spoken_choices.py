@@ -42,8 +42,9 @@ class ThePartAskedForTests(unittest.TestCase):
         part, choices = k.lookup("عندك فانوس خلفي X3")
         self.assertTrue(part is None or "فانوس" in part.name)
         self.assertTrue(all("فانوس" in c.name for c in choices))
-        self.assertEqual(knowledge.the_part(["فانوس", "خلفي", "x3"]), "فانوس")
-        self.assertEqual(knowledge.the_part(["x3", "مساعد"]), "مساعد")
+        named = {"فانوس", "خلفي", "مساعد"}.__contains__
+        self.assertEqual(knowledge.the_part(["بسال", "فانوس", "خلفي", "x3"], named), "فانوس")
+        self.assertEqual(knowledge.the_part(["x3", "مساعد"], named), "مساعد")
 
     def test_a_pin_said_aloud_is_no_part(self):
         from robot.brain import knowledge

@@ -141,3 +141,47 @@ class RemembersThePersonTests(ERPTenantTestCase):
         self.assertEqual((who["kind"], who["name"]), ("employee", employee.name))
         self.assertTrue(agent._remember(who, "بيحب الشاي من غير سكر")["saved"])
         self.assertEqual(agent.person(self.device, employee)["about"], ["بيحب الشاي من غير سكر"])
+
+
+@override_settings(ROBOT_AGENT=True, GEMINI_API_KEY="gm-key")
+class TheBrainDoesThingsTests(ERPTenantTestCase):
+    """«عاوزه يقدر يعمل كل حاجة على السيستم»: what someone asks to do goes through the robot's own steps
+    (the PIN for money, as ever) — and «تعرف تشغل أغاني؟» plays music."""
+
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self.branch = Branch.objects.order_by("id").first() or make_branch(name="المعادي")
+        self.device = RobotDevice(name="موس", device_uid="esp-agent-does", branch=self.branch)
+        self.device.issue_token()
+        self.device.save()
+
+    def test_asked_for_music_it_plays_it(self):
+        with _gemini({"name": "do", "args": {"command": "شغل مزيكا هادية"}}, "لن يقال"):
+            intent, reply, payload = views._handle_voice("تعرف تشغلي أغاني؟", self.device, None,
+                                                         caps=frozenset({"media"}))
+        self.assertEqual(intent, "command")
+        self.assertNotEqual(reply, "لن يقال")                            # the robot's own words
+
+    def test_an_invoice_asked_for_is_the_wizards_with_its_pin(self):
+        with _gemini({"name": "do", "args": {"command": "اعمل فاتورة مبيعات"}}, "لن يقال"):
+            _intent, reply, _payload = views._handle_voice("الزبون ده عايز ياخد حاجات، سجلهاله", self.device, None)
+        self.assertNotEqual(reply, "لن يقال")
+        from robot import wizard
+        self.assertTrue(wizard.active(self.device) or "الرقم السري" in reply, reply)
+
+    def test_invoices_are_for_staff(self):
+        from inventory.models import Customer, SaleInvoice
+        from inventory.tests.factories import make_employee
+        from hr.models import Employee
+
+        self.assertFalse(agent.call("find_invoices", {"query": "أحمد"}, self.device, None)["allowed"])
+        customer = Customer.objects.create(name="أحمد سعيد الكنج", phone="01055556666")
+        SaleInvoice.objects.create(customer=customer, branch=self.branch, invoice_type="sale",
+                                   total_amount=3000, paid_amount=1000)
+        user, _ = make_employee(username="inv_staff", role="cashier", branch=self.branch)
+        employee, _ = Employee.objects.get_or_create(user=user)
+        got = agent.call("find_invoices", {"query": "أحمد سعيد"}, self.device, employee)["invoices"]
+        self.assertEqual((got[0]["customer"], got[0]["left"]), ("أحمد سعيد الكنج", services.spoken_price(2000)))
