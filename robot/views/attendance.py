@@ -159,6 +159,9 @@ def customer_greet(request):
     face = customers_svc.remember_visit(
         customer, embedding=embedding, may_enroll_face=may_enroll
     )
+    # Who's in front now: the robot's brain talks to them by name and remembers what they say
+    # (robot/agent.py) until someone new comes.
+    memory.remember(device, customer_id=customer.id)
     info = customers_svc.customer_greeting(
         customer, method=method, visit_count=face.visit_count,
         notes=face.notes,

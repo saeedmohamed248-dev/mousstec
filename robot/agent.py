@@ -27,6 +27,9 @@ from typing import Optional
 logger = logging.getLogger("mouss_tec_core")
 
 STEPS = 4                  # tool rounds before an answer
+ABOUT_MOST = 12            # facts kept about one person (the newest)
+ABOUT_LONGEST = 120
+EMPLOYEE_ABOUT_S = 90 * 24 * 3600
 TIMEOUT_S = 6              # one model, one round
 BUDGET_S = 9               # all of it: the customer is waiting
 PARTS_SAID = 5
@@ -42,7 +45,10 @@ PROMPT = """\
 - انت مش بتعمل عمليات (فاتورة، شرا، مخزون، تحصيل): لو حد عايز يعمل حاجة قوله يقول مثلاً «اعمل
   فاتورة مبيعات» أو «ضيف للمخزون» والروبوت هيمشي معاه خطوة خطوة.
 - أرقام المحل (المبيعات، الخزنة، الحسابات) للموظفين بس: الأداة بتقولك لو الشخص مسموحله ولا لأ.
-- أي موضوع عام (عربيات، صيانة، كورة، أي حاجة) اتكلم فيه عادي بلطف ومعلومة مفيدة.
+- أي موضوع عام (عربيات، صيانة، كورة، أي حاجة) اتكلم فيه عادي بلطف ومعلومة مفيدة، وكمّل النقاش معاه:
+  افتكر اللي اتقال قبل كده، وارجعله بسؤال أو رأي لو ده طبيعي.
+- لو عرفت حاجة عن الشخص اللي بتكلمه تنفعه المرة الجاية (عربيته وموديلها، القطعة اللي بيدور عليها، شغلته،
+  اهتماماته) احفظها بأداة remember في جملة قصيرة. متحفظش أرقام موبايلات ولا حاجات شخصية حساسة.
 {now}{branch}
 """
 
@@ -85,6 +91,12 @@ TOOLS = [{"functionDeclarations": [
      "parameters": {"type": "object", "properties": {
          "who": {"type": "string", "enum": ["customer", "vendor"]},
          "name": {"type": "string"}}, "required": ["who", "name"]}},
+    {"name": "staff",
+     "description": "موظفين المحل: الأسامي والوظيفة والقسم (من غير مرتبات). مين حاضر النهارده من shop_numbers.",
+     "parameters": {"type": "object", "properties": {}}},
+    {"name": "remember",
+     "description": "احفظ حاجة عن الشخص اللي بتكلمه دلوقتي علشان تفتكرها المرة الجاية (جملة قصيرة).",
+     "parameters": {"type": "object", "properties": {"fact": {"type": "string"}}, "required": ["fact"]}},
     {"name": "shop_info",
      "description": "معلومات المحل اللي صاحبه كتبها: المواعيد، العنوان، التليفون، الدفع، الضمان، التوصيل، "
                     "المرتجعات، وأسامي الفروع.",
@@ -164,6 +176,14 @@ def _account_balance(device, employee, who: str, name: str) -> dict:
     return {"answer": reply, "allowed": payload.get("action") != "denied"}
 
 
+def _staff() -> dict:
+    from hr.models import Employee
+
+    rows = Employee.objects.filter(is_active=True).select_related("user")[:40]
+    return {"staff": [{"name": e.name, "job": (e.job_title or "").strip(), "department": (e.department or "").strip()}
+                      for e in rows]}
+
+
 def _shop_info(device) -> dict:
     from inventory.models import Branch
 
@@ -173,9 +193,101 @@ def _shop_info(device) -> dict:
             "branches": list(Branch.objects.values_list("name", flat=True)[:20])}
 
 
-def call(name: str, args: dict, device, employee) -> dict:
+# ---------------------------------------------------------------------------
+# Who's in front of it: remembered, and what's remembered about them
+# ---------------------------------------------------------------------------
+
+def _employee_key(employee) -> str:
+    return f"robot:about:employee:{employee.pk}"
+
+
+def person(device, employee=None) -> Optional[dict]:
+    """The person the robot is talking to, and what it knows of them — an employee its camera
+    knows, or the customer it greeted (robot/views/attendance.customer_greet) — or None."""
+    from django.core.cache import cache
+
+    from . import customers, memory
+
+    if employee is not None:
+        try:
+            about = cache.get(_employee_key(employee)) or []
+        except Exception:
+            about = []
+        return {"kind": "employee", "id": employee.pk, "name": getattr(employee, "name", "") or "", "about": about}
+    cid = memory.recall(device).get("customer_id")
+    if not cid:
+        return None
+    from inventory.models import Customer
+
+    from .models import RobotCustomerFace
+
+    customer = Customer.objects.filter(pk=cid).first()
+    if customer is None:
+        return None
+    face = RobotCustomerFace.objects.filter(customer=customer).first()
+    notes = dict(getattr(face, "notes", None) or {})
+    part, _when = customers.last_purchase(customer)
+    return {"kind": "customer", "id": customer.pk, "name": customer.name, "about": list(notes.get("about") or []),
+            "visits": getattr(face, "visit_count", 0) or 0, "car": customers.favorite(notes, "car_models") or "",
+            "last_bought": part or ""}
+
+
+def _remember(who: Optional[dict], fact: str) -> dict:
+    """A fact about the person in front, kept for next time: a customer's on their record
+    (RobotCustomerFace.notes["about"]), an employee's for 90 days."""
+    from django.core.cache import cache
+
+    fact = " ".join(str(fact or "").split())[:ABOUT_LONGEST]
+    if not who or not fact:
+        return {"saved": False, "why": "مش عارف مين اللي بكلمه"}
+    if any(ch.isdigit() for ch in fact) and len([c for c in fact if c.isdigit()]) >= 7:
+        return {"saved": False, "why": "أرقام موبايلات وحاجات شخصية مبتتحفظش"}
+    about = [a for a in (who.get("about") or []) if a != fact] + [fact]
+    about = about[-ABOUT_MOST:]
+    if who["kind"] == "employee":
+        cache.set(f"robot:about:employee:{who['id']}", about, EMPLOYEE_ABOUT_S)
+    else:
+        from inventory.models import Customer
+
+        from .models import RobotCustomerFace
+
+        customer = Customer.objects.filter(pk=who["id"]).first()
+        if customer is None:
+            return {"saved": False}
+        face, _ = RobotCustomerFace.objects.get_or_create(customer=customer)
+        notes = dict(face.notes or {})
+        notes["about"] = about
+        face.notes = notes
+        face.save(update_fields=["notes"])
+    who["about"] = about
+    return {"saved": True}
+
+
+def _who_said(who: Optional[dict]) -> str:
+    """The person, for the prompt."""
+    if not who:
+        return ""
+    if who["kind"] == "employee":
+        line = f"\nاللي بتكلمه دلوقتي: {who['name']}، من موظفين المحل."
+    else:
+        line = f"\nاللي بتكلمه دلوقتي: الزبون {who['name']}"
+        if who.get("visits", 0) > 1:
+            line += f"، زارنا قبل كده {who['visits']} مرات"
+        if who.get("car"):
+            line += f"، وعربيته غالباً {who['car']}"
+        if who.get("last_bought"):
+            line += f"، وآخر حاجة اشتراها {who['last_bought']}"
+        line += ". ناديه باسمه أحياناً."
+    if who.get("about"):
+        line += " اللي فاكره عنه: " + "؛ ".join(who["about"]) + "."
+    return line
+
+
+def call(name: str, args: dict, device, employee, who: Optional[dict] = None) -> dict:
     """One tool, as Gemini asked for it — its result, or what went wrong (never an exception)."""
     try:
+        if name == "remember":
+            return _remember(who, str(args.get("fact") or ""))
         if name == "find_parts":
             return _find_parts(device, str(args.get("query") or ""))
         if name == "part_details":
@@ -184,6 +296,8 @@ def call(name: str, args: dict, device, employee) -> dict:
             return _shop_numbers(device, employee, str(args.get("kind") or ""))
         if name == "account_balance":
             return _account_balance(device, employee, str(args.get("who") or ""), str(args.get("name") or ""))
+        if name == "staff":
+            return _staff()
         if name == "shop_info":
             return _shop_info(device)
     except Exception:                       # a tool that broke says so; the answer goes on
@@ -226,9 +340,12 @@ def _ask(contents: list, system: str, timeout: float) -> Optional[dict]:
     return None
 
 
-def answer(device, employee, said: str, lang: str = "ar", *, history=(), facts: str = "") -> str:
+def answer(device, employee, said: str, lang: str = "ar", *, history=(), facts: str = "",
+           longest: int = LONGEST, context: str = "") -> str:
     """What the robot says to `said`, from the system's own data — '' when Gemini can't (the
-    caller falls back to services.ai_reply)."""
+    caller falls back to services.ai_reply). `context`: who wrote it when it isn't the person in
+    front of the robot (a comment on the shop's Facebook live — robot/fblive.py): nobody's memory
+    is used or kept for it."""
     from . import language, services
     from .pricing import redact
     from .services.ai import _AI_ENGLISH, _shop_and_time, invented_price
@@ -240,6 +357,10 @@ def answer(device, employee, said: str, lang: str = "ar", *, history=(), facts: 
     branch = getattr(device.branch, "name", "") or ""
     system = PROMPT.format(robot=(getattr(device, "wake_name", "") or "موس").strip(), shop=filled["shop"],
                            now=filled["now"].strip(), branch=f" وانت في فرع {branch}." if branch else "")
+    who = None if context else person(device, employee)
+    system += _who_said(who)
+    if context:
+        system += "\n" + context
     if facts:
         system += "\nالقطعة اللي الزبون بيتكلم عنها دلوقتي:\n" + facts
     if lang == "en":
@@ -267,7 +388,7 @@ def answer(device, employee, said: str, lang: str = "ar", *, history=(), facts: 
         contents.append({"role": "model", "parts": parts})
         results = []
         for fc in calls:
-            got = call(str(fc.get("name") or ""), fc.get("args") or {}, device, employee)
+            got = call(str(fc.get("name") or ""), fc.get("args") or {}, device, employee, who)
             seen.append(json.dumps(got, ensure_ascii=False))
             answered = {"name": fc.get("name"), "response": got}
             if fc.get("id"):                # Gemini 3 pairs each answer with its call
@@ -279,7 +400,7 @@ def answer(device, employee, said: str, lang: str = "ar", *, history=(), facts: 
         return ""
     if lang != "en" and language.detect(reply) == "en":
         return ""
-    reply = redact(reply[:LONGEST])
+    reply = redact(reply[:longest])
     if invented_price(reply, "\n".join(seen)):
         logger.warning("robot agent: dropped an answer with a price no tool gave")
         return ""
